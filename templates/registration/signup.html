@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>회원가입</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        form { display: inline-block; border: 1px solid #ccc; padding: 20px; border-radius: 5px; text-align: left; }
+        p { margin: 10px 0; }
+        button { padding: 10px 20px; }
+        .errorlist { color: red; list-style: none; padding: 0; }
+    </style>
+</head>
+<body>
+
+<h2>회원가입</h2>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">가입하기</button>
+</form>
+
+</body>
+</html>
