@@ -76,8 +76,15 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'dbjacknov',         # 가비아 제어판의 'DB 이름'
+        'USER': 'jacknov',           # 가비아 제어판의 '접속 ID'
+        'PASSWORD': 'lee+yoon2025', # 가비아 제어판에서 설정/확인한 비밀번호
+        'HOST': 'db.jacknov.gabia.io', # 가비아 제어판의 '주소'
+        'PORT': '3306',              # MySQL 기본 포트. 변경할 필요 없음
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+        }
     }
 }
 
