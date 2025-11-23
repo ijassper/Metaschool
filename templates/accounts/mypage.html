@@ -1,42 +1,44 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %} <!-- base.html을 뼈대로 사용하겠다는 선언 -->
 
 {% block content %}
-<div class="container mt-5">
-    <h2>{{ user.username }} 선생님의 학급 관리</h2>
-    <hr>
-    
-    <div class="card">
-        <div class="card-header">
-            학생 명렬표
-            <button class="btn btn-primary btn-sm float-end">학생 추가하기</button>
-        </div>
-        <div class="card-body">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>연번</th>
-                        <th>학년</th>
-                        <th>반</th>
-                        <th>번호</th>
-                        <th>이름</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for student in students %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td> <!-- 1, 2, 3... 자동 번호 -->
-                        <td>{{ student.grade }}</td>
-                        <td>{{ student.class_no }}</td>
-                        <td>{{ student.number }}</td>
-                        <td>{{ student.name }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center">등록된 학생이 없습니다.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">📋 학생 명렬표</h5>
+                <button class="btn btn-light btn-sm text-primary fw-bold">+ 학생 추가</button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0 text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th>연번</th>
+                            <th>학년</th>
+                            <th>반</th>
+                            <th>번호</th>
+                            <th>이름</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ student.grade }}</td>
+                            <td>{{ student.class_no }}</td>
+                            <td>{{ student.number }}</td>
+                            <td>{{ student.name }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="py-5 text-muted">
+                                <p class="mb-0">등록된 학생이 없습니다.</p>
+                                <small>우측 상단 버튼을 눌러 학생을 등록해주세요.</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
