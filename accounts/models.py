@@ -19,3 +19,16 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+    
+# 학생 데이터 모델
+class Student(models.Model):
+    # 담당 교사 (교사가 탈퇴하면 학생 정보도 같이 삭제됨)
+    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    
+    grade = models.IntegerField(verbose_name="학년")
+    class_no = models.IntegerField(verbose_name="반")
+    number = models.IntegerField(verbose_name="번호")
+    name = models.CharField(max_length=20, verbose_name="이름")
+
+    def __str__(self):
+        return f"{self.grade}학년 {self.class_no}반 {self.name}"

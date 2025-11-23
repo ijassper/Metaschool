@@ -130,7 +130,15 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
+# [보안 설정] 403 에러 해결을 위해 도메인 허용
+CSRF_TRUSTED_ORIGINS = [
+    'https://jacknov.gabia.io',
+    'http://jacknov.gabia.io',
+]
 
+# [이동 경로 설정] 로그인 또는 회원가입 성공 시 이동할 URL
+LOGIN_REDIRECT_URL = '/accounts/mypage/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# [커스텀 유저 모델 설정] 기본 유저 모델 대신 accounts 앱의 User 모델 사용
 AUTH_USER_MODEL = 'accounts.User'
