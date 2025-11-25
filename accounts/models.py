@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 
-class User(AbstractUser):
+class CustomUser(AbstractUser):
     # 이메일을 아이디로 사용하므로 username은 더 이상 필수 필드가 아님
     username = models.CharField(max_length=150, unique=False, null=True, blank=True)
     email = models.EmailField(unique=True, verbose_name='email address')

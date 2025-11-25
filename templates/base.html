@@ -22,7 +22,7 @@
                 {% if user.is_authenticated %}
                     <!-- 로그인 했을 때 보이는 메뉴 -->
                     <span class="me-3 text-secondary">
-                        <strong>{{ user.username }}</strong> 선생님
+                        <strong>{{ user.name }}</strong> 선생님
                     </span>
                     <form action="{% url 'logout' %}" method="post" style="display: inline;">
                         {% csrf_token %}

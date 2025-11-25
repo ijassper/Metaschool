@@ -6,7 +6,17 @@
         <div class="card shadow-sm border-0">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">📋 학생 명렬표</h5>
-                <button class="btn btn-light btn-sm text-primary fw-bold">+ 학생 추가</button>
+                <div>
+                    <!-- 1. 일괄 등록 버튼 (팝업 띄우기) -->
+                    <button type="button" class="btn btn-success btn-sm me-2" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> 엑셀 일괄 등록
+                    </button>
+                    
+                    <!-- 2. 개별 등록 버튼 (새 페이지로 이동) -->
+                    <a href="{% url 'student_create' %}" class="btn btn-light btn-sm text-primary fw-bold">
+                        + 학생 개별 등록
+                    </a>
+                </div>
             </div>
             <div class="card-body p-0">
                 <table class="table table-hover mb-0 text-center">
