@@ -6,7 +6,7 @@ from django.contrib.auth import login  # 자동 로그인을 위해 필요
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages  # 알림 메시지(성공/실패)를 위해 필요
 from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
-from .forms import CustomUserCreationForm
+from .forms import CustomUserCreationForm, StudentForm
 from .models import Student, CustomUser  # Student와 CustomUser 모델 모두 가져오기
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
