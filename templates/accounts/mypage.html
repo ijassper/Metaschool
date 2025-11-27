@@ -52,4 +52,26 @@
         </div>
     </div>
 </div>
+<!-- 엑셀 업로드 모달 -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">학생 일괄 등록</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{% url 'student_upload' %}" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="modal-body">
+            <p>엑셀 파일(.xlsx)을 업로드해주세요.</p>
+            <input class="form-control" type="file" name="excel_file" required accept=".xlsx, .xls">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+            <button type="submit" class="btn btn-primary">등록하기</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}

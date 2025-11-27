@@ -2,20 +2,32 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import CustomUser, Student
 
+# 교사 회원가입 폼
 class CustomUserCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = CustomUser
         # 필드 순서 중요: 이메일을 가장 먼저 입력받음 (username 제외)
         fields = ('email', 'name', 'phone', 'school', 'subject')
 
-    # [핵심] 저장할 때: 입력받은 '이메일'을 '아이디(username)' 칸에도 똑같이 복사해서 저장
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # [핵심] 모든 필드에 부트스트랩 디자인(form-control) 자동 적용
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'form-control'
+        
+        # 각 필드별 placeholder(안내 문구) 설정
+        self.fields['name'].widget.attrs['placeholder'] = '이름 (예: 홍길동)'
+        self.fields['phone'].widget.attrs['placeholder'] = '010-1234-5678'
+        self.fields['subject'].widget.attrs['placeholder'] = '담당 과목 (예: 영어, 수학)'
+
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.username = user.email  # ★ 이메일을 아이디로 사용
+        user.username = user.email  # 이메일을 아이디로 사용
         if commit:
             user.save()
         return user
-    
+
+# 학생 등록 폼
 class StudentForm(forms.ModelForm):
     class Meta:
         model = Student

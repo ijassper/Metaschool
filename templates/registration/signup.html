@@ -1,12 +1,238 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2>회원가입 테스트</h2>
-    <form method="post" action="{% url 'signup' %}">
-        {% csrf_token %}
-        {{ form.as_p }} <!-- 장고야, 네가 가진 필드 다 보여줘봐 -->
-        <button type="submit" class="btn btn-primary">가입</button>
-    </form>
+<div class="row justify-content-center my-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow border-0">
+            <div class="card-header bg-white text-center py-4">
+                <h3 class="fw-bold text-primary mb-0">교사 회원가입</h3>
+                <p class="text-muted small mt-2 mb-0">학생들의 성장을 돕는 Metaschool에 오신 것을 환영합니다.</p>
+            </div>
+            
+            <div class="card-body p-4">
+                <form method="post" action="{% url 'signup' %}" id="signupForm" onsubmit="return combineEmail()">
+                    {% csrf_token %}
+                    
+                    <!-- 에러 메시지 표시 (숨겨진 에러 확인용) -->
+                    {% if form.errors %}
+                        <div class="alert alert-danger p-2 small">
+                            <strong>입력 정보를 확인해주세요:</strong>
+                            <ul class="mb-0 ps-3">
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                        <li>{{ field.label }}: {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <!-- 1. [수동 구현] 이메일 (아이디) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">아이디(이메일) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="email_id" placeholder="이메일 앞자리" required>
+                            <span class="input-group-text">@</span>
+                            <input type="text" class="form-control" id="email_domain" placeholder="직접입력" required>
+                            <select class="form-select" id="email_select" onchange="setEmailDomain(this)">
+                                <option value="self">직접입력</option>
+                                <option value="naver.com">naver.com</option>
+                                <option value="gmail.com">gmail.com</option>
+                                <option value="korea.kr">korea.kr</option>
+                            </select>
+                        </div>
+                        <div id="emailCheckResult" class="form-text mt-1"></div>
+                        <!-- ★ 중요: 실제 서버로 전송될 히든 필드 (이름이 email이어야 함) -->
+                        <input type="hidden" name="email" id="real_email">
+                    </div>
+
+                    <!-- 2. [장고 자동] 비밀번호 -->
+                    <!-- 장고가 알아서 name을 맞춰줍니다. (디자인은 forms.py에서 처리함) -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">비밀번호 <span class="text-danger">*</span></label>
+                            <!-- 장고가 렌더링하는 비밀번호 입력칸 -->
+                            {{ form.password }} 
+                            <!-- UserCreationForm을 상속받았다면 보통 필드명이 'password'가 아닐 수 있으니 아래 방식 사용 -->
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">비밀번호 확인 <span class="text-danger">*</span></label>
+                            <!-- 장고가 렌더링하는 확인 입력칸 -->
+                            {{ form.password_confirmation }} 
+                            <!-- 만약 화면에 아무것도 안 나오면, 아래 '비상 대책' 참고 -->
+                        </div>
+                    </div>
+                    <!-- (혹시 위 코드로 입력칸이 안 나오면, 하단 비상 대책 코드로 교체하세요) -->
+
+                    <!-- 3. [장고 자동] 이름 & 연락처 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">이름 <span class="text-danger">*</span></label>
+                        {{ form.name }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">연락처</label>
+                        {{ form.phone }}
+                    </div>
+
+                    <!-- 4. [수동 구현] 학교 검색 -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">소속 학교</label>
+                        <div class="input-group">
+                            <input type="text" id="schoolNameDisplay" class="form-control bg-white" placeholder="학교를 검색해주세요" readonly required>
+                            <!-- ★ 중요: 실제 서버로 전송될 히든 필드 (이름이 school이어야 함) -->
+                            <input type="hidden" name="school" id="schoolIdInput">
+                            <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#schoolSearchModal">
+                                <i class="bi bi-search"></i> 검색
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 5. [장고 자동] 담당 과목 -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">담당 과목</label>
+                        {{ form.subject }}
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold">가입완료</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- 학교 검색 모달 -->
+<div class="modal fade" id="schoolSearchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">학교 검색</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group mb-3">
+                    <input type="text" id="schoolSearchInput" class="form-control" placeholder="학교명 (예: 가락)">
+                    <button class="btn btn-primary" onclick="searchSchool()">검색</button>
+                </div>
+                <div class="list-group" id="schoolResultList" style="max-height: 200px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. 이메일 도메인 선택 로직
+    function setEmailDomain(select) {
+        const domainInput = document.getElementById('email_domain');
+        if (select.value === 'self') {
+            domainInput.value = '';
+            domainInput.readOnly = false;
+            domainInput.focus();
+        } else {
+            domainInput.value = select.value;
+            domainInput.readOnly = true;
+        }
+        checkEmailDuplicate(); // 변경 시 중복체크 시도
+    }
+
+    // 2. 이메일 중복 체크 & 합치기
+    const emailId = document.getElementById('email_id');
+    const emailDomain = document.getElementById('email_domain');
+    const resultMsg = document.getElementById('emailCheckResult');
+
+    function checkEmailDuplicate() {
+        if(emailId.value.length < 2 || emailDomain.value.length < 3) return;
+        
+        const fullEmail = emailId.value + '@' + emailDomain.value;
+        
+        fetch(`/accounts/check-email/?email=${fullEmail}`)
+            .then(res => res.json())
+            .then(data => {
+                if(data.is_taken) {
+                    resultMsg.innerHTML = '<span class="text-danger">❌ 이미 가입된 이메일입니다.</span>';
+                } else {
+                    resultMsg.innerHTML = '<span class="text-success">✅ 사용 가능한 이메일입니다.</span>';
+                }
+            });
+    }
+    
+    // 입력할 때마다 체크
+    emailId.addEventListener('keyup', checkEmailDuplicate);
+    emailDomain.addEventListener('keyup', checkEmailDuplicate);
+
+    /*
+    // 3. 비밀번호 일치 확인
+    const pw1 = document.getElementById('password');
+    const pw2 = document.getElementById('password_confirm');
+    const pwMsg = document.getElementById('pwCheckResult');
+    
+    function checkPassword() {
+        if(pw1.value !== pw2.value) {
+            pwMsg.innerHTML = '<span class="text-danger">비밀번호가 일치하지 않습니다.</span>';
+        } else {
+            pwMsg.innerHTML = '<span class="text-success">비밀번호가 일치합니다.</span>';
+        }
+    }
+    pw2.addEventListener('keyup', checkPassword);
+    */
+
+    // 3. 폼 제출 전 이메일 합치기
+    function combineEmail() {
+        const fullEmail = emailId.value + '@' + emailDomain.value;
+        document.getElementById('real_email').value = fullEmail;
+        return true;
+    }
+
+    // 4. 학교 검색 기능
+    function searchSchool() {
+        const query = document.getElementById('schoolSearchInput').value;
+        if (query.length < 1) {
+            alert("검색어를 입력해주세요.");
+            return;
+        }
+
+        // 검색 API 호출
+        fetch(`/accounts/search/school/?q=${query}`)
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('schoolResultList');
+                list.innerHTML = ''; // 기존 목록 비우기
+
+                if(data.results.length === 0) {
+                    list.innerHTML = '<div class="p-3 text-muted text-center">검색 결과가 없습니다.<br>학교명을 정확히 입력해주세요.</div>';
+                    return;
+                }
+
+                data.results.forEach(school => {
+                    const item = document.createElement('button');
+                    item.className = 'list-group-item list-group-item-action';
+                    item.innerText = `${school.name} (${school.office})`;
+                    item.type = 'button'; // 폼 제출 방지
+                    item.onclick = () => {
+                        document.getElementById('schoolNameDisplay').value = school.name;
+                        document.getElementById('schoolIdInput').value = school.id; // DB ID 저장
+                        // 모달 닫기
+                        bootstrap.Modal.getInstance(document.getElementById('schoolSearchModal')).hide();
+                    };
+                    list.appendChild(item);
+                });
+            })
+            .catch(err => {
+                console.error(err);
+                alert("검색 중 오류가 발생했습니다.");
+            });
+    }
+
+    // 엔터키 입력 시 검색 실행 (폼 제출 방지)
+    document.getElementById('schoolSearchInput').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // 엔터키가 폼을 제출해버리는 기본 동작 막기
+            searchSchool();         // 검색 함수 실행
+        }
+    });
+</script>
 {% endblock %}
