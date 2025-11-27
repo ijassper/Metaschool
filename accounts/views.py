@@ -1,5 +1,6 @@
 import pandas as pd  # 엑셀 처리를 위해 필요
 from django.urls import reverse_lazy
+from django.http import JsonResponse  # 검색 기능을 위해 필요
 from django.views import generic
 from django.shortcuts import render, redirect
 from django.contrib.auth import login  # 자동 로그인을 위해 필요
@@ -7,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages  # 알림 메시지(성공/실패)를 위해 필요
 from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from .forms import CustomUserCreationForm, StudentForm
-from .models import Student, CustomUser  # Student와 CustomUser 모델 모두 가져오기
+from .models import Student, CustomUser, School  # Student, CustomUser, School 모델 모두 가져오기
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
 class SignUpView(generic.CreateView):
@@ -23,7 +24,7 @@ class SignUpView(generic.CreateView):
         login(self.request, user)
         return response
 
-# 2. 마이페이지 뷰 (기존 유지)
+# 2. 마이페이지 뷰
 @login_required
 def mypage(request):
     # 로그인한 선생님(request.user)이 담당하는 학생들만 가져오기
@@ -31,7 +32,7 @@ def mypage(request):
     
     return render(request, 'accounts/mypage.html', {'students': my_students})
 
-# 3. 엑셀 일괄 등록 뷰 (새로 추가됨)
+# 3. 엑셀 일괄 등록 뷰
 @login_required
 def student_upload(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
@@ -84,34 +85,55 @@ def student_upload(request):
             
     return redirect('mypage')
 
+# 학교 검색 API (AJAX 요청 처리)
+@login_required
+def search_school(request):
+    query = request.GET.get('q', '') # 검색어 가져오기
+    if query:
+        # 이름에 검색어가 포함된 학교 찾기 (최대 30개만)
+        schools = School.objects.filter(name__contains=query)[:30]
+        results = [{'id': s.id, 'name': s.name, 'office': s.office} for s in schools]
+    else:
+        results = []
+    return JsonResponse({'results': results})
+
+
 # 학생 개별 등록 페이지
 @login_required
 def student_create(request):
     if request.method == 'POST':
         form = StudentForm(request.POST)
-        if form.is_valid():
+        # HTML 화면에서 보낸 학교의 DB ID (예: 15)
+        school_db_id = request.POST.get('school_select_id') 
+
+        if form.is_valid() and school_db_id:
             student = form.save(commit=False)
             student.teacher = request.user # 담당 교사는 로그인한 선생님
             
-            # --- 학생 계정(ID/PW) 자동 생성 로직 (일괄 등록과 동일) ---
-            school_code = "1004" # 임시 학교 코드
-            student_id = f"{school_code}{student.grade}{student.class_no:02d}{student.number:02d}"
+            # --- 학생 아이디 생성 로직 ---
+            # 1. 학교 DB ID를 4자리 문자로 변환 (예: 15 -> '0015')
+            school_code_str = f"{int(school_db_id):04d}"
             
-            # User 테이블에 계정 생성 (없으면 만들고, 있으면 가져옴)
+            # 2. 아이디 조합: 학교(4) + 학년(1) + 반(2) + 번호(2) = 9자리
+            # 예: 001510305
+            student_id = f"{school_code_str}{student.grade}{student.class_no:02d}{student.number:02d}"
+            
+            # 3. 계정 생성
             user, created = CustomUser.objects.get_or_create(
                 username=student_id,
                 defaults={
                     'name': student.name,
                     'password': make_password("1234"),
-                    'school': request.user.school,
+                    # 선택된 학교 객체를 직접 연결
+                    'school_id': school_db_id, 
                     'is_active': True
                 }
             )
-            # -------------------------------------------------------
-
             student.save() # 최종 저장
-            messages.success(request, f"{student.name} 학생이 등록되었습니다.")
+            messages.success(request, f"{student.name} 학생 등록 완료 (ID: {student_id})")
             return redirect('mypage')
+        else:
+            messages.error(request, "학교를 선택해주세요.")
     else:
         form = StudentForm()
     
