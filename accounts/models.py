@@ -21,7 +21,7 @@ class School(models.Model):
 # 2. 사용자(교사) 모델 수정 (이메일 필드 명시!)
 class CustomUser(AbstractUser):
     # 이메일 필드를 명시적으로 선언하고 유일한 값(unique)으로 설정
-    email = models.EmailField(verbose_name='이메일 주소', max_length=255, unique=True)
+    email = models.EmailField(verbose_name='아이디(이메일)', max_length=255, unique=True)
     
     name = models.CharField(max_length=100, verbose_name="이름")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="연락처")

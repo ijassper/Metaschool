@@ -79,4 +79,10 @@
         });
     });
 </script>
+<!-- 로그인 실패 시 팝업 띄우기 -->
+{% if form.errors %}
+    <script>
+        alert("아이디 또는 비밀번호가 일치하지 않습니다.\n아직 가입하지 않으셨다면 회원가입을 해주세요.");
+    </script>
+{% endif %}
 {% endblock %}

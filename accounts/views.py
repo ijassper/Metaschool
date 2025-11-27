@@ -138,3 +138,13 @@ def student_create(request):
         form = StudentForm()
     
     return render(request, 'accounts/student_form.html', {'form': form})
+
+# 이메일 중복 체크 API
+def check_email_duplicate(request):
+    email = request.GET.get('email', None)
+    data = {
+        'is_taken': CustomUser.objects.filter(email=email).exists()
+    }
+    if data['is_taken']:
+        data['error_message'] = '이미 사용 중인 이메일입니다.'
+    return JsonResponse(data)
