@@ -46,10 +46,31 @@
             
             <div class="card-footer bg-light text-center py-3">
                 <small class="text-muted">아직 회원이 아니신가요?</small>
-                <a href="{% url 'signup' %}" class="fw-bold text-decoration-none ms-2">교사 회원가입</a>
+                <a href="{% url 'signup' %}" id="signup-link" class="fw-bold text-decoration-none ms-2">교사 회원가입</a>
             </div>
         </div>
     </div>
+</div>
+<!-- 학생 회원가입 안내 모달 -->
+<div class="modal fade" id="studentSignupModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title"><i class="bi bi-info-circle-fill"></i> 학생 회원가입 안내</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <p class="fw-bold mb-2" style="font-size: 1.1rem;">학생 계정은 선생님께서 생성합니다.</p>
+        <p class="text-muted small mb-0">
+            직접 회원가입을 하실 수 없습니다.<br>
+            담당 선생님께 <strong>ID와 비밀번호</strong>를 문의해주세요.
+        </p>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">확인</button>
+      </div>
+    </div>
+  </div>
 </div>
 <!-- 로그인 실패 알림 모달 -->
 <div class="modal fade" id="loginErrorModal" tabindex="-1" aria-hidden="true">
@@ -70,7 +91,6 @@
     </div>
   </div>
 </div>
-
 <!-- 3. 라디오 버튼 클릭에 따른 안내 문구 변경 스크립트 -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -78,6 +98,7 @@
         const radioStudent = document.getElementById('type_student');
         const labelUsername = document.getElementById('label_username');
         const inputUsername = document.getElementById('id_username');
+        const signupLink = document.getElementById('signup-link'); // 링크 가져오기
 
         // 교사 선택 시
         radioTeacher.addEventListener('change', function() {
@@ -95,6 +116,18 @@
                 inputUsername.placeholder = "예: 100410101 (학교코드+학년반번호)";
                 inputUsername.focus();
             }
+        });
+
+        // 학생 회원가입 안내 모달 띄우기
+        signupLink.addEventListener('click', function(event) {
+            // 만약 '학생 로그인'이 체크되어 있다면
+            if (document.getElementById('type_student').checked) {
+                event.preventDefault(); // 페이지 이동 막기
+                // 안내 모달 띄우기
+                var studentModal = new bootstrap.Modal(document.getElementById('studentSignupModal'));
+                studentModal.show();
+            }
+            // 교사 모드면 그냥 원래대로 이동함 (아무것도 안 해도 됨)
         });
 
         // 로그인 실패 시 모달 띄우기 로직

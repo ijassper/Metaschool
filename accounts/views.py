@@ -86,7 +86,6 @@ def student_upload(request):
     return redirect('mypage')
 
 # 학교 검색 API (AJAX 요청 처리)
-@login_required
 def search_school(request):
     query = request.GET.get('q', '') # 검색어 가져오기
     if query:
