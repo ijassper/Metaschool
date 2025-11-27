@@ -10,8 +10,25 @@
             </div>
             
             <div class="card-body p-4">
-                <form method="post" id="signupForm" onsubmit="return combineEmail()">
+                <form method="post" action="{% url 'signup' %}" id="signupForm" onsubmit="return combineEmail()">
                     {% csrf_token %}
+
+                    <!-- 에러 메시지 확인용 코드 -->
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>가입 실패:</strong>
+                            <ul>
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                        <li>{{ field.label }}: {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
                     
                     <!-- 1. 이메일 (아이디) 입력 -->
                     <div class="mb-3">
