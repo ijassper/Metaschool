@@ -1,36 +1,82 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-        <title>로그인</title>
-	    <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-	        form { display: inline-block; border: 1px solid #ccc; padding: 20px; border-radius: 5px; }
-		        p { margin: 10px 0; }
-			        button { padding: 10px 20px; }
-				    </style>
-				    </head>
-				    <body>
+{% extends 'base.html' %} <!-- 1. 상단 메뉴바 상속 (마이페이지와 동일) -->
 
-				    <h2>로그인</h2>
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow border-0">
+            <div class="card-header bg-white text-center py-4">
+                <h3 class="fw-bold text-primary mb-0">로그인</h3>
+                <p class="text-muted small mt-2 mb-0">Metaschool 서비스 이용을 위해 로그인해주세요.</p>
+            </div>
+            
+            <div class="card-body p-4">
+                <!-- 2. 교사/학생 선택 라디오 버튼 -->
+                <div class="d-flex justify-content-center mb-4">
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="login_type" id="type_teacher" autocomplete="off" checked>
+                        <label class="btn btn-outline-primary" for="type_teacher">👩‍🏫 교사 로그인</label>
 
-				    {% if form.errors %}
-				        <p style="color: red;">아이디 또는 비밀번호가 올바르지 않습니다. 다시 시도해 주세요.</p>
-					{% endif %}
+                        <input type="radio" class="btn-check" name="login_type" id="type_student" autocomplete="off">
+                        <label class="btn btn-outline-success" for="type_student">🎓 학생 로그인</label>
+                    </div>
+                </div>
 
-					<form method="post">
-						    {% csrf_token %}
-						        <p>
-							        <label for="id_username">사용자 이름:</label>
-								        <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username" maxlength="150" required id="id_username">
-									    </p>
-									        <p>
-										        <label for="id_password">비밀번호:</label>
-											        <input type="password" name="password" autocomplete="current-password" required id="id_password">
-												    </p>
-												        <button type="submit">로그인</button>
-												</form>
-												<p><a href="{% url 'signup' %}">아직 회원이 아니신가요? 회원가입</a></p>
-												
-												</body>
-												</html>
+                <!-- 로그인 폼 -->
+                <form method="post" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    
+                    <!-- 아이디 입력칸 -->
+                    <div class="mb-3">
+                        <label for="id_username" class="form-label fw-bold" id="label_username">아이디 (이메일)</label>
+                        <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username" maxlength="150" required class="form-control form-control-lg" id="id_username" placeholder="이메일 또는 아이디를 입력하세요">
+                    </div>
+
+                    <!-- 비밀번호 입력칸 -->
+                    <div class="mb-3">
+                        <label for="id_password" class="form-label fw-bold">비밀번호</label>
+                        <input type="password" name="password" autocomplete="current-password" required class="form-control form-control-lg" id="id_password" placeholder="비밀번호를 입력하세요">
+                    </div>
+
+                    <!-- 로그인 버튼 -->
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg fw-bold">로그인</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="card-footer bg-light text-center py-3">
+                <small class="text-muted">아직 회원이 아니신가요?</small>
+                <a href="{% url 'signup' %}" class="fw-bold text-decoration-none ms-2">교사 회원가입</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. 라디오 버튼 클릭에 따른 안내 문구 변경 스크립트 -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const radioTeacher = document.getElementById('type_teacher');
+        const radioStudent = document.getElementById('type_student');
+        const labelUsername = document.getElementById('label_username');
+        const inputUsername = document.getElementById('id_username');
+
+        // 교사 선택 시
+        radioTeacher.addEventListener('change', function() {
+            if(this.checked) {
+                labelUsername.innerText = "아이디 (이메일)";
+                inputUsername.placeholder = "이메일 또는 아이디를 입력하세요";
+                inputUsername.focus();
+            }
+        });
+
+        // 학생 선택 시
+        radioStudent.addEventListener('change', function() {
+            if(this.checked) {
+                labelUsername.innerText = "학생 ID (코드)";
+                inputUsername.placeholder = "예: 100410101 (학교코드+학년반번호)";
+                inputUsername.focus();
+            }
+        });
+    });
+</script>
+{% endblock %}
