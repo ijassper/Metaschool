@@ -51,6 +51,25 @@
         </div>
     </div>
 </div>
+<!-- 로그인 실패 알림 모달 -->
+<div class="modal fade" id="loginErrorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> 로그인 실패</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <p class="fw-bold mb-2">아이디 또는 비밀번호가 일치하지 않습니다.</p>
+        <p class="text-muted small mb-0">아직 회원이 아니시라면 회원가입을 진행해주세요.</p>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <a href="{% url 'signup' %}" class="btn btn-primary">회원가입 하러가기</a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- 3. 라디오 버튼 클릭에 따른 안내 문구 변경 스크립트 -->
 <script>
@@ -77,12 +96,13 @@
                 inputUsername.focus();
             }
         });
+
+        // 로그인 실패 시 모달 띄우기 로직
+        const hasErrors = "{{ form.errors|yesno:'true,false' }}";
+        if (hasErrors === 'true') {
+            var errorModal = new bootstrap.Modal(document.getElementById('loginErrorModal'));
+            errorModal.show();
+}
     });
 </script>
-<!-- 로그인 실패 시 팝업 띄우기 -->
-{% if form.errors %}
-    <script>
-        alert("아이디 또는 비밀번호가 일치하지 않습니다.\n아직 가입하지 않으셨다면 회원가입을 해주세요.");
-    </script>
-{% endif %}
 {% endblock %}
