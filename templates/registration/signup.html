@@ -49,16 +49,18 @@
                         <input type="hidden" name="email" id="real_email">
                     </div>
 
-                    <!-- 2. [장고 자동] 비밀번호 -->
-                    <!-- 장고가 알아서 name을 맞춰줍니다. (디자인은 forms.py에서 처리함) -->
-                    {% for field in form %}
-                        {% if field.name != 'email' and field.name != 'name' and field.name != 'phone' and field.name != 'subject' and field.name != 'school' %}
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">{{ field.label }}</label>
-                                {{ field }}
-                            </div>
-                        {% endif %}
-                    {% endfor %}
+                    <!-- 2. 비밀번호 (한글 라벨 적용 & 실시간 체크) -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">비밀번호 <span class="text-danger">*</span></label>
+                            {{ form.password }} <!-- forms.py에서 ID를 'id_password'로 설정함 -->
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">비밀번호 확인 <span class="text-danger">*</span></label>
+                            {{ form.password_confirmation }} <!-- ID: 'id_password_confirm' -->
+                            <div id="pwCheckResult" class="form-text small mt-1"></div> <!-- 결과 메시지 나오는 곳 -->
+                        </div>
+                    </div>
 
                     <!-- 3. [장고 자동] 이름 & 연락처 -->
                     <div class="mb-3">
@@ -156,22 +158,28 @@
     // 입력할 때마다 체크
     emailId.addEventListener('keyup', checkEmailDuplicate);
     emailDomain.addEventListener('keyup', checkEmailDuplicate);
-
-    /*
-    // 3. 비밀번호 일치 확인
+    
+    // 3. 비밀번호 실시간 일치 확인
     const pw1 = document.getElementById('password');
     const pw2 = document.getElementById('password_confirm');
     const pwMsg = document.getElementById('pwCheckResult');
     
     function checkPassword() {
+        if (!pw1.value || !pw2.value) {
+            pwMsg.innerHTML = '';
+            return;
+        }
         if(pw1.value !== pw2.value) {
-            pwMsg.innerHTML = '<span class="text-danger">비밀번호가 일치하지 않습니다.</span>';
+            pwMsg.innerHTML = '<span class="text-danger">❌ 비밀번호가 일치하지 않습니다.</span>';
         } else {
-            pwMsg.innerHTML = '<span class="text-success">비밀번호가 일치합니다.</span>';
+            pwMsg.innerHTML = '<span class="text-success">✅ 비밀번호가 일치합니다.</span>';
         }
     }
-    pw2.addEventListener('keyup', checkPassword);
-    */
+    // 키보드 뗄 때마다(keyup) 검사
+    if(pw1 && pw2) {
+        pw1.addEventListener('keyup', checkPassword);
+        pw2.addEventListener('keyup', checkPassword);
+    }
 
     // 3. 폼 제출 전 이메일 합치기
     function combineEmail() {
