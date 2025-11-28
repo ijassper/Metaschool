@@ -20,17 +20,15 @@ class CustomUserCreationForm(UserCreationForm):
         self.fields['phone'].widget.attrs['placeholder'] = '010-1234-5678'
         self.fields['subject'].widget.attrs['placeholder'] = '담당 과목 (예: 영어, 수학)'
 
-        # 비밀번호 필드에 ID 부여 (자바스크립트가 찾을 수 있게)
-        # (주의: 장고 버전에 따라 필드명이 'password', 'password_confirmation'일 수도 있고 'pass1', 'pass2'일 수도 있음)
-        # 화면에 'Password', 'Password confirmation'이라고 떴으므로 아래 이름을 사용합니다.
-        
-        if 'password' in self.fields:
-            self.fields['password'].widget.attrs['placeholder'] = '비밀번호 (8자 이상)'
-            self.fields['password'].widget.attrs['id'] = 'id_password' # JS용 ID
+        # 비밀번호 필드 ID 지정 (자바스크립트 연결용)
+        # UserCreationForm의 기본 필드명은 'pass1'(비번), 'pass2'(확인) 입니다.
+        if 'pass1' in self.fields:
+            self.fields['pass1'].widget.attrs['placeholder'] = '비밀번호 (8자 이상)'
+            self.fields['pass1'].widget.attrs['id'] = 'id_password'  # JS가 찾을 ID
             
-        if 'password_confirmation' in self.fields:
-            self.fields['password_confirmation'].widget.attrs['placeholder'] = '비밀번호를 한 번 더 입력하세요'
-            self.fields['password_confirmation'].widget.attrs['id'] = 'id_password_confirm' # JS용 ID
+        if 'pass2' in self.fields:
+            self.fields['pass2'].widget.attrs['placeholder'] = '비밀번호를 한 번 더 입력하세요'
+            self.fields['pass2'].widget.attrs['id'] = 'id_password_confirm' # JS가 찾을 ID
 
     def save(self, commit=True):
         user = super().save(commit=False)
