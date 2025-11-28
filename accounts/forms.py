@@ -20,17 +20,12 @@ class CustomUserCreationForm(UserCreationForm):
         self.fields['phone'].widget.attrs['placeholder'] = '010-1234-5678'
         self.fields['subject'].widget.attrs['placeholder'] = '담당 과목 (예: 영어, 수학)'
 
-        # 비밀번호 필드 ID 지정 (자바스크립트 연결용)
-        # UserCreationForm의 기본 필드명은 'pass1'(비번), 'pass2'(확인) 입니다.
-        if 'pass1' in self.fields:
-            self.fields['pass1'].widget.attrs['class'] = 'form-control'
-            self.fields['pass1'].widget.attrs['placeholder'] = '비밀번호 (8자 이상)'
-            self.fields['pass1'].widget.attrs['id'] = 'id_password'  # JS가 찾을 ID
-            
-        if 'pass2' in self.fields:
-            self.fields['pass2'].widget.attrs['class'] = 'form-control'
-            self.fields['pass2'].widget.attrs['placeholder'] = '비밀번호를 한 번 더 입력하세요'
-            self.fields['pass2'].widget.attrs['id'] = 'id_password_confirm' # JS가 찾을 ID
+        def save(self, commit=True):
+        user = super().save(commit=False)
+        user.username = user.email
+        if commit:
+            user.save()
+        return user
 
     def save(self, commit=True):
         user = super().save(commit=False)

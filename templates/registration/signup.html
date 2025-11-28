@@ -50,20 +50,20 @@
                     </div>
 
                     <!-- 2. 비밀번호 (한글 라벨 적용 & 실시간 체크) -->
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">비밀번호 <span class="text-danger">*</span></label>
-                            <!-- 장고가 관리하는 진짜 비밀번호 필드 (pass1) -->
-                            {{ form.pass1 }}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">비밀번호 확인 <span class="text-danger">*</span></label>
-                            <!-- 장고가 관리하는 진짜 확인 필드 (pass2) -->
-                            {{ form.pass2 }}
-                            <!-- 실시간 체크 결과 메시지 -->
-                            <div id="pwCheckResult" class="form-text small mt-1 fw-bold"></div>
-                        </div>
-                    </div>
+                    {% for field in form %}
+                        {% if field.name != 'email' and field.name != 'school' %}
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-text text-muted small">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <div class="text-danger small">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
 
                     <!-- 3. [장고 자동] 이름 & 연락처 -->
                     <div class="mb-3">
