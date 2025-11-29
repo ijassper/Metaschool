@@ -244,6 +244,10 @@ def ai_generator_step2(request):
             # 한글 파일명 깨짐 방지 처리
             from urllib.parse import quote
             response['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{quote(download_filename)}'
+
+            # ★ 다운로드 완료 신호 (쿠키) 설정
+            response.set_cookie('download_complete', 'true', max_age=10) 
+            
             return response
 
         except Exception as e:

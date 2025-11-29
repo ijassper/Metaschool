@@ -77,7 +77,7 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">프롬프트 (AI 지시사항)</label>
                             <!-- 높이 키움 (rows=15) -->
-                            <textarea name="prompt_system" class="form-control" rows="12" style="resize: vertical;" required>
+                            <textarea name="prompt_system" class="form-control" rows="15" style="resize: vertical;" required>
 [지시 사항]
 위 [기초 자료]를 바탕으로 학교생활기록부 '행동특성 및 종합의견'을 작성해줘.
 
@@ -112,8 +112,34 @@
             event.preventDefault();
             return;
         }
+
         // 로딩 화면 표시
         document.getElementById('loadingOverlay').classList.remove('d-none');
+
+        // 다운로드 완료 감지 시작
+        checkDownloadCookie();
+    }
+
+    // 쿠키 확인 함수
+    function checkDownloadCookie() {
+        const checkInterval = setInterval(function() {
+            if (document.cookie.indexOf('download_complete=true') !== -1) {
+                // 1. 완료 신호 감지됨!
+                clearInterval(checkInterval); // 감시 종료
+                
+                // 2. 로딩 화면 끄기
+                document.getElementById('loadingOverlay').classList.add('d-none');
+                
+                // 3. 쿠키 삭제 (다음 번을 위해)
+                document.cookie = "download_complete=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                
+                // 4. 성공 알림
+                alert("✅ 분석 및 다운로드가 완료되었습니다!");
+                
+                // (선택사항) 1단계로 돌아가고 싶다면 아래 주석 해제
+                // window.location.href = "{% url 'ai_generator_step1' %}";
+            }
+        }, 1000); // 1초마다 확인
     }
 </script>
 {% endblock %}
