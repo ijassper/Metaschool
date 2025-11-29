@@ -83,6 +83,7 @@ DATABASES = {
         'HOST': 'db.jacknov.gabia.io', # 가비아 제어판의 '주소'
         'PORT': '3306',              # MySQL 기본 포트. 변경할 필요 없음
         'OPTIONS': {
+            'connect_timeout': 60,
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
         }
     }

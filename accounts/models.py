@@ -49,3 +49,17 @@ class Student(models.Model):
 
     def __str__(self):
         return f"{self.grade}학년 {self.class_no}반 {self.name}"
+    
+# 시스템 전역 설정 저장소 (API Key 등)
+class SystemConfig(models.Model):
+    key_name = models.CharField(max_length=50, unique=True, verbose_name="설정 키 (영어)")
+    value = models.TextField(verbose_name="설정 값") # API 키가 길 수 있으니 TextField 사용
+    description = models.CharField(max_length=200, blank=True, verbose_name="설명")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
+
+    def __str__(self):
+        return f"{self.key_name} ({self.description})"
+
+    class Meta:
+        verbose_name = "시스템 설정"
+        verbose_name_plural = "시스템 설정 목록"
