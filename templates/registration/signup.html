@@ -49,21 +49,23 @@
                         <input type="hidden" name="email" id="real_email">
                     </div>
 
-                    <!-- 2. 비밀번호 (한글 라벨 적용 & 실시간 체크) -->
-                    {% for field in form %}
-                        {% if field.name != 'email' and field.name != 'school' %}
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.help_text %}
-                                    <div class="form-text text-muted small">{{ field.help_text }}</div>
-                                {% endif %}
-                                {% for error in field.errors %}
-                                    <div class="text-danger small">{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    {% endfor %}
+                    <!-- 2. [장고 자동] 비밀번호 -->
+                    <!-- 장고가 알아서 name을 맞춰줍니다. (디자인은 forms.py에서 처리함) -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">비밀번호 <span class="text-danger">*</span></label>
+                            <!-- 장고가 렌더링하는 비밀번호 입력칸 -->
+                            {{ form.password }} 
+                            <!-- UserCreationForm을 상속받았다면 보통 필드명이 'password'가 아닐 수 있으니 아래 방식 사용 -->
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">비밀번호 확인 <span class="text-danger">*</span></label>
+                            <!-- 장고가 렌더링하는 확인 입력칸 -->
+                            {{ form.password_confirmation }} 
+                            <!-- 만약 화면에 아무것도 안 나오면, 아래 '비상 대책' 참고 -->
+                        </div>
+                    </div>
+                    <!-- (혹시 위 코드로 입력칸이 안 나오면, 하단 비상 대책 코드로 교체하세요) -->
 
                     <!-- 3. [장고 자동] 이름 & 연락처 -->
                     <div class="mb-3">
