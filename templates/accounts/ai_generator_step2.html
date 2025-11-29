@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h3 class="fw-bold mb-4 text-primary">⚙️ AI 분석 설정</h3>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="row">
+            <!-- 왼쪽: 열 선택 -->
+            <div class="col-md-5">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-light fw-bold">1. AI에게 보여줄 데이터 선택</div>
+                    <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                        <p class="small text-muted">학생 이름, 특성 등 참고할 열을 모두 체크하세요.</p>
+                        {% for col in columns %}
+                        <div class="form-check py-1">
+                            <input class="form-check-input" type="checkbox" name="selected_cols" value="{{ col }}" id="col_{{ forloop.counter }}">
+                            <label class="form-check-label" for="col_{{ forloop.counter }}">
+                                {{ col }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 오른쪽: 프롬프트 및 설정 -->
+            <div class="col-md-7">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-light fw-bold">2. 분석 설정</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">결과를 저장할 열 이름</label>
+                            <input type="text" name="target_col_name" class="form-control" value="AI_종합의견" placeholder="예: AI_행동특성">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">프롬프트 (AI 지시사항)</label>
+                            <textarea name="prompt_system" class="form-control" rows="8" required>
+위 기초 자료를 바탕으로 학교생활기록부 '행동특성 및 종합의견'을 작성해줘.
+- 학생의 장점을 부각하여 긍정적으로 작성할 것.
+- 문장은 '~함.', '~임.' 등의 개조식 서술형 어미로 끝낼 것.
+- 글자 수는 공백 포함 500자 내외로 작성할 것.
+                            </textarea>
+                            <div class="form-text">구체적으로 지시할수록 결과가 좋아집니다.</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 btn-lg">
+                            <i class="bi bi-robot"></i> 분석 실행 및 엑셀 다운로드
+                        </button>
+                        <p class="text-center small text-muted mt-2">
+                            * 데이터 양에 따라 30초 ~ 수 분이 소요될 수 있습니다.<br>
+                            * 완료되면 자동으로 엑셀 파일이 다운로드됩니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
