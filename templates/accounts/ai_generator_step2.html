@@ -1,17 +1,40 @@
 {% extends 'base.html' %}
+
 {% block content %}
+<!-- 로딩 중 화면 (평소엔 숨김) -->
+<div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex flex-column justify-content-center align-items-center" style="z-index: 9999;">
+    <div class="spinner-border text-light mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+    <h4 class="text-white fw-bold">AI가 열심히 생기부를 작성 중입니다... 🤖</h4>
+    <p class="text-white-50">학생 수에 따라 시간이 걸릴 수 있습니다. 창을 닫지 마세요.</p>
+</div>
+
 <div class="container mt-4">
-    <h3 class="fw-bold mb-4 text-primary">⚙️ AI 분석 설정</h3>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-primary mb-0">⚙️ AI 분석 설정</h3>
+        <!-- 파일명 표시 -->
+        <span class="badge bg-secondary fs-6">
+            <i class="bi bi-file-earmark-excel"></i> 현재 파일: {{ filename }}
+        </span>
+    </div>
     
-    <form method="post">
+    <!-- 에러 메시지 표시 -->
+    {% if messages %}
+    <div class="alert alert-danger">
+        {% for message in messages %}
+            {{ message }}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" onsubmit="showLoading()">
         {% csrf_token %}
         <div class="row">
             <!-- 왼쪽: 열 선택 -->
-            <div class="col-md-5">
-                <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-light fw-bold">1. AI에게 보여줄 데이터 선택</div>
-                    <div class="card-body" style="max-height: 500px; overflow-y: auto;">
-                        <p class="small text-muted">학생 이름, 특성 등 참고할 열을 모두 체크하세요.</p>
+            <div class="col-md-4">
+                <div class="card shadow-sm mb-3 h-100">
+                    <div class="card-header bg-light fw-bold">1. AI에게 보여줄 데이터 (재료)</div>
+                    <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+                        <p class="small text-muted">학생의 특성이 담긴 열을 모두 체크하세요.</p>
                         {% for col in columns %}
                         <div class="form-check py-1">
                             <input class="form-check-input" type="checkbox" name="selected_cols" value="{{ col }}" id="col_{{ forloop.counter }}">
@@ -25,32 +48,53 @@
             </div>
 
             <!-- 오른쪽: 프롬프트 및 설정 -->
-            <div class="col-md-7">
+            <div class="col-md-8">
                 <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-light fw-bold">2. 분석 설정</div>
+                    <div class="card-header bg-light fw-bold">2. 상세 설정</div>
                     <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">결과를 저장할 열 이름</label>
-                            <input type="text" name="target_col_name" class="form-control" value="AI_종합의견" placeholder="예: AI_행동특성">
+                        
+                        <!-- 결과 열 이름 -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">결과를 저장할 열 이름 (Header)</label>
+                            <input type="text" name="target_col_name" class="form-control" value="AI_생기부_결과" placeholder="예: 행동특성_종합의견">
+                            <div class="form-text small">엑셀 파일에 이 이름으로 새로운 열이 생깁니다.</div>
                         </div>
 
+                        <!-- 온도 설정 -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold d-flex justify-content-between">
+                                <span>창의성 조절 (Temperature)</span>
+                                <span id="tempValue" class="text-primary">0.7</span>
+                            </label>
+                            <input type="range" name="temperature" class="form-range" min="0" max="1" step="0.1" value="0.7" oninput="document.getElementById('tempValue').innerText = this.value">
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span>0.0 (정확함)</span>
+                                <span>1.0 (창의적)</span>
+                            </div>
+                        </div>
+
+                        <!-- 프롬프트 -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">프롬프트 (AI 지시사항)</label>
-                            <textarea name="prompt_system" class="form-control" rows="8" required>
-위 기초 자료를 바탕으로 학교생활기록부 '행동특성 및 종합의견'을 작성해줘.
-- 학생의 장점을 부각하여 긍정적으로 작성할 것.
-- 문장은 '~함.', '~임.' 등의 개조식 서술형 어미로 끝낼 것.
-- 글자 수는 공백 포함 500자 내외로 작성할 것.
+                            <!-- 높이 키움 (rows=15) -->
+                            <textarea name="prompt_system" class="form-control" rows="12" style="resize: vertical;" required>
+[지시 사항]
+위 [기초 자료]를 바탕으로 학교생활기록부 '행동특성 및 종합의견'을 작성해줘.
+
+[작성 원칙]
+1. 학생의 장점과 구체적인 활동 내용을 중심으로 긍정적으로 서술할 것.
+2. 문장은 명사형(~함, ~임)으로 끝내지 말고, 서술형(~함, ~보여줌)으로 자연스럽게 마무리할 것.
+3. 분량은 공백 포함 500자 내외로 풍부하게 작성할 것.
+4. 추상적인 표현보다는 엑셀에 있는 구체적인 사례를 인용할 것.
                             </textarea>
-                            <div class="form-text">구체적으로 지시할수록 결과가 좋아집니다.</div>
                         </div>
 
-                        <button type="submit" class="btn btn-success w-100 btn-lg">
-                            <i class="bi bi-robot"></i> 분석 실행 및 엑셀 다운로드
+                        <button type="submit" class="btn btn-success w-100 btn-lg py-3 fw-bold shadow-sm">
+                            <i class="bi bi-robot"></i> 분석 실행 및 다운로드
                         </button>
-                        <p class="text-center small text-muted mt-2">
-                            * 데이터 양에 따라 30초 ~ 수 분이 소요될 수 있습니다.<br>
-                            * 완료되면 자동으로 엑셀 파일이 다운로드됩니다.
+                        <p class="text-center small text-muted mt-2 mb-0">
+                            * 2038명의 학생도 문제없지만, 데이터 양에 따라 시간이 소요됩니다.<br>
+                            * 완료되면 브라우저가 자동으로 파일을 다운로드합니다.
                         </p>
                     </div>
                 </div>
@@ -58,4 +102,18 @@
         </div>
     </form>
 </div>
+
+<script>
+    function showLoading() {
+        // 체크박스 선택 확인
+        const checkboxes = document.querySelectorAll('input[name="selected_cols"]:checked');
+        if (checkboxes.length === 0) {
+            alert("최소 1개 이상의 데이터(재료)를 선택해주세요!");
+            event.preventDefault();
+            return;
+        }
+        // 로딩 화면 표시
+        document.getElementById('loadingOverlay').classList.remove('d-none');
+    }
+</script>
 {% endblock %}

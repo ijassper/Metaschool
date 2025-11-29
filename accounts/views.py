@@ -154,7 +154,7 @@ def check_email_duplicate(request):
         data['error_message'] = '이미 사용 중인 이메일입니다.'
     return JsonResponse(data)
 
-# [신규] 1단계: 엑셀 파일 업로드 페이지
+# 1단계: 파일 업로드
 @login_required
 def ai_generator_step1(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
@@ -163,97 +163,93 @@ def ai_generator_step1(request):
             # 엑셀 읽기
             df = pd.read_excel(excel_file)
             
-            # 데이터프레임을 JSON으로 변환하여 세션(임시저장소)에 저장
-            # (주의: 너무 큰 파일은 DB나 파일로 저장해야 하지만, 생기부용으로는 세션도 충분합니다)
+            # 세션에 데이터 및 파일명 저장
             request.session['df_data'] = df.to_json()
             request.session['df_columns'] = df.columns.tolist()
+            request.session['uploaded_filename'] = excel_file.name # ★ 파일명 저장
             
             return redirect('ai_generator_step2')
         except Exception as e:
-            messages.error(request, f"파일을 읽는 중 오류가 발생했습니다: {str(e)}")
+            messages.error(request, f"파일 읽기 실패: {str(e)}")
             
     return render(request, 'accounts/ai_generator_step1.html')
 
-# [신규] 2단계: 열 선택 및 AI 실행 페이지
+# 2단계: 설정 및 실행
 @login_required
 def ai_generator_step2(request):
-    # 세션에서 데이터 가져오기
     df_json = request.session.get('df_data')
     columns = request.session.get('df_columns')
+    filename = request.session.get('uploaded_filename', '파일 없음') # ★ 파일명 가져오기
 
     if not df_json:
-        messages.error(request, "업로드된 파일 정보가 없습니다. 다시 시도해주세요.")
+        messages.error(request, "파일 정보가 만료되었습니다. 다시 업로드해주세요.")
         return redirect('ai_generator_step1')
 
     if request.method == 'POST':
         try:
-            # 1. 사용자 설정값 가져오기
-            selected_cols = request.POST.getlist('selected_cols') # 분석할 열들
+            # 1. 사용자 설정값
+            selected_cols = request.POST.getlist('selected_cols')
             target_col_name = request.POST.get('target_col_name', 'AI_분석결과')
             prompt_system = request.POST.get('prompt_system')
+            temperature = float(request.POST.get('temperature', 0.7)) # ★ 온도 가져오기
             
-            # 2. API 키 가져오기 (관리자 설정)
+            # 2. API 키 확인
             try:
                 config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
                 api_key = config.value
             except SystemConfig.DoesNotExist:
-                messages.error(request, "관리자가 OpenAI API 키를 설정하지 않았습니다.")
-                return redirect('ai_generator_step1')
+                # ★ 중요: 에러 발생 시 1단계로 튕기지 않고 현재 페이지에 메시지 띄우기
+                messages.error(request, "관리자 설정 오류: OPENAI_API_KEY가 등록되지 않았습니다.")
+                return render(request, 'accounts/ai_generator_step2.html', {'columns': columns, 'filename': filename})
 
             # 3. AI 분석 실행
             client = openai.OpenAI(api_key=api_key)
             df = pd.read_json(df_json)
-            
             ai_results = []
-            
-            # 엑셀의 모든 행(학생)을 돌면서 실행
+
             for index, row in df.iterrows():
-                # 선택한 열들의 내용을 합쳐서 프롬프트 재료 만들기
-                # 예: "이름: 홍길동 / 행동특성: 착함 / 봉사: 열심히 함"
                 context_text = " / ".join([f"{col}: {row[col]}" for col in selected_cols if col in row])
                 
-                # 내용이 너무 없으면 건너뛰기
                 if not str(context_text).strip():
                     ai_results.append("")
                     continue
                 
-                # 최종 프롬프트
-                full_prompt = f"""
-                [기초 자료]
-                {context_text}
+                full_prompt = f"[기초 자료]\n{context_text}\n\n[지시 사항]\n{prompt_system}"
 
-                [지시 사항]
-                {prompt_system}
-                """
-
-                # GPT 호출
                 response = client.chat.completions.create(
-                    model="gpt-4o", # gpt-4o 또는 gpt-3.5-turbo
+                    model="gpt-4o", 
                     messages=[
-                        {"role": "system", "content": "당신은 고등학교 생활기록부 작성 전문가입니다. 교육적이고 긍정적인 문체로 작성하세요."},
+                        {"role": "system", "content": "당신은 고등학교 생활기록부 전문가입니다."},
                         {"role": "user", "content": full_prompt}
                     ],
-                    temperature=0.7
+                    temperature=temperature # ★ 온도 적용
                 )
                 ai_results.append(response.choices[0].message.content)
 
-            # 4. 결과를 새로운 열에 추가
+            # 4. 결과 저장 및 다운로드
             df[target_col_name] = ai_results
-
-            # 5. 엑셀 다운로드 제공
+            
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 df.to_excel(writer, index=False)
             output.seek(0)
 
+            # 원본 파일명 앞에 'Result_' 붙여서 다운로드
+            download_filename = f"Result_{filename}"
+            
             response = HttpResponse(
                 output,
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
-            response['Content-Disposition'] = 'attachment; filename="AI_Result.xlsx"'
+            # 한글 파일명 깨짐 방지 처리
+            from urllib.parse import quote
+            response['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{quote(download_filename)}'
             return response
 
         except Exception as e:
-            messages.error(request, f"AI 분석 중 오류가 발생했습니다: {str(e)}")
+            # ★ 에러 발생 시 이유를 명확히 보여줌
+            messages.error(request, f"오류 발생: {str(e)}")
+            # 오류가 나도 1단계로 튕기지 않게 함
+            return render(request, 'accounts/ai_generator_step2.html', {'columns': columns, 'filename': filename})
 
-    return render(request, 'accounts/ai_generator_step2.html', {'columns': columns})
+    return render(request, 'accounts/ai_generator_step2.html', {'columns': columns, 'filename': filename})
