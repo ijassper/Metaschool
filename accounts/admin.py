@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Student, School, SystemConfig
+from .models import CustomUser, Student, School, SystemConfig, PromptTemplate 
 
 # 1. 사용자(교사) 관리 화면 설정
 class CustomUserAdmin(UserAdmin):
@@ -15,6 +15,11 @@ class CustomUserAdmin(UserAdmin):
 class SystemConfigAdmin(admin.ModelAdmin):
     list_display = ['key_name', 'value', 'description', 'updated_at']
     search_fields = ['key_name']
+
+# 프롬프트 템플릿 관리자
+@admin.register(PromptTemplate)
+class PromptTemplateAdmin(admin.ModelAdmin):
+    list_display = ['title', 'role', 'length']
 
 # 3. 관리자 페이지에 등록
 admin.site.register(CustomUser, CustomUserAdmin)

@@ -63,3 +63,17 @@ class SystemConfig(models.Model):
     class Meta:
         verbose_name = "시스템 설정"
         verbose_name_plural = "시스템 설정 목록"
+
+# [신규] 프롬프트 템플릿 (관리자가 미리 만들어두는 예시)
+class PromptTemplate(models.Model):
+    title = models.CharField(max_length=100, verbose_name="템플릿 제목 (예: 동아리 활동)")
+    
+    # 세부 항목들
+    context = models.TextField(verbose_name="프롬프트 맥락", blank=True)
+    role = models.TextField(verbose_name="AI의 역할", blank=True)
+    task = models.TextField(verbose_name="AI가 할 일", blank=True)
+    output_example = models.TextField(verbose_name="원하는 결과값 예시", blank=True)
+    length = models.CharField(max_length=100, verbose_name="원하는 분량", blank=True)
+
+    def __str__(self):
+        return self.title

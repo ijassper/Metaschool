@@ -14,7 +14,7 @@ from django.contrib import messages  # 알림 메시지(성공/실패)를 위해
 from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from .forms import CustomUserCreationForm, StudentForm
 from .models import Student, CustomUser, School  # Student, CustomUser, School 모델 모두 가져오기
-from .models import SystemConfig
+from .models import SystemConfig, PromptTemplate
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
 class SignUpView(generic.CreateView):
@@ -181,6 +181,9 @@ def ai_generator_step2(request):
     columns = request.session.get('df_columns')
     filename = request.session.get('uploaded_filename', '파일 없음') # ★ 파일명 가져오기
 
+    # DB에 저장된 프롬프트 템플릿들 가져오기
+    prompt_templates = PromptTemplate.objects.all()
+
     if not df_json:
         messages.error(request, "파일 정보가 만료되었습니다. 다시 업로드해주세요.")
         return redirect('ai_generator_step1')
@@ -190,9 +193,15 @@ def ai_generator_step2(request):
             # 1. 사용자 설정값
             selected_cols = request.POST.getlist('selected_cols')
             target_col_name = request.POST.get('target_col_name', 'AI_분석결과')
-            prompt_system = request.POST.get('prompt_system')
             temperature = float(request.POST.get('temperature', 0.7)) # ★ 온도 가져오기
             
+            # 분할된 프롬프트 입력값들 가져오기
+            p_context = request.POST.get('p_context', '')
+            p_role = request.POST.get('p_role', '')
+            p_task = request.POST.get('p_task', '')
+            p_example = request.POST.get('p_example', '')
+            p_length = request.POST.get('p_length', '')
+
             # 2. API 키 확인
             try:
                 config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
@@ -200,7 +209,9 @@ def ai_generator_step2(request):
             except SystemConfig.DoesNotExist:
                 # ★ 중요: 에러 발생 시 1단계로 튕기지 않고 현재 페이지에 메시지 띄우기
                 messages.error(request, "관리자 설정 오류: OPENAI_API_KEY가 등록되지 않았습니다.")
-                return render(request, 'accounts/ai_generator_step2.html', {'columns': columns, 'filename': filename})
+                return render(request, 'accounts/ai_generator_step2.html', {
+                    'columns': columns, 'filename': filename, 'prompt_templates': prompt_templates
+                })
 
             # 3. AI 분석 실행
             client = openai.OpenAI(api_key=api_key)
@@ -208,21 +219,59 @@ def ai_generator_step2(request):
             ai_results = []
 
             for index, row in df.iterrows():
-                context_text = " / ".join([f"{col}: {row[col]}" for col in selected_cols if col in row])
+                # ★ 기능 2: '실행여부' 컬럼 확인 (값이 1이 아니면 건너뜀)
+                # (컬럼명이 정확히 '실행여부'여야 함 / 없으면 모두 실행)
+                if '실행여부' in df.columns:
+                    val = str(row['실행여부']).strip()
+                    if val not in ['1', '1.0', 'True', 'TRUE', 'true']:
+                        ai_results.append("") # 빈 값 넣고 스킵
+                        continue
+
+                # 기초 자료 텍스트 생성
+                context_parts = []
+                # ★ 기능 3: 이름 컬럼이 선택되었다면 명확히 표기
+                for col in selected_cols:
+                    if col in row:
+                        val = str(row[col])
+                        if '이름' in col or 'name' in col.lower():
+                            context_parts.append(f"[학생이름: {val}]")
+                        else:
+                            context_parts.append(f"{col}: {val}")
                 
-                if not str(context_text).strip():
+                context_text = " / ".join(context_parts)
+                
+                if not context_text.strip():
                     ai_results.append("")
                     continue
                 
-                full_prompt = f"[기초 자료]\n{context_text}\n\n[지시 사항]\n{prompt_system}"
+                # ★ 최종 프롬프트 조합 (입력받은 5개 항목 합치기)
+                full_prompt = f"""
+                [기초 데이터]
+                {context_text}
+
+                [프롬프트 맥락]
+                {p_context}
+
+                [당신의 역할]
+                {p_role}
+
+                [할 일]
+                {p_task}
+
+                [원하는 결과 예시]
+                {p_example}
+
+                [분량 및 형식]
+                {p_length}
+                """
 
                 response = client.chat.completions.create(
                     model="gpt-4o", 
                     messages=[
-                        {"role": "system", "content": "당신은 고등학교 생활기록부 전문가입니다."},
+                        {"role": "system", "content": "당신은 생활기록부 작성 전문가입니다."},
                         {"role": "user", "content": full_prompt}
                     ],
-                    temperature=temperature # ★ 온도 적용
+                    temperature=temperature
                 )
                 ai_results.append(response.choices[0].message.content)
 
@@ -254,6 +303,9 @@ def ai_generator_step2(request):
             # ★ 에러 발생 시 이유를 명확히 보여줌
             messages.error(request, f"오류 발생: {str(e)}")
             # 오류가 나도 1단계로 튕기지 않게 함
-            return render(request, 'accounts/ai_generator_step2.html', {'columns': columns, 'filename': filename})
+            return render(request, 'accounts/ai_generator_step2.html', {
+                'columns': columns, 'filename': filename, 'prompt_templates': prompt_templates
+            })
 
+    # GET 요청 시 템플릿 전달
     return render(request, 'accounts/ai_generator_step2.html', {'columns': columns, 'filename': filename})

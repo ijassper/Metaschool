@@ -4,17 +4,14 @@
 <!-- 로딩 중 화면 (평소엔 숨김) -->
 <div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex flex-column justify-content-center align-items-center" style="z-index: 9999;">
     <div class="spinner-border text-light mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
-    <h4 class="text-white fw-bold">AI가 열심히 생기부를 작성 중입니다... 🤖</h4>
-    <p class="text-white-50">학생 수에 따라 시간이 걸릴 수 있습니다. 창을 닫지 마세요.</p>
+    <h4 class="text-white fw-bold">AI가 분석 중입니다... 🤖</h4>
+    <p class="text-white-50">실행여부가 '1'인 학생만 처리됩니다.</p>
 </div>
 
-<div class="container mt-4">
+<div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold text-primary mb-0">⚙️ AI 분석 설정</h3>
-        <!-- 파일명 표시 -->
-        <span class="badge bg-secondary fs-6">
-            <i class="bi bi-file-earmark-excel"></i> 현재 파일: {{ filename }}
-        </span>
+        <h3 class="fw-bold text-success mb-0"><i class="bi bi-robot"></i> 학생결과물 AI 분석</h3>
+        <span class="badge bg-secondary fs-6"><i class="bi bi-file-earmark-excel"></i> 파일: {{ filename }}</span>
     </div>
     
     <!-- 에러 메시지 표시 -->
@@ -29,73 +26,87 @@
     <form method="post" onsubmit="showLoading()">
         {% csrf_token %}
         <div class="row">
-            <!-- 왼쪽: 열 선택 -->
+            <!-- 왼쪽: 데이터 선택 -->
             <div class="col-md-4">
                 <div class="card shadow-sm mb-3 h-100">
-                    <div class="card-header bg-light fw-bold">1. AI에게 보여줄 데이터 (재료)</div>
-                    <div class="card-body" style="max-height: 600px; overflow-y: auto;">
-                        <p class="small text-muted">학생의 특성이 담긴 열을 모두 체크하세요.</p>
+                    <div class="card-header bg-light fw-bold">1. AI에게 보여줄 데이터</div>
+                    <div class="card-body" style="max-height: 800px; overflow-y: auto;">
+                        <p class="small text-muted mb-2">
+                            * '이름'을 선택하면 AI가 학생 이름을 인식합니다.<br>
+                            * '실행여부' 열이 있고 값이 1이면 실행, 0이면 건너뜁니다.
+                        </p>
                         {% for col in columns %}
                         <div class="form-check py-1">
                             <input class="form-check-input" type="checkbox" name="selected_cols" value="{{ col }}" id="col_{{ forloop.counter }}">
-                            <label class="form-check-label" for="col_{{ forloop.counter }}">
-                                {{ col }}
-                            </label>
+                            <label class="form-check-label" for="col_{{ forloop.counter }}">{{ col }}</label>
                         </div>
                         {% endfor %}
                     </div>
                 </div>
             </div>
 
-            <!-- 오른쪽: 프롬프트 및 설정 -->
+            <!-- 오른쪽: 프롬프트 설정 (자동 채우기 기능) -->
             <div class="col-md-8">
                 <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-light fw-bold">2. 상세 설정</div>
+                    <div class="card-header bg-light fw-bold d-flex justify-content-between align-items-center">
+                        <span>2. 분석 설정 (프롬프트 엔지니어링)</span>
+                    </div>
                     <div class="card-body">
                         
-                        <!-- 결과 열 이름 -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">결과를 저장할 열 이름 (Header)</label>
-                            <input type="text" name="target_col_name" class="form-control" value="AI_생기부_결과" placeholder="예: 행동특성_종합의견">
-                            <div class="form-text small">엑셀 파일에 이 이름으로 새로운 열이 생깁니다.</div>
+                        <!-- ★ 템플릿 선택 -->
+                        <div class="mb-4 p-3 bg-light rounded border">
+                            <label class="form-label fw-bold text-primary"><i class="bi bi-magic"></i> 프롬프트 예시 불러오기</label>
+                            <select class="form-select" id="templateSelect" onchange="applyTemplate()">
+                                <option value="">-- 직접 입력 또는 예시 선택 --</option>
+                                {% for t in prompt_templates %}
+                                    <option value="{{ t.id }}">{{ t.title }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">선택하면 아래 내용이 자동으로 채워집니다.</div>
                         </div>
 
-                        <!-- 온도 설정 -->
+                        <!-- 결과 열 이름 -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">결과를 저장할 열 이름</label>
+                            <input type="text" name="target_col_name" class="form-control" value="AI_생기부_결과">
+                        </div>
+
+                        <!-- 온도 조절 -->
                         <div class="mb-4">
                             <label class="form-label fw-bold d-flex justify-content-between">
-                                <span>창의성 조절 (Temperature)</span>
+                                <span>창의성 (0.1 ~ 1.0)</span>
                                 <span id="tempValue" class="text-primary">0.7</span>
                             </label>
-                            <input type="range" name="temperature" class="form-range" min="0" max="1" step="0.1" value="0.7" oninput="document.getElementById('tempValue').innerText = this.value">
-                            <div class="d-flex justify-content-between small text-muted">
-                                <span>0.0 (정확함)</span>
-                                <span>1.0 (창의적)</span>
-                            </div>
+                            <input type="range" name="temperature" class="form-range" min="0.1" max="1.0" step="0.1" value="0.7" oninput="document.getElementById('tempValue').innerText = this.value">
                         </div>
 
-                        <!-- 프롬프트 -->
+                        <hr>
+
+                        <!-- ★ 분할된 입력 필드들 -->
                         <div class="mb-3">
-                            <label class="form-label fw-bold">프롬프트 (AI 지시사항)</label>
-                            <!-- 높이 키움 (rows=15) -->
-                            <textarea name="prompt_system" class="form-control" rows="15" style="resize: vertical;" required>
-[지시 사항]
-위 [기초 자료]를 바탕으로 학교생활기록부 '행동특성 및 종합의견'을 작성해줘.
-
-[작성 원칙]
-1. 학생의 장점과 구체적인 활동 내용을 중심으로 긍정적으로 서술할 것.
-2. 문장은 명사형(~함, ~임)으로 끝내지 말고, 서술형(~함, ~보여줌)으로 자연스럽게 마무리할 것.
-3. 분량은 공백 포함 500자 내외로 풍부하게 작성할 것.
-4. 추상적인 표현보다는 엑셀에 있는 구체적인 사례를 인용할 것.
-                            </textarea>
+                            <label class="form-label fw-bold">프롬프트 맥락</label>
+                            <input type="text" name="p_context" id="p_context" class="form-control" placeholder="예: 고등학교 1학년 통합사회 수업 시간임.">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">AI의 역할</label>
+                            <input type="text" name="p_role" id="p_role" class="form-control" placeholder="예: 20년 경력의 베테랑 교사">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">AI가 할 일</label>
+                            <textarea name="p_task" id="p_task" class="form-control" rows="3" placeholder="예: 기초 데이터를 바탕으로 학생의 강점을 분석하여 생기부 문구 작성"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">원하는 결과값 예시</label>
+                            <textarea name="p_example" id="p_example" class="form-control" rows="3" placeholder="예: ~~한 활동을 통해 ~~한 역량을 보여줌."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">원하는 분량</label>
+                            <input type="text" name="p_length" id="p_length" class="form-control" placeholder="예: 공백 포함 500자 내외, 개조식 서술형">
                         </div>
 
-                        <button type="submit" class="btn btn-success w-100 btn-lg py-3 fw-bold shadow-sm">
-                            <i class="bi bi-robot"></i> 분석 실행 및 다운로드
+                        <button type="submit" class="btn btn-success w-100 btn-lg mt-3 fw-bold">
+                            <i class="bi bi-play-circle-fill"></i> 분석 실행
                         </button>
-                        <p class="text-center small text-muted mt-2 mb-0">
-                            * 2038명의 학생도 문제없지만, 데이터 양에 따라 시간이 소요됩니다.<br>
-                            * 완료되면 브라우저가 자동으로 파일을 다운로드합니다.
-                        </p>
                     </div>
                 </div>
             </div>
@@ -103,7 +114,39 @@
     </form>
 </div>
 
+<!-- 데이터 전달 및 스크립트 -->
 <script>
+    // Django 데이터를 자바스크립트 객체로 변환 (자동 채우기용)
+    const templates = {
+        {% for t in prompt_templates %}
+        "{{ t.id }}": {
+            context: `{{ t.context|escapejs }}`,
+            role: `{{ t.role|escapejs }}`,
+            task: `{{ t.task|escapejs }}`,
+            example: `{{ t.output_example|escapejs }}`,
+            length: `{{ t.length|escapejs }}`
+        },
+        {% endfor %}
+    };
+
+    function applyTemplate() {
+        const select = document.getElementById('templateSelect');
+        const id = select.value;
+        
+        if (id && templates[id]) {
+            const t = templates[id];
+            document.getElementById('p_context').value = t.context;
+            document.getElementById('p_role').value = t.role;
+            document.getElementById('p_task').value = t.task;
+            document.getElementById('p_example').value = t.example;
+            document.getElementById('p_length').value = t.length;
+        } else {
+            // 선택 해제 시 비우기 (원하면 주석 처리)
+            // document.getElementById('p_context').value = '';
+            // ...
+        }
+    }
+    
     function showLoading() {
         // 체크박스 선택 확인
         const checkboxes = document.querySelectorAll('input[name="selected_cols"]:checked');
