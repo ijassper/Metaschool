@@ -187,6 +187,13 @@ def ai_generator_step2(request):
     if not df_json:
         messages.error(request, "파일 정보가 만료되었습니다. 다시 업로드해주세요.")
         return redirect('ai_generator_step1')
+    
+    # [공통 데이터 묶음] - 화면에 보낼 재료들
+    context = {
+        'columns': columns,
+        'filename': filename,
+        'prompt_templates': prompt_templates, # ★ 여기서 무조건 보냄
+    }
 
     if request.method == 'POST':
         try:
@@ -209,9 +216,7 @@ def ai_generator_step2(request):
             except SystemConfig.DoesNotExist:
                 # ★ 중요: 에러 발생 시 1단계로 튕기지 않고 현재 페이지에 메시지 띄우기
                 messages.error(request, "관리자 설정 오류: OPENAI_API_KEY가 등록되지 않았습니다.")
-                return render(request, 'accounts/ai_generator_step2.html', {
-                    'columns': columns, 'filename': filename, 'prompt_templates': prompt_templates
-                })
+                return render(request, 'accounts/ai_generator_step2.html', context) # context 사용
 
             # 3. AI 분석 실행
             client = openai.OpenAI(api_key=api_key)
@@ -222,9 +227,9 @@ def ai_generator_step2(request):
                 # ★ 기능 2: '실행여부' 컬럼 확인 (값이 1이 아니면 건너뜀)
                 # (컬럼명이 정확히 '실행여부'여야 함 / 없으면 모두 실행)
                 if '실행여부' in df.columns:
-                    val = str(row['실행여부']).strip()
-                    if val not in ['1', '1.0', 'True', 'TRUE', 'true']:
-                        ai_results.append("") # 빈 값 넣고 스킵
+                    val = str(row['실행여부']).strip().lower()
+                    if val not in ['1', '1.0', 'true']:
+                        ai_results.append("")
                         continue
 
                 # 기초 자료 텍스트 생성
@@ -303,9 +308,7 @@ def ai_generator_step2(request):
             # ★ 에러 발생 시 이유를 명확히 보여줌
             messages.error(request, f"오류 발생: {str(e)}")
             # 오류가 나도 1단계로 튕기지 않게 함
-            return render(request, 'accounts/ai_generator_step2.html', {
-                'columns': columns, 'filename': filename, 'prompt_templates': prompt_templates
-            })
+            return render(request, 'accounts/ai_generator_step2.html', context) # context 사용
 
     # GET 요청 시 템플릿 전달
-    return render(request, 'accounts/ai_generator_step2.html', {'columns': columns, 'filename': filename})
+    return render(request, 'accounts/ai_generator_step2.html', context)
