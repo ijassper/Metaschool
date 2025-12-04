@@ -64,16 +64,52 @@ class SystemConfig(models.Model):
         verbose_name = "시스템 설정"
         verbose_name_plural = "시스템 설정 목록"
 
-# [신규] 프롬프트 템플릿 (관리자가 미리 만들어두는 예시)
+# 1. 프롬프트 카테고리 (계층형 구조)
+class PromptCategory(models.Model):
+    name = models.CharField(max_length=50, verbose_name="카테고리명")
+    # 부모가 없으면 대분류, 있으면 하위분류 (Self 참조)
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children', verbose_name="상위 카테고리")
+
+    def __str__(self):
+        # 관리자 페이지에서 "대분류 > 소분류" 형태로 보여주기
+        if self.parent:
+            return f"{self.parent.name} > {self.name}"
+        return self.name
+
+    class Meta:
+        verbose_name_plural = "1. 프롬프트 카테고리"
+
+# 2. 분량 옵션 (예: 500자, 1000자)
+class PromptLengthOption(models.Model):
+    label = models.CharField(max_length=50, verbose_name="화면 표시 이름 (예: 500자)")
+    value = models.CharField(max_length=200, verbose_name="실제 프롬프트 내용 (예: 공백 포함 500자 내외 서술형)")
+
+    def __str__(self):
+        return self.label
+
+    class Meta:
+        verbose_name_plural = "2. 분량 옵션"
+
+# 3. 프롬프트 템플릿
 class PromptTemplate(models.Model):
-    title = models.CharField(max_length=100, verbose_name="템플릿 제목 (예: 동아리 활동)")
+    # 카테고리 연결
+    category = models.ForeignKey(PromptCategory, on_delete=models.SET_NULL, null=True, verbose_name="카테고리(소분류)")
+    title = models.CharField(max_length=100, verbose_name="템플릿 제목")
     
-    # 세부 항목들
+    # 사용 가이드/설명
+    description = models.TextField(verbose_name="사용 가이드(설명)", blank=True, help_text="선생님들에게 보여줄 팁이나 설명을 적으세요.")
+
+    # 내용 필드
     context = models.TextField(verbose_name="프롬프트 맥락", blank=True)
     role = models.TextField(verbose_name="AI의 역할", blank=True)
     task = models.TextField(verbose_name="AI가 할 일", blank=True)
     output_example = models.TextField(verbose_name="원하는 결과값 예시", blank=True)
-    length = models.CharField(max_length=100, verbose_name="원하는 분량", blank=True)
+    
+    # 분량 (직접 입력 대신 옵션 선택)
+    length_option = models.ForeignKey(PromptLengthOption, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="분량 선택")
 
     def __str__(self):
-        return self.title
+        return f"[{self.category}] {self.title}"
+    
+    class Meta:
+        verbose_name_plural = "3. 프롬프트 템플릿"

@@ -14,7 +14,7 @@ from django.contrib import messages  # 알림 메시지(성공/실패)를 위해
 from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from .forms import CustomUserCreationForm, StudentForm
 from .models import Student, CustomUser, School  # Student, CustomUser, School 모델 모두 가져오기
-from .models import SystemConfig, PromptTemplate
+from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
 class SignUpView(generic.CreateView):
@@ -181,33 +181,70 @@ def ai_generator_step2(request):
     columns = request.session.get('df_columns')
     filename = request.session.get('uploaded_filename', '파일 없음') # ★ 파일명 가져오기
 
-    # DB에 저장된 프롬프트 템플릿들 가져오기
-    prompt_templates = PromptTemplate.objects.all()
-
     if not df_json:
         messages.error(request, "파일 정보가 만료되었습니다. 다시 업로드해주세요.")
         return redirect('ai_generator_step1')
+    
+    # 카테고리 및 템플릿 데이터 구조화 (JSON 변환용) ---
+    # 구조: { 대분류ID: { name: "대분류명", children: { 소분류ID: { name: "소분류명", templates: [템플릿들...] } } } }
+    
+    tree_data = {}
+    main_categories = PromptCategory.objects.filter(parent__isnull=True) # 대분류
+
+    for main in main_categories:
+        sub_cats = main.children.all() # 소분류들
+        children_data = {}
+        
+        for sub in sub_cats:
+            templates = PromptTemplate.objects.filter(category=sub)
+            temp_list = []
+            for t in templates:
+                temp_list.append({
+                    'id': t.id,
+                    'title': t.title,
+                    'description': t.description, # 설명 추가
+                    'context': t.context,
+                    'role': t.role,
+                    'task': t.task,
+                    'example': t.output_example,
+                    # 분량 옵션이 있으면 그 값을, 없으면 빈 값
+                    'length': t.length_option.value if t.length_option else ""
+                })
+            
+            children_data[sub.id] = {
+                'name': sub.name,
+                'templates': temp_list
+            }
+        
+        tree_data[main.id] = {
+            'name': main.name,
+            'children': children_data
+        }
+
+    # 분량 옵션 리스트
+    length_options = PromptLengthOption.objects.all()
     
     # [공통 데이터 묶음] - 화면에 보낼 재료들
     context = {
         'columns': columns,
         'filename': filename,
-        'prompt_templates': prompt_templates, # ★ 여기서 무조건 보냄
+        'tree_data_json': json.dumps(tree_data), # JSON으로 변환해서 전달
+        'length_options': length_options,
     }
 
     if request.method == 'POST':
         try:
-            # 1. 사용자 설정값
+            # 1. 설정값 가져오기
             selected_cols = request.POST.getlist('selected_cols')
             target_col_name = request.POST.get('target_col_name', 'AI_분석결과')
             temperature = float(request.POST.get('temperature', 0.7)) # ★ 온도 가져오기
             
-            # 분할된 프롬프트 입력값들 가져오기
+            # 입력된 프롬프트 내용 가져오기 (p_length는 select 값이거나 직접 입력값)
             p_context = request.POST.get('p_context', '')
             p_role = request.POST.get('p_role', '')
             p_task = request.POST.get('p_task', '')
             p_example = request.POST.get('p_example', '')
-            p_length = request.POST.get('p_length', '')
+            p_length = request.POST.get('p_length', '') # 셀렉트박스 값
 
             # 2. API 키 확인
             try:

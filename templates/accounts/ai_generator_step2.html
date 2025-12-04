@@ -68,40 +68,61 @@
                             <input type="range" name="temperature" class="form-range" min="0.1" max="1.0" step="0.1" value="0.7" oninput="document.getElementById('tempValue').innerText = this.value">
                         </div>
 
-                        <!-- ★ 템플릿 선택 -->
-                        <div class="mb-4 p-3 bg-light rounded border">
-                            <label class="form-label fw-bold text-primary"><i class="bi bi-magic"></i> 프롬프트 예시 불러오기</label>
-                            <select class="form-select" id="templateSelect" onchange="applyTemplate()">
-                                <option value="">-- 직접 입력 또는 예시 선택 --</option>
-                                {% for t in prompt_templates %}
-                                    <option value="{{ t.id }}">{{ t.title }}</option>
-                                {% endfor %}
-                            </select>
-                            <div class="form-text">선택하면 아래 내용이 자동으로 채워집니다.</div>
+                        <!-- ★ 1. 프롬프트 예시 불러오기 (3단 콤보) -->
+                        <div class="p-3 bg-light rounded border mb-3">
+                            <label class="form-label fw-bold text-primary"><i class="bi bi-magic"></i> 프롬프트 템플릿 선택</label>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <select class="form-select" id="mainCat" onchange="changeMainCat()">
+                                        <option value="">1. 대분류 선택</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" id="subCat" onchange="changeSubCat()" disabled>
+                                        <option value="">2. 소분류 선택</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" id="templateSelect" onchange="applyTemplate()" disabled>
+                                        <option value="">3. 템플릿 선택</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- ★ 템플릿 설명/가이드 (선택 시 표시) -->
+                            <div id="templateDescBox" class="alert alert-info mt-2 mb-0 d-none small">
+                                <i class="bi bi-info-circle-fill"></i> <span id="templateDescText"></span>
+                            </div>
                         </div>
 
-                        <hr>
-
-                        <!-- ★ 분할된 입력 필드들 -->
+                        <!-- ★ 2. 상세 내용 입력 (넓어진 텍스트박스) -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">프롬프트 맥락</label>
-                            <input type="text" name="p_context" id="p_context" class="form-control" placeholder="예: 고등학교 1학년 통합사회 수업 시간임.">
+                            <textarea name="p_context" id="p_context" class="form-control" rows="2" placeholder="예: 고등학교 1학년 통합사회 수업 시간임."></textarea>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">AI의 역할</label>
-                            <input type="text" name="p_role" id="p_role" class="form-control" placeholder="예: 20년 경력의 베테랑 교사">
+                            <textarea name="p_role" id="p_role" class="form-control" rows="2" placeholder="예: 20년 경력의 베테랑 교사"></textarea>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">AI가 할 일</label>
-                            <textarea name="p_task" id="p_task" class="form-control" rows="3" placeholder="예: 기초 데이터를 바탕으로 학생의 강점을 분석하여 생기부 문구 작성"></textarea>
+                            <textarea name="p_task" id="p_task" class="form-control" rows="4" placeholder="예: 기초 데이터를 바탕으로 학생의 강점을 분석하여..."></textarea>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">원하는 결과값 예시</label>
                             <textarea name="p_example" id="p_example" class="form-control" rows="3" placeholder="예: ~~한 활동을 통해 ~~한 역량을 보여줌."></textarea>
                         </div>
+                        
+                        <!-- ★ 3. 분량 선택 (관리자 설정 옵션) -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">원하는 분량</label>
-                            <input type="text" name="p_length" id="p_length" class="form-control" placeholder="예: 공백 포함 500자 내외, 개조식 서술형">
+                            <select name="p_length" id="p_length" class="form-select">
+                                <option value="">-- 분량 선택 --</option>
+                                {% for opt in length_options %}
+                                    <option value="{{ opt.value }}">{{ opt.label }}</option>
+                                {% endfor %}
+                            </select>
+                            <!-- 직접 입력이 필요할 경우를 대비해 텍스트박스도 숨겨둘 수 있으나, 일단 셀렉트로 통일 -->
                         </div>
 
                         <button type="submit" class="btn btn-success w-100 btn-lg mt-3 fw-bold">
@@ -114,36 +135,92 @@
     </form>
 </div>
 
-<!-- 데이터 전달 및 스크립트 -->
+<!-- 데이터 전달 3단 콤보 및 자동 채우기 -->
 <script>
-    // Django 데이터를 자바스크립트 객체로 변환 (자동 채우기용)
-    const templates = {
-        {% for t in prompt_templates %}
-        "{{ t.id }}": {
-            context: `{{ t.context|escapejs }}`,
-            role: `{{ t.role|escapejs }}`,
-            task: `{{ t.task|escapejs }}`,
-            example: `{{ t.output_example|escapejs }}`,
-            length: `{{ t.length|escapejs }}`
-        },
-        {% endfor %}
-    };
+    // 1. 서버에서 받은 트리 데이터 (JSON)
+    const treeData = JSON.parse('{{ tree_data_json|escapejs }}');
+    
+    // DOM 요소
+    const mainCat = document.getElementById('mainCat');
+    const subCat = document.getElementById('subCat');
+    const templateSelect = document.getElementById('templateSelect');
+    const descBox = document.getElementById('templateDescBox');
+    
+    // 초기화: 대분류 채우기
+    for (const id in treeData) {
+        let opt = document.createElement('option');
+        opt.value = id;
+        opt.innerText = treeData[id].name;
+        mainCat.appendChild(opt);
+    }
 
-    function applyTemplate() {
-        const select = document.getElementById('templateSelect');
-        const id = select.value;
+    // 대분류 변경 시 -> 소분류 갱신
+    function changeMainCat() {
+        const mainId = mainCat.value;
+        subCat.innerHTML = '<option value="">2. 소분류 선택</option>';
+        templateSelect.innerHTML = '<option value="">3. 템플릿 선택</option>';
+        descBox.classList.add('d-none');
         
-        if (id && templates[id]) {
-            const t = templates[id];
+        if (mainId && treeData[mainId].children) {
+            subCat.disabled = false;
+            templateSelect.disabled = true;
+            const children = treeData[mainId].children;
+            for (const subId in children) {
+                let opt = document.createElement('option');
+                opt.value = subId;
+                opt.innerText = children[subId].name;
+                subCat.appendChild(opt);
+            }
+        } else {
+            subCat.disabled = true;
+            templateSelect.disabled = true;
+        }
+    }
+
+    // 소분류 변경 시 -> 템플릿 목록 갱신
+    function changeSubCat() {
+        const mainId = mainCat.value;
+        const subId = subCat.value;
+        templateSelect.innerHTML = '<option value="">3. 템플릿 선택</option>';
+        descBox.classList.add('d-none');
+
+        if (mainId && subId) {
+            templateSelect.disabled = false;
+            const templates = treeData[mainId].children[subId].templates;
+            templates.forEach(t => {
+                let opt = document.createElement('option');
+                opt.value = JSON.stringify(t); // 템플릿 객체 전체를 값으로 넣음
+                opt.innerText = t.title;
+                templateSelect.appendChild(opt);
+            });
+        } else {
+            templateSelect.disabled = true;
+        }
+    }
+
+    // 템플릿 선택 시 -> 본문 채우기
+    function applyTemplate() {
+        const val = templateSelect.value;
+        if (val) {
+            const t = JSON.parse(val);
+            
+            // 설명창 표시
+            if (t.description) {
+                document.getElementById('templateDescText').innerText = t.description;
+                descBox.classList.remove('d-none');
+            } else {
+                descBox.classList.add('d-none');
+            }
+
+            // 내용 채우기
             document.getElementById('p_context').value = t.context;
             document.getElementById('p_role').value = t.role;
             document.getElementById('p_task').value = t.task;
             document.getElementById('p_example').value = t.example;
-            document.getElementById('p_length').value = t.length;
-        } else {
-            // 선택 해제 시 비우기 (원하면 주석 처리)
-            // document.getElementById('p_context').value = '';
-            // ...
+            
+            // 분량 선택 (해당하는 값이 옵션에 있으면 선택됨)
+            const lenSelect = document.getElementById('p_length');
+            lenSelect.value = t.length; 
         }
     }
     
