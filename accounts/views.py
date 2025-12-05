@@ -193,8 +193,8 @@ def ai_generator_step2(request):
     main_categories = PromptCategory.objects.filter(parent__isnull=True)
 
     for main in main_categories:
-        # 부모가 없는 최상위 카테고리 가져오기 (대분류)
-        main_categories = PromptCategory.objects.filter(parent__isnull=True)
+        # 대분류의 자식들 (소분류)
+        sub_cats = PromptCategory.objects.filter(parent=main)
         
         children_data = {}
         has_content = False # 내용물이 있는지 체크
