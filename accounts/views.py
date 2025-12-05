@@ -189,37 +189,52 @@ def ai_generator_step2(request):
     # 구조: { 대분류ID: { name: "대분류명", children: { 소분류ID: { name: "소분류명", templates: [템플릿들...] } } } }
     
     tree_data = {}
-    main_categories = PromptCategory.objects.filter(parent__isnull=True) # 대분류
+    # 부모가 없는 최상위 카테고리 가져오기 (대분류)
+    main_categories = PromptCategory.objects.filter(parent__isnull=True)
 
     for main in main_categories:
-        sub_cats = main.children.all() # 소분류들
+        # 부모가 없는 최상위 카테고리 가져오기 (대분류)
+        main_categories = PromptCategory.objects.filter(parent__isnull=True)
+        
         children_data = {}
+        has_content = False # 내용물이 있는지 체크
         
         for sub in sub_cats:
+            # 소분류에 연결된 템플릿들
             templates = PromptTemplate.objects.filter(category=sub)
-            temp_list = []
-            for t in templates:
-                temp_list.append({
-                    'id': t.id,
-                    'title': t.title,
-                    'description': t.description, # 설명 추가
-                    'context': t.context,
-                    'role': t.role,
-                    'task': t.task,
-                    'example': t.output_example,
-                    # 분량 옵션이 있으면 그 값을, 없으면 빈 값
-                    'length': t.length_option.value if t.length_option else ""
-                })
             
-            children_data[sub.id] = {
-                'name': sub.name,
-                'templates': temp_list
-            }
+            # 템플릿이 하나라도 있으면 목록 생성
+            if templates.exists():
+                has_content = True
+                temp_list = []
+                for t in templates:
+                    # 분량 옵션 값 처리
+                    len_val = ""
+                    if t.length_option:
+                        len_val = t.length_option.value
+                    
+                    temp_list.append({
+                        'id': t.id,
+                        'title': t.title,
+                        'description': t.description,   # 사용 가이드
+                        'context': t.context,
+                        'role': t.role,
+                        'task': t.task,
+                        'example': t.output_example,
+                        'length': len_val   # 분량 옵션 값
+                    })
+                
+                children_data[sub.id] = {
+                    'name': sub.name,
+                    'templates': temp_list
+                }
         
-        tree_data[main.id] = {
-            'name': main.name,
-            'children': children_data
-        }
+        # 소분류가 하나라도 있거나, 템플릿이 있는 경우에만 트리에 추가
+        if children_data: 
+            tree_data[main.id] = {
+                'name': main.name,
+                'children': children_data
+            }
 
     # 분량 옵션 리스트
     length_options = PromptLengthOption.objects.all()

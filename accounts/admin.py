@@ -16,7 +16,7 @@ class SystemConfigAdmin(admin.ModelAdmin):
     list_display = ['key_name', 'value', 'description', 'updated_at']
     search_fields = ['key_name']
 
-# 프롬프트 템플릿 관리자
+# 3. 프롬프트 템플릿 관리자
 @admin.register(PromptCategory)
 class PromptCategoryAdmin(admin.ModelAdmin):
     list_display = ['name', 'parent']
@@ -32,8 +32,13 @@ class PromptTemplateAdmin(admin.ModelAdmin):
     list_filter = ['category']
     search_fields = ['title']
 
-# 3. 관리자 페이지에 등록
-admin.site.register(CustomUser, CustomUserAdmin)
-admin.site.register(Student)
-admin.site.register(School)
-admin.site.register(SystemConfig, SystemConfigAdmin)    # 여기 등록
+# 4. 나머지 간단한 모델들 등록
+@admin.register(Student)
+class StudentAdmin(admin.ModelAdmin):
+    list_display = ['grade', 'class_no', 'number', 'name', 'teacher'] # 학생 목록도 보기 좋게 추가
+    search_fields = ['name']
+
+@admin.register(School)
+class SchoolAdmin(admin.ModelAdmin):
+    list_display = ['name', 'office', 'level', 'code'] # 학교 목록도 보기 좋게 추가
+    search_fields = ['name', 'code']

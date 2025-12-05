@@ -71,13 +71,15 @@ class PromptCategory(models.Model):
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children', verbose_name="상위 카테고리")
 
     def __str__(self):
-        # 관리자 페이지에서 "대분류 > 소분류" 형태로 보여주기
-        if self.parent:
-            return f"{self.parent.name} > {self.name}"
-        return self.name
+        # 최상위 카테고리면 이름만 표시 (예: 동아리활동)
+        if self.parent is None:
+            return self.name
+        # 하위 카테고리면 경로 표시 (예: 동아리활동 > 건축분야)
+        return f"{self.parent.name} > {self.name}"
 
     class Meta:
-        verbose_name_plural = "1. 프롬프트 카테고리"
+        verbose_name = "프롬프트 카테고리"
+        verbose_name_plural = "1. 프롬프트 카테고리 관리"
 
 # 2. 분량 옵션 (예: 500자, 1000자)
 class PromptLengthOption(models.Model):
