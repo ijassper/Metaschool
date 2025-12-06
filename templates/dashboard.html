@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- 환영 카드 -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-5 text-center">
+                    <h2 class="fw-bold text-primary mb-3">
+                        반갑습니다, {{ user.name }}님! 👋
+                    </h2>
+                    <p class="text-muted fs-5">
+                        현재 회원님의 등급은 
+                        <span class="badge bg-success rounded-pill px-3 py-2">{{ user.get_role_display }}</span> 
+                        입니다.
+                    </p>
+                    <p class="mb-0">
+                        소속: <strong>{{ user.school.name|default:"소속 없음" }}</strong> 
+                        {% if user.subject %}| 담당: {{ user.subject }}{% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <!-- 등급별 메뉴 접근 권한 안내 (예시) -->
+            <div class="row g-4">
+                <!-- 1. 학생 관리 (교사 이상) -->
+                {% if user.role != 'STUDENT' and user.role != 'GUEST' %}
+                <div class="col-md-6">
+                    <div class="card h-100 border-primary">
+                        <div class="card-body text-center">
+                            <h4 class="card-title fw-bold">👨‍🏫 학생 관리</h4>
+                            <p class="card-text">우리 반 학생들을 등록하고 명렬표를 관리합니다.</p>
+                            <a href="{% url 'mypage' %}" class="btn btn-primary">이동하기</a>
+                        </div>
+                    </div>
+                </div>
+                <!-- 2. AI 분석 (일반 교사 이상) -->
+                <div class="col-md-6">
+                    <div class="card h-100 border-success">
+                        <div class="card-body text-center">
+                            <h4 class="card-title fw-bold">🤖 AI 생기부 분석</h4>
+                            <p class="card-text">학생들의 활동 결과를 AI로 분석합니다.</p>
+                            <a href="{% url 'ai_generator_step1' %}" class="btn btn-success">이동하기</a>
+                        </div>
+                    </div>
+                </div>
+                {% elif user.role == 'GUEST' %}
+                <!-- 게스트 교사일 때 -->
+                <div class="col-12">
+                    <div class="alert alert-warning text-center">
+                        <strong>⚠️ 승인 대기 중입니다.</strong><br>
+                        관리자 승인 후 모든 기능을 이용하실 수 있습니다.
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

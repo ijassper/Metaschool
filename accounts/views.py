@@ -16,6 +16,11 @@ from .forms import CustomUserCreationForm, StudentForm
 from .models import Student, CustomUser, School  # Student, CustomUser, School 모델 모두 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate
 
+# 대시보드 (로그인 후 첫 화면)
+@login_required
+def dashboard(request):
+    return render(request, 'dashboard.html')
+
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
 class SignUpView(generic.CreateView):
     form_class = CustomUserCreationForm
@@ -29,6 +34,47 @@ class SignUpView(generic.CreateView):
         user = self.object
         login(self.request, user)
         return response
+
+# 학생 개별 등록 페이지
+@login_required
+def student_create(request):
+    if request.method == 'POST':
+        form = StudentForm(request.POST)
+        # HTML 화면에서 보낸 학교의 DB ID (예: 15)
+        school_db_id = request.POST.get('school_select_id') 
+
+        if form.is_valid() and school_db_id:
+            student = form.save(commit=False)
+            student.teacher = request.user # 담당 교사는 로그인한 선생님
+            
+            # --- 학생 아이디 생성 로직 ---
+            # 1. 학교 DB ID를 4자리 문자로 변환 (예: 15 -> '0015')
+            school_code_str = f"{int(school_db_id):04d}"
+            
+            # 2. 아이디 조합: 학교(4) + 학년(1) + 반(2) + 번호(2) = 9자리
+            # 예: 001510305
+            student_id = f"{school_code_str}{student.grade}{student.class_no:02d}{student.number:02d}"
+            
+            # 3. 계정 생성
+            user, created = CustomUser.objects.get_or_create(
+                username=student_id,
+                defaults={
+                    'name': student.name,
+                    'password': make_password("1234"),
+                    'school': request.user.school,  # 선택된 학교 객체를 직접 연결
+                    'role': 'STUDENT',  # ★ 학생 등급 강제 부여
+                    'is_active': True
+                }
+            )
+            student.save() # 최종 저장
+            messages.success(request, f"{student.name} 학생 등록 완료 (ID: {student_id})")
+            return redirect('mypage')
+        else:
+            messages.error(request, "학교를 선택해주세요.")
+    else:
+        form = StudentForm()
+    
+    return render(request, 'accounts/student_form.html', {'form': form})
 
 # 2. 마이페이지 뷰
 @login_required
@@ -68,7 +114,8 @@ def student_upload(request):
                     defaults={
                         'name': name,
                         'password': make_password("1234"), # 초기 비밀번호
-                        'school': request.user.school,     # 교사의 학교 정보 상속
+                        'school': request.user.school,  # 교사의 학교 정보 상속
+                        'role': 'STUDENT', # ★ 학생 등급 강제 부여
                         'is_active': True
                     }
                 )
@@ -103,46 +150,6 @@ def search_school(request):
     return JsonResponse({'results': results})
 
 
-# 학생 개별 등록 페이지
-@login_required
-def student_create(request):
-    if request.method == 'POST':
-        form = StudentForm(request.POST)
-        # HTML 화면에서 보낸 학교의 DB ID (예: 15)
-        school_db_id = request.POST.get('school_select_id') 
-
-        if form.is_valid() and school_db_id:
-            student = form.save(commit=False)
-            student.teacher = request.user # 담당 교사는 로그인한 선생님
-            
-            # --- 학생 아이디 생성 로직 ---
-            # 1. 학교 DB ID를 4자리 문자로 변환 (예: 15 -> '0015')
-            school_code_str = f"{int(school_db_id):04d}"
-            
-            # 2. 아이디 조합: 학교(4) + 학년(1) + 반(2) + 번호(2) = 9자리
-            # 예: 001510305
-            student_id = f"{school_code_str}{student.grade}{student.class_no:02d}{student.number:02d}"
-            
-            # 3. 계정 생성
-            user, created = CustomUser.objects.get_or_create(
-                username=student_id,
-                defaults={
-                    'name': student.name,
-                    'password': make_password("1234"),
-                    # 선택된 학교 객체를 직접 연결
-                    'school_id': school_db_id, 
-                    'is_active': True
-                }
-            )
-            student.save() # 최종 저장
-            messages.success(request, f"{student.name} 학생 등록 완료 (ID: {student_id})")
-            return redirect('mypage')
-        else:
-            messages.error(request, "학교를 선택해주세요.")
-    else:
-        form = StudentForm()
-    
-    return render(request, 'accounts/student_form.html', {'form': form})
 
 # 이메일 중복 체크 API
 def check_email_duplicate(request):

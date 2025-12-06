@@ -138,7 +138,7 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # [이동 경로 설정] 로그인 또는 회원가입 성공 시 이동할 URL
-LOGIN_REDIRECT_URL = '/accounts/mypage/'
+LOGIN_REDIRECT_URL = '/accounts/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # [커스텀 유저 모델 설정] 기본 유저 모델 대신 accounts 앱의 CustomUser 모델 사용

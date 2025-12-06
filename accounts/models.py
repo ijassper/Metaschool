@@ -18,8 +18,16 @@ class School(models.Model):
     def __str__(self):
         return f"[{self.get_level_display()}] {self.name}"
 
-# 2. 사용자(교사) 모델 수정 (이메일 필드 명시!)
+# 2. 사용자(교사) 모델 (이메일 필드 명시!)
 class CustomUser(AbstractUser):
+    # 회원 등급 정의 (학생 < 게스트 < 일반 < 대표 < 관리자)
+    class Role(models.TextChoices):
+        STUDENT = 'STUDENT', '학생'             # 학생
+        GUEST = 'GUEST', '게스트 교사'           # 가입 직후 (승인 대기)
+        TEACHER = 'TEACHER', '일반 교사'         # 승인된 교사
+        LEADER = 'LEADER', '학교 대표 교사'       # 중간 관리자
+        ADMIN = 'ADMIN', '최고 관리자'           # 시스템 운영자 (superuser와 별개로 표시용)
+
     # 이메일 필드를 명시적으로 선언하고 유일한 값(unique)으로 설정
     email = models.EmailField(verbose_name='아이디(이메일)', max_length=255, unique=True)
     
@@ -34,10 +42,13 @@ class CustomUser(AbstractUser):
     # - 교사: username 칸에 '이메일' 저장
     # - 학생: username 칸에 '학번코드' 저장
     
-    REQUIRED_FIELDS = ['email', 'name'] # 슈퍼유저 만들 때 물어볼 항목
+    # 등급 필드 (기본값: 게스트 교사)
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.GUEST, verbose_name="회원 등급")
+
+    REQUIRED_FIELDS = ['email', 'name']
 
     def __str__(self):
-        return self.name if self.name else self.username
+        return f"[{self.get_role_display()}] {self.name}"
 
 # 3. 학생 모델
 class Student(models.Model):
@@ -83,14 +94,14 @@ class PromptCategory(models.Model):
 
 # 2. 분량 옵션 (예: 500자, 1000자)
 class PromptLengthOption(models.Model):
-    label = models.CharField(max_length=50, verbose_name="화면 표시 이름 (예: 500자)")
-    value = models.CharField(max_length=200, verbose_name="실제 프롬프트 내용 (예: 공백 포함 500자 내외 서술형)")
+    label = models.CharField(max_length=50, verbose_name="화면 표시 이름 (예: 1000 Byte)")
+    value = models.CharField(max_length=200, verbose_name="실제 프롬프트 내용 (예: 1000 Byte 내외로 작성)")
 
     def __str__(self):
         return self.label
 
     class Meta:
-        verbose_name_plural = "2. 분량 옵션"
+        verbose_name_plural = "2. 분량 옵션 (Byte)"
 
 # 3. 프롬프트 템플릿
 class PromptTemplate(models.Model):
