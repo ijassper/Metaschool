@@ -3,17 +3,20 @@ from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption
 
 # 1. 사용자(교사) 관리 화면 설정
+@admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
     list_display = ['email', 'name', 'role', 'school', 'is_active'] # role 추가
     list_filter = ['role', 'school'] # 등급별 필터링
     list_editable = ['role'] # ★ 목록에서 바로 등급 수정 가능하게 설정!
+    search_fields = ['email', 'name']
     
     fieldsets = UserAdmin.fieldsets + (
         ('추가 정보', {'fields': ('name', 'phone', 'school', 'subject', 'role')}), # 상세 페이지에 role 추가
     )
 
 # 2. 시스템 설정(API 키) 관리 화면 설정
+@admin.register(SystemConfig)
 class SystemConfigAdmin(admin.ModelAdmin):
     list_display = ['key_name', 'value', 'description', 'updated_at']
     search_fields = ['key_name']
