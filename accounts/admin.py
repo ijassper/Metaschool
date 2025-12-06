@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption 
+from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption
 
 # 1. 사용자(교사) 관리 화면 설정
 class CustomUserAdmin(UserAdmin):
@@ -34,28 +34,24 @@ class PromptCategoryAdmin(admin.ModelAdmin):
     get_tree_name.short_description = '카테고리 구조'
 
 # 4. 프롬프트 템플릿 관리자
-@admin.register(PromptCategory)
-class PromptCategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'parent']
-    list_filter = ['parent']
-
-@admin.register(PromptLengthOption)
-class PromptLengthOptionAdmin(admin.ModelAdmin):
-    list_display = ['label', 'value']
-
 @admin.register(PromptTemplate)
 class PromptTemplateAdmin(admin.ModelAdmin):
     list_display = ['category', 'title', 'length_option']
     list_filter = ['category']
     search_fields = ['title']
 
-# 5. 나머지 간단한 모델들 등록
+# 5. 분량 옵션 관리자
+@admin.register(PromptLengthOption)
+class PromptLengthOptionAdmin(admin.ModelAdmin):
+    list_display = ['label', 'value']
+
+# 6. 나머지 모델들 (학생, 학교)
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ['grade', 'class_no', 'number', 'name', 'teacher'] # 학생 목록도 보기 좋게 추가
+    list_display = ['grade', 'class_no', 'number', 'name', 'teacher']
     search_fields = ['name']
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ['name', 'office', 'level', 'code'] # 학교 목록도 보기 좋게 추가
+    list_display = ['name', 'office', 'level', 'code']
     search_fields = ['name', 'code']
