@@ -17,7 +17,7 @@
     <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 border-bottom">
         <div class="container">
             <!-- 로고 클릭 시 대시보드로 이동 -->
-            <a class="navbar-brand fw-bold text-primary" href="{% url 'mypage' %}">
+            <a class="navbar-brand fw-bold text-primary" href="{% url 'dashboard' %}">
                 <i class="bi bi-grid-fill"></i> Metaschool
             </a>
             
@@ -30,23 +30,23 @@
                 {% if user.is_authenticated %}
                     <!-- 로그인 했을 때 보이는 메뉴 -->
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <!-- 2. '대시보드' 메뉴 클릭 시 -> 대시보드로 이동 -->
                         <li class="nav-item">
-                            <a class="nav-link active" href="{% url 'mypage' %}">대시보드</a>
+                            <a class="nav-link active" href="{% url 'dashboard' %}">대시보드</a>
+                        </li>
+                        
+                        <!-- 3. 교사 이상만 보이는 메뉴들 (게스트/학생에겐 숨김) -->
+                        {% if user.role != 'GUEST' and user.role != 'STUDENT' %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" ...>학생 관리</a>
+                            <!-- ... -->
                         </li>
                         <li class="nav-item">
                             <a class="nav-link fw-bold text-success" href="{% url 'ai_generator_step1' %}">
-                                <i class="bi bi-magic"></i> 학생결과물 AI 분석
+                                <i class="bi bi-magic"></i> 생기부 생성기
                             </a>
                         </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                학생 관리
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'mypage' %}">학생 명렬표</a></li>
-                                <li><a class="dropdown-item" href="{% url 'student_create' %}">학생 개별 등록</a></li>
-                            </ul>
-                        </li>
+                        {% endif %}
                     </ul>
                     
                     <!-- 우측 사용자 정보 -->

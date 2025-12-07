@@ -7,6 +7,7 @@ from django.urls import reverse_lazy
 from django.http import JsonResponse  # 검색 기능을 위해 필요
 from django.http import HttpResponse
 from django.views import generic
+from django.views.decorators.csrf import csrf_exempt    # API 뷰에서 CSRF 예외 처리를 위해 필요
 from django.shortcuts import render, redirect
 from django.contrib.auth import login  # 자동 로그인을 위해 필요
 from django.contrib.auth.decorators import login_required
@@ -15,6 +16,7 @@ from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from .forms import CustomUserCreationForm, StudentForm
 from .models import Student, CustomUser, School  # Student, CustomUser, School 모델 모두 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate
+from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 
 # 대시보드 (로그인 후 첫 화면)
 @login_required
@@ -37,6 +39,7 @@ class SignUpView(generic.CreateView):
 
 # 학생 개별 등록 페이지
 @login_required
+@teacher_required
 def student_create(request):
     if request.method == 'POST':
         form = StudentForm(request.POST)
@@ -78,6 +81,7 @@ def student_create(request):
 
 # 2. 마이페이지 뷰
 @login_required
+@teacher_required
 def mypage(request):
     # 로그인한 선생님(request.user)이 담당하는 학생들만 가져오기
     my_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
@@ -86,6 +90,7 @@ def mypage(request):
 
 # 3. 엑셀 일괄 등록 뷰
 @login_required
+@teacher_required
 def student_upload(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         excel_file = request.FILES['excel_file']
@@ -163,6 +168,7 @@ def check_email_duplicate(request):
 
 # 1단계: 파일 업로드
 @login_required
+@teacher_required
 def ai_generator_step1(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         excel_file = request.FILES['excel_file']
@@ -183,6 +189,7 @@ def ai_generator_step1(request):
 
 # 2단계: 설정 및 실행
 @login_required
+@teacher_required
 def ai_generator_step2(request):
     df_json = request.session.get('df_data')
     columns = request.session.get('df_columns')
@@ -191,6 +198,13 @@ def ai_generator_step2(request):
     if not df_json:
         messages.error(request, "파일 정보가 만료되었습니다. 다시 업로드해주세요.")
         return redirect('ai_generator_step1')
+    
+    # 2. [필수] 전체 데이터 개수 세기 (진행률 바 표시용)
+    try:
+        df = pd.read_json(df_json)
+        total_rows = len(df) # ★ 전체 학생 수
+    except:
+        total_rows = 0
     
     # 카테고리 및 템플릿 데이터 구조화 (JSON 변환용) ---
     # 구조: { 대분류ID: { name: "대분류명", children: { 소분류ID: { name: "소분류명", templates: [템플릿들...] } } } }
@@ -252,122 +266,102 @@ def ai_generator_step2(request):
         'filename': filename,
         'tree_data_json': json.dumps(tree_data), # JSON으로 변환해서 전달
         'length_options': length_options,
+        'total_rows': total_rows,  # ★ [필수 추가] 전체 행 개수
     }
 
+    # POST 요청(분석 실행)은 이제 JavaScript(API)가 하므로, 
+    # 여기서는 무조건 화면(HTML)만 보여주면 됩니다.
+    return render(request, 'accounts/ai_generator_step2.html', context)
+
+# [신규] 1명씩 처리하는 API (JavaScript가 호출함)
+@csrf_exempt
+@login_required
+def api_process_one_row(request):
     if request.method == 'POST':
         try:
-            # 1. 설정값 가져오기
-            selected_cols = request.POST.getlist('selected_cols')
-            target_col_name = request.POST.get('target_col_name', 'AI_분석결과')
-            temperature = float(request.POST.get('temperature', 0.7)) # ★ 온도 가져오기
+            body = json.loads(request.body)
+            row_index = body.get('index')
+            selected_cols = body.get('selected_cols')
+            prompt_system = body.get('prompt_system')
+            temperature = float(body.get('temperature', 0.7))
             
-            # 입력된 프롬프트 내용 가져오기 (p_length는 select 값이거나 직접 입력값)
-            p_context = request.POST.get('p_context', '')
-            p_role = request.POST.get('p_role', '')
-            p_task = request.POST.get('p_task', '')
-            p_example = request.POST.get('p_example', '')
-            p_length = request.POST.get('p_length', '') # 셀렉트박스 값
-
-            # 2. API 키 확인
-            try:
-                config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
-                api_key = config.value
-            except SystemConfig.DoesNotExist:
-                # ★ 중요: 에러 발생 시 1단계로 튕기지 않고 현재 페이지에 메시지 띄우기
-                messages.error(request, "관리자 설정 오류: OPENAI_API_KEY가 등록되지 않았습니다.")
-                return render(request, 'accounts/ai_generator_step2.html', context) # context 사용
-
-            # 3. AI 분석 실행
-            client = openai.OpenAI(api_key=api_key)
+            # 세션에서 데이터 원본 가져오기
+            df_json = request.session.get('df_data')
             df = pd.read_json(df_json)
-            ai_results = []
-
-            for index, row in df.iterrows():
-                # ★ 기능 2: '실행여부' 컬럼 확인 (값이 1이 아니면 건너뜀)
-                # (컬럼명이 정확히 '실행여부'여야 함 / 없으면 모두 실행)
-                if '실행여부' in df.columns:
-                    val = str(row['실행여부']).strip().lower()
-                    if val not in ['1', '1.0', 'true']:
-                        ai_results.append("")
-                        continue
-
-                # 기초 자료 텍스트 생성
-                context_parts = []
-                # ★ 기능 3: 이름 컬럼이 선택되었다면 명확히 표기
-                for col in selected_cols:
-                    if col in row:
-                        val = str(row[col])
-                        if '이름' in col or 'name' in col.lower():
-                            context_parts.append(f"[학생이름: {val}]")
-                        else:
-                            context_parts.append(f"{col}: {val}")
-                
-                context_text = " / ".join(context_parts)
-                
-                if not context_text.strip():
-                    ai_results.append("")
-                    continue
-                
-                # ★ 최종 프롬프트 조합 (입력받은 5개 항목 합치기)
-                full_prompt = f"""
-                [기초 데이터]
-                {context_text}
-
-                [프롬프트 맥락]
-                {p_context}
-
-                [당신의 역할]
-                {p_role}
-
-                [할 일]
-                {p_task}
-
-                [원하는 결과 예시]
-                {p_example}
-
-                [분량 및 형식]
-                {p_length}
-                """
-
-                response = client.chat.completions.create(
-                    model="gpt-4o", 
-                    messages=[
-                        {"role": "system", "content": "당신은 생활기록부 작성 전문가입니다."},
-                        {"role": "user", "content": full_prompt}
-                    ],
-                    temperature=temperature
-                )
-                ai_results.append(response.choices[0].message.content)
-
-            # 4. 결과 저장 및 다운로드
-            df[target_col_name] = ai_results
             
+            # 해당 행(Row) 데이터 가져오기
+            row = df.iloc[row_index]
+            
+            # 실행여부 체크
+            if '실행여부' in df.columns:
+                val = str(row['실행여부']).strip().lower()
+                if val not in ['1', '1.0', 'true']:
+                    return JsonResponse({'status': 'skip', 'result': ''})
+
+            # 프롬프트 재료 조합
+            context_parts = []
+            for col in selected_cols:
+                if col in row:
+                    val = str(row[col])
+                    if '이름' in col or 'name' in col.lower():
+                        context_parts.append(f"[학생이름: {val}]")
+                    else:
+                        context_parts.append(f"{col}: {val}")
+            
+            context_text = " / ".join(context_parts)
+            
+            # API 키 가져오기
+            config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
+            client = openai.OpenAI(api_key=config.value)
+            
+            # GPT 호출
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "당신은 생활기록부 전문가입니다."},
+                    {"role": "user", "content": f"[기초자료]\n{context_text}\n\n[지시사항]\n{prompt_system}"}
+                ],
+                temperature=temperature
+            )
+            result_text = response.choices[0].message.content
+            
+            return JsonResponse({'status': 'success', 'result': result_text})
+            
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+            
+    return JsonResponse({'status': 'fail'}, status=400)
+
+
+# [신규] 최종 결과 엑셀 다운로드 API
+@csrf_exempt
+@login_required
+def api_download_excel(request):
+    if request.method == 'POST':
+        try:
+            # 프론트엔드에서 완성된 결과 리스트를 받음
+            results = json.loads(request.POST.get('results'))
+            target_col = request.POST.get('target_col_name')
+            
+            # 원본 데이터 로드
+            df = pd.read_json(request.session.get('df_data'))
+            filename = request.session.get('uploaded_filename', 'result.xlsx')
+
+            # 결과 열 추가 (순서대로)
+            # (주의: 건너뛴 행은 빈칸으로 채워져 있어야 순서가 맞음)
+            df[target_col] = results
+            
+            # 엑셀 생성
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 df.to_excel(writer, index=False)
             output.seek(0)
-
-            # 원본 파일명 앞에 'Result_' 붙여서 다운로드
-            download_filename = f"Result_{filename}"
             
-            response = HttpResponse(
-                output,
-                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            )
-            # 한글 파일명 깨짐 방지 처리
+            download_filename = f"Result_{filename}"
+            response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             from urllib.parse import quote
             response['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{quote(download_filename)}'
-
-            # ★ 다운로드 완료 신호 (쿠키) 설정
-            response.set_cookie('download_complete', 'true', max_age=10) 
-            
             return response
-
+            
         except Exception as e:
-            # ★ 에러 발생 시 이유를 명확히 보여줌
-            messages.error(request, f"오류 발생: {str(e)}")
-            # 오류가 나도 1단계로 튕기지 않게 함
-            return render(request, 'accounts/ai_generator_step2.html', context) # context 사용
-
-    # GET 요청 시 템플릿 전달
-    return render(request, 'accounts/ai_generator_step2.html', context)
+            return HttpResponse(f"엑셀 생성 오류: {str(e)}", status=500)

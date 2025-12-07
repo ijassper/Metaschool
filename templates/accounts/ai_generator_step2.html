@@ -2,10 +2,17 @@
 
 {% block content %}
 <!-- 로딩 중 화면 (평소엔 숨김) -->
-<div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex flex-column justify-content-center align-items-center" style="z-index: 9999;">
-    <div class="spinner-border text-light mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
-    <h4 class="text-white fw-bold">AI가 분석 중입니다... 🤖</h4>
-    <p class="text-white-50">실행여부가 '1'인 학생만 처리됩니다.</p>
+<div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-90 d-flex flex-column justify-content-center align-items-center" style="z-index: 9999;">
+    <h3 class="text-white fw-bold mb-3">AI가 분석 중입니다... 🤖</h3>
+    
+    <!-- 진행률 바 -->
+    <div class="progress w-50 mb-2" style="height: 25px;">
+        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%">0%</div>
+    </div>
+    <div class="text-white fs-5">
+        <span id="currentCount">0</span> / <span id="totalCount">0</span> 명 처리 중
+    </div>
+    <p class="text-white-50 small mt-3">창을 닫지 마세요. 200명 기준 약 40~50분 소요됩니다.</p>
 </div>
 
 <div class="container mt-4 mb-5">
@@ -23,7 +30,7 @@
     </div>
     {% endif %}
 
-    <form method="post" onsubmit="showLoading()">
+    <form id="aiForm" onsubmit="startBatchProcess(event)">
         {% csrf_token %}
         <div class="row">
             <!-- 왼쪽: 데이터 선택 -->
@@ -293,6 +300,110 @@
                 // window.location.href = "{% url 'ai_generator_step1' %}";
             }
         }, 1000); // 1초마다 확인
+    }
+
+    // ★ [핵심] 이어달리기 처리 로직
+    const totalRows = {{ columns|length }}; // 이게 아니라 실제 데이터 행 수를 알아야 함.
+    // (Django 템플릿에서 데이터 행 수를 넘겨줘야 합니다. views.py context에 'total_rows': len(df) 추가 필요)
+    // 일단 JS에서 세션 데이터를 직접 알 수 없으므로, 첫 요청 때 총 개수를 알아내는 방식으로 짭니다.
+    
+    let aiResults = []; // 결과 모으는 배열
+
+    async function startBatchProcess(e) {
+        e.preventDefault(); // 폼 제출 막기
+
+        // 유효성 검사
+        const checkboxes = document.querySelectorAll('input[name="selected_cols"]:checked');
+        if (checkboxes.length === 0) {
+            alert("데이터를 선택해주세요."); return;
+        }
+
+        // UI 켜기
+        document.getElementById('loadingOverlay').classList.remove('d-none');
+        
+        // 설정값 수집
+        const selected_cols = Array.from(checkboxes).map(cb => cb.value);
+        const prompt_system = `
+            [맥락] ${document.getElementById('p_context').value}
+            [역할] ${document.getElementById('p_role').value}
+            [할 일] ${document.getElementById('p_task').value}
+            [예시] ${document.getElementById('p_example').value}
+            [분량] ${document.getElementById('p_length').value}
+        `;
+        const temperature = document.querySelector('input[name="temperature"]').value;
+
+        // 1. 전체 데이터 개수 파악을 위한 첫 호출 (혹은 views.py에서 넘겨준 값 사용)
+        // 여기서는 편의상 Django 템플릿 태그를 이용해 전체 행 수를 가져왔다고 가정합니다.
+        // views.py의 context에 'total_rows': len(pd.read_json(df_json)) 를 추가해주세요.
+        const totalCount = {{ total_rows }}; 
+        document.getElementById('totalCount').innerText = totalCount;
+
+        // 2. 한 명씩 순서대로 처리 (Loop)
+        for (let i = 0; i < totalCount; i++) {
+            document.getElementById('currentCount').innerText = i + 1;
+            updateProgress(i + 1, totalCount);
+
+            try {
+                const response = await fetch('/accounts/api/process-row/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        index: i,
+                        selected_cols: selected_cols,
+                        prompt_system: prompt_system,
+                        temperature: temperature
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.status === 'success' || data.status === 'skip') {
+                    aiResults.push(data.result);
+                } else {
+                    console.error("Error:", data.message);
+                    aiResults.push("[에러 발생]"); // 칸을 비우지 않고 에러 표시
+                }
+
+            } catch (error) {
+                console.error("Network Error:", error);
+                aiResults.push("[네트워크 오류]");
+            }
+        }
+
+        // 3. 처리가 다 끝나면 엑셀 다운로드 요청
+        downloadFinalExcel();
+    }
+
+    function updateProgress(current, total) {
+        const percent = Math.round((current / total) * 100);
+        const bar = document.getElementById('progressBar');
+        bar.style.width = percent + '%';
+        bar.innerText = percent + '%';
+    }
+
+    function downloadFinalExcel() {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/accounts/api/download-excel/';
+        
+        const inputResults = document.createElement('input');
+        inputResults.type = 'hidden';
+        inputResults.name = 'results';
+        inputResults.value = JSON.stringify(aiResults);
+        
+        const inputColName = document.createElement('input');
+        inputColName.type = 'hidden';
+        inputColName.name = 'target_col_name';
+        inputColName.value = document.getElementsByName('target_col_name')[0].value;
+
+        form.appendChild(inputResults);
+        form.appendChild(inputColName);
+        document.body.appendChild(form);
+        
+        form.submit(); // 다운로드 시작
+        
+        // 마무리
+        alert("✅ 모든 분석이 완료되었습니다! 파일이 다운로드됩니다.");
+        document.getElementById('loadingOverlay').classList.add('d-none');
     }
 </script>
 {% endblock %}
