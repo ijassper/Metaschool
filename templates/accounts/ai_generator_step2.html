@@ -303,9 +303,7 @@
     }
 
     // ★ [핵심] 이어달리기 처리 로직
-    const totalRows = {{ columns|length }}; // 이게 아니라 실제 데이터 행 수를 알아야 함.
-    // (Django 템플릿에서 데이터 행 수를 넘겨줘야 합니다. views.py context에 'total_rows': len(df) 추가 필요)
-    // 일단 JS에서 세션 데이터를 직접 알 수 없으므로, 첫 요청 때 총 개수를 알아내는 방식으로 짭니다.
+    const totalRows = {{ total_rows  }}; // 전체 학생 수(행의 개수)
     
     let aiResults = []; // 결과 모으는 배열
 
@@ -333,8 +331,6 @@
         const temperature = document.querySelector('input[name="temperature"]').value;
 
         // 1. 전체 데이터 개수 파악을 위한 첫 호출 (혹은 views.py에서 넘겨준 값 사용)
-        // 여기서는 편의상 Django 템플릿 태그를 이용해 전체 행 수를 가져왔다고 가정합니다.
-        // views.py의 context에 'total_rows': len(pd.read_json(df_json)) 를 추가해주세요.
         const totalCount = {{ total_rows }}; 
         document.getElementById('totalCount').innerText = totalCount;
 
