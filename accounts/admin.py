@@ -30,21 +30,24 @@ class PromptCategoryAdmin(admin.ModelAdmin):
 
     # 트리 구조를 시각적으로 표현하는 함수
     def get_tree_name_html(self, obj):
-        # 1단계: 대분류 (굵게 표시)
+        # 1단계: 대분류 (부모 없음) -> 굵고 진하게, 아이콘 📂
         if obj.parent is None:
-            return format_html("<b>📂 {}</b>", obj.name)
+            return format_html(
+                "<span style='font-weight:bold; font-size: 1.1em; color: #2c3e50;'>📂 {}</span>", 
+                obj.name
+            )
         
-        # 2단계: 중분류 (들여쓰기 4칸)
+        # 2단계: 중분류 (부모가 대분류) -> 왼쪽 여백 30px, 아이콘 📁
         elif obj.parent.parent is None:
             return format_html(
-                "&nbsp;&nbsp;&nbsp;&nbsp;└─ 📁 {}", 
+                "<span style='margin-left: 30px; color: #555;'>└─ 📁 {}</span>", 
                 obj.name
             )
             
-        # 3단계: 소분류 (들여쓰기 8칸)
+        # 3단계: 소분류 (부모가 중분류) -> 왼쪽 여백 60px (2배), 아이콘 📄
         else:
             return format_html(
-                "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ 📄 {}", 
+                "<span style='margin-left: 60px; color: #777;'>└─ 📄 {}</span>", 
                 obj.name
             )
     
