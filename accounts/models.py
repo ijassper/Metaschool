@@ -33,8 +33,13 @@ class CustomUser(AbstractUser):
     
     name = models.CharField(max_length=100, verbose_name="이름")
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="연락처")
-    school = models.ForeignKey(School, on_delete=models.SET_NULL, null=True, blank=True, related_name='teachers', verbose_name="소속 학교")
-    subject = models.CharField(max_length=100, blank=True, null=True, verbose_name="담당 과목")
+    
+    # [수정] blank=True, null=True를 제거하거나 blank=False로 변경
+    # 단, on_delete=models.SET_NULL 때문에 null=True는 DB 안전을 위해 남겨두는 게 좋습니다.
+    # 하지만 blank=False로 설정하면 폼(Form)에서는 입력을 강제합니다.
+    
+    school = models.ForeignKey(School, on_delete=models.SET_NULL, null=True, blank=False, related_name='teachers', verbose_name="소속 학교")
+    subject = models.CharField(max_length=100, blank=False, null=True, verbose_name="담당 과목") # blank=False로 변경
 
     # [중요] 
     # USERNAME_FIELD를 'email'로 바꾸지 않고 'username'으로 유지합니다.

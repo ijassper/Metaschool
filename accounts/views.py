@@ -8,7 +8,7 @@ from django.http import JsonResponse  # 검색 기능을 위해 필요
 from django.http import HttpResponse
 from django.views import generic
 from django.views.decorators.csrf import csrf_exempt    # API 뷰에서 CSRF 예외 처리를 위해 필요
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404 # 리다이렉트 및 객체 가져오기
 from django.contrib.auth import login  # 자동 로그인을 위해 필요
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages  # 알림 메시지(성공/실패)를 위해 필요
@@ -21,7 +21,25 @@ from .decorators import teacher_required    # 교사 전용 접근 제어 데코
 # 대시보드 (로그인 후 첫 화면)
 @login_required
 def dashboard(request):
-    return render(request, 'dashboard.html')
+    context = {}
+    
+    # 학교 대표(LEADER)일 경우, 우리 학교 정보 가져오기
+    if request.user.role == 'LEADER' and request.user.school:
+        # 1. 승인 대기 중인 우리 학교 게스트 교사들
+        guest_teachers = CustomUser.objects.filter(
+            school=request.user.school, 
+            role='GUEST'
+        )
+        
+        # 2. 우리 학교 전체 학생 수 (또는 명단)
+        # teacher__school 로 검색해서 우리 학교 선생님들이 등록한 모든 학생을 찾음
+        school_students = Student.objects.filter(teacher__school=request.user.school)
+        
+        context['guest_teachers'] = guest_teachers
+        context['school_students'] = school_students
+        context['student_count'] = school_students.count()
+
+    return render(request, 'dashboard.html', context)
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
 class SignUpView(generic.CreateView):
@@ -365,3 +383,21 @@ def api_download_excel(request):
             
         except Exception as e:
             return HttpResponse(f"엑셀 생성 오류: {str(e)}", status=500)
+        
+# 게스트 교사 승인하기 (학교 대표 전용)
+@login_required
+def approve_teacher(request, user_id):
+    # 승인 대상 교사 찾기
+    target_user = get_object_or_404(CustomUser, id=user_id)
+    
+    # [보안 검사]
+    # 1. 요청한 사람이 '학교 대표(LEADER)'인가?
+    # 2. 요청한 사람과 대상 교사가 '같은 학교'인가?
+    if request.user.role == 'LEADER' and request.user.school == target_user.school:
+        target_user.role = 'TEACHER' # 일반 교사로 승급
+        target_user.save()
+        messages.success(request, f"{target_user.name} 선생님을 승인했습니다.")
+    else:
+        messages.error(request, "권한이 없거나 다른 학교 선생님입니다.")
+    
+    return redirect('dashboard')

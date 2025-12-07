@@ -14,6 +14,10 @@ class CustomUserCreationForm(UserCreationForm):
         # 모든 필드에 부트스트랩 디자인(form-control) 자동 적용
         for field in self.fields.values():
             field.widget.attrs['class'] = 'form-control'
+
+        # [추가] 학교와 과목 필드를 '필수(Required)'로 강제 설정
+        self.fields['school'].required = True
+        self.fields['subject'].required = True
         
         # 각 필드별 placeholder(안내 문구) 설정
         self.fields['name'].widget.attrs['placeholder'] = '이름 (예: 홍길동)'

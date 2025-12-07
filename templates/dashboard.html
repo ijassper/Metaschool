@@ -56,6 +56,54 @@
                 {% endif %}
             </div>
 
+            <!-- ★ [학교 대표 전용] 학교 관리 패널 -->
+            {% if user.role == 'LEADER' %}
+            <div class="card shadow-sm border-warning mb-4">
+                <div class="card-header bg-warning text-dark fw-bold">
+                    <i class="bi bi-building-fill"></i> 학교 관리자 모드 ({{ user.school.name }})
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- 1. 교사 승인 관리 -->
+                        <div class="col-md-6">
+                            <h5 class="fw-bold border-bottom pb-2">승인 대기 교사</h5>
+                            {% if guest_teachers %}
+                                <ul class="list-group">
+                                    {% for teacher in guest_teachers %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>{{ teacher.name }}</strong> 
+                                            <small class="text-muted">({{ teacher.email }})</small>
+                                            <br>
+                                            <span class="badge bg-secondary">{{ teacher.subject }}</span>
+                                        </div>
+                                        <form action="{% url 'approve_teacher' teacher.id %}" method="post">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-primary" onclick="return confirm('승인하시겠습니까?')">승인</button>
+                                        </form>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted small">승인 대기 중인 선생님이 없습니다.</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- 2. 학교 전체 학생 현황 -->
+                        <div class="col-md-6">
+                            <h5 class="fw-bold border-bottom pb-2">학교 전체 학생</h5>
+                            <div class="text-center py-3">
+                                <h1 class="display-4 fw-bold text-primary">{{ student_count }}명</h1>
+                                <p class="text-muted">등록된 총 학생 수</p>
+                            </div>
+                            <!-- 필요하면 학생 명단 보기 버튼 추가 -->
+                            <!-- <button class="btn btn-outline-dark w-100">전체 학생 명부 보기</button> -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
         </div>
     </div>
 </div>
