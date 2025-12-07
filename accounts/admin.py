@@ -27,12 +27,19 @@ class PromptCategoryAdmin(admin.ModelAdmin):
     list_display = ['get_tree_name', 'parent'] # 이름 대신 트리 형태 함수 사용
     ordering = ['parent__id', 'id'] # 부모끼리, 자식끼리 모아서 정렬
 
-    # 트리 모양을 만들어주는 함수
+    # 트리 구조를 시각적으로 표현하는 함수
     def get_tree_name(self, obj):
+        # 1단계: 대분류 (부모 없음)
         if obj.parent is None:
-            return f"📂 {obj.name}" # 대분류
+            return f"📂 {obj.name}"
+        
+        # 2단계: 중분류 (부모가 대분류)
+        elif obj.parent.parent is None:
+            return f"   └─ 📁 {obj.name}"
+            
+        # 3단계: 소분류 (부모가 중분류)
         else:
-            return f"   └─ 📁 {obj.name}" # 소분류 (들여쓰기)
+            return f"      └─ 📄 {obj.name}"
     
     get_tree_name.short_description = '카테고리 구조'
 

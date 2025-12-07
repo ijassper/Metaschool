@@ -53,10 +53,23 @@
                     </div>
                     <div class="card-body">
                         
-                        <!-- 결과 열 이름 -->
+                        <!-- [수정] 결과를 저장할 열 이름 (셀렉트 박스 + 직접 입력) -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">결과를 저장할 열 이름</label>
-                            <input type="text" name="target_col_name" class="form-control" value="AI_생기부_결과">
+                            <div class="input-group">
+                                <select class="form-select" id="targetColSelect" onchange="toggleTargetColInput()">
+                                    <option value="new">✨ [새로 만들기] (직접 입력)</option>
+                                    <option disabled>──────────</option>
+                                    {% for col in columns %}
+                                        <option value="{{ col }}">{{ col }} (덮어쓰기)</option>
+                                    {% endfor %}
+                                </select>
+                                <!-- 직접 입력 필드 (기본값: AI_생기부_결과) -->
+                                <input type="text" name="target_col_name" id="targetColInput" class="form-control" value="AI_생기부_결과" placeholder="새로운 열 이름 입력">
+                            </div>
+                            <div class="form-text small text-primary" id="targetColHelp">
+                                * 새로운 열을 만들거나, 기존 열을 선택해 내용을 덮어쓸 수 있습니다.
+                            </div>
                         </div>
 
                         <!-- 온도 조절 -->
@@ -195,6 +208,26 @@
             });
         } else {
             templateSelect.disabled = true;
+        }
+    }
+
+    // 결과 열 이름 선택 시 -> 입력 필드 토글
+    function toggleTargetColInput() {
+        const select = document.getElementById('targetColSelect');
+        const input = document.getElementById('targetColInput');
+        const help = document.getElementById('targetColHelp');
+
+        if (select.value === 'new') {
+            input.readOnly = false;
+            input.value = "AI_생기부_결과"; // 기본값 복원
+            input.focus();
+            help.innerText = "* 새로운 열이 생성됩니다.";
+            help.className = "form-text small text-primary";
+        } else {
+            input.readOnly = true;
+            input.value = select.value; // 선택한 열 이름으로 값 설정
+            help.innerText = "⚠️ 주의: 선택한 열의 내용이 AI 결과로 덮어씌워집니다.";
+            help.className = "form-text small text-danger fw-bold";
         }
     }
 
