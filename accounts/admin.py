@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption
+from django.db.models import Case, When # For conditional ordering
 from django.utils.html import format_html   # For custom HTML rendering
 
 # 1. 사용자(교사) 관리 화면 설정
@@ -22,36 +23,65 @@ class SystemConfigAdmin(admin.ModelAdmin):
     list_display = ['key_name', 'value', 'description', 'updated_at']
     search_fields = ['key_name']
 
-# 3. 카테고리 트리 뷰 구현
+# 3. 카테고리 트리 뷰 구현 (족보순 정렬 + 계단식 디자인)
 @admin.register(PromptCategory)
 class PromptCategoryAdmin(admin.ModelAdmin):
     list_display = ['get_tree_name_html', 'parent'] # 이름 대신 트리 형태 함수 사용
+    list_display_links = ['get_tree_name_html']
     ordering = ['parent__id', 'id'] # 부모끼리, 자식끼리 모아서 정렬
 
-    # 트리 구조를 시각적으로 표현하는 함수
+    # ★ 1. 데이터를 가져올 때 '족보 순서'대로 줄 세우는 마법의 함수
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        
+        # 전체 데이터를 가져와서 파이썬 메모리에서 트리를 만듭니다.
+        all_cats = list(qs)
+        children_map = {c.id: [] for c in all_cats}
+        roots = []
+
+        for c in all_cats:
+            if c.parent_id:
+                if c.parent_id in children_map:
+                    children_map[c.parent_id].append(c)
+            else:
+                roots.append(c)
+
+        # 재귀함수로 정렬된 ID 리스트 생성 (DFS 방식)
+        sorted_ids = []
+        def add_nodes(nodes):
+            # 같은 레벨에서는 이름순 정렬
+            nodes.sort(key=lambda x: x.name)
+            for node in nodes:
+                sorted_ids.append(node.id)
+                # 자식이 있으면 바로 그 밑으로 붙임
+                if node.id in children_map:
+                    add_nodes(children_map[node.id])
+        
+        add_nodes(roots)
+
+        # 정렬된 ID 순서대로 DB에 다시 요청 (Case/When 문법 사용)
+        preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(sorted_ids)])
+        return qs.filter(pk__in=sorted_ids).order_by(preserved)
+
+    # ★ 2. 계단식 디자인 (기존 코드 유지)
     def get_tree_name_html(self, obj):
-        # 1단계: 대분류 (부모 없음) -> 굵고 진하게, 아이콘 📂
         if obj.parent is None:
             return format_html(
                 "<span style='font-weight:bold; font-size: 1.1em; color: #2c3e50;'>📂 {}</span>", 
                 obj.name
             )
-        
-        # 2단계: 중분류 (부모가 대분류) -> 왼쪽 여백 30px, 아이콘 📁
         elif obj.parent.parent is None:
             return format_html(
                 "<span style='margin-left: 30px; color: #555;'>└─ 📁 {}</span>", 
                 obj.name
             )
-            
-        # 3단계: 소분류 (부모가 중분류) -> 왼쪽 여백 60px (2배), 아이콘 📄
         else:
             return format_html(
                 "<span style='margin-left: 60px; color: #777;'>└─ 📄 {}</span>", 
                 obj.name
             )
     
-    get_tree_name_html.short_description = '카테고리 구조'
+    get_tree_name_html.short_description = '카테고리 구조 (트리)'
 
 # 4. 프롬프트 템플릿 관리자
 @admin.register(PromptTemplate)
