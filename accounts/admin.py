@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption
+from django.utils.html import format_html   # For custom HTML rendering
 
 # 1. 사용자(교사) 관리 화면 설정
 @admin.register(CustomUser)
@@ -24,24 +25,30 @@ class SystemConfigAdmin(admin.ModelAdmin):
 # 3. 카테고리 트리 뷰 구현
 @admin.register(PromptCategory)
 class PromptCategoryAdmin(admin.ModelAdmin):
-    list_display = ['get_tree_name', 'parent'] # 이름 대신 트리 형태 함수 사용
+    list_display = ['get_tree_name_html', 'parent'] # 이름 대신 트리 형태 함수 사용
     ordering = ['parent__id', 'id'] # 부모끼리, 자식끼리 모아서 정렬
 
     # 트리 구조를 시각적으로 표현하는 함수
-    def get_tree_name(self, obj):
-        # 1단계: 대분류 (부모 없음)
+    def get_tree_name_html(self, obj):
+        # 1단계: 대분류 (굵게 표시)
         if obj.parent is None:
-            return f"📂 {obj.name}"
+            return format_html("<b>📂 {}</b>", obj.name)
         
-        # 2단계: 중분류 (부모가 대분류)
+        # 2단계: 중분류 (들여쓰기 4칸)
         elif obj.parent.parent is None:
-            return f"   └─ 📁 {obj.name}"
+            return format_html(
+                "&nbsp;&nbsp;&nbsp;&nbsp;└─ 📁 {}", 
+                obj.name
+            )
             
-        # 3단계: 소분류 (부모가 중분류)
+        # 3단계: 소분류 (들여쓰기 8칸)
         else:
-            return f"      └─ 📄 {obj.name}"
+            return format_html(
+                "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ 📄 {}", 
+                obj.name
+            )
     
-    get_tree_name.short_description = '카테고리 구조'
+    get_tree_name_html.short_description = '카테고리 구조'
 
 # 4. 프롬프트 템플릿 관리자
 @admin.register(PromptTemplate)
