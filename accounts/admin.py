@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption
+from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption, Subject
 from django.db.models import Case, When # For conditional ordering
 from django.utils.html import format_html   # For custom HTML rendering
 
@@ -105,3 +105,9 @@ class StudentAdmin(admin.ModelAdmin):
 class SchoolAdmin(admin.ModelAdmin):
     list_display = ['name', 'office', 'level', 'code']
     search_fields = ['name', 'code']
+
+# 교과목 관리자
+@admin.register(Subject)
+class SubjectAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name']
+    search_fields = ['name']

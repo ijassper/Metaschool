@@ -22,7 +22,14 @@ class CustomUserCreationForm(UserCreationForm):
         # 각 필드별 placeholder(안내 문구) 설정
         self.fields['name'].widget.attrs['placeholder'] = '이름 (예: 홍길동)'
         self.fields['phone'].widget.attrs['placeholder'] = '010-1234-5678'
-        self.fields['subject'].widget.attrs['placeholder'] = '담당 과목 (예: 영어, 수학)'
+        
+        # 담당 과목(subject) 필드 설정
+        # 1. 쿼리셋 지정 (가나다순 정렬 필요하면 .order_by('name') 추가)
+        self.fields['subject'].queryset = Subject.objects.all()
+        # 2. 안내 문구 추가
+        self.fields['subject'].empty_label = "-- 담당 교과 선택 --"
+        # 3. 필수 입력 지정
+        self.fields['subject'].required = True
 
         # # 비밀번호 필드 ID 지정 (자바스크립트 연결용)
         # # UserCreationForm의 기본 필드명은 'pass1'(비번), 'pass2'(확인) 입니다.

@@ -18,6 +18,17 @@ class School(models.Model):
     def __str__(self):
         return f"[{self.get_level_display()}] {self.name}"
 
+# 2. 교과목 모델
+class Subject(models.Model):
+    name = models.CharField(max_length=50, unique=True, verbose_name="교과명")
+
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name_plural = "교과목 관리"
+        ordering = ['id'] # 등록 순서대로 정렬
+
 # 2. 사용자(교사) 모델 (이메일 필드 명시!)
 class CustomUser(AbstractUser):
     # 회원 등급 정의 (학생 < 게스트 < 일반 < 대표 < 관리자)
@@ -39,7 +50,11 @@ class CustomUser(AbstractUser):
     # 하지만 blank=False로 설정하면 폼(Form)에서는 입력을 강제합니다.
 
     school = models.ForeignKey(School, on_delete=models.SET_NULL, null=True, blank=False, related_name='teachers', verbose_name="소속 학교")
-    subject = models.CharField(max_length=100, blank=False, null=True, verbose_name="담당 과목")
+    # ★ 기존 필드는 그대로 두세요! (데이터 보존용)
+    subject = models.CharField(max_length=100, blank=True, null=True, verbose_name="담당 과목(구)")
+    
+    # ★ [신규] 임시 연결 필드 추가 (나중에 이게 진짜가 됩니다)
+    new_subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="담당 교과")
 
     # [중요] 
     # USERNAME_FIELD를 'email'로 바꾸지 않고 'username'으로 유지합니다.
