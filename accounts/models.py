@@ -50,11 +50,7 @@ class CustomUser(AbstractUser):
     # 하지만 blank=False로 설정하면 폼(Form)에서는 입력을 강제합니다.
 
     school = models.ForeignKey(School, on_delete=models.SET_NULL, null=True, blank=False, related_name='teachers', verbose_name="소속 학교")
-    # ★ 기존 subject는 건드리지 마세요! (데이터 보존)
-    subject = models.CharField(max_length=100, blank=True, null=True, verbose_name="담당 과목(구)")
-    
-    # ★ [신규] 새로운 연결 필드 추가 (임시 이름: new_subject)
-    new_subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="담당 교과(신)")
+    subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="담당 교과")
 
     # [중요] 
     # USERNAME_FIELD를 'email'로 바꾸지 않고 'username'으로 유지합니다.
