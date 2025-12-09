@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import CustomUser, Student
+from .models import CustomUser, Student, Subject
 
 # 교사 회원가입 폼
 class CustomUserCreationForm(UserCreationForm):
