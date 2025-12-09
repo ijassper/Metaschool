@@ -336,6 +336,16 @@
 
         // 2. 한 명씩 순서대로 처리 (Loop)
         for (let i = 0; i < totalCount; i++) {
+
+            // 1000ms(1초) ~ 4000ms(4초) 사이의 랜덤한 시간을 계산
+            const randomDelay = Math.floor(Math.random() * 3000) + 1000;
+            
+            // 진행 상황에 "잠시 대기 중..." 표시 (선택사항)
+            // document.getElementById('loadingText').innerText = "트래픽 조절 중... (" + (randomDelay/1000).toFixed(1) + "초 대기)";
+            
+            // 계산된 시간만큼 멈췄다가 다음 줄 실행
+            await new Promise(resolve => setTimeout(resolve, randomDelay));
+
             document.getElementById('currentCount').innerText = i + 1;
             updateProgress(i + 1, totalCount);
 

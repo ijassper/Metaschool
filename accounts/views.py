@@ -1,3 +1,4 @@
+import random
 import openai
 import pandas as pd
 import io
@@ -328,9 +329,20 @@ def api_process_one_row(request):
             
             context_text = " / ".join(context_parts)
             
-            # API 키 가져오기
+            # --- [수정] API 키 가져오기 및 랜덤 선택 로직 ---
             config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
-            client = openai.OpenAI(api_key=config.value)
+            
+            # 1. 콤마(,)로 쪼개고 공백 제거하여 리스트로 만듦
+            api_keys_list = [k.strip() for k in config.value.split(',') if k.strip()]
+            
+            # 2. 키가 여러 개면 그중 하나를 랜덤으로 선택 (제비뽑기)
+            if api_keys_list:
+                selected_api_key = random.choice(api_keys_list)
+            else:
+                return JsonResponse({'status': 'error', 'message': '등록된 API 키가 없습니다.'})
+            
+            # 3. 선택된 키로 클라이언트 생성
+            client = openai.OpenAI(api_key=selected_api_key)
             
             # GPT 호출
             response = client.chat.completions.create(
