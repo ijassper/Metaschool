@@ -17,7 +17,7 @@
                     </p>
                     <p class="mb-0">
                         소속: <strong>{{ user.school.name|default:"소속 없음" }}</strong> 
-                        {% if user.subject %}| 담당: {{ user.subject }}{% endif %}
+                        {% if user.subject %}| 담당: {{ user.subject.name|default:"-" }}{% endif %}
                     </p>
                 </div>
             </div>
