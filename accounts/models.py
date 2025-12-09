@@ -51,7 +51,7 @@ class CustomUser(AbstractUser):
 
     school = models.ForeignKey(School, on_delete=models.SET_NULL, null=True, blank=False, related_name='teachers', verbose_name="소속 학교")
     # subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, blank=False, verbose_name="담당 교과")
-    subject = models.CharField(max_length=100, null=True, blank=True)
+    subject = models.CharField(max_length=100, blank=True, null=True, verbose_name="담당 과목")
 
     # [중요] 
     # USERNAME_FIELD를 'email'로 바꾸지 않고 'username'으로 유지합니다.
