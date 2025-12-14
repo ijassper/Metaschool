@@ -1,5 +1,6 @@
 import random
 import openai
+import google.generativeai as genai
 import pandas as pd
 import io
 import json
@@ -303,6 +304,7 @@ def api_process_one_row(request):
             selected_cols = body.get('selected_cols')
             prompt_system = body.get('prompt_system')
             temperature = float(body.get('temperature', 0.7))
+            ai_model = body.get('ai_model', 'gpt-4o') # ★ 모델 정보 받기
             
             # 세션에서 데이터 원본 가져오기
             df_json = request.session.get('df_data')
@@ -329,32 +331,57 @@ def api_process_one_row(request):
             
             context_text = " / ".join(context_parts)
             
-            # --- [수정] API 키 가져오기 및 랜덤 선택 로직 ---
-            config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
-            
-            # 1. 콤마(,)로 쪼개고 공백 제거하여 리스트로 만듦
-            api_keys_list = [k.strip() for k in config.value.split(',') if k.strip()]
-            
-            # 2. 키가 여러 개면 그중 하나를 랜덤으로 선택 (제비뽑기)
-            if api_keys_list:
-                selected_api_key = random.choice(api_keys_list)
-            else:
-                return JsonResponse({'status': 'error', 'message': '등록된 API 키가 없습니다.'})
-            
-            # 3. 선택된 키로 클라이언트 생성
-            client = openai.OpenAI(api_key=selected_api_key)
-            
-            # GPT 호출
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "당신은 생활기록부 전문가입니다."},
-                    {"role": "user", "content": f"[기초자료]\n{context_text}\n\n[지시사항]\n{prompt_system}"}
-                ],
-                temperature=temperature
-            )
-            result_text = response.choices[0].message.content
-            
+            final_prompt = f"[기초자료]\n{context_text}\n\n[지시사항]\n{prompt_system}"
+            result_text = ""
+
+            # ---------------------------------------------------------
+            # [분기 1] OpenAI GPT 사용
+            # ---------------------------------------------------------
+            if ai_model.startswith('gpt'):
+                # 키 가져오기 (멀티 키 지원)
+                config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
+                api_keys_list = [k.strip() for k in config.value.split(',') if k.strip()]
+                
+                if not api_keys_list:
+                    return JsonResponse({'status': 'error', 'message': 'OpenAI API 키가 없습니다.'})
+                
+                import random
+                client = openai.OpenAI(api_key=random.choice(api_keys_list))
+                
+                response = client.chat.completions.create(
+                    model=ai_model,
+                    messages=[
+                        {"role": "system", "content": "당신은 생활기록부 전문가입니다."},
+                        {"role": "user", "content": final_prompt}
+                    ],
+                    temperature=temperature
+                )
+                result_text = response.choices[0].message.content
+
+            # ---------------------------------------------------------
+            # [분기 2] Google Gemini 사용 (신규)
+            # ---------------------------------------------------------
+            elif ai_model.startswith('gemini'):
+                try:
+                    config = SystemConfig.objects.get(key_name='GOOGLE_API_KEY')
+                    genai.configure(api_key=config.value)
+                    
+                    # Gemini 모델 설정
+                    model = genai.GenerativeModel(ai_model)
+                    
+                    # Gemini 설정 (Temperature 등)
+                    generation_config = genai.types.GenerationConfig(
+                        temperature=temperature
+                    )
+                    
+                    # Gemini 호출 (시스템 프롬프트가 따로 없어서 합쳐서 보냄)
+                    full_msg = f"당신은 생활기록부 전문가입니다.\n{final_prompt}"
+                    response = model.generate_content(full_msg, generation_config=generation_config)
+                    result_text = response.text
+                    
+                except Exception as e:
+                    return JsonResponse({'status': 'error', 'message': f'Google API 오류: {str(e)}'})
+
             return JsonResponse({'status': 'success', 'result': result_text})
             
         except Exception as e:

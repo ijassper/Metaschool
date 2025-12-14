@@ -12,7 +12,7 @@
     <div class="text-white fs-5">
         <span id="currentCount">0</span> / <span id="totalCount">0</span> 명 처리 중
     </div>
-    <p class="text-white-50 small mt-3">창을 닫지 마세요. 200명 기준 약 40~50분 소요됩니다.</p>
+    <p class="text-white-50 small mt-3">창을 닫지 마세요. 200명 기준 약 4~5분 소요됩니다.</p>
 </div>
 
 <div class="container mt-4 mb-5">
@@ -77,6 +77,16 @@
                             <div class="form-text small text-primary" id="targetColHelp">
                                 * 새로운 열을 만들거나, 기존 열을 선택해 내용을 덮어쓸 수 있습니다.
                             </div>
+                        </div>
+                        <!-- AI 모델 선택 -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-primary"><i class="bi bi-cpu"></i> 분석 모델 선택</label>
+                            <select id="ai_model" class="form-select fw-bold">
+                                <option value="gpt-4o">OpenAI GPT-4o (고품질/유료)</option>
+                                <option value="gemini-1.5-flash">Google Gemini Flash (초고속/무료)</option>
+                                <option value="gemini-1.5-pro">Google Gemini Pro (고성능)</option>
+                            </select>
+                            <div class="form-text">GPT와 Gemini중 사용할 모델을 선택하세요.</div>
                         </div>
 
                         <!-- 온도 조절 -->
@@ -321,6 +331,10 @@
         
         // 설정값 수집
         const selected_cols = Array.from(checkboxes).map(cb => cb.value);
+
+        // 선택된 AI 모델 가져오기
+        const ai_model = document.getElementById('ai_model').value;
+
         const prompt_system = `
             [맥락] ${document.getElementById('p_context').value}
             [역할] ${document.getElementById('p_role').value}
@@ -357,7 +371,8 @@
                         index: i,
                         selected_cols: selected_cols,
                         prompt_system: prompt_system,
-                        temperature: temperature
+                        temperature: temperature,
+                        ai_model: ai_model // ★ 서버로 모델 정보 전송
                     })
                 });
                 const data = await response.json();
