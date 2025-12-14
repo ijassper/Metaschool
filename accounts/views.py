@@ -304,7 +304,7 @@ def api_process_one_row(request):
             selected_cols = body.get('selected_cols')
             prompt_system = body.get('prompt_system')
             temperature = float(body.get('temperature', 0.7))
-            ai_model = body.get('ai_model', 'gpt-4o') # ★ 모델 정보 받기
+            ai_model = body.get('ai_model', 'gpt-3.5-turbo') # ★ 모델 정보 받기
             
             # 세션에서 데이터 원본 가져오기
             df_json = request.session.get('df_data')
@@ -385,7 +385,10 @@ def api_process_one_row(request):
             return JsonResponse({'status': 'success', 'result': result_text})
             
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)})
+            # ★ [핵심 수정] 에러가 나면 멈추지 말고, 에러 내용을 결과로 반환해서 엑셀에 적히게 함
+            error_message = str(e)
+            print(f"Server Error: {error_message}") # 서버 로그에도 남김
+            return JsonResponse({'status': 'success', 'result': f"[오류 발생] {error_message}"})
             
     return JsonResponse({'status': 'fail'}, status=400)
 
