@@ -68,7 +68,7 @@
                                     <option value="new">✨ [새로 만들기] (직접 입력)</option>
                                     <option disabled>──────────</option>
                                     {% for col in columns %}
-                                        <option value="{{ col }}">{{ col }} (덮어쓰기)</option>
+                                        <option value="{{ col }}">{{ col }}</option>
                                     {% endfor %}
                                 </select>
                                 <!-- 직접 입력 필드 (기본값: AI_생기부_결과) -->
@@ -82,7 +82,7 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold text-primary"><i class="bi bi-cpu"></i> 분석 모델 선택</label>
                             <select id="ai_model" class="form-select fw-bold">
-                                <option value="gpt-4o">OpenAI GPT-4o (고품질/유료)</option>
+                                <option value="gpt-4o">OpenAI GPT-3.5-turbo (고품질/유료)</option>
                                 <option value="gemini-1.5-flash">Google Gemini Flash (초고속/무료)</option>
                                 <option value="gemini-1.5-pro">Google Gemini Pro (고성능)</option>
                             </select>
@@ -312,10 +312,14 @@
         }, 1000); // 1초마다 확인
     }
 
-    // ★ [핵심] 이어달리기 처리 로직
+    // 이어달리기 처리 로직
     const totalRows = {{ total_rows  }}; // 전체 학생 수(행의 개수)
     
     let aiResults = []; // 결과 모으는 배열
+
+    // 동시 처리 개수 (Batch Size)
+    // 3 ~ 5 사이를 추천합니다. (너무 높으면 OpenAI가 차단함)
+    const BATCH_SIZE = 3;
 
     async function startBatchProcess(e) {
         e.preventDefault(); // 폼 제출 막기
@@ -345,49 +349,61 @@
         const temperature = document.querySelector('input[name="temperature"]').value;
 
         // 1. 전체 데이터 개수 파악을 위한 첫 호출 (혹은 views.py에서 넘겨준 값 사용)
-        const totalCount = {{ total_rows }}; 
-        document.getElementById('totalCount').innerText = totalCount;
+        document.getElementById('totalCount').innerText = totalRows;
 
-        // 2. 한 명씩 순서대로 처리 (Loop)
-        for (let i = 0; i < totalCount; i++) {
-
-            // 1000ms(1초) ~ 4000ms(4초) 사이의 랜덤한 시간을 계산
-            const randomDelay = Math.floor(Math.random() * 3000) + 1000;
+        // 배치(묶음) 처리 로직
+        for (let i = 0; i < totalRows; i += BATCH_SIZE) {
             
-            // 진행 상황에 "잠시 대기 중..." 표시 (선택사항)
-            // document.getElementById('loadingText').innerText = "트래픽 조절 중... (" + (randomDelay/1000).toFixed(1) + "초 대기)";
-            
-            // 계산된 시간만큼 멈췄다가 다음 줄 실행
-            await new Promise(resolve => setTimeout(resolve, randomDelay));
+            // 1. 이번에 처리할 묶음 만들기 (예: 0,1,2번 학생)
+            const chunk = [];
+            for (let j = 0; j < BATCH_SIZE; j++) {
+                if (i + j < totalRows) {
+                    chunk.push(i + j);
+                }
+            }
 
-            document.getElementById('currentCount').innerText = i + 1;
-            updateProgress(i + 1, totalCount);
-
-            try {
-                const response = await fetch('/accounts/api/process-row/', {
+            // 2. 묶음을 동시에 서버로 발사! (Promise.all)
+            // (map을 이용해 여러 개의 fetch 요청을 동시에 생성)
+            const promises = chunk.map(index => {
+                return fetch('/accounts/api/process-row/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        index: i,
+                        index: index,
                         selected_cols: selected_cols,
                         prompt_system: prompt_system,
                         temperature: temperature,
-                        ai_model: ai_model // ★ 서버로 모델 정보 전송
+                        ai_model: ai_model
                     })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    // 성공하든 실패하든 결과 저장 (순서 꼬임 방지용 인덱스 처리는 백엔드 엑셀 저장 시 처리됨)
+                    // 여기서는 단순히 푸시
+                    return data; 
                 });
-                const data = await response.json();
-                
+            });
+
+            // 3. 3명이 다 끝날 때까지 기다림
+            const results = await Promise.all(promises);
+            
+            // 4. 결과 모으기 및 진행률 표시
+            results.forEach(data => {
                 if (data.status === 'success' || data.status === 'skip') {
                     aiResults.push(data.result);
                 } else {
-                    console.error("Error:", data.message);
-                    aiResults.push("[에러 발생]"); // 칸을 비우지 않고 에러 표시
+                    aiResults.push(data.result || "[오류 발생]"); 
                 }
+            });
 
-            } catch (error) {
-                console.error("Network Error:", error);
-                aiResults.push("[네트워크 오류]");
-            }
+            // 진행률 업데이트 (현재 처리된 마지막 번호)
+            const currentDone = Math.min(i + BATCH_SIZE, totalRows);
+            document.getElementById('currentCount').innerText = currentDone;
+            updateProgress(currentDone, totalRows);
+            
+            // ★ [과속 방지] 묶음 처리 후 잠깐 숨 고르기 (0.5초)
+            // 너무 빨리 달리면 OpenAI가 막을 수 있으므로 필수!
+            await new Promise(r => setTimeout(r, 500)); 
         }
 
         // 3. 처리가 다 끝나면 엑셀 다운로드 요청
