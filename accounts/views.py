@@ -393,38 +393,61 @@ def api_process_one_row(request):
     return JsonResponse({'status': 'fail'}, status=400)
 
 
-# [신규] 최종 결과 엑셀 다운로드 API
+# 최종 결과 엑셀 다운로드 API
 @csrf_exempt
 @login_required
 def api_download_excel(request):
     if request.method == 'POST':
         try:
-            # 프론트엔드에서 완성된 결과 리스트를 받음
-            results = json.loads(request.POST.get('results'))
-            target_col = request.POST.get('target_col_name')
+            ## 1. 전달된 결과 데이터 확인
+            results_json = request.POST.get('results')
+            target_col = request.POST.get('target_col_name', 'AI_결과')
             
-            # 원본 데이터 로드
-            df = pd.read_json(request.session.get('df_data'))
-            filename = request.session.get('uploaded_filename', 'result.xlsx')
+            if not results_json:
+                return HttpResponse("결과 데이터가 없습니다.", status=400)
 
-            # 결과 열 추가 (순서대로)
-            # (주의: 건너뛴 행은 빈칸으로 채워져 있어야 순서가 맞음)
+            results = json.loads(results_json)
+            
+            # 2. 세션에서 원본 데이터 복구
+            df_json = request.session.get('df_data')
+            if not df_json:
+                return HttpResponse("세션이 만료되었습니다. 다시 시도해주세요.", status=400)
+            
+            df = pd.read_json(df_json)
+            
+            # 3. 데이터 개수 맞춤 확인 (매우 중요)
+            # 만약 결과 개수와 엑셀 행 수가 다르면 에러가 날 수 있으므로 보정
+            if len(results) < len(df):
+                results.extend([''] * (len(df) - len(results)))
+            elif len(results) > len(df):
+                results = results[:len(df)]
+
+            # 4. 결과 열 추가
             df[target_col] = results
             
-            # 엑셀 생성
+            # 5. 엑셀 파일 생성 (안전한 방식)
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
                 df.to_excel(writer, index=False)
             output.seek(0)
             
-            download_filename = f"Result_{filename}"
-            response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            uploaded_filename = request.session.get('uploaded_filename', 'result.xlsx')
+            download_filename = f"Result_{uploaded_filename}"
+            
+            response = HttpResponse(
+                output.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            
             from urllib.parse import quote
             response['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{quote(download_filename)}'
             return response
             
         except Exception as e:
-            return HttpResponse(f"엑셀 생성 오류: {str(e)}", status=500)
+            # 에러 발생 시 로그에 상세 내용 출력
+            import traceback
+            print(traceback.format_exc())
+            return HttpResponse(f"엑셀 생성 중 서버 오류: {str(e)}", status=500)
         
 # 게스트 교사 승인하기 (학교 대표 전용)
 @login_required
