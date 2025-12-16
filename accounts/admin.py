@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption, Subject
 from django.db.models import Case, When # For conditional ordering
 from django.utils.html import format_html   # For custom HTML rendering
+from django.forms import Textarea   
 
 # 1. 사용자(교사) 관리 화면 설정
 @admin.register(CustomUser)
@@ -89,6 +90,24 @@ class PromptTemplateAdmin(admin.ModelAdmin):
     list_display = ['category', 'title', 'length_option']
     list_filter = ['category']
     search_fields = ['title']
+
+    # ★ [추가] 입력창 크기 조절 함수
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        
+        # 1. 'AI가 수행할 작업' (task) 필드 크게 만들기
+        if db_field.name == 'task':
+            # rows: 줄 수 (높이), style: 가로 폭
+            kwargs['widget'] = Textarea(attrs={'rows': 20, 'style': 'width: 90%;'})
+            
+        # 2. (선택사항) '활동의 맥락...' (context) 필드도 키우고 싶다면?
+        if db_field.name == 'context':
+            kwargs['widget'] = Textarea(attrs={'rows': 15, 'style': 'width: 90%;'})
+
+        # 3. (선택사항) '결과 예시' (output_example) 필드
+        if db_field.name == 'output_example':
+            kwargs['widget'] = Textarea(attrs={'rows': 10, 'style': 'width: 90%;'})
+
+        return super().formfield_for_dbfield(db_field, **kwargs)
 
 # 5. 분량 옵션 관리자
 @admin.register(PromptLengthOption)
