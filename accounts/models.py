@@ -129,10 +129,9 @@ class PromptTemplate(models.Model):
     description = models.TextField(verbose_name="사용 가이드(설명)", blank=True, help_text="선생님들에게 보여줄 팁이나 설명을 적으세요.")
 
     # 내용 필드
-    context = models.TextField(verbose_name="프롬프트 맥락", blank=True)
-    role = models.TextField(verbose_name="AI의 역할", blank=True)
-    task = models.TextField(verbose_name="AI가 할 일", blank=True)
-    output_example = models.TextField(verbose_name="원하는 결과값 예시", blank=True)
+    context = models.TextField(verbose_name="활동의 맥락 및 AI의 역할", blank=True)
+    task = models.TextField(verbose_name="AI가 수행할 작업", blank=True)
+    output_example = models.TextField(verbose_name="원하는 결과 예시", blank=True)
     
     # 분량 (직접 입력 대신 옵션 선택)
     length_option = models.ForeignKey(PromptLengthOption, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="분량 선택")

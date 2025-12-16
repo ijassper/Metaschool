@@ -71,8 +71,8 @@
                                         <option value="{{ col }}">{{ col }}</option>
                                     {% endfor %}
                                 </select>
-                                <!-- 직접 입력 필드 (기본값: AI_생기부_결과) -->
-                                <input type="text" name="target_col_name" id="targetColInput" class="form-control" value="AI_생기부_결과" placeholder="새로운 열 이름 입력">
+                                <!-- 직접 입력 필드 (기본값: AI_분석_결과) -->
+                                <input type="text" name="target_col_name" id="targetColInput" class="form-control" value="AI_분석_결과" placeholder="새로운 열 이름 입력">
                             </div>
                             <div class="form-text small text-primary" id="targetColHelp">
                                 * 새로운 열을 만들거나, 기존 열을 선택해 내용을 덮어쓸 수 있습니다.
@@ -127,19 +127,15 @@
 
                         <!-- ★ 2. 상세 내용 입력 (넓어진 텍스트박스) -->
                         <div class="mb-3">
-                            <label class="form-label fw-bold">프롬프트 맥락</label>
-                            <textarea name="p_context" id="p_context" class="form-control" rows="5" placeholder="예: 고등학교 1학년 통합사회 수업 시간임."></textarea>
+                            <label class="form-label fw-bold">>활동의 맥락 및 AI의 역할</label>
+                            <textarea name="p_context" id="p_context" class="form-control" rows="5" placeholder="예: 고등학교 1학년 통합사회 수업 시간임. 20년 경력의 베테랑 교사 역할."></textarea>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">AI의 역할</label>
-                            <textarea name="p_role" id="p_role" class="form-control" rows="5" placeholder="예: 20년 경력의 베테랑 교사"></textarea>
+                            <label class="form-label fw-bold">AI가 수행할 작업</label>
+                            <textarea name="p_task" id="p_task" class="form-control" rows="20" placeholder="예: 기초 데이터를 바탕으로 학생의 강점을 분석하여 생기부 문구 작성"></textarea>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">AI가 할 일</label>
-                            <textarea name="p_task" id="p_task" class="form-control" rows="20" placeholder="예: 기초 데이터를 바탕으로 학생의 강점을 분석하여..."></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">원하는 결과값 예시</label>
+                            <label class="form-label fw-bold">원하는 결과 예시</label>
                             <textarea name="p_example" id="p_example" class="form-control" rows="10" placeholder="예: ~~한 활동을 통해 ~~한 역량을 보여줌."></textarea>
                         </div>
                         
@@ -264,7 +260,6 @@
 
             // 내용 채우기
             document.getElementById('p_context').value = t.context;
-            document.getElementById('p_role').value = t.role;
             document.getElementById('p_task').value = t.task;
             document.getElementById('p_example').value = t.example;
             
@@ -340,11 +335,17 @@
         const ai_model = document.getElementById('ai_model').value;
 
         const prompt_system = `
-            [맥락] ${document.getElementById('p_context').value}
-            [역할] ${document.getElementById('p_role').value}
-            [할 일] ${document.getElementById('p_task').value}
-            [예시] ${document.getElementById('p_example').value}
-            [분량] ${document.getElementById('p_length').value}
+            [활동의 맥락 및 AI의 역할]
+            ${document.getElementById('p_context').value}
+
+            [AI가 수행할 작업]
+            ${document.getElementById('p_task').value}
+
+            [원하는 결과 예시]
+            ${document.getElementById('p_example').value}
+
+            [분량]
+            ${document.getElementById('p_length').value}
         `;
         const temperature = document.querySelector('input[name="temperature"]').value;
 

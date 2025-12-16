@@ -259,7 +259,6 @@ def ai_generator_step2(request):
                         'title': t.title,
                         'description': t.description,   # 사용 가이드
                         'context': t.context,
-                        'role': t.role,
                         'task': t.task,
                         'example': t.output_example,
                         'length': len_val   # 분량 옵션 값
