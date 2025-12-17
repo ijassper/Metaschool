@@ -82,11 +82,17 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold text-primary"><i class="bi bi-cpu"></i> 분석 모델 선택</label>
                             <select id="ai_model" class="form-select fw-bold">
-                                <option value="gpt-4o">OpenAI GPT-3.5-turbo (보통/저렴)</option>
-                                <option value="gemini-1.5-flash">Google Gemini Flash (보통/저렴)</option>
-                                <option value="gemini-1.5-pro">Google Gemini Pro (고성능/유료)</option>
+                                <option value="gpt-3.5-turbo">OpenAI GPT-3.5-turbo (가성비/저렴)</option>
+
+                                <option disabled>──────────</option>
+
+                                <option value="gemini-2.5-flash">⚡ Google Gemini 2.5 Flash (초고속/저렴)</option>
+                                <option value="gemini-2.5-pro">🧠 Google Gemini 2.5 Pro (최고성능/유료)</option>
                             </select>
-                            <div class="form-text">GPT와 Gemini중 사용할 모델을 선택하세요.</div>
+                            <div class="form-text text-muted">
+                                * <b>GPT-3.5:</b> 비용이 저렴하고 속도가 빠릅니다.<br>
+                                * <b>Gemini 2.5:</b> 구글의 최신 모델로 성능이 매우 뛰어납니다.
+                            </div>
                         </div>
 
                         <!-- 온도 조절 -->
