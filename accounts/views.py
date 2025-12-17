@@ -1,6 +1,6 @@
+import requests
 import random
 import openai
-import google.generativeai as genai
 import pandas as pd
 import io
 import json
@@ -19,6 +19,7 @@ from .forms import CustomUserCreationForm, StudentForm
 from .models import Student, CustomUser, School  # Student, CustomUser, School 모델 모두 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
+
 
 # 대시보드 (로그인 후 첫 화면)
 @login_required
@@ -363,31 +364,39 @@ def api_process_one_row(request):
             elif ai_model.startswith('gemini'):
                 try:
                     config = SystemConfig.objects.get(key_name='GOOGLE_API_KEY')
-                    genai.configure(api_key=config.value)
+                    api_key = config.value
                     
-                    # Gemini 모델 설정
-                    model = genai.GenerativeModel(ai_model)
+                    # Gemini API 주소 (REST API)
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{ai_model}:generateContent?key={api_key}"
                     
-                    # Gemini 설정 (Temperature 등)
-                    generation_config = genai.types.GenerationConfig(
-                        temperature=temperature
-                    )
+                     # 보낼 데이터 포장
+                    payload = {
+                        "contents": [{
+                            "parts": [{"text": f"당신은 생활기록부 전문가입니다.\n{final_prompt}"}]
+                        }],
+                        "generationConfig": {
+                            "temperature": temperature
+                        }
+                    }
                     
-                    # Gemini 호출 (시스템 프롬프트가 따로 없어서 합쳐서 보냄)
-                    full_msg = f"당신은 생활기록부 전문가입니다.\n{final_prompt}"
-                    response = model.generate_content(full_msg, generation_config=generation_config)
-                    result_text = response.text
+                    # 직접 전송 (requests 사용)
+                    response = requests.post(url, json=payload)
+                    response_data = response.json()
                     
+                    # 결과 추출
+                    if "candidates" in response_data:
+                        result_text = response_data["candidates"][0]["content"]["parts"][0]["text"]
+                    else:
+                        # 에러 발생 시 구글이 보낸 메시지 확인
+                        result_text = f"[Google 오류] {response_data}"
+                        
                 except Exception as e:
-                    return JsonResponse({'status': 'error', 'message': f'Google API 오류: {str(e)}'})
+                    return JsonResponse({'status': 'error', 'message': f'통신 오류: {str(e)}'})
 
             return JsonResponse({'status': 'success', 'result': result_text})
             
         except Exception as e:
-            # ★ [핵심 수정] 에러가 나면 멈추지 말고, 에러 내용을 결과로 반환해서 엑셀에 적히게 함
-            error_message = str(e)
-            print(f"Server Error: {error_message}") # 서버 로그에도 남김
-            return JsonResponse({'status': 'success', 'result': f"[오류 발생] {error_message}"})
+            return JsonResponse({'status': 'error', 'message': str(e)})
             
     return JsonResponse({'status': 'fail'}, status=400)
 
