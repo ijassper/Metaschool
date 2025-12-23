@@ -101,13 +101,13 @@ def student_create(request):
     return render(request, 'accounts/student_form.html', {'form': form})
 
 # 2. 마이페이지 뷰
-# @login_required
-# @teacher_required
-# def mypage(request):
-#     # 로그인한 선생님(request.user)이 담당하는 학생들만 가져오기
-#     my_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+@login_required
+@teacher_required
+def student_list(request):
+    # 로그인한 선생님(request.user)이 담당하는 학생들만 가져오기
+    my_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
     
-#     return render(request, 'accounts/mypage.html', {'students': my_students})
+    return render(request, 'accounts/student_list.html', {'students': my_students})
 
 # 3. 엑셀 일괄 등록 뷰
 @login_required
