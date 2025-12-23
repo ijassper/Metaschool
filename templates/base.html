@@ -38,7 +38,7 @@
                         <!-- 3. 교사 이상만 보이는 메뉴들 (게스트/학생에겐 숨김) -->
                         {% if user.role != 'GUEST' and user.role != 'STUDENT' %}
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" ...>학생 관리</a>
+                            <a class="nav-link dropdown-toggle" href="{% url 'student_list' %}">학생 관리</a>
                             <!-- ... -->
                         </li>
                         <li class="nav-item">

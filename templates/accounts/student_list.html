@@ -63,8 +63,23 @@
       <form action="{% url 'student_upload' %}" method="post" enctype="multipart/form-data">
           {% csrf_token %}
           <div class="modal-body">
-            <p>엑셀 파일(.xlsx)을 업로드해주세요.</p>
-            <input class="form-control" type="file" name="excel_file" required accept=".xlsx, .xls">
+            
+            <!-- ★ 샘플 다운로드 안내 영역 -->
+            <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3">
+                <span class="small text-muted">
+                    <i class="bi bi-info-circle-fill text-info"></i> 양식에 맞춰 작성해주세요.
+                </span>
+                <!-- 다운로드 버튼 (static 경로 확인 필수) -->
+                <a href="/static/files/학생_일괄등록_양식.xlsx" download class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-download"></i> 엑셀 양식 다운로드
+                </a>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">엑셀 파일 업로드</label>
+                <input class="form-control" type="file" name="excel_file" required accept=".xlsx, .xls">
+                <div class="form-text small">필수 컬럼: 학년, 반, 번호, 이름, 이메일(ID)</div>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>

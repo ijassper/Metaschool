@@ -47,7 +47,7 @@ def dashboard(request):
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
 class SignUpView(generic.CreateView):
     form_class = CustomUserCreationForm
-    success_url = reverse_lazy('mypage')  # 가입 성공 시 이동할 곳
+    success_url = reverse_lazy('dashboard')  # 가입 성공 시 이동할 곳
     template_name = 'registration/signup.html'
 
     def form_valid(self, form):
@@ -92,7 +92,7 @@ def student_create(request):
             )
             student.save() # 최종 저장
             messages.success(request, f"{student.name} 학생 등록 완료 (ID: {student_id})")
-            return redirect('mypage')
+            return redirect('student_list')
         else:
             messages.error(request, "학교를 선택해주세요.")
     else:
