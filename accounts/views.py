@@ -103,6 +103,14 @@ def student_create(request):
 # 2. 마이페이지 뷰
 @login_required
 @teacher_required
+def mypage(request):
+    # 로그인한 선생님(request.user)이 담당하는 학생들만 가져오기
+    my_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    
+    return render(request, 'accounts/mypage.html', {'students': my_students})
+
+@login_required
+@teacher_required
 def student_list(request):
     # 로그인한 선생님(request.user)이 담당하는 학생들만 가져오기
     my_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
