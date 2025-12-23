@@ -150,3 +150,12 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 # [커스텀 유저 모델 설정] 기본 유저 모델 대신 accounts 앱의 CustomUser 모델 사용
 AUTH_USER_MODEL = 'accounts.CustomUser'
+
+# 
+STATICFILES_DIRS = [ BASE_DIR / 'static' ]
+
+# 인증 백엔드 설정 (이메일/아이디 혼용 로그인)
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.EmailOrUsernameBackend', # 우리가 만든 것
+    'django.contrib.auth.backends.ModelBackend', # 기본 (혹시 모르니 유지)
+]

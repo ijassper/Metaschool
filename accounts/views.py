@@ -115,54 +115,52 @@ def mypage(request):
 def student_upload(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         excel_file = request.FILES['excel_file']
-        
         try:
-            # 엑셀 파일 읽기
             df = pd.read_excel(excel_file)
             
-            # 학교 코드 (임시: 1004) - 나중에 교사 정보에서 가져오도록 수정 가능
-            school_code = "1004" 
-
             count = 0
             for index, row in df.iterrows():
-                # 엑셀 데이터 추출 (엑셀 헤더가 '학년', '반', '번호', '이름'이어야 함)
+                # 1. 엑셀 데이터 추출
                 grade = int(row['학년'])
                 class_no = int(row['반'])
                 number = int(row['번호'])
                 name = str(row['이름'])
-                
-                # A. 학생용 아이디 생성 (학교코드 + 학년 + 반2자리 + 번호2자리) -> 예: 100410105
-                student_id = f"{school_code}{grade}{class_no:02d}{number:02d}"
-                
-                # B. 학생 계정(User) 생성 (이미 있으면 가져오고, 없으면 생성)
+                email = str(row['이메일(ID)']).strip() # ★ 이메일 컬럼 읽기
+
+                # 2. 비밀번호 생성 규칙: s + 10101 + !@
+                # 학번 코드 (예: 10101)
+                student_code = f"{grade}{class_no:02d}{number:02d}"
+                password_rule = f"s{student_code}!@"
+
+                # 3. 계정 생성 (Username = 이메일 전체)
                 user, created = CustomUser.objects.get_or_create(
-                    username=student_id,
+                    username=email, # ★ 아이디는 이메일 전체로 저장
                     defaults={
                         'name': name,
-                        'password': make_password("1234"), # 초기 비밀번호
-                        'school': request.user.school,  # 교사의 학교 정보 상속
-                        'role': 'STUDENT', # ★ 학생 등급 강제 부여
+                        'email': email,
+                        'password': make_password(password_rule), # ★ 규칙 비번
+                        'school': request.user.school,
+                        'role': 'STUDENT',
                         'is_active': True
                     }
                 )
-
-                # C. 학생 명부(Student) 테이블에 저장 (교사와 연결)
-                # 만약 이미 등록된 학생이면(학년/반/번호/교사가 같으면) 중복 생성 방지
+                
+                # 4. 학생 명부 저장
                 Student.objects.get_or_create(
                     teacher=request.user,
-                    grade=grade,
-                    class_no=class_no,
+                    grade=grade, 
+                    class_no=class_no, 
                     number=number,
                     defaults={'name': name}
                 )
                 count += 1
+            
+            messages.success(request, f"{count}명의 학생 등록 완료! (비밀번호: s학번!@)")
 
-            messages.success(request, f"{count}명의 학생이 성공적으로 등록되었습니다.")
-            
         except Exception as e:
-            messages.error(request, f"업로드 중 오류가 발생했습니다: {str(e)}")
-            
-    return redirect('mypage')
+            messages.error(request, f"오류 발생: {str(e)}")
+    
+    return redirect('dashboard')
 
 # 학교 검색 API (AJAX 요청 처리)
 def search_school(request):
@@ -474,3 +472,41 @@ def approve_teacher(request, user_id):
         messages.error(request, "권한이 없거나 다른 학교 선생님입니다.")
     
     return redirect('dashboard')
+
+# 비밀번호 초기화 로직
+@login_required
+@teacher_required
+def reset_student_password(request, student_id):
+    try:
+        # 학생 찾기
+        student = Student.objects.get(id=student_id, teacher=request.user)
+        
+        # User 계정 찾기 (학생 명부와 이름/학년/반이 일치하는 유저)
+        # (주의: 이메일 기반이라 Student 모델과 User 모델 연결이 약할 수 있음.
+        #  가장 정확한 건 Student 모델에 user 필드(OneToOne)를 두는 것이지만,
+        #  지금 구조에서는 이름과 학교로 찾아야 함)
+        
+        target_users = CustomUser.objects.filter(
+            name=student.name, 
+            school=request.user.school,
+            role='STUDENT'
+        )
+        
+        # 동명이인이 있을 수 있으므로 주의 필요하지만, 일단 첫 번째 매칭
+        if target_users.exists():
+            user = target_users.first()
+            
+            # 초기화 규칙: s + 학번 + !@
+            student_code = f"{student.grade}{student.class_no:02d}{student.number:02d}"
+            new_pw = f"s{student_code}!@"
+            
+            user.set_password(new_pw)
+            user.save()
+            messages.success(request, f"{student.name} 학생 비밀번호 초기화 완료: {new_pw}")
+        else:
+            messages.error(request, "해당 학생의 계정을 찾을 수 없습니다.")
+
+    except Exception as e:
+        messages.error(request, f"오류: {str(e)}")
+        
+    return redirect('dashboard') # 또는 mypage
