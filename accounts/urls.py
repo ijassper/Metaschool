@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    SignUpView, mypage, student_upload, student_create, search_school, dashboard, approve_teacher,
+    SignUpView, student_list, mypage, student_upload, student_create, search_school, dashboard, approve_teacher,
     check_email_duplicate, ai_generator_step1, ai_generator_step2, # 추가
     api_process_one_row, api_download_excel # 추가 
 )
