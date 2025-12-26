@@ -1,11 +1,14 @@
 {% extends 'base.html' %} <!-- base.html을 뼈대로 사용하겠다는 선언 -->
+{% load static %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-10">
+    <div class="col-md-11"> <!-- 넓게 보기 위해 10 -> 11로 변경 -->
         <div class="card shadow-sm border-0">
+            
+            <!-- 1. 상단 헤더 & 버튼 -->
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">📋 학생 명렬표</h5>
+                <h5 class="mb-0"><i class="bi bi-person-lines-fill"></i>📋 학생 명렬표</h5>
                 <div>
                     <!-- 1. 일괄 등록 버튼 (팝업 띄우기) -->
                     <button type="button" class="btn btn-success btn-sm me-2" data-bs-toggle="modal" data-bs-target="#uploadModal">
@@ -18,15 +21,53 @@
                     </a>
                 </div>
             </div>
-            <div class="card-body p-0">
-                <table class="table table-hover mb-0 text-center">
+            <div class="card-body">
+                
+                <!-- 2. [신규] 검색 및 필터 영역 -->
+                <form method="get" class="row g-2 mb-4 align-items-center bg-light p-3 rounded mx-0">
+                    <div class="col-auto fw-bold text-secondary">
+                        <i class="bi bi-funnel-fill"></i> 필터:
+                    </div>
+                    <!-- 학년 선택 -->
+                    <div class="col-auto">
+                        <select name="grade" class="form-select form-select-sm">
+                            <option value="">전체 학년</option>
+                            {% for g in grade_list %}
+                                <option value="{{ g }}" {% if current_grade == g %}selected{% endif %}>{{ g }}학년</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- 반 선택 -->
+                    <div class="col-auto">
+                        <select name="class_no" class="form-select form-select-sm">
+                            <option value="">전체 반</option>
+                            {% for c in class_list %}
+                                <option value="{{ c }}" {% if current_class == c %}selected{% endif %}>{{ c }}반</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- 이름 검색 -->
+                    <div class="col-auto">
+                        <input type="text" name="q" class="form-control form-select-sm" placeholder="이름 검색" value="{{ current_q }}">
+                    </div>
+                    <!-- 조회 버튼 -->
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary btn-sm">조회</button>
+                        <a href="{% url 'student_list' %}" class="btn btn-outline-secondary btn-sm">초기화</a>
+                    </div>
+                </form>
+
+                <!-- 3. 학생 목록 테이블 (컬럼 추가됨) -->
+                <table class="table table-hover text-center align-middle">
                     <thead class="table-light">
                         <tr>
                             <th>연번</th>
+                            <th>학교</th> <!-- 추가 -->
                             <th>학년</th>
                             <th>반</th>
                             <th>번호</th>
                             <th>이름</th>
+                            <th>아이디(ID)</th> <!-- 추가 -->
                             <th>관리</th>
                         </tr>
                     </thead>
@@ -34,25 +75,33 @@
                         {% for student in students %}
                         <tr>
                             <td>{{ forloop.counter }}</td>
+                            <!-- 학교명 -->
+                            <td class="small text-muted">{{ student.teacher.school.name|default:"-" }}</td>
                             <td>{{ student.grade }}</td>
                             <td>{{ student.class_no }}</td>
                             <td>{{ student.number }}</td>
                             <td class="fw-bold">{{ student.name }}</td>
-                            <!-- ★ [추가] 비번 초기화 버튼 -->
+                            
+                            <!-- ★ 아이디 자동 조합 표시 (학교별명 + 학년반번호) -->
+                            <!-- stringformat:"02d"는 숫자 1을 01로 만들어줌 -->
+                            <td class="text-primary small font-monospace">
+                                {{ student.teacher.school.nickname }}{{ student.grade }}{{ student.class_no|stringformat:"02d" }}{{ student.number|stringformat:"02d" }}
+                            </td>
+
+                            <!-- 관리 버튼 -->
                             <td>
                                 <a href="{% url 'reset_student_password' student.id %}" 
-                                class="btn btn-outline-danger btn-sm py-0" 
-                                style="font-size: 0.8rem;"
-                                onclick="return confirm('정말 {{ student.name }} 학생의 비밀번호를 초기화하시겠습니까?\n(초기화 후: s학번!@)');">
-                                <i class="bi bi-arrow-counterclockwise"></i> 비번 초기화
+                                   class="btn btn-outline-danger btn-sm py-0" 
+                                   style="font-size: 0.8rem;"
+                                   onclick="return confirm('정말 {{ student.name }} 학생의 비밀번호를 초기화하시겠습니까?\n(초기화 후: s학번!@)');">
+                                   <i class="bi bi-arrow-counterclockwise"></i> 비번 초기화
                                 </a>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="py-5 text-muted">
-                                <p class="mb-0">등록된 학생이 없습니다.</p>
-                                <small>우측 상단 버튼을 눌러 학생을 등록해주세요.</small>
+                            <td colspan="8" class="py-5 text-muted">
+                                <p class="mb-0">조건에 맞는 학생이 없습니다.</p>
                             </td>
                         </tr>
                         {% endfor %}

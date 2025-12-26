@@ -112,10 +112,38 @@ def mypage(request):
 @login_required
 @teacher_required
 def student_list(request):
-    # 로그인한 선생님(request.user)이 담당하는 학생들만 가져오기
-    my_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    # 1. 내 학생들 전체 가져오기 (기본)
+    students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+
+    # 2. 검색 조건 가져오기 (GET 요청)
+    grade_query = request.GET.get('grade')
+    class_query = request.GET.get('class_no')
+    name_query = request.GET.get('q')
+
+    # 3. 필터링 적용
+    if grade_query:
+        students = students.filter(grade=grade_query)
+    if class_query:
+        students = students.filter(class_no=class_query)
+    if name_query:
+        students = students.filter(name__contains=name_query)
+
+    # 4. 필터용 목록 만들기 (등록된 학생들 중에서 존재하는 학년/반만 추출)
+    # values_list로 값만 뽑고, distinct로 중복 제거, 정렬
+    grade_list = Student.objects.filter(teacher=request.user).values_list('grade', flat=True).distinct().order_by('grade')
+    class_list = Student.objects.filter(teacher=request.user).values_list('class_no', flat=True).distinct().order_by('class_no')
+
+    context = {
+        'students': students,
+        'grade_list': grade_list,
+        'class_list': class_list,
+        # 현재 검색 상태 유지용
+        'current_grade': int(grade_query) if grade_query else '',
+        'current_class': int(class_query) if class_query else '',
+        'current_q': name_query if name_query else '',
+    }
     
-    return render(request, 'accounts/student_list.html', {'students': my_students})
+    return render(request, 'accounts/student_list.html', context)
 
 # 3. 엑셀 일괄 등록 뷰
 @login_required
