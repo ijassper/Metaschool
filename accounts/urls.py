@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     SignUpView, student_list, mypage, student_upload, student_create, search_school, dashboard, approve_teacher,
     check_email_duplicate, ai_generator_step1, ai_generator_step2, # 추가
-    api_process_one_row, api_download_excel # 추가 
+    api_process_one_row, api_download_excel, # 추가
+    reset_student_password, # 추가
 )
 
 urlpatterns = [
@@ -21,4 +22,5 @@ urlpatterns = [
     path('ai/step2/', ai_generator_step2, name='ai_generator_step2'),   # AI 열 선택 및 실행 URL
     path('api/process-row/', api_process_one_row, name='api_process_one_row'),  # 한 줄씩 AI 처리하는 API
     path('api/download-excel/', api_download_excel, name='api_download_excel'), # 최종 엑셀 다운로드
+    path('student/reset-pw/<int:student_id>/', reset_student_password, name='reset_student_password'),  # 비밀번호 초기화 
 ]
