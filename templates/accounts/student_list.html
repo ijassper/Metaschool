@@ -27,6 +27,7 @@
                             <th>반</th>
                             <th>번호</th>
                             <th>이름</th>
+                            <th>관리</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -36,7 +37,16 @@
                             <td>{{ student.grade }}</td>
                             <td>{{ student.class_no }}</td>
                             <td>{{ student.number }}</td>
-                            <td>{{ student.name }}</td>
+                            <td class="fw-bold">{{ student.name }}</td>
+                            <!-- ★ [추가] 비번 초기화 버튼 -->
+                            <td>
+                                <a href="{% url 'reset_student_password' student.id %}" 
+                                class="btn btn-outline-danger btn-sm py-0" 
+                                style="font-size: 0.8rem;"
+                                onclick="return confirm('정말 {{ student.name }} 학생의 비밀번호를 초기화하시겠습니까?\n(초기화 후: s학번!@)');">
+                                <i class="bi bi-arrow-counterclockwise"></i> 비번 초기화
+                                </a>
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
