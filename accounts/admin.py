@@ -117,8 +117,20 @@ class PromptLengthOptionAdmin(admin.ModelAdmin):
 # 6. 나머지 모델들 (학생, 학교)
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ['grade', 'class_no', 'number', 'name', 'teacher']
-    search_fields = ['name']
+    # 목록에 보여줄 항목들
+    list_display = ['grade', 'class_no', 'number', 'name', 'get_school', 'teacher']
+    
+    # ★ [핵심] 우측 필터 추가
+    # teacher__school : 선생님의 소속 학교로 필터링
+    list_filter = ['teacher__school', 'grade', 'class_no']
+    
+    # 검색 기능
+    search_fields = ['name', 'teacher__name']
+
+    # 학교 이름 가져오기
+    def get_school(self, obj):
+        return obj.teacher.school.name if obj.teacher.school else "-"
+    get_school.short_description = '학교'
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
