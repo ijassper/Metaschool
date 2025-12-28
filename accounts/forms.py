@@ -54,16 +54,15 @@ class CustomUserCreationForm(UserCreationForm):
 class StudentForm(forms.ModelForm):
     class Meta:
         model = Student
-        fields = ['grade', 'class_no', 'number', 'name'] # 입력받을 항목
+        fields = ['grade', 'class_no', 'number', 'name', 'email'] # 입력받을 항목
         labels = {
-            'grade': '학년',
-            'class_no': '반',
-            'number': '번호',
-            'name': '이름',
+            'grade': '학년', 'class_no': '반', 'number': '번호', 
+            'name': '이름', 'email': '학생 이메일 (ID)'
         }
         widgets = {
-            'grade': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '예: 1'}),
-            'class_no': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '예: 3'}),
-            'number': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '예: 15'}),
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '이름 입력'}),
+            'grade': forms.NumberInput(attrs={'class': 'form-control'}),
+            'class_no': forms.NumberInput(attrs={'class': 'form-control'}),
+            'number': forms.NumberInput(attrs={'class': 'form-control'}),
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
         }

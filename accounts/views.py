@@ -64,37 +64,35 @@ class SignUpView(generic.CreateView):
 def student_create(request):
     if request.method == 'POST':
         form = StudentForm(request.POST)
-        # HTML 화면에서 보낸 학교의 DB ID (예: 15)
-        school_db_id = request.POST.get('school_select_id') 
+        # (학교 코드 받는 로직 삭제함)
 
-        if form.is_valid() and school_db_id:
+        if form.is_valid():
             student = form.save(commit=False)
-            student.teacher = request.user # 담당 교사는 로그인한 선생님
+            student.teacher = request.user
             
-            # --- 학생 아이디 생성 로직 ---
-            # 1. 학교 DB ID를 4자리 문자로 변환 (예: 15 -> '0015')
-            school_code_str = f"{int(school_db_id):04d}"
+            # 입력받은 이메일을 아이디로 사용
+            student_email = form.cleaned_data['email']
             
-            # 2. 아이디 조합: 학교(4) + 학년(1) + 반(2) + 번호(2) = 9자리
-            # 예: 001510305
-            student_id = f"{school_code_str}{student.grade}{student.class_no:02d}{student.number:02d}"
+            # 비밀번호 규칙
+            student_code = f"{student.grade}{student.class_no:02d}{student.number:02d}"
+            password_raw = f"s{student_code}!@"
             
-            # 3. 계정 생성
+            # 계정 생성
             user, created = CustomUser.objects.get_or_create(
-                username=student_id,
+                username=student_email, # ★ 아이디 = 이메일
                 defaults={
                     'name': student.name,
-                    'password': make_password("1234"),
-                    'school': request.user.school,  # 선택된 학교 객체를 직접 연결
-                    'role': 'STUDENT',  # ★ 학생 등급 강제 부여
+                    'email': student_email,
+                    'password': make_password(password_raw),
+                    'school': request.user.school,
+                    'role': 'STUDENT',
                     'is_active': True
                 }
             )
-            student.save() # 최종 저장
-            messages.success(request, f"{student.name} 학생 등록 완료 (ID: {student_id})")
+            
+            student.save()
+            messages.success(request, f"{student.name} 학생 등록 완료")
             return redirect('student_list')
-        else:
-            messages.error(request, "학교를 선택해주세요.")
     else:
         form = StudentForm()
     

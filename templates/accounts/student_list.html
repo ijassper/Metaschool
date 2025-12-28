@@ -81,11 +81,8 @@
                             <td>{{ student.class_no }}</td>
                             <td>{{ student.number }}</td>
                             <td class="fw-bold">{{ student.name }}</td>
-                            
-                            <!-- ★ 아이디 자동 조합 표시 (학교별명 + 학년반번호) -->
-                            <!-- stringformat:"02d"는 숫자 1을 01로 만들어줌 -->
                             <td class="text-primary small font-monospace">
-                                {{ student.teacher.school.nickname }}{{ student.grade }}{{ student.class_no|stringformat:"02d" }}{{ student.number|stringformat:"02d" }}
+                                {{ student.email|default:"-" }}
                             </td>
 
                             <!-- 관리 버튼 -->

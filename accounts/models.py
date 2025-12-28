@@ -73,6 +73,9 @@ class Student(models.Model):
     class_no = models.IntegerField(verbose_name="반")
     number = models.IntegerField(verbose_name="번호")
     name = models.CharField(max_length=20, verbose_name="이름")
+    
+    # 학생 이메일 필드 추가 (명렬표 표시 및 ID 관리용)
+    email = models.EmailField(verbose_name="학생 이메일(ID)", max_length=255, null=True, blank=True)
 
     def __str__(self):
         return f"{self.grade}학년 {self.class_no}반 {self.name}"
