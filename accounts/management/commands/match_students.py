@@ -2,58 +2,56 @@ from django.core.management.base import BaseCommand
 from accounts.models import Student, CustomUser
 
 class Command(BaseCommand):
-    help = '학생 명렬표의 이메일을 실제 계정과 매칭합니다 (동명이인 제외)'
+    help = '학생 명렬표의 이메일을 정밀 매칭합니다 (학번 활용)'
 
     def handle(self, *args, **kwargs):
-        # 1. 선생님 찾기
         teacher_email = 'poodoldaddy@daum.net'
         try:
             teacher = CustomUser.objects.get(email=teacher_email)
         except CustomUser.DoesNotExist:
-            self.stdout.write(self.style.ERROR(f"❌ 선생님 계정({teacher_email})을 찾을 수 없습니다."))
+            self.stdout.write(self.style.ERROR(f"❌ 선생님 계정을 찾을 수 없습니다."))
             return
 
         school = teacher.school
-        self.stdout.write(f"🛡️ [{teacher.name}] 선생님의 학생 데이터 안전 복구 시작...")
+        self.stdout.write(f"🛡️ [{teacher.name}] 선생님의 학생 데이터 정밀 복구 시작...")
 
-        # 2. 학생 명부 가져오기
         students = Student.objects.filter(teacher=teacher)
         success_count = 0
-        duplicate_count = 0
         fail_count = 0
         
-        # 3. 매칭 시작
         for s in students:
-            # 이름과 학생 권한으로 검색
+            # 1. 이름으로 후보군 검색
             candidates = CustomUser.objects.filter(name=s.name, role='STUDENT')
             
-            if candidates.count() == 1:
-                # [성공] 딱 1명만 검색됨 -> 100% 본인
-                user = candidates.first()
-                s.email = user.email
+            target_user = None
+            
+            # 2. 후보군 중에서 '학번'이 일치하는지 검사
+            # (우리가 만든 아이디 규칙: 이메일 앞부분에 학번 숫자가 포함됨)
+            # 예: 강지원 (1학년 1반 1번) -> 학번코드 '10101'
+            student_code = f"{s.grade}{s.class_no:02d}{s.number:02d}"
+            
+            for cand in candidates:
+                # 후보자의 이메일(아이디)에 학번코드(10101)가 포함되어 있는지 확인
+                if student_code in cand.email:
+                    target_user = cand
+                    break
+            
+            if target_user:
+                # [성공] 학번까지 일치하는 사람 찾음!
+                s.email = target_user.email
                 s.save()
                 
-                # 학교 정보도 채워주기
-                if not user.school:
-                    user.school = school
-                    user.save()
+                # 학교 정보 채워주기
+                if not target_user.school:
+                    target_user.school = school
+                    target_user.save()
                     
                 success_count += 1
-                # self.stdout.write(f"✅ {s.name} 연결 완료")
-
-            elif candidates.count() > 1:
-                # [위험] 2명 이상 검색됨 -> 동명이인
-                self.stdout.write(self.style.WARNING(f"🚨 [동명이인] {s.name} ({s.grade}-{s.class_no}): {candidates.count()}명이 검색되어 건너뜁니다."))
-                duplicate_count += 1
-
+                # self.stdout.write(f"✅ {s.name} ({student_code}) 연결 성공")
             else:
-                # [실패] 없음
-                # self.stdout.write(f"⚠️ {s.name} 계정 없음")
+                self.stdout.write(self.style.ERROR(f"❌ {s.name} ({student_code}) 계정을 못 찾음 (후보 {candidates.count()}명 중 일치 없음)"))
                 fail_count += 1
 
         self.stdout.write("\n" + "="*30)
-        self.stdout.write(self.style.SUCCESS(f"✅ 성공: {success_count}명"))
-        self.stdout.write(self.style.WARNING(f"🚨 동명이인(미처리): {duplicate_count}명"))
-        self.stdout.write(self.style.ERROR(f"⚠️ 계정 없음: {fail_count}명"))
-        self.stdout.write("="*30)
-        self.stdout.write("※ 동명이인은 관리자 페이지(Students)에서 수동으로 이메일을 입력해주세요.")
+        self.stdout.write(self.style.SUCCESS(f"✅ 최종 성공: {success_count}명"))
+        self.stdout.write(self.style.ERROR(f"❌ 실패: {fail_count}명"))
