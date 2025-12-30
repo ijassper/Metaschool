@@ -51,8 +51,15 @@
                     
                     <!-- 우측 사용자 정보 -->
                     <div class="d-flex align-items-center">
+                        <!--등급에 따라 호칭 변경 -->
                         <span class="me-3 text-secondary">
-                            <i class="bi bi-person-circle"></i> <strong>{{ user.name }}</strong> 선생님
+                            <i class="bi bi-person-circle"></i> 
+                            <strong>{{ user.name }}</strong> 
+                            {% if user.role == 'STUDENT' %}
+                                학생 <!-- 또는 '님' -->
+                            {% else %}
+                                선생님
+                            {% endif %}
                         </span>
                         <!-- 관리자 전용 버튼 -->
                         {% if user.is_superuser %}
