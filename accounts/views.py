@@ -152,57 +152,66 @@ def student_upload(request):
         try:
             df = pd.read_excel(excel_file)
             
-            # 교사의 학교 정보 (없으면 에러)
+            # 교사의 학교 정보 확인
             if not request.user.school:
                 messages.error(request, "선생님의 소속 학교 정보가 없습니다. 관리자에게 문의하세요.")
                 return redirect('student_list')
 
-            school_nick = request.user.school.nickname
-            if not school_nick:
-                messages.error(request, "학교 별명(ID)이 설정되지 않았습니다.")
-                return redirect('student_list')
-
             count = 0
             
-            # ★ [핵심] 트랜잭션: 묶음 처리로 속도 대폭 향상 (런타임 에러 방지)
+            # 트랜잭션으로 속도 향상 및 안전성 확보
             with transaction.atomic():
                 for index, row in df.iterrows():
+                    # 1. 엑셀 데이터 추출
                     grade = int(row['학년'])
                     class_no = int(row['반'])
                     number = int(row['번호'])
                     name = str(row['이름'])
+                    
+                    # ★ [핵심] 엑셀의 '이메일(ID)' 컬럼 읽기 (공백 제거)
+                    # (엑셀 파일 헤더가 반드시 '이메일(ID)' 여야 합니다)
+                    email = str(row['이메일(ID)']).strip()
 
-                    # 아이디/비번 생성
+                    # 이메일이 없거나 비어있으면 건너뜀
+                    if not email or email == 'nan':
+                        continue
+
+                    # 2. 비밀번호 생성 규칙: s + 학번 + !@ (예: s10101!@)
                     student_code = f"{grade}{class_no:02d}{number:02d}"
-                    username = f"{school_nick}{student_code}"
                     password_raw = f"s{student_code}!@"
 
-                    # 1. 학생 계정(User) 생성
-                    # ★ 여기서 school 정보를 확실하게 넣어줍니다!
+                    # 3. 학생 계정(User) 생성
+                    # ★ 아이디(username)를 이메일로 설정
                     user, created = CustomUser.objects.get_or_create(
-                        username=username,
+                        username=email, 
                         defaults={
                             'name': name,
-                            'email': f"{username}@metaschool.kr",
+                            'email': email,
                             'password': make_password(password_raw),
-                            'school': request.user.school,  # ★ 소속 학교 입력
+                            'school': request.user.school,
                             'role': 'STUDENT',
                             'is_active': True
                         }
                     )
                     
-                    # 2. 학생 명부(Student) 저장
-                    Student.objects.get_or_create(
+                    # 4. 학생 명부(Student) 저장
+                    # ★ Student 테이블에도 email을 저장해야 명렬표에 나옵니다.
+                    Student.objects.update_or_create(
                         teacher=request.user,
                         grade=grade, 
                         class_no=class_no, 
                         number=number,
-                        defaults={'name': name}
+                        defaults={
+                            'name': name,
+                            'email': email 
+                        }
                     )
                     count += 1
             
             messages.success(request, f"{count}명의 학생이 성공적으로 등록되었습니다!")
 
+        except KeyError as e:
+             messages.error(request, f"엑셀 파일 양식이 틀렸습니다. '{str(e)}' 컬럼이 있는지 확인해주세요.")
         except Exception as e:
             messages.error(request, f"오류 발생: {str(e)}")
     
