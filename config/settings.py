@@ -37,7 +37,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'accounts',
+    'whitenoise.runserver_nostatic',
+    'accounts', # 회원관리
+    'activities', # 시트관리
 ]
 
 MIDDLEWARE = [
