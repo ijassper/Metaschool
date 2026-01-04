@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="card shadow-lg border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h3 class="fw-bold text-primary mb-0">📝 테스트 시트 생성 (교사용)</h3>
+        </div>
+        
+        <div class="card-body p-5">
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- 1. 기본 정보 섹션 -->
+                <h5 class="fw-bold text-secondary mb-4"><i class="bi bi-info-circle"></i> 기본 정보</h5>
+
+                <!-- 과목명 (자동) -->
+                <div class="row mb-4 align-items-center">
+                    <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
+                        과목명 <span class="text-danger">*</span>
+                    </label>
+                    <div class="col-md-9">
+                        <input type="text" class="form-control-plaintext ps-3 fw-bold" value="{{ user.subject.name|default:'담당 과목 없음' }}" readonly>
+                    </div>
+                </div>
+
+                <!-- 평가 영역명 -->
+                <div class="row mb-4 align-items-center">
+                    <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
+                        평가영역명 <span class="text-danger">*</span>
+                    </label>
+                    <div class="col-md-9">
+                        {{ a_form.section }} <!-- forms.py 위젯 적용됨 -->
+                    </div>
+                </div>
+
+                <!-- 평가 주제 -->
+                <div class="row mb-4 align-items-center">
+                    <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
+                        평가 주제 <span class="text-danger">*</span>
+                    </label>
+                    <div class="col-md-9">
+                        {{ a_form.title }}
+                    </div>
+                </div>
+
+                <hr class="my-5">
+
+                <!-- 2. 문항 상세 섹션 -->
+                <h5 class="fw-bold text-secondary mb-4"><i class="bi bi-question-circle"></i> 문항 상세 입력</h5>
+
+                <!-- 평가 문항 -->
+                <div class="row mb-4">
+                    <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2 h-100">
+                        평가 문항 <span class="text-danger">*</span>
+                    </label>
+                    <div class="col-md-9">
+                        {{ q_form.content }}
+                        <div class="form-text">학생이 답해야 할 질문 내용을 구체적으로 적어주세요.</div>
+                    </div>
+                </div>
+
+                <!-- 참고 자료 -->
+                <div class="row mb-4">
+                    <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
+                        참고 자료
+                    </label>
+                    <div class="col-md-9">
+                        {{ q_form.reference }}
+                    </div>
+                </div>
+
+                <!-- 작성 조건 -->
+                <div class="row mb-4">
+                    <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
+                        작성 조건
+                    </label>
+                    <div class="col-md-9">
+                        {{ q_form.conditions }}
+                    </div>
+                </div>
+
+                <!-- 분량 제한 -->
+                <div class="row mb-4 align-items-center">
+                    <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
+                        분량 제한
+                    </label>
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            {{ q_form.max_length }}
+                            <span class="input-group-text">자 이내</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-text mt-0">(무제한일 경우 빈칸으로 두세요)</div>
+                    </div>
+                </div>
+
+                <!-- 하단 버튼 -->
+                <div class="d-flex justify-content-center gap-2 mt-5">
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg px-4">취소</a>
+                    <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold">평가 생성 완료</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -127,4 +127,30 @@
         </div>
     </div>
 </div>
+<!-- 교사 전용: 수행평가 관리 메뉴 -->
+{% if user.role == 'TEACHER' or user.role == 'LEADER' %}
+<div class="row mt-4 mb-5">
+    <div class="col-md-12">
+        <div class="card border-primary shadow-sm">
+            <div class="card-header bg-primary text-white fw-bold">
+                <i class="bi bi-pencil-square"></i> 평가 관리
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="card-title">평가 생성 및 관리</h5>
+                        <p class="card-text text-muted">서술형/논술형 평가지를 만들고 학생들에게 배포합니다.</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="{% url 'create_test' %}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-plus-circle"></i> 새 평가 만들기
+                        </a>
+                        <!-- 추후 '목록 보기' 버튼도 여기에 추가될 예정 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
