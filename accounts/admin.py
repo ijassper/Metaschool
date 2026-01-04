@@ -13,6 +13,12 @@ class CustomUserAdmin(UserAdmin):
     list_filter = ['role', 'school'] # 등급별 필터링
     list_editable = ['role'] # ★ 목록에서 바로 등급 수정 가능하게 설정!
     search_fields = ['email', 'name']
+
+    # ★ 학생 등급(STUDENT)은 목록에서 제외하는 로직
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # role이 'STUDENT'가 아닌 사람만 보여줘라
+        return qs.exclude(role='STUDENT') 
     
     fieldsets = UserAdmin.fieldsets + (
         ('추가 정보', {'fields': ('name', 'phone', 'school', 'subject', 'role')}), # 상세 페이지에 role 추가
