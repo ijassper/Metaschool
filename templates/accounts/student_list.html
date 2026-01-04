@@ -87,12 +87,21 @@
 
                             <!-- 관리 버튼 -->
                             <td>
-                                <a href="{% url 'reset_student_password' student.id %}" 
-                                   class="btn btn-outline-danger btn-sm py-0" 
-                                   style="font-size: 0.8rem;"
-                                   onclick="return confirm('정말 {{ student.name }} 학생의 비밀번호를 초기화하시겠습니까?\n(초기화 후: s학번!@)');">
-                                   <i class="bi bi-arrow-counterclockwise"></i> 비번 초기화
-                                </a>
+                                <div class="btn-group" role="group">
+                                    <!-- 1. 비번 초기화 버튼 (기존 유지) -->
+                                    <a href="{% url 'reset_student_password' student.id %}" 
+                                    class="btn btn-outline-warning btn-sm py-0" 
+                                    onclick="return confirm('{{ student.name }} 학생의 비밀번호를 초기화하시겠습니까?');">
+                                    <i class="bi bi-arrow-counterclockwise"></i> 초기화
+                                    </a>
+
+                                    <!-- 2. ★ [추가] 삭제 버튼 -->
+                                    <a href="{% url 'student_delete' student.id %}" 
+                                    class="btn btn-outline-danger btn-sm py-0" 
+                                    onclick="return confirm('정말 삭제하시겠습니까?\n\n이 학생의 [명렬표]와 [로그인 계정]이 모두 영구 삭제됩니다.\n(전학/자퇴 시 사용)');">
+                                    <i class="bi bi-trash"></i> 삭제
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% empty %}

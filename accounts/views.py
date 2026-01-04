@@ -566,3 +566,35 @@ def reset_student_password(request, student_id):
         messages.error(request, f"오류: {str(e)}")
         
     return redirect('dashboard') # 또는 mypage
+
+# 학생 삭제
+@login_required
+@teacher_required
+def student_delete(request, student_id):
+    try:
+        # 1. 지울 학생 명부 찾기 (내 학생인지 확인)
+        student = Student.objects.get(id=student_id, teacher=request.user)
+        target_email = student.email
+        student_name = student.name
+        
+        # 2. 명부(Student)에서 먼저 삭제
+        student.delete()
+        
+        # 3. 로그인 계정(User) 찾아서 삭제
+        # (이메일이 일치하고, 학생 권한인 계정만 삭제)
+        if target_email:
+            user_to_delete = CustomUser.objects.filter(
+                email=target_email, 
+                role='STUDENT'
+            )
+            if user_to_delete.exists():
+                user_to_delete.delete()
+                
+        messages.success(request, f"{student_name} 학생의 정보와 계정을 모두 삭제했습니다.")
+        
+    except Student.DoesNotExist:
+        messages.error(request, "학생을 찾을 수 없거나 권한이 없습니다.")
+    except Exception as e:
+        messages.error(request, f"삭제 중 오류 발생: {str(e)}")
+        
+    return redirect('student_list')
