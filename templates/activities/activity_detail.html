@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg border-0">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h3 class="fw-bold text-primary mb-0">📄 평가 상세 정보</h3>
+            <span class="badge bg-secondary fs-6">{{ activity.subject_name }}</span>
+        </div>
+        
+        <div class="card-body p-5">
+            <!-- 평가 정보 -->
+            <h4 class="fw-bold mb-3">[{{ activity.section }}] {{ activity.title }}</h4>
+            <div class="alert alert-light border">
+                <ul class="mb-0 text-muted small">
+                    <li>생성일: {{ activity.created_at|date:"Y-m-d H:i" }}</li>
+                    <li>상태: {{ activity.is_active|yesno:"진행중,대기중" }}</li>
+                </ul>
+            </div>
+
+            <!-- 문항 미리보기 -->
+            <h5 class="mt-4 border-bottom pb-2">문항 미리보기</h5>
+            {% for q in questions %}
+                <div class="mb-4">
+                    <p class="fw-bold mb-1">Q{{ q.question_number }}. {{ q.content }}</p>
+                    {% if q.reference %}
+                    <div class="bg-light p-3 rounded text-muted small mb-2">
+                        <strong>[참고]</strong><br>{{ q.reference|linebreaksbr }}
+                    </div>
+                    {% endif %}
+                    <div class="text-end small text-secondary">
+                        작성 조건: {{ q.conditions|default:"없음" }} / 제한: {{ q.max_length|default:"무제한" }}자
+                    </div>
+                </div>
+            {% endfor %}
+
+            <hr class="my-5">
+
+            <!-- 관리 버튼들 (수정/삭제) -->
+            <div class="d-flex justify-content-center gap-2">
+                <a href="{% url 'activity_list' %}" class="btn btn-secondary px-4">목록으로</a>
+                <a href="{% url 'update_test' activity.id %}" class="btn btn-primary px-4">수정하기</a>
+                <a href="{% url 'delete_test' activity.id %}" class="btn btn-danger px-4" onclick="return confirm('정말 삭제하시겠습니까?');">삭제하기</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
