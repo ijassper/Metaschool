@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-primary"><i class="bi bi-list-check"></i> 나의 평가 목록</h3>
+        <a href="{% url 'create_test' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> 새 평가 만들기
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover text-center align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>번호</th>
+                        <th>과목</th>
+                        <th class="text-start">평가 주제</th>
+                        <th>생성일</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activity in activities %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td><span class="badge bg-secondary">{{ activity.subject_name }}</span></td>
+                        <td class="text-start fw-bold">
+                            <a href="{% url 'update_test' activity.id %}" class="text-decoration-none text-dark">
+                                [{{ activity.section }}] {{ activity.title }}
+                            </a>
+                        </td>
+                        <td class="small text-muted">{{ activity.created_at|date:"Y-m-d" }}</td>
+                        <td>
+                            <a href="{% url 'update_test' activity.id %}" class="btn btn-outline-primary btn-sm">수정</a>
+                            <a href="{% url 'delete_test' activity.id %}" class="btn btn-outline-danger btn-sm" onclick="return confirm('정말 삭제하시겠습니까? 학생들의 답안도 모두 삭제됩니다.');">삭제</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="py-5 text-muted">생성된 평가가 없습니다.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

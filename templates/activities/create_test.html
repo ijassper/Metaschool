@@ -4,7 +4,8 @@
 <div class="container mt-5 mb-5">
     <div class="card shadow-lg border-0">
         <div class="card-header bg-white py-3 border-bottom">
-            <h3 class="fw-bold text-primary mb-0">📝 테스트 시트 생성 (교사용)</h3>
+            <!-- action 변수에 따라 제목 변경 (생성/수정) -->
+            <h3 class="fw-bold text-primary mb-0">📝 테스트 시트 {{ action }} (교사용)</h3>
         </div>
         
         <div class="card-body p-5">
@@ -20,7 +21,7 @@
                         과목명 <span class="text-danger">*</span>
                     </label>
                     <div class="col-md-9">
-                        <input type="text" class="form-control-plaintext ps-3 fw-bold" value="{{ user.subject.name|default:'담당 과목 없음' }}" readonly>
+                        {{ a_form.subject_name }} <!-- 직접 입력 필드 -->
                     </div>
                 </div>
 
@@ -98,8 +99,8 @@
 
                 <!-- 하단 버튼 -->
                 <div class="d-flex justify-content-center gap-2 mt-5">
-                    <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg px-4">취소</a>
-                    <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold">평가 생성 완료</button>
+                    <a href="{% url 'activity_list' %}" class="btn btn-secondary btn-lg px-4">취소</a>
+                    <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold">평가 {{ action }} 완료</button>
                 </div>
             </form>
         </div>
