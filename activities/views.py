@@ -4,6 +4,7 @@ from accounts.decorators import teacher_required
 from .models import Activity, Question
 from .forms import ActivityForm, QuestionForm
 from django.contrib import messages
+from django.utils import timezone # 날짜 표시용
 
 # 1. 내가 만든 평가 목록 보기
 @login_required
@@ -101,3 +102,39 @@ def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     # 일단은 준비 중 메시지만 띄움
     return render(request, 'activities/activity_result.html', {'activity': activity})
+
+# 학생 평가 응시 페이지
+@login_required
+def take_test(request, activity_id):
+    # 1. 평가 정보 가져오기
+    activity = get_object_or_404(Activity, id=activity_id)
+    question = activity.questions.first() # 문항 가져오기 (현재는 1개라고 가정)
+    
+    # [보안] 학생이 아니거나, 평가가 비활성화(준비중) 상태면 튕겨냄
+    if request.user.role != 'STUDENT' or not activity.is_active:
+        messages.error(request, "접근할 수 없는 평가입니다.")
+        return redirect('dashboard')
+
+    # [중복 방지] 이미 제출한 답안이 있는지 확인
+    existing_answer = Answer.objects.filter(student__email=request.user.email, question=question).first()
+    
+    if request.method == 'POST':
+        form = AnswerForm(request.POST, instance=existing_answer) # 기존 답안 있으면 수정 모드
+        if form.is_valid():
+            answer = form.save(commit=False)
+            answer.student = Student.objects.get(email=request.user.email) # 내 명부 연결
+            answer.question = question
+            answer.save()
+            
+            messages.success(request, "답안이 성공적으로 제출되었습니다!")
+            return redirect('dashboard')
+    else:
+        form = AnswerForm(instance=existing_answer)
+
+    context = {
+        'activity': activity,
+        'question': question,
+        'form': form,
+        'today': timezone.now() # 오늘 날짜
+    }
+    return render(request, 'activities/take_test.html', context)

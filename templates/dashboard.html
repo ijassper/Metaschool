@@ -163,8 +163,7 @@
                                         <!-- 응시 버튼 -->
                                         <td>
                                             {% if act.is_active %}
-                                                <!-- 나중에 만들 '학생 답안 작성 페이지'로 연결 -->
-                                                <a href="#" class="btn btn-primary btn-sm">응시하기</a>
+                                                <a href="{% url 'take_test' act.id %}" class="btn btn-primary btn-sm">응시하기</a>
                                             {% else %}
                                                 <button class="btn btn-secondary btn-sm" disabled>대기</button>
                                             {% endif %}

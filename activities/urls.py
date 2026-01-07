@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     create_test, activity_list, update_test, delete_test, 
-    toggle_activity_status, activity_detail, activity_result # 추가
+    toggle_activity_status, activity_detail, activity_result, take_test
 )
 
 urlpatterns = [
@@ -12,4 +12,5 @@ urlpatterns = [
     path('toggle/<int:activity_id>/', toggle_activity_status, name='toggle_activity_status'),   # 상태
     path('detail/<int:activity_id>/', activity_detail, name='activity_detail'), # 상세페이지
     path('result/<int:activity_id>/', activity_result, name='activity_result'), # 결과
+    path('take/<int:activity_id>/', take_test, name='take_test'), # 응시
 ]
