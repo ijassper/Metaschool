@@ -104,8 +104,9 @@
             </div>
             {% endif %}
 
-            <!-- 학생용 비밀번호 변경 버튼 -->
+            <!-- [학생용 대시보드] -->
             {% if user.role == 'STUDENT' %}
+            <!-- 1. 내 정보 관리 (기존 코드 유지) -->
             <div class="row justify-content-center mt-4">
                 <div class="col-md-6">
                     <div class="card border-info">
@@ -118,6 +119,66 @@
                             <a href="{% url 'password_change' %}" class="btn btn-primary">
                                 비밀번호 변경하기
                             </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 우리 반 수행평가 목록 -->
+            <div class="row justify-content-center mt-5 mb-5">
+                <div class="col-md-10">
+                    <div class="card shadow-sm border-primary">
+                        <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-pencil-square"></i> 수행평가 목록</span>
+                            <span class="badge bg-light text-primary">{{ my_teacher.name }} 선생님</span>
+                        </div>
+                        
+                        <div class="card-body p-0">
+                            <table class="table table-hover text-center align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>과목</th>
+                                        <th class="text-start">평가 제목</th>
+                                        <th>영역</th>
+                                        <th>상태</th>
+                                        <th>응시</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for act in student_activities %}
+                                    <tr>
+                                        <td><span class="badge bg-secondary">{{ act.subject_name }}</span></td>
+                                        <td class="text-start fw-bold">{{ act.title }}</td>
+                                        <td class="small text-muted">{{ act.section }}</td>
+                                        
+                                        <!-- 상태 표시 (아직 기능 구현 전이라 예시) -->
+                                        <td>
+                                            {% if act.is_active %}
+                                                <span class="badge bg-success">진행중</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">준비중</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- 응시 버튼 -->
+                                        <td>
+                                            {% if act.is_active %}
+                                                <!-- 나중에 만들 '학생 답안 작성 페이지'로 연결 -->
+                                                <a href="#" class="btn btn-primary btn-sm">응시하기</a>
+                                            {% else %}
+                                                <button class="btn btn-secondary btn-sm" disabled>대기</button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="py-5 text-muted">
+                                            등록된 수행평가가 없습니다.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

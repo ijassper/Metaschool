@@ -20,6 +20,7 @@ from .forms import CustomUserCreationForm, StudentForm
 from .models import Student, CustomUser, School  # Student, CustomUser, School 모델 모두 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
+from activities.models import Activity  # 평가관리
 
 
 # 대시보드 (로그인 후 첫 화면)
@@ -42,6 +43,23 @@ def dashboard(request):
         context['guest_teachers'] = guest_teachers
         context['school_students'] = school_students
         context['student_count'] = school_students.count()
+    
+    # 2. 학생일 경우: 선생님이 낸 평가 목록 가져오기
+    if request.user.role == 'STUDENT':
+        # 내 이메일로 Student 명부 찾기
+        try:
+            student_info = Student.objects.get(email=request.user.email)
+            my_teacher = student_info.teacher
+            
+            # 우리 선생님이 만든 활동 중, '평가 진행중(is_active=True)'인 것만 가져오기
+            # (아직 is_active 설정을 안 했으면 일단 다 가져오기)
+            activities = Activity.objects.filter(teacher=my_teacher).order_by('-created_at')
+            
+            context['student_activities'] = activities
+            context['my_teacher'] = my_teacher # 선생님 이름 표시용
+            
+        except Student.DoesNotExist:
+            context['error_msg'] = "학생 명부에서 정보를 찾을 수 없습니다."
 
     return render(request, 'dashboard.html', context)
 
