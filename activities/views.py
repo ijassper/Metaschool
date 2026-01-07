@@ -1,8 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from accounts.decorators import teacher_required
-from .models import Activity, Question
-from .forms import ActivityForm, QuestionForm
+from accounts.models import Student
+from .models import Activity, Question, Answer
+from .forms import ActivityForm, QuestionForm, AnswerForm
 from django.contrib import messages
 from django.utils import timezone # 날짜 표시용
 
