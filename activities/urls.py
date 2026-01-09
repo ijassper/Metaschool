@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (
     create_test, activity_list, update_test, delete_test, 
-    toggle_activity_status, activity_detail, activity_result, take_test
+    toggle_activity_status, activity_detail, activity_result, take_test,
+    answer_detail, answer_delete, save_note
 )
 
 urlpatterns = [
@@ -13,4 +14,7 @@ urlpatterns = [
     path('detail/<int:activity_id>/', activity_detail, name='activity_detail'), # 상세페이지
     path('result/<int:activity_id>/', activity_result, name='activity_result'), # 결과
     path('take/<int:activity_id>/', take_test, name='take_test'), # 응시
+    path('answer/detail/<int:answer_id>/', answer_detail, name='answer_detail'),    # 답안 상세페이지
+    path('answer/delete/<int:answer_id>/', answer_delete, name='answer_delete'),    # 답안 삭제
+    path('answer/note/<int:answer_id>/', save_note, name='save_note'),  # 특이사항 메모
 ]

@@ -96,13 +96,76 @@ def activity_detail(request, activity_id):
     questions = activity.questions.all()
     return render(request, 'activities/activity_detail.html', {'activity': activity, 'questions': questions})
 
-# [신규] 3. 제출 현황(답안) 보기 페이지 (다음 단계에서 개발 예정)
+# [신규] 3. 제출 현황(답안) 보기 페이지
 @login_required
 @teacher_required
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
-    # 일단은 준비 중 메시지만 띄움
-    return render(request, 'activities/activity_result.html', {'activity': activity})
+    
+    # 우리 반 전체 학생 가져오기
+    students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    
+    # 학생별 제출 현황 정리
+    submission_list = []
+    for student in students:
+        # 이 학생이 낸 답안이 있는지 확인
+        # (문항이 여러 개라면 첫 번째 문항 기준, 혹은 Activity 전체 기준 로직 필요. 여기선 간단히 첫 질문 기준)
+        question = activity.questions.first()
+        answer = Answer.objects.filter(student=student, question=question).first()
+        
+        status = "미응시"
+        submitted_at = "-"
+        answer_id = None
+        note = ""
+
+        if answer:
+            status = "제출 완료"
+            submitted_at = answer.submitted_at
+            answer_id = answer.id
+            note = answer.note
+
+        submission_list.append({
+            'student': student,
+            'status': status,
+            'submitted_at': submitted_at,
+            'answer_id': answer_id,
+            'note': note
+        })
+
+    context = {
+        'activity': activity,
+        'submission_list': submission_list
+    }
+    return render(request, 'activities/activity_result.html', context)
+
+# 2. 답안 상세 보기 (팝업 또는 새 창)
+@login_required
+@teacher_required
+def answer_detail(request, answer_id):
+    answer = get_object_or_404(Answer, id=answer_id)
+    return render(request, 'activities/answer_detail.html', {'answer': answer})
+
+# 3. 답안 폐기 (삭제)
+@login_required
+@teacher_required
+def answer_delete(request, answer_id):
+    answer = get_object_or_404(Answer, id=answer_id)
+    activity_id = answer.question.activity.id
+    answer.delete()
+    messages.success(request, "답안을 삭제(반려)했습니다. 학생이 다시 응시할 수 있습니다.")
+    return redirect('activity_result', activity_id=activity_id)
+
+# 4. 특이사항 메모 저장 (AJAX 처리 권장하지만, 일단 간단히 Form 처리)
+@login_required
+@teacher_required
+def save_note(request, answer_id):
+    if request.method == 'POST':
+        answer = get_object_or_404(Answer, id=answer_id)
+        answer.note = request.POST.get('note', '')
+        answer.save()
+        messages.success(request, "특이사항이 저장되었습니다.")
+        return redirect('activity_result', activity_id=answer.question.activity.id)
+    return redirect('dashboard')
 
 # 학생 평가 응시 페이지
 @login_required

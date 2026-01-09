@@ -1,8 +1,109 @@
 {% extends 'base.html' %}
+
 {% block content %}
-<div class="container mt-5 text-center">
-    <h3>📊 제출 현황 및 채점</h3>
-    <p class="text-muted">{{ activity.title }}의 학생 답안 목록 페이지입니다. (개발 예정)</p>
-    <a href="{% url 'activity_list' %}" class="btn btn-secondary">목록으로</a>
+<div class="container mt-5 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold text-primary"><i class="bi bi-card-checklist"></i> 제출 현황: {{ activity.title }}</h3>
+        <a href="{% url 'activity_list' %}" class="btn btn-secondary">목록으로</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover text-center align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>반</th>
+                        <th>번호</th>
+                        <th>이름</th>
+                        <th>상태</th>
+                        <th>제출 일시</th>
+                        <th>답안지</th>
+                        <th>특이사항</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in submission_list %}
+                    <tr>
+                        <td>{{ item.student.class_no }}</td>
+                        <td>{{ item.student.number }}</td>
+                        <td class="fw-bold">{{ item.student.name }}</td>
+                        
+                        <!-- 상태 -->
+                        <td>
+                            {% if item.status == '제출 완료' %}
+                                <span class="badge bg-success">제출 완료</span>
+                            {% else %}
+                                <span class="badge bg-secondary opacity-50">미응시</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- 제출 일시 -->
+                        <td class="small text-muted">
+                            {% if item.answer_id %}{{ item.submitted_at|date:"m-d H:i" }}{% else %}-{% endif %}
+                        </td>
+
+                        <!-- 답안지 열기 -->
+                        <td>
+                            {% if item.answer_id %}
+                                <a href="{% url 'answer_detail' item.answer_id %}" target="_blank" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-search"></i> 열기
+                                </a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <!-- 특이사항 (메모) -->
+                        <td>
+                            {% if item.answer_id %}
+                                <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#noteModal{{ item.answer_id }}">
+                                    {% if item.note %}<i class="bi bi-sticky-fill"></i>{% else %}<i class="bi bi-sticky"></i>{% endif %}
+                                </button>
+
+                                <!-- 메모 모달 (개별 생성) -->
+                                <div class="modal fade" id="noteModal{{ item.answer_id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-warning bg-opacity-25">
+                                                <h5 class="modal-title fw-bold">특이사항 메모</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form action="{% url 'save_note' item.answer_id %}" method="post">
+                                                {% csrf_token %}
+                                                <div class="modal-body">
+                                                    <p class="text-start mb-2"><strong>{{ item.student.name }}</strong> 학생에 대한 메모:</p>
+                                                    <textarea name="note" class="form-control" rows="5">{{ item.note }}</textarea>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="submit" class="btn btn-primary">저장</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <!-- 폐기(삭제) -->
+                        <td>
+                            {% if item.answer_id %}
+                                <a href="{% url 'answer_delete' item.answer_id %}" 
+                                   class="btn btn-outline-danger btn-sm"
+                                   onclick="return confirm('이 학생의 답안을 삭제하시겠습니까?\n삭제 후 학생은 다시 응시할 수 있습니다.');">
+                                   폐기
+                                </a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 {% endblock %}

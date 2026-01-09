@@ -160,6 +160,27 @@
         }
     }
 
+    // 키보드 막기 (Ctrl+A, F11, F12, PrintScreen 등)
+    document.addEventListener('keydown', function(e) {
+        // F11 (전체화면 풀기 시도 차단)
+        if (e.key === 'F11') {
+            e.preventDefault();
+            alert("보안상 전체화면을 해제할 수 없습니다.");
+            return false;
+        }
+        // Ctrl + A (전체 선택 차단)
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+            e.preventDefault();
+            alert("전체 선택 기능은 사용할 수 없습니다.");
+            return false;
+        }
+        // Ctrl + C, V (복사 붙여넣기 차단 - 키보드)
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
     // 3. 부정행위 방지 (복사, 붙여넣기, 우클릭 차단)
     document.addEventListener('contextmenu', event => event.preventDefault()); // 우클릭 금지
     

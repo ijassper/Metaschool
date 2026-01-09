@@ -35,4 +35,6 @@ class Answer(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     content = models.TextField(verbose_name="학생 답안")
-    submitted_at = models.DateTimeField(auto_now=True)
+    submitted_at = models.DateTimeField(auto_now=True, verbose_name="제출/수정 시간")
+    # 선생님 특이사항 메모 (비공개)
+    note = models.TextField(blank=True, verbose_name="특이사항(교사 메모)")

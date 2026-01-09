@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="card shadow border-primary">
+        <div class="card-header bg-primary text-white py-3">
+            <h4 class="mb-0 fw-bold">
+                <i class="bi bi-file-text"></i> 학생 답안지
+            </h4>
+        </div>
+        <div class="card-body p-4">
+            <!-- 상단 정보 -->
+            <div class="alert alert-light border d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-secondary me-2">{{ answer.student.teacher.school.name }}</span>
+                    <span class="fs-5 fw-bold me-3">
+                        {{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번 
+                        {{ answer.student.name }}
+                    </span>
+                </div>
+                <div class="text-muted small">
+                    제출일시: {{ answer.submitted_at|date:"Y년 m월 d일 H시 i분" }}
+                </div>
+            </div>
+
+            <!-- 문제 정보 (간략) -->
+            <div class="mb-4">
+                <label class="fw-bold text-secondary">평가 문항</label>
+                <div class="p-3 bg-light rounded border">{{ answer.question.content }}</div>
+            </div>
+
+            <hr>
+
+            <!-- 학생 답안 (메인) -->
+            <div class="mb-4">
+                <label class="fw-bold text-primary mb-2">작성한 답안</label>
+                <div class="p-4 border rounded bg-white text-break" style="min-height: 300px; font-size: 1.1rem; line-height: 1.8; white-space: pre-wrap;">{{ answer.content }}</div>
+            </div>
+            
+            <!-- 닫기 버튼 -->
+            <div class="text-center">
+                <button onclick="window.close()" class="btn btn-secondary px-5">창 닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
