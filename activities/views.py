@@ -102,15 +102,29 @@ def activity_detail(request, activity_id):
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 우리 반 전체 학생 가져오기
+    # 1. 기본 학생 목록 (우리 반 전체)
     students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+
+    # --- [신규] 필터링 로직 추가 ---
+    # 반 목록 추출 (드롭다운용)
+    class_list = students.values_list('class_no', flat=True).distinct().order_by('class_no')
     
-    # 학생별 제출 현황 정리
+    # 검색어 가져오기
+    class_query = request.GET.get('class_no')
+    name_query = request.GET.get('q')
+
+    # 필터 적용
+    if class_query:
+        students = students.filter(class_no=class_query)
+    if name_query:
+        students = students.filter(name__contains=name_query)
+    # ---------------------------
+    
+    # 2. 학생별 제출 현황 매칭 (필터링된 students 목록만 순회)
     submission_list = []
+    question = activity.questions.first() # 첫 번째 문항 기준
+
     for student in students:
-        # 이 학생이 낸 답안이 있는지 확인
-        # (문항이 여러 개라면 첫 번째 문항 기준, 혹은 Activity 전체 기준 로직 필요. 여기선 간단히 첫 질문 기준)
-        question = activity.questions.first()
         answer = Answer.objects.filter(student=student, question=question).first()
         
         status = "미응시"
@@ -134,7 +148,11 @@ def activity_result(request, activity_id):
 
     context = {
         'activity': activity,
-        'submission_list': submission_list
+        'submission_list': submission_list,
+        # 필터링용 데이터 전달
+        'class_list': class_list,
+        'current_class': int(class_query) if class_query else '',
+        'current_q': name_query if name_query else '',
     }
     return render(request, 'activities/activity_result.html', context)
 
