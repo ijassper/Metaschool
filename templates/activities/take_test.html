@@ -132,6 +132,9 @@
     const textarea = document.getElementById('id_content');
     const counter = document.getElementById('charCount');
     const limit = {{ question.max_length|default:0 }};
+    
+    // ★ [신규] 제출 중인지 확인하는 상태 변수
+    let isSubmitting = false;
 
     // 1. 글자 수 세기
     textarea.addEventListener('input', function() {
@@ -146,60 +149,62 @@
 
     // 2. 시험 시작 (전체 화면 전환)
     function startTest() {
-        document.getElementById('startOverlay').classList.add('d-none'); // 가림막 제거
-        document.getElementById('testContainer').style.filter = "none"; // 블러 제거
+        document.getElementById('startOverlay').classList.add('d-none');
+        document.getElementById('testContainer').style.filter = "none";
         
-        // 전체 화면 요청 (브라우저 정책상 사용자 클릭 시에만 가능)
         const elem = document.documentElement;
         if (elem.requestFullscreen) {
-            elem.requestFullscreen();
-        } else if (elem.webkitRequestFullscreen) { /* Safari */
-            elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) { /* IE11 */
-            elem.msRequestFullscreen();
+            elem.requestFullscreen().catch(err => {
+                console.log("전체화면 거부됨: " + err.message);
+            });
         }
     }
 
-    // 키보드 막기 (Ctrl+A, F11, F12, PrintScreen 등)
+    // 3. 부정행위 방지 (키보드 막기)
     document.addEventListener('keydown', function(e) {
-        // F11 (전체화면 풀기 시도 차단)
+        // F11 (전체화면 해제 시도) 차단
         if (e.key === 'F11') {
             e.preventDefault();
             alert("보안상 전체화면을 해제할 수 없습니다.");
             return false;
         }
-        // Ctrl + A (전체 선택 차단)
-        if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+        // Ctrl+A, Ctrl+C, Ctrl+V 차단
+        if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'A', 'C', 'V'].includes(e.key)) {
             e.preventDefault();
-            alert("전체 선택 기능은 사용할 수 없습니다.");
-            return false;
-        }
-        // Ctrl + C, V (복사 붙여넣기 차단 - 키보드)
-        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v')) {
-            e.preventDefault();
+            // alert("보안상 단축키를 사용할 수 없습니다."); // (너무 자주 뜨면 귀찮으니 주석 처리 가능)
             return false;
         }
     });
 
-    // 3. 부정행위 방지 (복사, 붙여넣기, 우클릭 차단)
-    document.addEventListener('contextmenu', event => event.preventDefault()); // 우클릭 금지
-    
-    const blockEvents = ['copy', 'paste', 'cut'];
-    blockEvents.forEach(evt => {
-        document.addEventListener(evt, function(e) {
-            e.preventDefault();
-            alert('보안상 복사/붙여넣기 기능을 사용할 수 없습니다.');
-        });
-    });
+    // 마우스 우클릭 차단
+    document.addEventListener('contextmenu', event => event.preventDefault());
 
-    // 4. 화면 이탈 감지 (Alt+Tab 등)
+    // 4. [핵심 수정] 화면 이탈 감지 (Alt+Tab 등)
     document.addEventListener("visibilitychange", () => {
+        // ★ 제출 버튼을 누른 상태(isSubmitting)라면 경고를 띄우지 않음!
+        if (isSubmitting) return;
+
         if (document.hidden) {
-            // 경고음 재생 (선택 사항)
-            // alert 대신 화면에 기록을 남기거나 선생님께 알림을 보낼 수도 있음
             alert("⚠️ 경고: 화면을 이탈하지 마세요! 부정행위로 간주될 수 있습니다.");
         }
     });
+
+    // 5. [신규] 제출 버튼 클릭 시 '제출 중' 상태로 변경
+    // (모달이 뜨는 버튼에 id="submitBtn"을 추가하거나, 아래처럼 선택자로 잡음)
+    const submitBtn = document.querySelector('[data-bs-target="#submitModal"]');
+    if(submitBtn) {
+        submitBtn.addEventListener('click', function() {
+            isSubmitting = true; // 이제부터 감시 중단
+        });
+    }
+
+    // (만약 모달에서 '취소'를 누르면 다시 감시 시작)
+    const submitModal = document.getElementById('submitModal');
+    if(submitModal) {
+        submitModal.addEventListener('hidden.bs.modal', function () {
+            isSubmitting = false; // 다시 감시 시작
+        });
+    }
 </script>
 
 <style>
