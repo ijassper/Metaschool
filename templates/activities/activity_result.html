@@ -13,6 +13,16 @@
             <div class="col-auto fw-bold text-secondary">
                 <i class="bi bi-funnel-fill"></i> 필터:
             </div>
+
+            <!-- 학년 선택 -->
+            <div class="col-auto">
+                <select name="grade" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">전체 학년</option>
+                    {% for g in grade_list %}
+                        <option value="{{ g }}" {% if current_grade == g %}selected{% endif %}>{{ g }}학년</option>
+                    {% endfor %}
+                </select>
+            </div>
             
             <!-- 반 선택 -->
             <div class="col-auto">
@@ -32,10 +42,14 @@
                 </div>
             </div>
             
-            <!-- 초기화 버튼 -->
+            <!-- 전체 보기 (초기화) -->
             <div class="col-auto ms-auto">
+                <!-- 전체 보기를 누르면 검색 조건을 다 지우고 다시 로드 -->
+                <!-- (그러면 뷰 로직에 의해 다시 1학년 1반으로 돌아갑니다. 
+                     만약 진짜 '전체'를 보고 싶다면 뷰 로직을 수정해야 하지만, 
+                     성능상 '초기화'의 의미로 두는 게 좋습니다.) -->
                 <a href="{% url 'activity_result' activity.id %}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-counterclockwise"></i> 전체 보기
+                    <i class="bi bi-arrow-counterclockwise"></i> 초기화
                 </a>
             </div>
         </form>

@@ -102,29 +102,44 @@ def activity_detail(request, activity_id):
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 1. 기본 학생 목록 (우리 반 전체)
-    students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
-
-    # --- [신규] 필터링 로직 추가 ---
-    # 반 목록 추출 (드롭다운용)
-    class_list = students.values_list('class_no', flat=True).distinct().order_by('class_no')
+    # 1. 선생님의 전체 학생 가져오기 (필터 목록 생성용)
+    all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
     
-    # 검색어 가져오기
-    class_query = request.GET.get('class_no')
+    # 학년/반 목록 추출 (중복 제거)
+    grade_list = all_students.values_list('grade', flat=True).distinct().order_by('grade')
+    class_list = all_students.values_list('class_no', flat=True).distinct().order_by('class_no')
+
+    # 2. 검색 조건 가져오기
+    current_grade = request.GET.get('grade')
+    current_class = request.GET.get('class_no')
     name_query = request.GET.get('q')
 
-    # 필터 적용
-    if class_query:
-        students = students.filter(class_no=class_query)
-    if name_query:
-        students = students.filter(name__contains=name_query)
-    # ---------------------------
-    
-    # 2. 학생별 제출 현황 매칭 (필터링된 students 목록만 순회)
-    submission_list = []
-    question = activity.questions.first() # 첫 번째 문항 기준
+    # 3. [핵심] 초기 진입 시 기본값 설정 (1학년 1반 등 가장 첫 번째 반으로 설정)
+    # 검색어(이름)가 없을 때만 기본값을 적용합니다. (이름 검색 시에는 전체에서 찾아야 하니까요)
+    if not current_grade and not current_class and not name_query:
+        if grade_list.exists() and class_list.exists():
+            current_grade = grade_list[0] # 가장 낮은 학년
+            current_class = class_list[0] # 가장 앞 반
 
-    for student in students:
+    # 4. 실제 보여줄 학생 필터링
+    target_students = all_students
+
+    if current_grade:
+        target_students = target_students.filter(grade=current_grade)
+    if current_class:
+        target_students = target_students.filter(class_no=current_class)
+    if name_query:
+        # 이름 검색 시에는 학년/반 필터를 무시하고 전체에서 찾을지, 
+        # 아니면 선택된 반 안에서 찾을지 결정해야 합니다.
+        # 보통 이름 검색은 전체에서 찾는 게 편하므로, 이름이 있으면 학년/반 필터가 있어도 추가로 검색합니다.
+        # 여기서는 '선택된 학년/반 내에서 이름 검색'으로 구현합니다. (가장 빠름)
+        target_students = target_students.filter(name__contains=name_query)
+
+    # 5. 제출 현황 매칭
+    submission_list = []
+    question = activity.questions.first()
+
+    for student in target_students:
         answer = Answer.objects.filter(student=student, question=question).first()
         
         status = "미응시"
@@ -149,9 +164,10 @@ def activity_result(request, activity_id):
     context = {
         'activity': activity,
         'submission_list': submission_list,
-        # 필터링용 데이터 전달
+        'grade_list': grade_list,
         'class_list': class_list,
-        'current_class': int(class_query) if class_query else '',
+        'current_grade': int(current_grade) if current_grade else '',
+        'current_class': int(current_class) if current_class else '',
         'current_q': name_query if name_query else '',
     }
     return render(request, 'activities/activity_result.html', context)
