@@ -7,6 +7,7 @@ from .forms import ActivityForm, QuestionForm, AnswerForm
 from django.contrib import messages
 from django.utils import timezone # 날짜 표시용
 from django.http import JsonResponse
+from django.db.models import Q  # 복합 필터링
 import json
 
 # 1. 내가 만든 평가 목록 보기
@@ -104,73 +105,96 @@ def activity_detail(request, activity_id):
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 1. 선생님의 전체 학생 가져오기 (필터 목록 생성용)
+    # 1. 선생님의 전체 학생 가져오기
     all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
     
-    # 학년/반 목록 추출 (중복 제거)
-    grade_list = all_students.values_list('grade', flat=True).distinct().order_by('grade')
-    class_list = all_students.values_list('class_no', flat=True).distinct().order_by('class_no')
+    # 2. [핵심] 필터용 계층 데이터 만들기 (학년 -> 반)
+    # 구조: { 1: [1, 2, 3], 2: [1, 2] } -> 1학년: 1,2,3반 / 2학년: 1,2반
+    filter_tree = {}
+    for s in all_students:
+        if s.grade not in filter_tree:
+            filter_tree[s.grade] = []
+        if s.class_no not in filter_tree[s.grade]:
+            filter_tree[s.grade].append(s.class_no)
+    
+    # 딕셔너리 정렬 (학년순)
+    sorted_filter_tree = dict(sorted(filter_tree.items()))
+    for g in sorted_filter_tree:
+        sorted_filter_tree[g].sort() # 반순 정렬
 
-    # 2. 검색 조건 가져오기
-    current_grade = request.GET.get('grade')
-    current_class = request.GET.get('class_no')
-    name_query = request.GET.get('q')
+    # 3. 검색 조건 가져오기 (다중 선택된 '학년_반' 리스트)
+    # 예: ['1_3', '1_4'] -> 1학년 3반, 1학년 4반
+    selected_targets = request.GET.getlist('target') 
+    name_query = request.GET.get('q', '')
 
-    # 3. [핵심] 초기 진입 시 기본값 설정 (1학년 1반 등 가장 첫 번째 반으로 설정)
-    # 검색어(이름)가 없을 때만 기본값을 적용합니다. (이름 검색 시에는 전체에서 찾아야 하니까요)
-    if not current_grade and not current_class and not name_query:
-        if grade_list.exists() and class_list.exists():
-            current_grade = grade_list[0] # 가장 낮은 학년
-            current_class = class_list[0] # 가장 앞 반
-
-    # 4. 실제 보여줄 학생 필터링
+    # 4. 필터링 적용 (복합 조건)
     target_students = all_students
 
-    if current_grade:
-        target_students = target_students.filter(grade=current_grade)
-    if current_class:
-        target_students = target_students.filter(class_no=current_class)
+    if selected_targets:
+        # "1학년 3반" OR "1학년 4반" ... 식으로 조건 조립
+        q_objects = Q()
+        for target in selected_targets:
+            try:
+                g, c = target.split('_') # "1_3" -> g=1, c=3
+                q_objects |= Q(grade=g, class_no=c) # OR 조건 추가
+            except:
+                continue
+        target_students = target_students.filter(q_objects)
+    
+    # (초기 진입 시: 아무 조건도 없으면 -> 1학년의 첫 번째 반만 보여주기)
+    elif not name_query: 
+        if sorted_filter_tree:
+            first_grade = list(sorted_filter_tree.keys())[0]
+            first_class = sorted_filter_tree[first_grade][0]
+            target_students = target_students.filter(grade=first_grade, class_no=first_class)
+            # 화면 표시를 위해 선택된 것으로 처리
+            selected_targets = [f"{first_grade}_{first_class}"]
+
     if name_query:
-        # 이름 검색 시에는 학년/반 필터를 무시하고 전체에서 찾을지, 
-        # 아니면 선택된 반 안에서 찾을지 결정해야 합니다.
-        # 보통 이름 검색은 전체에서 찾는 게 편하므로, 이름이 있으면 학년/반 필터가 있어도 추가로 검색합니다.
-        # 여기서는 '선택된 학년/반 내에서 이름 검색'으로 구현합니다. (가장 빠름)
         target_students = target_students.filter(name__contains=name_query)
 
-    # 5. 제출 현황 매칭
+    # 5. 제출 현황 매칭 (기존 로직 유지)
     submission_list = []
     question = activity.questions.first()
 
     for student in target_students:
+        # ... (기존 answer 찾기, status 설정 로직 그대로 유지) ...
+        # (코드 생략: 기존 코드 복사해서 넣으세요)
         answer = Answer.objects.filter(student=student, question=question).first()
-        
         status = "미응시"
         submitted_at = "-"
         answer_id = None
         note = ""
+        absence = ""
 
         if answer:
-            status = "제출 완료"
-            submitted_at = answer.submitted_at
             answer_id = answer.id
             note = answer.note
+            absence = answer.absence_type
+            if answer.content.strip():
+                status = "제출 완료"
+                submitted_at = answer.submitted_at
+            elif absence:
+                status = "결시"
+            else:
+                status = "미응시"
 
         submission_list.append({
             'student': student,
             'status': status,
             'submitted_at': submitted_at,
             'answer_id': answer_id,
-            'note': note
+            'note': note,
+            'absence': absence,
         })
+        # ... (여기까지 기존 로직) ...
 
     context = {
         'activity': activity,
         'submission_list': submission_list,
-        'grade_list': grade_list,
-        'class_list': class_list,
-        'current_grade': int(current_grade) if current_grade else '',
-        'current_class': int(current_class) if current_class else '',
-        'current_q': name_query if name_query else '',
+        'filter_tree': sorted_filter_tree, # ★ 계층형 데이터 전달
+        'selected_targets': selected_targets, # ★ 선택된 항목들 전달
+        'current_q': name_query,
     }
     return render(request, 'activities/activity_result.html', context)
 

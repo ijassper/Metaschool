@@ -9,44 +9,77 @@
 
     <!-- 검색 및 필터 영역 -->
     <div class="bg-light p-3 rounded mb-3 border">
-        <form method="get" class="row g-2 align-items-center">
-            <div class="col-auto fw-bold text-secondary">
-                <i class="bi bi-funnel-fill"></i> 필터:
+        <form method="get" id="filterForm" class="row g-2 align-items-center">
+            
+            <!-- ★ [신규] 학년/반 다중 선택 드롭다운 -->
+            <div class="col-auto">
+                <div class="dropdown">
+                    <button class="btn btn-white border dropdown-toggle bg-white" type="button" id="classFilterBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <i class="bi bi-funnel-fill text-secondary"></i> 학급 선택
+                    </button>
+                    <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
+                        <h6 class="dropdown-header fw-bold mb-2">필터링할 학급을 선택하세요</h6>
+                        
+                        <!-- 트리 구조 출력 -->
+                        {% for grade, classes in filter_tree.items %}
+                        <div class="mb-2">
+                            <!-- 학년 (부모 체크박스) -->
+                            <div class="form-check fw-bold text-primary">
+                                <input class="form-check-input parent-check" type="checkbox" id="g_{{ grade }}" onchange="toggleGrade('{{ grade }}')">
+                                <label class="form-check-label" for="g_{{ grade }}">
+                                    {{ grade }}학년
+                                </label>
+                            </div>
+                            
+                            <!-- 반 (자식 체크박스들) - 들여쓰기 -->
+                            <div class="ms-3 border-start ps-2 mt-1">
+                                {% for c in classes %}
+                                    {% with target_val=grade|stringformat:"s"|add:"_"|add:c|stringformat:"s" %} 
+                                    <div class="form-check">
+                                        <input class="form-check-input child-check child-g-{{ grade }}" 
+                                               type="checkbox" 
+                                               name="target" 
+                                               value="{{ grade }}_{{ c }}" 
+                                               id="c_{{ grade }}_{{ c }}"
+                                               {% if target_val in selected_targets %}checked{% endif %}>
+                                        <label class="form-check-label" for="c_{{ grade }}_{{ c }}">
+                                            {{ c }}반
+                                        </label>
+                                    </div>
+                                    {% endwith %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <div class="d-grid mt-3 border-top pt-2">
+                            <button type="submit" class="btn btn-primary btn-sm">적용하기</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- 학년 선택 -->
+            <!-- 현재 선택된 필터 요약 표시 (선택 사항) -->
             <div class="col-auto">
-                <select name="grade" class="form-select form-select-sm" onchange="this.form.submit()">
-                    {% for g in grade_list %}
-                        <option value="{{ g }}" {% if current_grade == g %}selected{% endif %}>{{ g }}학년</option>
-                    {% endfor %}
-                </select>
+                <span class="text-muted small">
+                    {% if selected_targets %}
+                        총 {{ selected_targets|length }}개 학급 선택됨
+                    {% else %}
+                        전체 보기
+                    {% endif %}
+                </span>
             </div>
-            
-            <!-- 반 선택 -->
-            <div class="col-auto">
-                <select name="class_no" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="">전체 반</option>
-                    {% for c in class_list %}
-                        <option value="{{ c }}" {% if current_class == c %}selected{% endif %}>{{ c }}반</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
+
             <!-- 이름 검색 -->
-            <div class="col-auto">
+            <div class="col-auto ms-auto">
                 <div class="input-group input-group-sm">
                     <input type="text" name="q" class="form-control" placeholder="이름 검색" value="{{ current_q }}">
                     <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
                 </div>
             </div>
             
-            <!-- 전체 보기 (초기화) -->
-            <div class="col-auto ms-auto">
-                <!-- 전체 보기를 누르면 검색 조건을 다 지우고 다시 로드 -->
-                <!-- (그러면 뷰 로직에 의해 다시 1학년 1반으로 돌아갑니다. 
-                     만약 진짜 '전체'를 보고 싶다면 뷰 로직을 수정해야 하지만, 
-                     성능상 '초기화'의 의미로 두는 게 좋습니다.) -->
+            <!-- 초기화 -->
+            <div class="col-auto">
                 <a href="{% url 'activity_result' activity.id %}" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-arrow-counterclockwise"></i> 초기화
                 </a>
@@ -93,18 +126,7 @@
                             {% if item.answer_id %}{{ item.submitted_at|date:"m-d H:i" }}{% else %}-{% endif %}
                         </td>
 
-                        <!-- 답안지 열기 -->
-                        <td>
-                            {% if item.answer_id %}
-                                <a href="{% url 'answer_detail' item.answer_id %}" target="_blank" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-search"></i> 열기
-                                </a>
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-
-                        <!-- ★ [신규] 결시 사유 셀렉트 박스 -->
+                        <!-- 결시 사유 셀렉트 박스 -->
                         <td>
                             <select class="form-select form-select-sm" 
                                     onchange="updateAbsence('{{ item.student.id }}', '{{ activity.id }}', this.value)"
@@ -115,6 +137,17 @@
                                 <option value="인정결" {% if item.absence == '인정결' %}selected{% endif %}>인정결</option>
                                 <option value="미인정결" {% if item.absence == '미인정결' %}selected{% endif %}>미인정결</option>
                             </select>
+                        </td>
+
+                        <!-- 답안지 열기 -->
+                        <td>
+                            {% if item.answer_id %}
+                                <a href="{% url 'answer_detail' item.answer_id %}" target="_blank" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-search"></i> 열기
+                                </a>
+                            {% else %}
+                                -
+                            {% endif %}
                         </td>
 
                         <!-- 특이사항 (메모) -->
@@ -169,8 +202,17 @@
         </div>
     </div>
 </div>
-<!-- ★ [신규] 결시 사유 저장 스크립트 (하단에 추가) -->
+
 <script>
+    // 학년 체크박스 누르면 -> 해당 학년의 반 모두 선택/해제
+    function toggleGrade(grade) {
+        const parent = document.getElementById('g_' + grade);
+        const children = document.querySelectorAll('.child-g-' + grade);
+        children.forEach(cb => {
+            cb.checked = parent.checked;
+        });
+    }
+    // 결시 사유 저장 스크립트
     function updateAbsence(studentId, activityId, value) {
         // 서버로 전송 (AJAX)
         fetch('/activities/api/update-absence/', {
