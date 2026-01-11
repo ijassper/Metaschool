@@ -17,7 +17,6 @@
             <!-- 학년 선택 -->
             <div class="col-auto">
                 <select name="grade" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="">전체 학년</option>
                     {% for g in grade_list %}
                         <option value="{{ g }}" {% if current_grade == g %}selected{% endif %}>{{ g }}학년</option>
                     {% endfor %}
@@ -66,6 +65,7 @@
                         <th>이름</th>
                         <th>상태</th>
                         <th>제출 일시</th>
+                        <th>결시 사유</th>
                         <th>답안지</th>
                         <th>특이사항</th>
                         <th>관리</th>
@@ -102,6 +102,19 @@
                             {% else %}
                                 -
                             {% endif %}
+                        </td>
+
+                        <!-- ★ [신규] 결시 사유 셀렉트 박스 -->
+                        <td>
+                            <select class="form-select form-select-sm" 
+                                    onchange="updateAbsence('{{ item.student.id }}', '{{ activity.id }}', this.value)"
+                                    style="width: 100px; margin: 0 auto;">
+                                <option value="" {% if not item.absence %}selected{% endif %}>-</option>
+                                <option value="병결" {% if item.absence == '병결' %}selected{% endif %}>병결</option>
+                                <option value="공결" {% if item.absence == '공결' %}selected{% endif %}>공결</option>
+                                <option value="인정결" {% if item.absence == '인정결' %}selected{% endif %}>인정결</option>
+                                <option value="미인정결" {% if item.absence == '미인정결' %}selected{% endif %}>미인정결</option>
+                            </select>
                         </td>
 
                         <!-- 특이사항 (메모) -->
@@ -156,4 +169,34 @@
         </div>
     </div>
 </div>
+<!-- ★ [신규] 결시 사유 저장 스크립트 (하단에 추가) -->
+<script>
+    function updateAbsence(studentId, activityId, value) {
+        // 서버로 전송 (AJAX)
+        fetch('/activities/api/update-absence/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                'student_id': studentId,
+                'activity_id': activityId,
+                'value': value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // 성공 시 깜빡임 효과 (선택 사항)
+                // alert('저장되었습니다.'); // 너무 자주 뜨면 귀찮으니 생략
+                
+                // 만약 '결시'를 선택하면 상태 뱃지를 바꾸고 싶다면 여기서 DOM 조작 필요
+                // 하지만 간단하게는 새로고침하거나, 그냥 둡니다.
+            } else {
+                alert('저장 실패: ' + data.message);
+            }
+        });
+    }
+</script>
 {% endblock %}

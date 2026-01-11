@@ -36,5 +36,20 @@ class Answer(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     content = models.TextField(verbose_name="학생 답안")
     submitted_at = models.DateTimeField(auto_now=True, verbose_name="제출/수정 시간")
+     # 결시 사유 선택지
+    class Absence(models.TextChoices):
+        NONE = '', '-'
+        SICK = '병결', '병결'
+        PUBLIC = '공결', '공결'
+        ACK = '인정결', '인정결'
+        NACK = '미인정결', '미인정결'
+
+    # 결시 사유 필드
+    absence_type = models.CharField(
+        max_length=10, 
+        choices=Absence.choices, 
+        default=Absence.NONE, 
+        verbose_name="결시 사유"
+    )
     # 선생님 특이사항 메모 (비공개)
     note = models.TextField(blank=True, verbose_name="특이사항(교사 메모)")

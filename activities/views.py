@@ -6,6 +6,8 @@ from .models import Activity, Question, Answer
 from .forms import ActivityForm, QuestionForm, AnswerForm
 from django.contrib import messages
 from django.utils import timezone # 날짜 표시용
+from django.http import JsonResponse
+import json
 
 # 1. 내가 만든 평가 목록 보기
 @login_required
@@ -236,3 +238,116 @@ def take_test(request, activity_id):
         'today': timezone.now() # 오늘 날짜
     }
     return render(request, 'activities/take_test.html', context)
+
+# 1. [신규] 결시 사유 업데이트 API (AJAX용)
+@login_required
+@teacher_required
+def update_absence(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            student_id = data.get('student_id')
+            activity_id = data.get('activity_id')
+            absence_value = data.get('value')
+
+            activity = get_object_or_404(Activity, id=activity_id)
+            question = activity.questions.first()
+            student = get_object_or_404(Student, id=student_id)
+
+            # 답안지 가져오거나 없으면 새로 생성 (빈 답안지)
+            answer, created = Answer.objects.get_or_create(
+                student=student, 
+                question=question,
+                defaults={'content': ''} # 내용은 빈칸
+            )
+            
+            # 결시 사유 저장
+            answer.absence_type = absence_value
+            answer.save()
+            
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    return JsonResponse({'status': 'fail'})
+
+
+# 2. [수정] 제출 현황 조회 (필터 로직 변경 + 결시 정보 전달)
+@login_required
+@teacher_required
+def activity_result(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    
+    all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    
+    grade_list = all_students.values_list('grade', flat=True).distinct().order_by('grade')
+    class_list = all_students.values_list('class_no', flat=True).distinct().order_by('class_no')
+
+    # --- [수정된 필터 로직] ---
+    current_grade = request.GET.get('grade')
+    current_class = request.GET.get('class_no')
+    name_query = request.GET.get('q')
+
+    # 1. 학년: 값이 없으면 무조건 '첫 번째 학년'으로 강제 설정 (전체보기 없음)
+    if not current_grade:
+        if grade_list.exists():
+            current_grade = grade_list[0] # 1학년
+
+    # 2. 반: 값이 없으면 '첫 번째 반' 설정 (이름 검색 아닐 때만)
+    if not current_class and not name_query:
+        if class_list.exists():
+            current_class = class_list[0] # 1반
+
+    target_students = all_students.filter(grade=current_grade) # 학년 필터 필수 적용
+
+    if current_class:
+        target_students = target_students.filter(class_no=current_class)
+    if name_query:
+        # 이름 검색 시에는 해당 학년 내에서 검색
+        target_students = target_students.filter(name__contains=name_query)
+    # -----------------------
+
+    submission_list = []
+    question = activity.questions.first()
+
+    for student in target_students:
+        answer = Answer.objects.filter(student=student, question=question).first()
+        
+        status = "미응시"
+        submitted_at = "-"
+        answer_id = None
+        note = ""
+        absence = "" # 결시 사유
+
+        if answer:
+            answer_id = answer.id
+            note = answer.note
+            absence = answer.absence_type
+            
+            # 상태 판단 로직 개선
+            if answer.content.strip():
+                status = "제출 완료"
+                submitted_at = answer.submitted_at
+            elif absence:
+                status = "결시" # 내용은 없는데 결시 사유가 있으면
+            else:
+                status = "미응시" # 내용도 없고 결시도 아니면 (데이터만 생성된 경우)
+
+        submission_list.append({
+            'student': student,
+            'status': status,
+            'submitted_at': submitted_at,
+            'answer_id': answer_id,
+            'note': note,
+            'absence': absence, # 템플릿으로 전달
+        })
+
+    context = {
+        'activity': activity,
+        'submission_list': submission_list,
+        'grade_list': grade_list,
+        'class_list': class_list,
+        'current_grade': int(current_grade) if current_grade else '',
+        'current_class': int(current_class) if current_class else '',
+        'current_q': name_query if name_query else '',
+    }
+    return render(request, 'activities/activity_result.html', context)
