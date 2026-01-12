@@ -107,6 +107,9 @@ def activity_result(request, activity_id):
     
     # 1. 선생님의 전체 학생 가져오기 (필터 목록 생성용)
     all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+
+    # ★ [디버깅] 학생 수 확인 (이게 0이면 데이터 문제입니다)
+    print(f"DEBUG: 선생님({request.user})의 학생 수: {all_students.count()}명", flush=True)
     
     # 학년/반 목록 추출 (중복 제거)
     grade_list = all_students.values_list('grade', flat=True).distinct().order_by('grade')
@@ -116,10 +119,14 @@ def activity_result(request, activity_id):
     # 구조: { 1: [1, 2, 3], 2: [1, 2] } -> 1학년: 1,2,3반 / 2학년: 1,2반
     filter_tree = {}
     for s in all_students:
+        # ★ [디버깅] 학생 데이터 하나씩 찍어보기
+        # print(f"학생: {s.name} ({s.grade}-{s.class_no})", flush=True) 
         if s.grade not in filter_tree:
             filter_tree[s.grade] = []
         if s.class_no not in filter_tree[s.grade]:
             filter_tree[s.grade].append(s.class_no)
+    # ★ [디버깅] 만들어진 트리 확인
+    print(f"DEBUG: 생성된 필터 트리: {filter_tree}", flush=True)
     
     # 딕셔너리 정렬 (학년순)
     sorted_filter_tree = dict(sorted(filter_tree.items()))
