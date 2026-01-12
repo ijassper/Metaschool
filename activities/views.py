@@ -105,50 +105,40 @@ def activity_detail(request, activity_id):
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 1. 선생님의 전체 학생 가져오기
+    # 1. 학생 명단 가져오기
     all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
 
-    # [디버깅] 학생 수 확인
-    print(f"DEBUG: 선생님({request.user})의 학생 수: {all_students.count()}명", flush=True)
+    # 2. 필터 데이터 만들기 (가장 단순하고 안전한 방식)
+    # 파이썬으로 직접 리스트를 만듭니다. (DB 에러 방지)
+    temp_dict = {}
+    for s in all_students:
+        g = s.grade
+        c = s.class_no
+        if g not in temp_dict:
+            temp_dict[g] = []
+        if c not in temp_dict[g]:
+            temp_dict[g].append(c)
     
-    # 2. 필터용 계층 데이터 만들기 (단순화 버전)
-    # DB에서 존재하는 학년/반 목록만 쏙 뽑아오기
-    grade_class_list = all_students.values_list('grade', 'class_no').distinct().order_by('grade', 'class_no')
-    
-    temp_tree = {}
-    for g, c in grade_class_list:
-        if g not in temp_tree:
-            temp_tree[g] = []
-        temp_tree[g].append(c)
-        
-    # 템플릿용 리스트로 변환 (filter_data)
+    # 템플릿으로 보낼 리스트 완성
     filter_data = []
-    for g in sorted(temp_tree.keys()):
+    for g in sorted(temp_dict.keys()):
         filter_data.append({
             'grade': g,
-            'classes': sorted(temp_tree[g])
+            'classes': sorted(temp_dict[g])
         })
 
-    # [디버깅] 만들어진 트리 확인
-    print(f"DEBUG: 생성된 필터 트리: {filter_data}", flush=True)
-
-    # 3. 검색 조건 가져오기
+    # 3. 검색 조건 처리
     selected_targets = request.GET.getlist('target') 
     name_query = request.GET.get('q', '')
 
-    # 4. [핵심] 초기 진입 시 '1학년 1반' 강제 선택
-    # (검색어도 없고, 반 선택도 안 했을 때)
-    if not selected_targets and not name_query:
-        if filter_data: # 데이터가 있다면
-            # filter_data의 첫 번째 학년, 첫 번째 반을 가져옴
-            first_grade = filter_data[0]['grade']
-            first_class = filter_data[0]['classes'][0]
-            # "1_1" 형태로 타겟 설정
-            selected_targets = [f"{first_grade}_{first_class}"]
+    # 4. 초기 진입 시 자동 선택 (데이터가 있을 때만)
+    if not selected_targets and not name_query and filter_data:
+        first_grade = filter_data[0]['grade']
+        first_class = filter_data[0]['classes'][0]
+        selected_targets = [f"{first_grade}_{first_class}"]
 
-    # 5. 실제 필터링 적용
+    # 5. 필터링 적용
     target_students = all_students
-
     if selected_targets:
         q_objects = Q()
         for target in selected_targets:
@@ -156,13 +146,13 @@ def activity_result(request, activity_id):
                 g, c = target.split('_')
                 q_objects |= Q(grade=g, class_no=c)
             except:
-                continue
+                pass
         target_students = target_students.filter(q_objects)
     
     if name_query:
         target_students = target_students.filter(name__contains=name_query)
 
-    # 6. 제출 현황 매칭
+    # 6. 제출 현황 정리
     submission_list = []
     question = activity.questions.first()
 
@@ -195,16 +185,10 @@ def activity_result(request, activity_id):
             'absence': absence,
         })
 
-    filter_data = [
-        {'grade': 1, 'classes': [1, 2, 3]},
-        {'grade': 2, 'classes': [1, 5]},
-        {'grade': 3, 'classes': [7]}
-    ]
-
     context = {
         'activity': activity,
         'submission_list': submission_list,
-        'filter_data': filter_data, # ★ filter_data로 전달
+        'filter_data': filter_data,
         'selected_targets': selected_targets,
         'current_q': name_query,
     }
