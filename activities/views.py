@@ -195,6 +195,12 @@ def activity_result(request, activity_id):
             'absence': absence,
         })
 
+    filter_data = [
+        {'grade': 1, 'classes': [1, 2, 3]},
+        {'grade': 2, 'classes': [1, 5]},
+        {'grade': 3, 'classes': [7]}
+    ]
+
     context = {
         'activity': activity,
         'submission_list': submission_list,
