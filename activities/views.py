@@ -105,37 +105,48 @@ def activity_detail(request, activity_id):
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 1. 학생 명단 가져오기
+    # 1. 전체 학생 가져오기
     all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
-
-    # 2. 필터 데이터 만들기 (가장 단순하고 안전한 방식)
-    # 파이썬으로 직접 리스트를 만듭니다. (DB 에러 방지)
-    temp_dict = {}
-    for s in all_students:
-        g = s.grade
-        c = s.class_no
-        if g not in temp_dict:
-            temp_dict[g] = []
-        if c not in temp_dict[g]:
-            temp_dict[g].append(c)
     
-    # 템플릿으로 보낼 리스트 완성
+    # ★ [디버깅용 데이터 생성]
+    student_count = all_students.count()
+    debug_msg = f"총 학생 수: {student_count}명"
+
+    # 2. 필터 데이터 만들기 (가장 안전한 DB 쿼리 방식 사용)
+    # DB에서 존재하는 학년/반 조합만 가져옴 (예: [{'grade': 1, 'class_no': 1}, ...])
+    raw_list = all_students.values('grade', 'class_no').distinct().order_by('grade', 'class_no')
+    
+    temp_tree = {}
+    for item in raw_list:
+        g = item['grade']
+        c = item['class_no']
+        if g is None: g = "없음" # 학년이 비어있을 경우 대비
+        if c is None: c = "없음"
+        
+        if g not in temp_tree:
+            temp_tree[g] = []
+        temp_tree[g].append(c)
+        
     filter_data = []
-    for g in sorted(temp_dict.keys()):
+    for g in temp_tree:
         filter_data.append({
             'grade': g,
-            'classes': sorted(temp_dict[g])
+            'classes': sorted(temp_tree[g])
         })
+    
+    # 디버깅 메시지에 필터 데이터 내용 추가
+    debug_msg += f" / 필터 데이터: {filter_data}"
 
     # 3. 검색 조건 처리
     selected_targets = request.GET.getlist('target') 
     name_query = request.GET.get('q', '')
 
-    # 4. 초기 진입 시 자동 선택 (데이터가 있을 때만)
-    if not selected_targets and not name_query and filter_data:
-        first_grade = filter_data[0]['grade']
-        first_class = filter_data[0]['classes'][0]
-        selected_targets = [f"{first_grade}_{first_class}"]
+    # 4. 초기 진입 시 자동 선택
+    if not selected_targets and not name_query:
+        if filter_data:
+            first_grade = filter_data[0]['grade']
+            first_class = filter_data[0]['classes'][0]
+            selected_targets = [f"{first_grade}_{first_class}"]
 
     # 5. 필터링 적용
     target_students = all_students
@@ -145,25 +156,23 @@ def activity_result(request, activity_id):
             try:
                 g, c = target.split('_')
                 q_objects |= Q(grade=g, class_no=c)
-            except:
-                pass
+            except: pass
         target_students = target_students.filter(q_objects)
     
     if name_query:
         target_students = target_students.filter(name__contains=name_query)
 
-    # 6. 제출 현황 정리
+    # 6. 결과 리스트 생성
     submission_list = []
     question = activity.questions.first()
-
     for student in target_students:
         answer = Answer.objects.filter(student=student, question=question).first()
+        # (기존 로직 동일)
         status = "미응시"
         submitted_at = "-"
         answer_id = None
         note = ""
         absence = ""
-
         if answer:
             answer_id = answer.id
             note = answer.note
@@ -175,7 +184,7 @@ def activity_result(request, activity_id):
                 status = "결시"
             else:
                 status = "미응시"
-
+        
         submission_list.append({
             'student': student,
             'status': status,
@@ -191,73 +200,9 @@ def activity_result(request, activity_id):
         'filter_data': filter_data,
         'selected_targets': selected_targets,
         'current_q': name_query,
+        'debug_msg': debug_msg, # ★ 화면에 뿌려줄 디버깅 메시지
     }
     return render(request, 'activities/activity_result.html', context)
-
-# 2. 답안 상세 보기 (팝업 또는 새 창)
-@login_required
-@teacher_required
-def answer_detail(request, answer_id):
-    answer = get_object_or_404(Answer, id=answer_id)
-    return render(request, 'activities/answer_detail.html', {'answer': answer})
-
-# 3. 답안 폐기 (삭제)
-@login_required
-@teacher_required
-def answer_delete(request, answer_id):
-    answer = get_object_or_404(Answer, id=answer_id)
-    activity_id = answer.question.activity.id
-    answer.delete()
-    messages.success(request, "답안을 삭제(반려)했습니다. 학생이 다시 응시할 수 있습니다.")
-    return redirect('activity_result', activity_id=activity_id)
-
-# 4. 특이사항 메모 저장 (AJAX 처리 권장하지만, 일단 간단히 Form 처리)
-@login_required
-@teacher_required
-def save_note(request, answer_id):
-    if request.method == 'POST':
-        answer = get_object_or_404(Answer, id=answer_id)
-        answer.note = request.POST.get('note', '')
-        answer.save()
-        messages.success(request, "특이사항이 저장되었습니다.")
-        return redirect('activity_result', activity_id=answer.question.activity.id)
-    return redirect('dashboard')
-
-# 학생 평가 응시 페이지
-@login_required
-def take_test(request, activity_id):
-    # 1. 평가 정보 가져오기
-    activity = get_object_or_404(Activity, id=activity_id)
-    question = activity.questions.first() # 문항 가져오기 (현재는 1개라고 가정)
-    
-    # [보안] 학생이 아니거나, 평가가 비활성화(준비중) 상태면 튕겨냄
-    if request.user.role != 'STUDENT' or not activity.is_active:
-        messages.error(request, "접근할 수 없는 평가입니다.")
-        return redirect('dashboard')
-
-    # [중복 방지] 이미 제출한 답안이 있는지 확인
-    existing_answer = Answer.objects.filter(student__email=request.user.email, question=question).first()
-    
-    if request.method == 'POST':
-        form = AnswerForm(request.POST, instance=existing_answer) # 기존 답안 있으면 수정 모드
-        if form.is_valid():
-            answer = form.save(commit=False)
-            answer.student = Student.objects.get(email=request.user.email) # 내 명부 연결
-            answer.question = question
-            answer.save()
-            
-            messages.success(request, "답안이 성공적으로 제출되었습니다!")
-            return redirect('dashboard')
-    else:
-        form = AnswerForm(instance=existing_answer)
-
-    context = {
-        'activity': activity,
-        'question': question,
-        'form': form,
-        'today': timezone.now() # 오늘 날짜
-    }
-    return render(request, 'activities/take_test.html', context)
 
 # 1. [신규] 결시 사유 업데이트 API (AJAX용)
 @login_required
