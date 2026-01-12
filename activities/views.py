@@ -211,20 +211,26 @@ def update_absence(request):
             question = activity.questions.first()
             student = get_object_or_404(Student, id=student_id)
 
-            # 답안지 가져오거나 없으면 새로 생성 (빈 답안지)
-            answer, created = Answer.objects.get_or_create(
-                student=student, 
-                question=question,
-                defaults={'content': ''} # 내용은 빈칸
-            )
-            
-            # 결시 사유 저장
-            answer.absence_type = absence_value
-            answer.save()
+            # 1. 답안지가 있는지 확인
+            answer = Answer.objects.filter(student=student, question=question).first()
+
+            if not answer:
+                # 2. 없으면 새로 생성 (이때 content를 ' ' 공백으로라도 채워줍니다)
+                answer = Answer.objects.create(
+                    student=student,
+                    question=question,
+                    content=" ", # 빈 문자열 대신 공백 하나 넣어서 에러 방지
+                    absence_type=absence_value
+                )
+            else:
+                # 3. 있으면 결시 사유만 업데이트
+                answer.absence_type = absence_value
+                answer.save()
             
             return JsonResponse({'status': 'success'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)})
+            
     return JsonResponse({'status': 'fail'})
 
 
