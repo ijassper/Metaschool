@@ -16,53 +16,53 @@
     <div class="bg-light p-3 rounded mb-3 border">
         <form method="get" id="filterForm" class="row g-2 align-items-center">
             
-            <!-- ★ [신규] 학년/반 다중 선택 드롭다운 -->
-            <div class="col-auto">
-                <div class="dropdown">
-                    <button class="btn btn-white border dropdown-toggle bg-white" type="button" id="classFilterBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                        <i class="bi bi-funnel-fill text-secondary"></i> 학급 선택
-                    </button>
-                    <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
-                        <h6 class="dropdown-header fw-bold mb-2">필터링할 학급을 선택하세요</h6>
-                        
-                        <!-- 트리 구조 출력 -->
-                        {% for item in filter_data %} <!-- filter_tree.items 대신 filter_data 사용 -->
-                        <div class="mb-2">
-                            <!-- 학년 (부모) -->
-                            <div class="form-check fw-bold text-primary">
-                                <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
-                                <label class="form-check-label" for="g_{{ item.grade }}">
-                                    {{ item.grade }}학년
+            <!-- [수정된 드롭다운 메뉴] -->
+            <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
+                <h6 class="dropdown-header fw-bold mb-2">필터링할 학급을 선택하세요</h6>
+                
+                <!-- ★ [수정 1] filter_tree -> filter_data 로 변경 -->
+                {% if not filter_data %}
+                    <div class="p-2 text-muted small">표시할 학급 데이터가 없습니다.</div>
+                {% endif %}
+
+                <!-- ★ [수정 2] 반복문 변수 변경 (items 제거) -->
+                {% for item in filter_data %} 
+                <div class="mb-2">
+                    <!-- 학년 (부모) -->
+                    <div class="form-check fw-bold text-primary">
+                        <!-- item.grade 사용 -->
+                        <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
+                        <label class="form-check-label" for="g_{{ item.grade }}">
+                            {{ item.grade }}학년
+                        </label>
+                    </div>
+                    
+                    <!-- 반 (자식) -->
+                    <div class="ms-3 border-start ps-2 mt-1">
+                        <!-- item.classes 사용 -->
+                        {% for c in item.classes %}
+                            {% with g_str=item.grade|stringformat:"s" c_str=c|stringformat:"s" %}
+                            {% with target_val=g_str|add:"_"|add:c_str %}
+                            <div class="form-check">
+                                <input class="form-check-input child-check child-g-{{ item.grade }}" 
+                                    type="checkbox" 
+                                    name="target" 
+                                    value="{{ target_val }}" 
+                                    id="c_{{ item.grade }}_{{ c }}"
+                                    {% if target_val in selected_targets %}checked{% endif %}>
+                                <label class="form-check-label text-dark fw-normal" for="c_{{ item.grade }}_{{ c }}">
+                                    {{ c }}반
                                 </label>
                             </div>
-                            
-                            <!-- 반 (자식 체크박스들) - 들여쓰기 -->
-                            <div class="ms-3 border-start ps-2 mt-1">
-                                {% for c in item.classes %}
-                                    {% with g_str=item.grade|stringformat:"s" c_str=c|stringformat:"s" %}
-                                    {% with target_val=g_str|add:"_"|add:c_str %}
-                                    <div class="form-check">
-                                        <input class="form-check-input child-check child-g-{{ item.grade }}" 
-                                            type="checkbox" 
-                                            name="target" 
-                                            value="{{ target_val }}" 
-                                            id="c_{{ item.grade }}_{{ c }}"
-                                            {% if target_val in selected_targets %}checked{% endif %}>
-                                        <label class="form-check-label text-dark fw-normal" for="c_{{ item.grade }}_{{ c }}">
-                                            {{ c }}반
-                                        </label>
-                                    </div>
-                                    {% endwith %}
-                                    {% endwith %} <!-- with 태그 2개 닫기 -->
-                                {% endfor %}
-                            </div>
-                        </div>
+                            {% endwith %}
+                            {% endwith %}
                         {% endfor %}
-
-                        <div class="d-grid mt-3 border-top pt-2">
-                            <button type="submit" class="btn btn-primary btn-sm">적용하기</button>
-                        </div>
                     </div>
+                </div>
+                {% endfor %}
+
+                <div class="d-grid mt-3 border-top pt-2">
+                    <button type="submit" class="btn btn-primary btn-sm">적용하기</button>
                 </div>
             </div>
 
