@@ -105,46 +105,44 @@ def activity_detail(request, activity_id):
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 1. 선생님의 전체 학생 가져오기 (필터 목록 생성용)
+    # 1. 선생님의 전체 학생 가져오기
     all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
 
-    # ★ [디버깅] 학생 수 확인 (이게 0이면 데이터 문제입니다)
+    # [디버깅] 학생 수 확인
     print(f"DEBUG: 선생님({request.user})의 학생 수: {all_students.count()}명", flush=True)
     
-    # 학년/반 목록 추출 (중복 제거)
-    grade_list = all_students.values_list('grade', flat=True).distinct().order_by('grade')
-    class_list = all_students.values_list('class_no', flat=True).distinct().order_by('class_no')
-
-    # 2. 필터용 계층 데이터 만들기 (학년 -> 반)
-    # 구조: { 1: [1, 2, 3], 2: [1, 2] } -> 1학년: 1,2,3반 / 2학년: 1,2반
-    filter_tree = {}
-    for s in all_students:
-        # ★ [디버깅] 학생 데이터 하나씩 찍어보기
-        # print(f"학생: {s.name} ({s.grade}-{s.class_no})", flush=True) 
-        if s.grade not in filter_tree:
-            filter_tree[s.grade] = []
-        if s.class_no not in filter_tree[s.grade]:
-            filter_tree[s.grade].append(s.class_no)
-    # ★ [디버깅] 만들어진 트리 확인
-    print(f"DEBUG: 생성된 필터 트리: {filter_tree}", flush=True)
+    # 2. 필터용 계층 데이터 만들기 (단순화 버전)
+    # DB에서 존재하는 학년/반 목록만 쏙 뽑아오기
+    grade_class_list = all_students.values_list('grade', 'class_no').distinct().order_by('grade', 'class_no')
     
-    # 딕셔너리 정렬 (학년순)
-    sorted_filter_tree = dict(sorted(filter_tree.items()))
-    for g in sorted_filter_tree:
-        sorted_filter_tree[g].sort() # 반순 정렬
+    temp_tree = {}
+    for g, c in grade_class_list:
+        if g not in temp_tree:
+            temp_tree[g] = []
+        temp_tree[g].append(c)
+        
+    # 템플릿용 리스트로 변환 (filter_data)
+    filter_data = []
+    for g in sorted(temp_tree.keys()):
+        filter_data.append({
+            'grade': g,
+            'classes': sorted(temp_tree[g])
+        })
 
-    # 3. 검색 조건 가져오기 (다중 선택된 '학년_반' 리스트)
-    # 예: ['1_3', '1_4'] -> 1학년 3반, 1학년 4반
+    # [디버깅] 만들어진 트리 확인
+    print(f"DEBUG: 생성된 필터 트리: {filter_data}", flush=True)
+
+    # 3. 검색 조건 가져오기
     selected_targets = request.GET.getlist('target') 
     name_query = request.GET.get('q', '')
 
-    # 4. 초기 진입 시 '1학년 1반' 강제 선택 (필터링 속도 향상)
+    # 4. [핵심] 초기 진입 시 '1학년 1반' 강제 선택
     # (검색어도 없고, 반 선택도 안 했을 때)
     if not selected_targets and not name_query:
-        # 데이터가 있다면 가장 첫 학년, 첫 반을 기본값으로 설정
-        if sorted_filter_tree:
-            first_grade = list(sorted_filter_tree.keys())[0] # 예: 1학년
-            first_class = sorted_filter_tree[first_grade][0] # 예: 1반
+        if filter_data: # 데이터가 있다면
+            # filter_data의 첫 번째 학년, 첫 번째 반을 가져옴
+            first_grade = filter_data[0]['grade']
+            first_class = filter_data[0]['classes'][0]
             # "1_1" 형태로 타겟 설정
             selected_targets = [f"{first_grade}_{first_class}"]
 
@@ -200,8 +198,8 @@ def activity_result(request, activity_id):
     context = {
         'activity': activity,
         'submission_list': submission_list,
-        'filter_tree': sorted_filter_tree, # ★ 계층형 데이터 전달
-        'selected_targets': selected_targets, # ★ 선택된 항목들 전달
+        'filter_data': filter_data, # ★ filter_data로 전달
+        'selected_targets': selected_targets,
         'current_q': name_query,
     }
     return render(request, 'activities/activity_result.html', context)

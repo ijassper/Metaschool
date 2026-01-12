@@ -26,20 +26,21 @@
                         <h6 class="dropdown-header fw-bold mb-2">필터링할 학급을 선택하세요</h6>
                         
                         <!-- 트리 구조 출력 -->
-                        {% for grade, classes in filter_tree.items %}
+                        {% for item in filter_data %} <!-- filter_tree.items 대신 filter_data 사용 -->
                         <div class="mb-2">
-                            <!-- 학년 (부모 체크박스) -->
+                            <!-- 학년 (부모) -->
                             <div class="form-check fw-bold text-primary">
-                                <input class="form-check-input parent-check" type="checkbox" id="g_{{ grade }}" onchange="toggleGrade('{{ grade }}')">
-                                <label class="form-check-label" for="g_{{ grade }}">
-                                    {{ grade }}학년
+                                <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
+                                <label class="form-check-label" for="g_{{ item.grade }}">
+                                    {{ item.grade }}학년
                                 </label>
                             </div>
                             
                             <!-- 반 (자식 체크박스들) - 들여쓰기 -->
                             <div class="ms-3 border-start ps-2 mt-1">
                                 {% for c in classes %}
-                                    {% with target_val=grade|stringformat:"s"|add:"_"|add:c|stringformat:"s" %} 
+                                    {% with g_str=item.grade|stringformat:"s" c_str=c|stringformat:"s" %}
+                                    {% with target_val=g_str|add:"_"|add:c_str %} 
                                     <div class="form-check">
                                         <input class="form-check-input child-check child-g-{{ grade }}" 
                                                type="checkbox" 
