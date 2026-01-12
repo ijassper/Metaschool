@@ -126,41 +126,38 @@ def activity_result(request, activity_id):
     for g in sorted_filter_tree:
         sorted_filter_tree[g].sort() # 반순 정렬
 
-    # ★ [디버깅] 이 줄을 추가해서 로그를 확인하세요!
-    print(f"🔥 필터 데이터 확인: {sorted_filter_tree}", flush=True)
-
     # 3. 검색 조건 가져오기 (다중 선택된 '학년_반' 리스트)
     # 예: ['1_3', '1_4'] -> 1학년 3반, 1학년 4반
     selected_targets = request.GET.getlist('target') 
     name_query = request.GET.get('q', '')
 
-    # 4. 필터링 적용 (복합 조건)
+    # 4. 초기 진입 시 '1학년 1반' 강제 선택 (필터링 속도 향상)
+    # (검색어도 없고, 반 선택도 안 했을 때)
+    if not selected_targets and not name_query:
+        # 데이터가 있다면 가장 첫 학년, 첫 반을 기본값으로 설정
+        if sorted_filter_tree:
+            first_grade = list(sorted_filter_tree.keys())[0] # 예: 1학년
+            first_class = sorted_filter_tree[first_grade][0] # 예: 1반
+            # "1_1" 형태로 타겟 설정
+            selected_targets = [f"{first_grade}_{first_class}"]
+
+    # 5. 실제 필터링 적용
     target_students = all_students
 
     if selected_targets:
-        # "1학년 3반" OR "1학년 4반" ... 식으로 조건 조립
         q_objects = Q()
         for target in selected_targets:
             try:
-                g, c = target.split('_') # "1_3" -> g=1, c=3
-                q_objects |= Q(grade=g, class_no=c) # OR 조건 추가
+                g, c = target.split('_')
+                q_objects |= Q(grade=g, class_no=c)
             except:
                 continue
         target_students = target_students.filter(q_objects)
     
-    # (초기 진입 시: 아무 조건도 없으면 -> 1학년의 첫 번째 반만 보여주기)
-    elif not name_query: 
-        if sorted_filter_tree:
-            first_grade = list(sorted_filter_tree.keys())[0]
-            first_class = sorted_filter_tree[first_grade][0]
-            target_students = target_students.filter(grade=first_grade, class_no=first_class)
-            # 화면 표시를 위해 선택된 것으로 처리
-            selected_targets = [f"{first_grade}_{first_class}"]
-
     if name_query:
         target_students = target_students.filter(name__contains=name_query)
 
-    # 5. 제출 현황 매칭
+    # 6. 제출 현황 매칭
     submission_list = []
     question = activity.questions.first()
 
