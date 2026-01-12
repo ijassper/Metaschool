@@ -108,7 +108,8 @@ def activity_result(request, activity_id):
     # 1. 학생 목록 가져오기
     all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
 
-    # 2. 필터 데이터 만들기 (파이썬 기본 문법 사용 - 안전)
+    # 2. 필터 데이터 만들기 (파이썬 기본 문법 사용 - 가장 안전함!)
+    # 복잡한 DB 기능 대신, 직접 리스트를 만듭니다.
     temp_data = {}
     for s in all_students:
         g = s.grade
@@ -118,7 +119,7 @@ def activity_result(request, activity_id):
         if c not in temp_data[g]:
             temp_data[g].append(c)
     
-    # 리스트로 변환 (HTML에서 쓰기 좋게)
+    # 리스트로 변환 (HTML에서 쓰기 좋게 가공)
     filter_data = []
     for g in sorted(temp_data.keys()):
         # 반 목록 정렬 및 중복 제거
@@ -132,21 +133,21 @@ def activity_result(request, activity_id):
     selected_targets = request.GET.getlist('target') 
     name_query = request.GET.get('q', '')
 
-    # 4. 초기값 설정 (1학년 1반)
-    # 조건: 검색어도 없고, 반 선택도 안 했을 때만
+    # 4. 초기값 설정 (1학년 1반 자동 선택)
     if not selected_targets and not name_query:
         if filter_data:
+            # 데이터가 있으면 첫 번째 학년/반을 기본값으로
             g = filter_data[0]['grade']
             c = filter_data[0]['classes'][0]
             selected_targets = [f"{g}_{c}"]
 
-    # 5. 필터링 (안전하게)
+    # 5. 필터링 (안전하게 처리)
     target_students = all_students
 
     if selected_targets:
         q_objects = Q()
         for t in selected_targets:
-            if '_' in t: # 안전장치
+            if '_' in t: # 안전장치: 형식이 맞을 때만 처리
                 g, c = t.split('_')
                 q_objects |= Q(grade=g, class_no=c)
         target_students = target_students.filter(q_objects)
@@ -154,7 +155,7 @@ def activity_result(request, activity_id):
     if name_query:
         target_students = target_students.filter(name__contains=name_query)
 
-    # 6. 제출 현황 만들기
+    # 6. 제출 현황 정리
     submission_list = []
     question = activity.questions.first()
 
@@ -190,7 +191,7 @@ def activity_result(request, activity_id):
     context = {
         'activity': activity,
         'submission_list': submission_list,
-        'filter_data': filter_data,
+        'filter_data': filter_data, # ★ 이 변수명이 HTML과 맞아야 합니다!
         'selected_targets': selected_targets,
         'current_q': name_query,
     }
