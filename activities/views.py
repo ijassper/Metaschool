@@ -126,6 +126,9 @@ def activity_result(request, activity_id):
     for g in sorted_filter_tree:
         sorted_filter_tree[g].sort() # 반순 정렬
 
+    # ★ [디버깅] 이 줄을 추가해서 로그를 확인하세요!
+    print(f"🔥 필터 데이터 확인: {sorted_filter_tree}")
+
     # 3. 검색 조건 가져오기 (다중 선택된 '학년_반' 리스트)
     # 예: ['1_3', '1_4'] -> 1학년 3반, 1학년 4반
     selected_targets = request.GET.getlist('target') 
