@@ -38,21 +38,22 @@
                             
                             <!-- 반 (자식 체크박스들) - 들여쓰기 -->
                             <div class="ms-3 border-start ps-2 mt-1">
-                                {% for c in classes %}
+                                {% for c in item.classes %}
                                     {% with g_str=item.grade|stringformat:"s" c_str=c|stringformat:"s" %}
-                                    {% with target_val=g_str|add:"_"|add:c_str %} 
+                                    {% with target_val=g_str|add:"_"|add:c_str %}
                                     <div class="form-check">
-                                        <input class="form-check-input child-check child-g-{{ grade }}" 
-                                               type="checkbox" 
-                                               name="target" 
-                                               value="{{ grade }}_{{ c }}" 
-                                               id="c_{{ grade }}_{{ c }}"
-                                               {% if target_val in selected_targets %}checked{% endif %}>
-                                        <label class="form-check-label" for="c_{{ grade }}_{{ c }}">
+                                        <input class="form-check-input child-check child-g-{{ item.grade }}" 
+                                            type="checkbox" 
+                                            name="target" 
+                                            value="{{ target_val }}" 
+                                            id="c_{{ item.grade }}_{{ c }}"
+                                            {% if target_val in selected_targets %}checked{% endif %}>
+                                        <label class="form-check-label text-dark fw-normal" for="c_{{ item.grade }}_{{ c }}">
                                             {{ c }}반
                                         </label>
                                     </div>
                                     {% endwith %}
+                                    {% endwith %} <!-- with 태그 2개 닫기 -->
                                 {% endfor %}
                             </div>
                         </div>
