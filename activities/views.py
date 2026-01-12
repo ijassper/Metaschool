@@ -105,74 +105,67 @@ def activity_detail(request, activity_id):
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 1. 전체 학생 가져오기
+    # 1. 학생 목록 가져오기
     all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
-    
-    # ★ [디버깅용 데이터 생성]
-    student_count = all_students.count()
-    debug_msg = f"총 학생 수: {student_count}명"
 
-    # 2. 필터 데이터 만들기 (가장 안전한 DB 쿼리 방식 사용)
-    # DB에서 존재하는 학년/반 조합만 가져옴 (예: [{'grade': 1, 'class_no': 1}, ...])
-    raw_list = all_students.values('grade', 'class_no').distinct().order_by('grade', 'class_no')
+    # 2. 필터 데이터 만들기 (파이썬 기본 문법 사용 - 안전)
+    temp_data = {}
+    for s in all_students:
+        g = s.grade
+        c = s.class_no
+        if g not in temp_data:
+            temp_data[g] = []
+        if c not in temp_data[g]:
+            temp_data[g].append(c)
     
-    temp_tree = {}
-    for item in raw_list:
-        g = item['grade']
-        c = item['class_no']
-        if g is None: g = "없음" # 학년이 비어있을 경우 대비
-        if c is None: c = "없음"
-        
-        if g not in temp_tree:
-            temp_tree[g] = []
-        temp_tree[g].append(c)
-        
+    # 리스트로 변환 (HTML에서 쓰기 좋게)
     filter_data = []
-    for g in temp_tree:
+    for g in sorted(temp_data.keys()):
+        # 반 목록 정렬 및 중복 제거
+        sorted_classes = sorted(list(set(temp_data[g])))
         filter_data.append({
             'grade': g,
-            'classes': sorted(temp_tree[g])
+            'classes': sorted_classes
         })
-    
-    # 디버깅 메시지에 필터 데이터 내용 추가
-    debug_msg += f" / 필터 데이터: {filter_data}"
 
     # 3. 검색 조건 처리
     selected_targets = request.GET.getlist('target') 
     name_query = request.GET.get('q', '')
 
-    # 4. 초기 진입 시 자동 선택
+    # 4. 초기값 설정 (1학년 1반)
+    # 조건: 검색어도 없고, 반 선택도 안 했을 때만
     if not selected_targets and not name_query:
         if filter_data:
-            first_grade = filter_data[0]['grade']
-            first_class = filter_data[0]['classes'][0]
-            selected_targets = [f"{first_grade}_{first_class}"]
+            g = filter_data[0]['grade']
+            c = filter_data[0]['classes'][0]
+            selected_targets = [f"{g}_{c}"]
 
-    # 5. 필터링 적용
+    # 5. 필터링 (안전하게)
     target_students = all_students
+
     if selected_targets:
         q_objects = Q()
-        for target in selected_targets:
-            try:
-                g, c = target.split('_')
+        for t in selected_targets:
+            if '_' in t: # 안전장치
+                g, c = t.split('_')
                 q_objects |= Q(grade=g, class_no=c)
-            except: pass
         target_students = target_students.filter(q_objects)
-    
+
     if name_query:
         target_students = target_students.filter(name__contains=name_query)
 
-    # 6. 결과 리스트 생성
+    # 6. 제출 현황 만들기
     submission_list = []
     question = activity.questions.first()
+
     for student in target_students:
         answer = Answer.objects.filter(student=student, question=question).first()
-        # (기존 로직 동일)
         status = "미응시"
         submitted_at = "-"
         answer_id = None
         note = ""
         absence = ""
+
         if answer:
             answer_id = answer.id
             note = answer.note
@@ -200,7 +193,6 @@ def activity_result(request, activity_id):
         'filter_data': filter_data,
         'selected_targets': selected_targets,
         'current_q': name_query,
-        'debug_msg': debug_msg, # ★ 화면에 뿌려줄 디버깅 메시지
     }
     return render(request, 'activities/activity_result.html', context)
 
