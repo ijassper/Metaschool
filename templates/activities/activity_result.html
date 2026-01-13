@@ -128,6 +128,8 @@
                         <td>
                             {% if item.status == '제출 완료' %}
                                 <span class="badge bg-success">제출 완료</span>
+                            {% elif item.status == '결시' %}
+                                <span class="badge bg-danger">결시</span>
                             {% else %}
                                 <span class="badge bg-secondary opacity-50">미응시</span>
                             {% endif %}
@@ -135,14 +137,19 @@
                         
                         <!-- 제출 일시 -->
                         <td class="small text-muted">
-                            {% if item.answer_id %}{{ item.submitted_at|date:"m-d H:i" }}{% else %}-{% endif %}
+                            {% if item.status == '제출 완료' %}
+                                {{ item.submitted_at|date:"m-d H:i" }}
+                            {% else %}
+                                -
+                            {% endif %}
                         </td>
 
-                        <!-- 결시 사유 셀렉트 박스 -->
+                        <!-- ★ [수정 1] 결시 사유 (제출 완료 시 비활성화) -->
                         <td>
                             <select class="form-select form-select-sm" 
                                     onchange="updateAbsence('{{ item.student.id }}', '{{ activity.id }}', this.value)"
-                                    style="width: 100px; margin: 0 auto;">
+                                    style="width: 100px; margin: 0 auto;"
+                                    {% if item.status == '제출 완료' %}disabled title="제출 완료된 학생은 변경할 수 없습니다."{% endif %}>
                                 <option value="" {% if not item.absence %}selected{% endif %}>-</option>
                                 <option value="병결" {% if item.absence == '병결' %}selected{% endif %}>병결</option>
                                 <option value="공결" {% if item.absence == '공결' %}selected{% endif %}>공결</option>
@@ -151,25 +158,25 @@
                             </select>
                         </td>
 
-                        <!-- 답안지 열기 -->
+                        <!-- ★ [수정 2] 답안지 열기 (제출 완료일 때만 보임) -->
                         <td>
-                            {% if item.answer_id %}
+                            {% if item.status == '제출 완료' %}
                                 <a href="{% url 'answer_detail' item.answer_id %}" target="_blank" class="btn btn-primary btn-sm">
                                     <i class="bi bi-search"></i> 열기
                                 </a>
                             {% else %}
-                                -
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
 
-                        <!-- 특이사항 (메모) -->
+                        <!-- 특이사항 (기존 유지 - 결시생도 메모 가능) -->
                         <td>
                             {% if item.answer_id %}
                                 <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#noteModal{{ item.answer_id }}">
                                     {% if item.note %}<i class="bi bi-sticky-fill"></i>{% else %}<i class="bi bi-sticky"></i>{% endif %}
                                 </button>
 
-                                <!-- 메모 모달 (개별 생성) -->
+                                <!-- 메모 모달 -->
                                 <div class="modal fade" id="noteModal{{ item.answer_id }}" tabindex="-1" aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered">
                                         <div class="modal-content">
@@ -195,16 +202,16 @@
                             {% endif %}
                         </td>
 
-                        <!-- 폐기(삭제) -->
+                        <!-- ★ [수정 3] 폐기 버튼 (제출 완료일 때만 보임) -->
                         <td>
-                            {% if item.answer_id %}
+                            {% if item.status == '제출 완료' %}
                                 <a href="{% url 'answer_delete' item.answer_id %}" 
-                                   class="btn btn-outline-danger btn-sm"
-                                   onclick="return confirm('이 학생의 답안을 삭제하시겠습니까?\n삭제 후 학생은 다시 응시할 수 있습니다.');">
-                                   폐기
+                                class="btn btn-outline-danger btn-sm"
+                                onclick="return confirm('이 학생의 답안을 삭제하시겠습니까?\n삭제 후 학생은 다시 응시할 수 있습니다.');">
+                                폐기
                                 </a>
                             {% else %}
-                                -
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                     </tr>
