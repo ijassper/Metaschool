@@ -1,11 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<!-- ★ [디버깅용] 데이터 확인 박스 (나중에 지우세요) -->
-<div class="alert alert-danger text-break">
-    <h5 class="fw-bold">🔥 데이터 디버깅 🔥</h5>
-    <p>{{ debug_msg }}</p>
-</div>
+
 <div class="container mt-5 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="fw-bold text-primary"><i class="bi bi-card-checklist"></i> 제출 현황: {{ activity.title }}</h3>
@@ -16,59 +12,66 @@
     <div class="bg-light p-3 rounded mb-3 border">
         <form method="get" id="filterForm" class="row g-2 align-items-center">
             
-            <!-- [수정된 드롭다운 메뉴] -->
-            <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
-                <h6 class="dropdown-header fw-bold mb-2">필터링할 학급을 선택하세요</h6>
-                
-                <!-- ★ [수정 1] filter_tree -> filter_data 로 변경 -->
-                {% if not filter_data %}
-                    <div class="p-2 text-muted small">표시할 학급 데이터가 없습니다.</div>
-                {% endif %}
-
-                <!-- ★ [수정 2] 반복문 변수 변경 (items 제거) -->
-                {% for item in filter_data %} 
-                <div class="mb-2">
-                    <!-- 학년 (부모) -->
-                    <div class="form-check fw-bold text-primary">
-                        <!-- item.grade 사용 -->
-                        <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
-                        <label class="form-check-label" for="g_{{ item.grade }}">
-                            {{ item.grade }}학년
-                        </label>
-                    </div>
+            <!-- 1. 학급 선택 드롭다운 -->
+            <div class="col-auto">
+                <div class="dropdown">
+                    <button class="btn btn-white border dropdown-toggle bg-white" type="button" id="classFilterBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <i class="bi bi-funnel-fill text-secondary"></i> 학급 선택
+                    </button>
                     
-                    <!-- 반 (자식) -->
-                    <div class="ms-3 border-start ps-2 mt-1">
-                        {% for c in item.classes %}
-                            <div class="form-check">
-                                <!-- 복잡한 with 태그 없이 바로 변수 조합 -->
-                                <!-- value="1_1" 형태로 직접 작성 -->
-                                <input class="form-check-input child-check child-g-{{ item.grade }}" 
-                                    type="checkbox" 
-                                    name="target" 
-                                    value="{{ item.grade }}_{{ c }}" 
-                                    id="c_{{ item.grade }}_{{ c }}"
-                                    {% if selected_targets %}
-                                        {% for t in selected_targets %}
-                                            {% if t == item.grade|stringformat:"s"|add:"_"|add:c|stringformat:"s" %}checked{% endif %}
-                                        {% endfor %}
-                                    {% endif %}>
-                                    
-                                <label class="form-check-label text-dark fw-normal" for="c_{{ item.grade }}_{{ c }}">
-                                    {{ c }}반
+                    <!-- 드롭다운 메뉴 시작 -->
+                    <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
+                        <h6 class="dropdown-header fw-bold mb-2">필터링할 학급을 선택하세요</h6>
+                        
+                        <!-- ★ [핵심 수정] 변수명 filter_data 사용 -->
+                        {% if not filter_data %}
+                            <div class="p-2 text-muted small">표시할 학급 데이터가 없습니다.</div>
+                        {% endif %}
+
+                        {% for item in filter_data %} 
+                        <div class="mb-2">
+                            <!-- 학년 (부모 체크박스) -->
+                            <div class="form-check fw-bold text-primary">
+                                <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
+                                <label class="form-check-label" for="g_{{ item.grade }}">
+                                    {{ item.grade }}학년
                                 </label>
                             </div>
+                            
+                            <!-- 반 (자식 체크박스들) -->
+                            <div class="ms-3 border-start ps-2 mt-1">
+                                {% for c in item.classes %}
+                                    <!-- 체크박스 value 조합 (예: 1_3) -->
+                                    <div class="form-check">
+                                        <input class="form-check-input child-check child-g-{{ item.grade }}" 
+                                               type="checkbox" 
+                                               name="target" 
+                                               value="{{ item.grade }}_{{ c }}" 
+                                               id="c_{{ item.grade }}_{{ c }}"
+                                               {% if selected_targets %}
+                                                   {% for t in selected_targets %}
+                                                       {% if t == item.grade|stringformat:"s"|add:"_"|add:c|stringformat:"s" %}checked{% endif %}
+                                                   {% endfor %}
+                                               {% endif %}>
+                                               
+                                        <label class="form-check-label text-dark fw-normal" for="c_{{ item.grade }}_{{ c }}">
+                                            {{ c }}반
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
                         {% endfor %}
-                    </div>
-                </div>
-                {% endfor %}
 
-                <div class="d-grid mt-3 border-top pt-2">
-                    <button type="submit" class="btn btn-primary btn-sm">적용하기</button>
+                        <div class="d-grid mt-3 border-top pt-2">
+                            <button type="submit" class="btn btn-primary btn-sm">적용하기</button>
+                        </div>
+                    </div>
+                    <!-- 드롭다운 메뉴 끝 -->
                 </div>
             </div>
 
-            <!-- 현재 선택된 필터 요약 표시 (선택 사항) -->
+            <!-- 현재 선택된 필터 요약 표시 -->
             <div class="col-auto">
                 <span class="text-muted small">
                     {% if selected_targets %}
