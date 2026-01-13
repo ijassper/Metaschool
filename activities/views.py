@@ -29,7 +29,6 @@ def create_test(request):
         if a_form.is_valid() and q_form.is_valid():
             activity = a_form.save(commit=False)
             activity.teacher = request.user
-            # activity.subject_name = ... (이 줄 삭제! 폼에서 입력받은 값 그대로 씀)
             activity.save()
             
             question = q_form.save(commit=False)
@@ -78,7 +77,7 @@ def delete_test(request, activity_id):
     messages.success(request, "평가가 삭제되었습니다.")
     return redirect('activity_list')
 
-# [신규] 1. 평가 상태 토글 (시작 <-> 마감)
+# 5. 평가 상태 토글 (시작 <-> 마감)
 @login_required
 @teacher_required
 def toggle_activity_status(request, activity_id):
@@ -91,7 +90,7 @@ def toggle_activity_status(request, activity_id):
     messages.success(request, status_msg)
     return redirect('activity_list')
 
-# [신규] 2. 평가 상세 페이지 (여기서 수정/삭제 가능)
+# 6. 평가 상세 페이지 (여기서 수정/삭제 가능)
 @login_required
 @teacher_required
 def activity_detail(request, activity_id):
@@ -99,7 +98,7 @@ def activity_detail(request, activity_id):
     questions = activity.questions.all()
     return render(request, 'activities/activity_detail.html', {'activity': activity, 'questions': questions})
 
-# [신규] 3. 제출 현황(답안) 보기 페이지
+# 7. 제출 현황(답안) 보기 페이지
 @login_required
 @teacher_required
 def activity_result(request, activity_id):
@@ -126,7 +125,7 @@ def activity_result(request, activity_id):
         sorted_classes = sorted(list(set(temp_data[g])))
         filter_data.append({
             'grade': g,
-            'classes': sorted_classes
+            'classes': sorted(list(set(temp_data[g])))
         })
 
     # 3. 검색 조건 처리
@@ -134,12 +133,11 @@ def activity_result(request, activity_id):
     name_query = request.GET.get('q', '')
 
     # 4. 초기값 설정 (1학년 1반 자동 선택)
-    if not selected_targets and not name_query:
-        if filter_data:
-            # 데이터가 있으면 첫 번째 학년/반을 기본값으로
-            g = filter_data[0]['grade']
-            c = filter_data[0]['classes'][0]
-            selected_targets = [f"{g}_{c}"]
+    # 데이터가 있으면 첫 번째 학년/반을 기본값으로
+    if not selected_targets and not name_query and filter_data:
+        g = filter_data[0]['grade']
+        c = filter_data[0]['classes'][0]
+        selected_targets = [f"{g}_{c}"]
 
     # 5. 필터링 (안전하게 처리)
     target_students = all_students
@@ -191,16 +189,53 @@ def activity_result(request, activity_id):
     context = {
         'activity': activity,
         'submission_list': submission_list,
-        'filter_data': filter_data, # ★ 이 변수명이 HTML과 맞아야 합니다!
+        'filter_data': filter_data,
         'selected_targets': selected_targets,
         'current_q': name_query,
     }
     return render(request, 'activities/activity_result.html', context)
 
-# 1. [신규] 결시 사유 업데이트 API (AJAX용)
+# 8. 학생 응시 페이지
+@login_required
+def take_test(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id)
+    question = activity.questions.first()
+    
+    if request.user.role != 'STUDENT' or not activity.is_active:
+        messages.error(request, "접근할 수 없는 평가입니다.")
+        return redirect('dashboard')
+
+    existing_answer = Answer.objects.filter(student__email=request.user.email, question=question).first()
+    
+    if request.method == 'POST':
+        form = AnswerForm(request.POST, instance=existing_answer)
+        if form.is_valid():
+            answer = form.save(commit=False)
+            try:
+                answer.student = Student.objects.get(email=request.user.email)
+                answer.question = question
+                answer.save()
+                messages.success(request, "답안이 제출되었습니다!")
+                return redirect('dashboard')
+            except Student.DoesNotExist:
+                messages.error(request, "학생 정보를 찾을 수 없습니다.")
+    else:
+        form = AnswerForm(instance=existing_answer)
+
+    context = {
+        'activity': activity,
+        'question': question,
+        'form': form,
+        'today': timezone.now()
+    }
+    return render(request, 'activities/take_test.html', context)
+
+# 9. 결시 사유 업데이트 API (AJAX용)
 @login_required
 @teacher_required
 def update_absence(request):
+    import json
+    from django.http import JsonResponse
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
