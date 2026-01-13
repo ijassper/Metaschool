@@ -4,6 +4,8 @@ from accounts.decorators import teacher_required
 from django.contrib import messages
 from django.utils import timezone # 날짜 표시용
 from django.db.models import Q  # 복합 필터링
+import json
+from django.http import JsonResponse
 
 # 모델과 폼 가져오기
 from .models import Activity, Question, Answer
@@ -234,8 +236,6 @@ def take_test(request, activity_id):
 @login_required
 @teacher_required
 def update_absence(request):
-    import json
-    from django.http import JsonResponse
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -268,3 +268,30 @@ def update_absence(request):
             return JsonResponse({'status': 'error', 'message': str(e)})
             
     return JsonResponse({'status': 'fail'})
+
+# 10. 답안 상세, 삭제, 메모 저장 (추가 필요 시 여기에)
+@login_required
+@teacher_required
+def answer_detail(request, answer_id):
+    answer = get_object_or_404(Answer, id=answer_id)
+    return render(request, 'activities/answer_detail.html', {'answer': answer})
+
+@login_required
+@teacher_required
+def answer_delete(request, answer_id):
+    answer = get_object_or_404(Answer, id=answer_id)
+    activity_id = answer.question.activity.id
+    answer.delete()
+    messages.success(request, "답안을 삭제(반려)했습니다.")
+    return redirect('activity_result', activity_id=activity_id)
+
+@login_required
+@teacher_required
+def save_note(request, answer_id):
+    if request.method == 'POST':
+        answer = get_object_or_404(Answer, id=answer_id)
+        answer.note = request.POST.get('note', '')
+        answer.save()
+        messages.success(request, "특이사항 저장 완료.")
+        return redirect('activity_result', activity_id=answer.question.activity.id)
+    return redirect('dashboard')
