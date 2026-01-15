@@ -130,7 +130,7 @@ def mypage(request):
 @teacher_required
 def student_list(request):
     # 1. 내 학생들 전체 가져오기 (기본)
-    students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
 
     # 2. 필터용 계층 데이터 만들기 (학년 -> 반)
     # (activity_result와 동일한 안전한 로직 사용)
