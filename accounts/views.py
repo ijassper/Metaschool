@@ -5,6 +5,7 @@ import pandas as pd
 import io
 import json
 import pandas as pd  # 엑셀 처리를 위해 필요
+from django.db.models import Q  # 다중 필터 기능
 from django.urls import reverse_lazy
 from django.http import JsonResponse  # 검색 기능을 위해 필요
 from django.http import HttpResponse
