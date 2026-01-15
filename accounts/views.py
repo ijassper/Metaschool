@@ -132,32 +132,53 @@ def student_list(request):
     # 1. 내 학생들 전체 가져오기 (기본)
     students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
 
-    # 2. 검색 조건 가져오기 (GET 요청)
-    grade_query = request.GET.get('grade')
-    class_query = request.GET.get('class_no')
-    name_query = request.GET.get('q')
+    # 2. 필터용 계층 데이터 만들기 (학년 -> 반)
+    # (activity_result와 동일한 안전한 로직 사용)
+    temp_data = {}
+    for s in all_students:
+        g = s.grade
+        c = s.class_no
+        if g not in temp_data: temp_data[g] = []
+        if c not in temp_data[g]: temp_data[g].append(c)
+    
+    filter_data = []
+    for g in sorted(temp_data.keys()):
+        filter_data.append({
+            'grade': g,
+            'classes': sorted(list(set(temp_data[g])))
+        })
 
-    # 3. 필터링 적용
-    if grade_query:
-        students = students.filter(grade=grade_query)
-    if class_query:
-        students = students.filter(class_no=class_query)
+    # 3. 검색 조건 가져오기
+    selected_targets = request.GET.getlist('target') 
+    name_query = request.GET.get('q', '')
+
+    # 4. 초기 진입 시 기본값 설정 (1학년 1반)
+    # (검색어도 없고, 선택도 안 했을 때 데이터가 너무 많으면 느리므로 첫 반만 보여줌)
+    if not selected_targets and not name_query:
+        if filter_data:
+            g = filter_data[0]['grade']
+            c = filter_data[0]['classes'][0]
+            selected_targets = [f"{g}_{c}"]
+
+    # 5. 필터링 적용
+    students = all_students
+
+    if selected_targets:
+        q_objects = Q()
+        for t in selected_targets:
+            if '_' in t:
+                g, c = t.split('_')
+                q_objects |= Q(grade=g, class_no=c)
+        students = students.filter(q_objects)
+
     if name_query:
         students = students.filter(name__contains=name_query)
 
-    # 4. 필터용 목록 만들기 (등록된 학생들 중에서 존재하는 학년/반만 추출)
-    # values_list로 값만 뽑고, distinct로 중복 제거, 정렬
-    grade_list = Student.objects.filter(teacher=request.user).values_list('grade', flat=True).distinct().order_by('grade')
-    class_list = Student.objects.filter(teacher=request.user).values_list('class_no', flat=True).distinct().order_by('class_no')
-
     context = {
         'students': students,
-        'grade_list': grade_list,
-        'class_list': class_list,
-        # 현재 검색 상태 유지용
-        'current_grade': int(grade_query) if grade_query else '',
-        'current_class': int(class_query) if class_query else '',
-        'current_q': name_query if name_query else '',
+        'filter_data': filter_data,       # ★ 트리 데이터 전달
+        'selected_targets': selected_targets, # ★ 선택 상태 유지
+        'current_q': name_query,
     }
     
     return render(request, 'accounts/student_list.html', context)
