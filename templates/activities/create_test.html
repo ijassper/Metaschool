@@ -5,17 +5,83 @@
     <div class="card shadow-lg border-0">
         <div class="card-header bg-white py-3 border-bottom">
             <!-- action 변수에 따라 제목 변경 (생성/수정) -->
-            <h3 class="fw-bold text-primary mb-0">📝 테스트 시트 {{ action }} (교사용)</h3>
+            <h3 class="fw-bold text-primary mb-0">📝 테스트 시트 {{ action }}</h3>
         </div>
         
         <div class="card-body p-5">
             <form method="post">
                 {% csrf_token %}
                 
-                <!-- 1. 기본 정보 섹션 -->
-                <h5 class="fw-bold text-secondary mb-4"><i class="bi bi-info-circle"></i> 기본 정보</h5>
+                <!-- ★ [신규] 평가 대상 선택 (트리 메뉴) -->
+                <div class="row mb-4 align-items-center">
+                    <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
+                        평가 대상 <span class="text-danger">*</span>
+                    </label>
+                    <div class="col-md-9">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary w-100 text-start d-flex justify-content-between align-items-center" 
+                                    type="button" id="targetDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                                <span id="targetSummary">
+                                    {% if current_targets %}
+                                        {{ current_targets|length }}명 선택됨
+                                    {% else %}
+                                        평가 대상을 선택하세요 (전체/반/학생 개별)
+                                    {% endif %}
+                                </span>
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                            
+                            <!-- 트리 메뉴 (영상처럼 펼쳐지는 구조) -->
+                            <div class="dropdown-menu w-100 p-3 shadow" style="max-height: 400px; overflow-y: auto;">
+                                {% for grade_info in student_tree %}
+                                <div class="mb-2">
+                                    <!-- 1. 학년 -->
+                                    <div class="form-check fw-bold text-primary bg-light p-2 rounded">
+                                        <input class="form-check-input parent-check" type="checkbox" id="g_{{ grade_info.grade }}" 
+                                               onchange="toggleGroup(this, '.group-g-{{ grade_info.grade }}')">
+                                        <label class="form-check-label w-100" for="g_{{ grade_info.grade }}">
+                                            {{ grade_info.grade }}학년
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="ms-4 mt-1 border-start ps-2">
+                                        {% for class_info in grade_info.classes %}
+                                        <!-- 2. 반 -->
+                                        <div class="mb-1">
+                                            <div class="form-check fw-bold text-dark">
+                                                <input class="form-check-input group-check group-g-{{ grade_info.grade }} parent-c-{{ grade_info.grade }}-{{ class_info.class_no }}" 
+                                                       type="checkbox" id="c_{{ grade_info.grade }}_{{ class_info.class_no }}"
+                                                       onchange="toggleGroup(this, '.child-c-{{ grade_info.grade }}-{{ class_info.class_no }}')">
+                                                <label class="form-check-label" for="c_{{ grade_info.grade }}_{{ class_info.class_no }}">
+                                                    {{ class_info.class_no }}반 ({{ class_info.students|length }}명)
+                                                </label>
+                                            </div>
+                                            
+                                            <!-- 3. 학생 개별 (접었다 폈다 기능 추가 가능하지만 일단 다 보여줌) -->
+                                            <div class="ms-4 d-flex flex-wrap gap-2 mt-1">
+                                                {% for s in class_info.students %}
+                                                <div class="form-check form-check-inline" style="min-width: 80px;">
+                                                    <input class="form-check-input student-check child-c-{{ grade_info.grade }}-{{ class_info.class_no }} group-g-{{ grade_info.grade }}" 
+                                                           type="checkbox" name="target_students" value="{{ s.id }}" id="s_{{ s.id }}"
+                                                           onchange="updateSummary()"
+                                                           {% if s.id in current_targets %}checked{% endif %}>
+                                                    <label class="form-check-label small" for="s_{{ s.id }}">
+                                                        {{ s.number }}번 {{ s.name }}
+                                                    </label>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                <!-- 과목명 (자동) -->
+                <!-- 과목명 -->
                 <div class="row mb-4 align-items-center">
                     <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
                         과목명 <span class="text-danger">*</span>
@@ -106,4 +172,31 @@
         </div>
     </div>
 </div>
+<!-- 트리 체크박스 제어 스크립트 -->
+<script>
+    // 1. 그룹 선택 (학년/반 체크 시 하위 모두 체크)
+    function toggleGroup(parent, selector) {
+        const children = document.querySelectorAll(selector);
+        children.forEach(cb => {
+            cb.checked = parent.checked;
+        });
+        updateSummary();
+    }
+
+    // 2. 요약 문구 업데이트 (몇 명 선택됨)
+    function updateSummary() {
+        const count = document.querySelectorAll('.student-check:checked').length;
+        const summary = document.getElementById('targetSummary');
+        if (count > 0) {
+            summary.innerText = `${count}명 선택됨`;
+            summary.className = "text-primary fw-bold";
+        } else {
+            summary.innerText = "평가 대상을 선택하세요";
+            summary.className = "text-muted";
+        }
+    }
+    
+    // 초기 실행 (수정 모드일 때 개수 표시)
+    updateSummary();
+</script>
 {% endblock %}

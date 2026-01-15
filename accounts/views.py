@@ -49,12 +49,16 @@ def dashboard(request):
     if request.user.role == 'STUDENT':
         # 내 이메일로 Student 명부 찾기
         try:
+             # 내 정보 찾기
             student_info = Student.objects.get(email=request.user.email)
             my_teacher = student_info.teacher
             
-            # 우리 선생님이 만든 활동 중, '평가 진행중(is_active=True)'인 것만 가져오기
-            # (아직 is_active 설정을 안 했으면 일단 다 가져오기)
-            activities = Activity.objects.filter(teacher=my_teacher).order_by('-created_at')
+            # ★ [핵심] '나(student_info)'를 평가 대상으로 포함하고 있는 활동만 검색
+            # (teacher=my_teacher 조건은 빼도 됩니다. 다른 선생님이 지정했을 수도 있으니까요)
+            activities = Activity.objects.filter(
+                target_students=student_info,  # 내가 대상자에 포함됨
+                is_active=True                 # 평가 진행 중임
+            ).order_by('-created_at')
             
             context['student_activities'] = activities
             context['my_teacher'] = my_teacher # 선생님 이름 표시용

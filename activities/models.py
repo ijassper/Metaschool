@@ -10,6 +10,10 @@ class Activity(models.Model):
     # 스케치의 입력 항목들
     section = models.CharField(max_length=100, verbose_name="평가영역명") # 예: 문학
     title = models.CharField(max_length=200, verbose_name="평가 주제")
+
+    # 평가 대상 학생들 (Many-to-Many)
+    # blank=True로 두어 나중에 추가할 수도 있게 함
+    target_students = models.ManyToManyField(Student, blank=True, related_name='activities', verbose_name="평가 대상 학생")
     
     # 관리 정보
     created_at = models.DateTimeField(auto_now_add=True)
