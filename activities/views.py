@@ -160,8 +160,13 @@ def activity_detail(request, activity_id):
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 1. 학생 목록 가져오기
-    all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    # 1. 평가 '대상 학생(Target)' 가져오기
+    # (만약 대상 학생이 0명이면, 혹시 모르니 선생님 전체 학생을 가져오는 안전장치 추가 가능)
+    all_students = activity.target_students.all().order_by('grade', 'class_no', 'number')
+    
+    # 대상자가 한 명도 없으면(예전 데이터) -> 기존대로 선생님 학생 전체 가져오기 (호환성 유지)
+    if not all_students.exists():
+        all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
 
     # 2. 필터 데이터 만들기 (파이썬 기본 문법 사용 - 가장 안전함!)
     # 복잡한 DB 기능 대신, 직접 리스트를 만듭니다.
