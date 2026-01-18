@@ -49,19 +49,19 @@ def dashboard(request):
     if request.user.role == 'STUDENT':
         # 내 이메일로 Student 명부 찾기
         try:
-             # 내 정보 찾기
+            # 내 정보 찾기
             student_info = Student.objects.get(email=request.user.email)
-            my_teacher = student_info.teacher
+            my_teacher = student_info.teacher # (화면 표시용)
             
-            # ★ [핵심] '나(student_info)'를 평가 대상으로 포함하고 있는 활동만 검색
-            # (teacher=my_teacher 조건은 빼도 됩니다. 다른 선생님이 지정했을 수도 있으니까요)
+            # ★ [핵심 수정]
+            # 조건 1: target_students 필드에 '나(student_info)'가 포함되어 있어야 함.
+            # 조건 2: is_active 필터는 뺍니다! (꺼져 있어도 '대기중'으로 봐야 하니까요)
             activities = Activity.objects.filter(
-                target_students=student_info,  # 내가 대상자에 포함됨
-                is_active=True                 # 평가 진행 중임
+                target_students=student_info
             ).order_by('-created_at')
             
             context['student_activities'] = activities
-            context['my_teacher'] = my_teacher # 선생님 이름 표시용
+            context['my_teacher'] = my_teacher
             
         except Student.DoesNotExist:
             context['error_msg'] = "학생 명부에서 정보를 찾을 수 없습니다."
