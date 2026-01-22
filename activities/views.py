@@ -6,6 +6,7 @@ from django.utils import timezone # 날짜 표시용
 from django.db.models import Q  # 복합 필터링
 import json
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 # 모델과 폼 가져오기
 from .models import Activity, Question, Answer
@@ -368,3 +369,34 @@ def save_note(request, answer_id):
         messages.success(request, "특이사항 저장 완료.")
         return redirect('activity_result', activity_id=answer.question.activity.id)
     return redirect('dashboard')
+
+# 학생 활동 로그 저장 API
+@login_required
+def log_activity(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            answer_id = data.get('answer_id')
+            action_type = data.get('type') # 'OUT'(이탈) 또는 'IN'(복귀)
+            
+            answer = Answer.objects.get(id=answer_id)
+            
+            # 현재 시간 (한국 시간)
+            now = timezone.localtime()
+            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+            
+            log_msg = ""
+            if action_type == 'OUT':
+                log_msg = f"⚠️ [이탈] {timestamp} - 화면을 벗어남\n"
+            elif action_type == 'IN':
+                log_msg = f"✅ [복귀] {timestamp} - 화면으로 돌아옴\n"
+            
+            # 로그 누적 저장
+            if log_msg:
+                answer.activity_log += log_msg
+                answer.save()
+                
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    return JsonResponse({'status': 'fail'})

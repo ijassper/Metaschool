@@ -40,6 +40,8 @@ class Answer(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     content = models.TextField(verbose_name="학생 답안")
     submitted_at = models.DateTimeField(auto_now=True, verbose_name="제출/수정 시간")
+    activity_log = models.TextField(blank=True, default="", verbose_name="활동 로그")
+    
      # 결시 사유 선택지
     class Absence(models.TextChoices):
         NONE = '', '-'

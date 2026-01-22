@@ -1,6 +1,18 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- UI 강제 조정 (메뉴 숨김, 여백 제거) -->
+<style>
+    /* 상단 네비게이션바 숨기기 */
+    nav.navbar { display: none !important; }
+    
+    /* 전체 컨테이너 여백 제거 및 높이 확보 */
+    body { padding-top: 0 !important; background-color: #f8f9fa; }
+    .container-fluid { margin-top: 0 !important; padding: 10px; height: 100vh; }
+    
+    /* 카드 높이 꽉 채우기 */
+    .full-height-card { height: 95vh; }
+</style>
 <!-- 1. 시험 시작 전 가림막 (전체 화면 유도용) -->
 <div id="startOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-white d-flex flex-column justify-content-center align-items-center" style="z-index: 9999;">
     <div class="text-center">
@@ -21,16 +33,16 @@
     </div>
 </div>
 
-<div class="container-fluid mt-3 mb-5 px-4" id="testContainer" style="filter: blur(5px);"> 
-    <div class="row h-100">
-        <!-- ★ 왼쪽: 문제지 (30%) -->
-        <div class="col-lg-4 mb-4 h-100">
-            <div class="card shadow-sm border-secondary" style="height: 85vh; overflow-y: auto;">
+<div class="container-fluid" id="testContainer" style="filter: blur(5px);"> 
+    <div class="row h-100 g-2">
+        <!-- 왼쪽: 문제지 (30%) -->
+        <div class="col-lg-4 h-100">
+            <div class="card shadow-sm border-secondary full-height-card" style="overflow-y: auto;">
                 <div class="card-header bg-secondary text-white fw-bold sticky-top">
                     <i class="bi bi-file-text"></i> 문제지
                 </div>
                 <div class="card-body bg-light">
-                    <!-- 기본 정보 -->
+                    <!-- 문제 내용 표시 -->
                     <div class="mb-3">
                         <label class="fw-bold text-secondary small">과목 / 영역</label>
                         <div class="bg-white border rounded p-2 text-dark">
@@ -75,19 +87,19 @@
         </div>
 
         <!-- ★ 오른쪽: 답안지 (70%) -->
-        <div class="col-lg-8 mb-4 h-100">
-            <div class="card shadow border-primary" style="height: 85vh;">
+        <div class="col-lg-8 h-100">
+            <div class="card shadow border-primary full-height-card">
                 <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-pencil-square"></i> 답안 작성 ({{ user.name }})</span>
-                    <span id="charCount" class="badge bg-light text-primary">0자 / {{ question.max_length|default:'무제한' }}</span>
+                    <span id="charCount" class="badge bg-light text-primary">0자</span>
                 </div>
-                <div class="card-body d-flex flex-column">
-                    <!-- 답안 제출 폼 -->
+                <div class="card-body d-flex flex-column p-2">
                     <form method="post" id="answerForm" class="h-100 d-flex flex-column">
                         {% csrf_token %}
-                        
-                        <!-- 답안 입력창 (높이 꽉 채우기) -->
-                        <div class="flex-grow-1 mb-3">
+                        <!-- ★ 답안지 ID를 form에 숨겨서 보냄 (로그 저장용) -->
+                        <input type="hidden" id="answerId" value="{{ form.instance.id }}"> 
+
+                        <div class="flex-grow-1 mb-2">
                             {{ form.content }}
                         </div>
                         
@@ -133,8 +145,50 @@
     const counter = document.getElementById('charCount');
     const limit = {{ question.max_length|default:0 }};
     
-    // ★ [신규] 제출 중인지 확인하는 상태 변수
+    // 제출 중인지 확인하는 상태 변수
     let isSubmitting = false;
+    // 답안지 ID (DB에 이미 생성된 껍데기가 있어야 함. create_or_get 로직 필요)
+    // * 주의: 처음에 답안지가 없는 상태라면 뷰에서 context로 answer.id를 넘겨줘야 함.
+    // * views.py의 take_test 함수에서 existing_answer.id를 context에 넣어주세요.
+    const answerId = "{{ form.instance.id|default:'' }}"; 
+
+    // 1. 뒤로가기 감옥 (History Trap)
+    history.pushState(null, null, location.href);
+    window.onpopstate = function () {
+        history.go(1);
+        alert("평가 중에는 뒤로 갈 수 없습니다. 제출 버튼을 이용해주세요.");
+    };
+
+    // 2. 이탈 감지 및 로그 전송
+    document.addEventListener("visibilitychange", () => {
+        if (isSubmitting) return;
+
+        if (document.hidden) {
+            // 나감
+            alert("⚠️ 경고: 화면 이탈이 감지되었습니다! 선생님께 기록이 전송됩니다.");
+            sendLog('OUT');
+        } else {
+            // 들어옴
+            sendLog('IN');
+        }
+    });
+
+    // 로그 전송 함수 (AJAX)
+    function sendLog(type) {
+        if (!answerId) return; // 답안지 ID가 없으면 기록 불가 (최초 진입 시)
+
+        fetch('/activities/api/log/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                'answer_id': answerId,
+                'type': type
+            })
+        }).then(res => console.log("Log sent: " + type));
+    }
 
     // 1. 글자 수 세기
     textarea.addEventListener('input', function() {
@@ -213,7 +267,8 @@
         height: 100% !important;
         resize: none;
         font-size: 1.1rem;
-        line-height: 1.6;
+        padding: 20px;
+        border: 1px solid #ced4da;
     }
 </style>
 {% endblock %}
