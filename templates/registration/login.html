@@ -82,9 +82,19 @@
         <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> 로그인 실패</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
+      <!-- [수정] 로그인 실패 모달 내용 -->
       <div class="modal-body text-center py-4">
-        <p class="fw-bold mb-2">아이디 또는 비밀번호가 일치하지 않습니다.</p>
-        <p class="text-muted small mb-0">아직 회원이 아니시라면 회원가입을 진행해주세요.</p>
+            <!-- 에러 메시지를 장고에서 받아와서 출력 -->
+            {% if form.non_field_errors %}
+                {% for error in form.non_field_errors %}
+                    <p class="fw-bold mb-2 text-danger">{{ error }}</p>
+                {% endfor %}
+            {% else %}
+                <p class="fw-bold mb-2">아이디 또는 비밀번호가 일치하지 않습니다.</p>
+                <p class="text-muted small mb-0">아직 회원이 아니시라면 회원가입을 진행해주세요.</p>
+            {% endif %}
+            
+            <p class="text-muted small mb-0">입력 정보를 다시 확인해주세요.</p>
       </div>
       <div class="modal-footer justify-content-center">
         <a href="{% url 'signup' %}" class="btn btn-primary">회원가입 하러가기</a>
