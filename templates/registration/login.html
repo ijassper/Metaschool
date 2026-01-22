@@ -10,6 +10,10 @@
             </div>
             
             <div class="card-body p-4">
+                <!-- 로그인 폼 -->
+            <form method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                    
                 <!-- 2. 교사/학생 선택 라디오 버튼 -->
                 <div class="d-flex justify-content-center mb-4">
                     <div class="btn-group w-100" role="group">
@@ -22,11 +26,7 @@
                         <label class="btn btn-outline-success" for="type_student">🎓 학생 로그인</label>
                     </div>
                 </div>
-
-                <!-- 로그인 폼 -->
-                <form method="post" action="{% url 'login' %}">
-                    {% csrf_token %}
-                    
+                
                     <!-- 아이디 입력칸 -->
                     <div class="mb-3">
                         <label for="id_username" class="form-label fw-bold" id="label_username">아이디 (이메일)</label>
@@ -43,7 +43,7 @@
                     <div class="d-grid gap-2 mt-4">
                         <button type="submit" class="btn btn-primary btn-lg fw-bold">로그인</button>
                     </div>
-                </form>
+            </form>
             </div>
             
             <div class="card-footer bg-light text-center py-3">
