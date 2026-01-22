@@ -1,4 +1,6 @@
+from django.contrib.auth.views import LoginView
 from django.urls import path
+from .forms import CustomAuthenticationForm # 교사, 학생 로그인
 from .views import (
     SignUpView, student_list, mypage, student_upload, student_create, search_school, dashboard, approve_teacher,
     check_email_duplicate, ai_generator_step1, ai_generator_step2, # 추가
@@ -7,6 +9,10 @@ from .views import (
 )
 
 urlpatterns = [
+    path("login/", LoginView.as_view(
+        template_name="registration/login.html",
+        authentication_form=CustomAuthenticationForm # # 교사, 학생 로그인
+    ), name="login"),
     path('signup/', SignUpView.as_view(), name='signup'),
     path("dashboard/", dashboard, name="dashboard"),    # 대시보드 URL
     path("mypage/", mypage, name="mypage"),

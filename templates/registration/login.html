@@ -13,10 +13,12 @@
                 <!-- 2. 교사/학생 선택 라디오 버튼 -->
                 <div class="d-flex justify-content-center mb-4">
                     <div class="btn-group w-100" role="group">
-                        <input type="radio" class="btn-check" name="login_type" id="type_teacher" autocomplete="off" checked>
+                        <!-- 교사 버튼: value="teacher" -->
+                        <input type="radio" class="btn-check" name="login_type" id="type_teacher" value="teacher" autocomplete="off" checked>
                         <label class="btn btn-outline-primary" for="type_teacher">👩‍🏫 교사 로그인</label>
 
-                        <input type="radio" class="btn-check" name="login_type" id="type_student" autocomplete="off">
+                        <!-- 학생 버튼: value="student" -->
+                        <input type="radio" class="btn-check" name="login_type" id="type_student" value="student" autocomplete="off">
                         <label class="btn btn-outline-success" for="type_student">🎓 학생 로그인</label>
                     </div>
                 </div>
