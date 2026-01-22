@@ -82,6 +82,11 @@ class CustomAuthenticationForm(AuthenticationForm):
         # 3. 탭 정보 가져오기
         login_type = cleaned_data.get('login_type')
 
+        input_type = self.data.get('login_type')
+        print(f"🔥 DEBUG: 선택된 탭 = {input_type}")
+        if user:
+            print(f"🔥 DEBUG: 로그인한 유저 등급 = {user.role}")
+
         if user:
             # [검사 1] 학생 탭인데 -> 학생이 아니면 에러
             if login_type == 'student' and user.role != 'STUDENT':
