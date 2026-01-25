@@ -1,8 +1,9 @@
-from django.contrib import admin, messages # 메시지 표시용serAdmin
-from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption, Subject
+from django.contrib import admin, messages # 메시지 표시용 userAdmin
+from django.contrib.auth.admin import UserAdmin
 from django.db.models import Case, When # For conditional ordering
 from django.utils.html import format_html   # For custom HTML rendering
 from django.forms import Textarea   
+from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption, Subject
 
 # 1. 사용자(교사) 관리 화면 설정
 @admin.register(CustomUser)
