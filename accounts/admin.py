@@ -5,6 +5,17 @@ from django.utils.html import format_html   # For custom HTML rendering
 from django.forms import Textarea   
 from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption, Subject
 
+# 일괄 변경 액션 함수
+@admin.action(description='✅ 선택된 교사를 [메타고등학교]로 변경')
+def set_school_to_meta(modeladmin, request, queryset):
+    try:
+        # DB에 등록된 '메타고등학교' 찾기 (이름 정확해야 함!)
+        meta_school = School.objects.get(name='메타고등학교')
+        updated_count = queryset.update(school=meta_school)
+        modeladmin.message_user(request, f"{updated_count}명의 선생님을 메타고등학교로 이동시켰습니다.")
+    except School.DoesNotExist:
+        modeladmin.message_user(request, "❌ '메타고등학교'가 학교 목록에 없습니다. 먼저 학교를 등록해주세요.", level=messages.ERROR)
+        
 # 1. 사용자(교사) 관리 화면 설정
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
@@ -150,13 +161,3 @@ class SubjectAdmin(admin.ModelAdmin):
     list_display = ['id', 'name']
     search_fields = ['name']
 
-# 일괄 변경 액션 함수
-@admin.action(description='✅ 선택된 교사를 [메타고등학교]로 변경')
-def set_school_to_meta(modeladmin, request, queryset):
-    try:
-        # DB에 등록된 '메타고등학교' 찾기 (이름 정확해야 함!)
-        meta_school = School.objects.get(name='메타고등학교')
-        updated_count = queryset.update(school=meta_school)
-        modeladmin.message_user(request, f"{updated_count}명의 선생님을 메타고등학교로 이동시켰습니다.")
-    except School.DoesNotExist:
-        modeladmin.message_user(request, "❌ '메타고등학교'가 학교 목록에 없습니다. 먼저 학교를 등록해주세요.", level=messages.ERROR)
