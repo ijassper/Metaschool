@@ -17,7 +17,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages  # 알림 메시지(성공/실패)를 위해 필요
 from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from django.db import transaction   # 
-from .forms import CustomUserCreationForm, StudentForm
+from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼
 from .models import Student, CustomUser, School  # Student, CustomUser, School 모델 모두 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
@@ -642,3 +642,15 @@ def student_delete(request, student_id):
         messages.error(request, f"삭제 중 오류 발생: {str(e)}")
         
     return redirect('student_list')
+
+@login_required
+def profile_update(request):
+    if request.method == 'POST':
+        form = UserUpdateForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "회원 정보가 수정되었습니다.")
+            return redirect('dashboard')
+    else:
+        form = UserUpdateForm(instance=request.user)
+    return render(request, 'accounts/profile_update.html', {'form': form})

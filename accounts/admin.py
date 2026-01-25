@@ -1,5 +1,4 @@
-from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
+from django.contrib import admin, messages # 메시지 표시용serAdmin
 from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption, Subject
 from django.db.models import Case, When # For conditional ordering
 from django.utils.html import format_html   # For custom HTML rendering
@@ -13,6 +12,7 @@ class CustomUserAdmin(UserAdmin):
     list_filter = ['role', 'school'] # 등급별 필터링
     list_editable = ['role'] # ★ 목록에서 바로 등급 수정 가능하게 설정!
     search_fields = ['email', 'name']
+    actions = [set_school_to_meta] # 일괄 변경 액션 등록
 
     # ★ 학생 등급(STUDENT)은 목록에서 제외하는 로직
     def get_queryset(self, request):
@@ -148,3 +148,14 @@ class SchoolAdmin(admin.ModelAdmin):
 class SubjectAdmin(admin.ModelAdmin):
     list_display = ['id', 'name']
     search_fields = ['name']
+
+# 일괄 변경 액션 함수
+@admin.action(description='✅ 선택된 교사를 [메타고등학교]로 변경')
+def set_school_to_meta(modeladmin, request, queryset):
+    try:
+        # DB에 등록된 '메타고등학교' 찾기 (이름 정확해야 함!)
+        meta_school = School.objects.get(name='메타고등학교')
+        updated_count = queryset.update(school=meta_school)
+        modeladmin.message_user(request, f"{updated_count}명의 선생님을 메타고등학교로 이동시켰습니다.")
+    except School.DoesNotExist:
+        modeladmin.message_user(request, "❌ '메타고등학교'가 학교 목록에 없습니다. 먼저 학교를 등록해주세요.", level=messages.ERROR)

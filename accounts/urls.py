@@ -5,7 +5,7 @@ from .views import (
     SignUpView, student_list, mypage, student_upload, student_create, search_school, dashboard, approve_teacher,
     check_email_duplicate, ai_generator_step1, ai_generator_step2, # 추가
     api_process_one_row, api_download_excel, # 추가
-    reset_student_password, student_delete, # 추가
+    reset_student_password, student_delete, profile_update
 )
 
 urlpatterns = [
@@ -30,4 +30,5 @@ urlpatterns = [
     path('api/download-excel/', api_download_excel, name='api_download_excel'), # 최종 엑셀 다운로드
     path('student/reset-pw/<int:student_id>/', reset_student_password, name='reset_student_password'),  # 비밀번호 초기화 
     path('student/delete/<int:student_id>/', student_delete, name='student_delete'), # 학생 삭제
+    path('profile/update/', profile_update, name='profile_update'), # 프로필 수정
 ]

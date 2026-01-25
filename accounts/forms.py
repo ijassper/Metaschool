@@ -97,3 +97,15 @@ class CustomAuthenticationForm(AuthenticationForm):
                 raise forms.ValidationError("교사 전용 로그인입니다. 학생 탭을 이용해주세요.")
                 
         return cleaned_data
+
+# 기존 폼들 아래에 추가
+class UserUpdateForm(forms.ModelForm):
+    class Meta:
+        model = CustomUser
+        fields = ['name', 'phone', 'school', 'subject'] # 수정할 항목들
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'school': forms.Select(attrs={'class': 'form-select'}), # 학교 선택 박스
+            'subject': forms.Select(attrs={'class': 'form-select'}),
+        }

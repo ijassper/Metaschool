@@ -19,6 +19,9 @@
                         소속: <strong>{{ user.school.name|default:"소속 없음" }}</strong> 
                         {% if user.subject %}| 담당: {{ user.subject.name|default:"-" }}{% endif %}
                     </p>
+                    <a href="{% url 'profile_update' %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-gear-fill"></i> 정보 수정
+                    </a>
                 </div>
             </div>
 
