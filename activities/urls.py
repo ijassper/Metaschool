@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     create_test, activity_list, update_test, delete_test, 
     toggle_activity_status, activity_detail, activity_result, take_test,
-    answer_detail, answer_delete, save_note, update_absence
+    answer_detail, answer_delete, save_note, update_absence, log_activity
 )
 
 urlpatterns = [
@@ -18,4 +18,5 @@ urlpatterns = [
     path('answer/delete/<int:answer_id>/', answer_delete, name='answer_delete'),    # 답안 삭제
     path('api/update-absence/', update_absence, name='update_absence'), # 결시사유
     path('answer/note/<int:answer_id>/', save_note, name='save_note'),  # 특이사항 메모
+    path('api/log/', log_activity, name='log_activity'), # 학생 답안 화면 이탈로그
 ]

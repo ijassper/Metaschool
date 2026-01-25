@@ -10,21 +10,23 @@
             </div>
             
             <div class="card-body p-4">
+                <!-- 로그인 폼 -->
+            <form method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                    
                 <!-- 2. 교사/학생 선택 라디오 버튼 -->
                 <div class="d-flex justify-content-center mb-4">
                     <div class="btn-group w-100" role="group">
-                        <input type="radio" class="btn-check" name="login_type" id="type_teacher" autocomplete="off" checked>
+                        <!-- 교사 버튼: value="teacher" -->
+                        <input type="radio" class="btn-check" name="login_type" id="type_teacher" value="teacher" autocomplete="off" checked>
                         <label class="btn btn-outline-primary" for="type_teacher">👩‍🏫 교사 로그인</label>
 
-                        <input type="radio" class="btn-check" name="login_type" id="type_student" autocomplete="off">
+                        <!-- 학생 버튼: value="student" -->
+                        <input type="radio" class="btn-check" name="login_type" id="type_student" value="student" autocomplete="off">
                         <label class="btn btn-outline-success" for="type_student">🎓 학생 로그인</label>
                     </div>
                 </div>
-
-                <!-- 로그인 폼 -->
-                <form method="post" action="{% url 'login' %}">
-                    {% csrf_token %}
-                    
+                
                     <!-- 아이디 입력칸 -->
                     <div class="mb-3">
                         <label for="id_username" class="form-label fw-bold" id="label_username">아이디 (이메일)</label>
@@ -41,7 +43,7 @@
                     <div class="d-grid gap-2 mt-4">
                         <button type="submit" class="btn btn-primary btn-lg fw-bold">로그인</button>
                     </div>
-                </form>
+            </form>
             </div>
             
             <div class="card-footer bg-light text-center py-3">
@@ -80,9 +82,19 @@
         <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> 로그인 실패</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
+      <!-- [수정] 로그인 실패 모달 내용 -->
       <div class="modal-body text-center py-4">
-        <p class="fw-bold mb-2">아이디 또는 비밀번호가 일치하지 않습니다.</p>
-        <p class="text-muted small mb-0">아직 회원이 아니시라면 회원가입을 진행해주세요.</p>
+            <!-- 에러 메시지를 장고에서 받아와서 출력 -->
+            {% if form.non_field_errors %}
+                {% for error in form.non_field_errors %}
+                    <p class="fw-bold mb-2 text-danger">{{ error }}</p>
+                {% endfor %}
+            {% else %}
+                <p class="fw-bold mb-2">아이디 또는 비밀번호가 일치하지 않습니다.</p>
+                <p class="text-muted small mb-0">아직 회원이 아니시라면 회원가입을 진행해주세요.</p>
+            {% endif %}
+            
+            <p class="text-muted small mb-0">입력 정보를 다시 확인해주세요.</p>
       </div>
       <div class="modal-footer justify-content-center">
         <a href="{% url 'signup' %}" class="btn btn-primary">회원가입 하러가기</a>

@@ -1,21 +1,143 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- [스타일 추가] 5열 세로 배치 및 접기/펼치기 디자인 -->
+<style>
+    /* 학생 명단 세로 흐름 배치 (5열) */
+    .student-grid-container {
+        column-count: 5;       /* 5개의 열로 나눔 */
+        column-gap: 1rem;      /* 열 사이 간격 */
+        column-rule: 1px solid #eee; /* 열 사이 구분선 (선택) */
+    }
+    .student-item {
+        break-inside: avoid;   /* 이름이 열 사이에서 잘리지 않게 함 */
+        margin-bottom: 0.5rem; /* 학생 간 간격 */
+    }
+    
+    /* 접기/펼치기 버튼 스타일 */
+    .toggle-btn {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .toggle-btn:hover {
+        background-color: #f8f9fa;
+    }
+    /* 체크박스와 라벨 정렬 */
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+</style>
+
 <div class="container mt-5 mb-5">
     <div class="card shadow-lg border-0">
         <div class="card-header bg-white py-3 border-bottom">
             <!-- action 변수에 따라 제목 변경 (생성/수정) -->
-            <h3 class="fw-bold text-primary mb-0">📝 테스트 시트 {{ action }} (교사용)</h3>
+            <h3 class="fw-bold text-primary mb-0">📝 테스트 시트 {{ action }}</h3>
         </div>
         
         <div class="card-body p-5">
             <form method="post">
                 {% csrf_token %}
                 
-                <!-- 1. 기본 정보 섹션 -->
-                <h5 class="fw-bold text-secondary mb-4"><i class="bi bi-info-circle"></i> 기본 정보</h5>
+                <!-- [수정] 평가 대상 선택 드롭다운 -->
+                <div class="row mb-4 align-items-center">
+                    <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
+                        평가 대상 <span class="text-danger">*</span>
+                    </label>
+                    <div class="col-md-9">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary w-100 text-start d-flex justify-content-between align-items-center" 
+                                    type="button" id="targetDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                                <span id="targetSummary">
+                                    {% if current_targets %}
+                                        {{ current_targets|length }}명 선택됨
+                                    {% else %}
+                                        평가 대상을 선택하세요 (클릭하여 명단 열기)
+                                    {% endif %}
+                                </span>
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                            
+                            <!-- 드롭다운 메뉴 -->
+                            <div class="dropdown-menu w-100 p-3 shadow" style="max-height: 600px; overflow-y: auto;">
+                                
+                                <!-- 전체 선택 / 해제 버튼 -->
+                                <div class="d-flex gap-2 mb-3 border-bottom pb-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary w-50 fw-bold" onclick="toggleAllStudents(true)">
+                                        <i class="bi bi-check-all"></i> 전교생 선택
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary w-50" onclick="toggleAllStudents(false)">
+                                        <i class="bi bi-x-circle"></i> 선택 해제
+                                    </button>
+                                </div>
 
-                <!-- 과목명 (자동) -->
+                                <!-- 트리 구조 시작 -->
+                                {% for grade_info in student_tree %}
+                                <div class="mb-2 border rounded p-2">
+                                    <!-- 1. 학년 (클릭하면 반 목록 토글) -->
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div class="form-check fw-bold text-primary mb-0">
+                                            <input class="form-check-input parent-check" type="checkbox" id="g_{{ grade_info.grade }}" 
+                                                onchange="toggleGroup(this, '.group-g-{{ grade_info.grade }}')">
+                                            <label class="form-check-label" for="g_{{ grade_info.grade }}">
+                                                {{ grade_info.grade }}학년
+                                            </label>
+                                        </div>
+                                        <!-- 접기/펼치기 아이콘 -->
+                                        <i class="bi bi-caret-down-fill text-muted toggle-btn p-1" 
+                                        data-bs-toggle="collapse" data-bs-target="#collapse-grade-{{ grade_info.grade }}"></i>
+                                    </div>
+                                    
+                                    <!-- 반 목록 컨테이너 (기본적으로 펼쳐둠 'show', 닫고 싶으면 'show' 제거) -->
+                                    <div class="collapse show ms-2 mt-2 border-top pt-2" id="collapse-grade-{{ grade_info.grade }}">
+                                        {% for class_info in grade_info.classes %}
+                                        <div class="mb-3">
+                                            <!-- 2. 반 (클릭하면 학생 목록 토글) -->
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <div class="form-check fw-bold text-dark mb-0">
+                                                    <input class="form-check-input group-check group-g-{{ grade_info.grade }}" 
+                                                        type="checkbox" id="c_{{ grade_info.grade }}_{{ class_info.class_no }}"
+                                                        onchange="toggleGroup(this, '.child-c-{{ grade_info.grade }}-{{ class_info.class_no }}')">
+                                                    <label class="form-check-label" for="c_{{ grade_info.grade }}_{{ class_info.class_no }}">
+                                                        {{ class_info.class_no }}반 ({{ class_info.students|length }}명)
+                                                    </label>
+                                                </div>
+                                                <!-- 반별 접기/펼치기 아이콘 -->
+                                                <i class="bi bi-caret-down text-muted toggle-btn p-1" 
+                                                data-bs-toggle="collapse" data-bs-target="#collapse-class-{{ grade_info.grade }}-{{ class_info.class_no }}"></i>
+                                            </div>
+
+                                            <!-- 3. 학생 명단 (5열 세로 배치) -->
+                                            <div class="collapse show ps-2" id="collapse-class-{{ grade_info.grade }}-{{ class_info.class_no }}">
+                                                <div class="student-grid-container">
+                                                    {% for s in class_info.students %}
+                                                    <div class="student-item form-check">
+                                                        <input class="form-check-input student-check child-c-{{ grade_info.grade }}-{{ class_info.class_no }} group-g-{{ grade_info.grade }}" 
+                                                            type="checkbox" name="target_students" value="{{ s.id }}" id="s_{{ s.id }}"
+                                                            onchange="updateSummary()"
+                                                            {% if s.id in current_targets %}checked{% endif %}>
+                                                        
+                                                        <!-- ★ 번호 2자리 포맷팅 & 이름 -->
+                                                        <label class="form-check-label small text-secondary" for="s_{{ s.id }}" style="white-space: nowrap;">
+                                                            <span class="fw-bold text-dark">{{ s.number|stringformat:"02d" }}</span> {{ s.name }}
+                                                        </label>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 과목명 -->
                 <div class="row mb-4 align-items-center">
                     <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
                         과목명 <span class="text-danger">*</span>
@@ -44,11 +166,6 @@
                         {{ a_form.title }}
                     </div>
                 </div>
-
-                <hr class="my-5">
-
-                <!-- 2. 문항 상세 섹션 -->
-                <h5 class="fw-bold text-secondary mb-4"><i class="bi bi-question-circle"></i> 문항 상세 입력</h5>
 
                 <!-- 평가 문항 -->
                 <div class="row mb-4">
@@ -106,4 +223,41 @@
         </div>
     </div>
 </div>
+<!-- 트리 체크박스 제어 스크립트 -->
+<script>
+    // 1. 그룹 선택 (학년/반 체크 시 하위 모두 체크)
+    function toggleGroup(parent, selector) {
+        const children = document.querySelectorAll(selector);
+        children.forEach(cb => {
+            cb.checked = parent.checked;
+        });
+        updateSummary();
+    }
+
+    // 2. 요약 문구 업데이트 (몇 명 선택됨)
+    function updateSummary() {
+        const count = document.querySelectorAll('.student-check:checked').length;
+        const summary = document.getElementById('targetSummary');
+        if (count > 0) {
+            summary.innerText = `${count}명 선택됨`;
+            summary.className = "text-primary fw-bold";
+        } else {
+            summary.innerText = "평가 대상을 선택하세요";
+            summary.className = "text-muted";
+        }
+    }
+
+    // 전체 선택/해제 함수
+    function toggleAllStudents(isChecked) {
+        // 모든 체크박스(학년, 반, 학생)를 찾아서 상태 변경
+        const allCheckboxes = document.querySelectorAll('.parent-check, .group-check, .student-check');
+        allCheckboxes.forEach(cb => {
+            cb.checked = isChecked;
+        });
+        updateSummary(); // 문구 업데이트
+    }
+    
+    // 초기 실행 (수정 모드일 때 개수 표시)
+    updateSummary();
+</script>
 {% endblock %}

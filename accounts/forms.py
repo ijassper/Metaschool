@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm 
 from .models import CustomUser, Student, Subject
 
 # 교사 회원가입 폼
@@ -66,3 +66,34 @@ class StudentForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
         }
+
+# ★ 등급 체크 기능이 포함된 로그인 폼
+class CustomAuthenticationForm(AuthenticationForm):
+    # HTML에서 보낸 login_type('teacher' 또는 'student')을 받음
+    login_type = forms.CharField(required=False)
+
+    def clean(self):
+        # 1. 아이디/비번 기본 검사 (장고가 해줌)
+        cleaned_data = super().clean()
+        
+        # 2. 유저 객체 가져오기 (인증 성공 시)
+        user = self.get_user()
+        
+        # 3. 탭 정보 가져오기
+        login_type = cleaned_data.get('login_type')
+
+        input_type = self.data.get('login_type')
+        print(f"🔥 DEBUG: 선택된 탭 = {input_type}")
+        if user:
+            print(f"🔥 DEBUG: 로그인한 유저 등급 = {user.role}")
+
+        if user:
+            # [검사 1] 학생 탭인데 -> 학생이 아니면 에러
+            if login_type == 'student' and user.role != 'STUDENT':
+                raise forms.ValidationError("학생 전용 로그인입니다. 교사 탭을 이용해주세요.")
+            
+            # [검사 2] 교사 탭인데 -> 학생이면 에러
+            if login_type == 'teacher' and user.role == 'STUDENT':
+                raise forms.ValidationError("교사 전용 로그인입니다. 학생 탭을 이용해주세요.")
+                
+        return cleaned_data

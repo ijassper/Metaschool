@@ -5,6 +5,7 @@ import pandas as pd
 import io
 import json
 import pandas as pd  # 엑셀 처리를 위해 필요
+from django.db.models import Q  # 다중 필터 기능
 from django.urls import reverse_lazy
 from django.http import JsonResponse  # 검색 기능을 위해 필요
 from django.http import HttpResponse
@@ -48,15 +49,19 @@ def dashboard(request):
     if request.user.role == 'STUDENT':
         # 내 이메일로 Student 명부 찾기
         try:
+            # 내 정보 찾기
             student_info = Student.objects.get(email=request.user.email)
-            my_teacher = student_info.teacher
+            my_teacher = student_info.teacher # (화면 표시용)
             
-            # 우리 선생님이 만든 활동 중, '평가 진행중(is_active=True)'인 것만 가져오기
-            # (아직 is_active 설정을 안 했으면 일단 다 가져오기)
-            activities = Activity.objects.filter(teacher=my_teacher).order_by('-created_at')
+            # ★ [핵심 수정]
+            # 조건 1: target_students 필드에 '나(student_info)'가 포함되어 있어야 함.
+            # 조건 2: is_active 필터는 뺍니다! (꺼져 있어도 '대기중'으로 봐야 하니까요)
+            activities = Activity.objects.filter(
+                target_students=student_info
+            ).order_by('-created_at')
             
             context['student_activities'] = activities
-            context['my_teacher'] = my_teacher # 선생님 이름 표시용
+            context['my_teacher'] = my_teacher
             
         except Student.DoesNotExist:
             context['error_msg'] = "학생 명부에서 정보를 찾을 수 없습니다."
@@ -130,34 +135,55 @@ def mypage(request):
 @teacher_required
 def student_list(request):
     # 1. 내 학생들 전체 가져오기 (기본)
-    students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
 
-    # 2. 검색 조건 가져오기 (GET 요청)
-    grade_query = request.GET.get('grade')
-    class_query = request.GET.get('class_no')
-    name_query = request.GET.get('q')
+    # 2. 필터용 계층 데이터 만들기 (학년 -> 반)
+    # (activity_result와 동일한 안전한 로직 사용)
+    temp_data = {}
+    for s in all_students:
+        g = s.grade
+        c = s.class_no
+        if g not in temp_data: temp_data[g] = []
+        if c not in temp_data[g]: temp_data[g].append(c)
+    
+    filter_data = []
+    for g in sorted(temp_data.keys()):
+        filter_data.append({
+            'grade': g,
+            'classes': sorted(list(set(temp_data[g])))
+        })
 
-    # 3. 필터링 적용
-    if grade_query:
-        students = students.filter(grade=grade_query)
-    if class_query:
-        students = students.filter(class_no=class_query)
+    # 3. 검색 조건 가져오기
+    selected_targets = request.GET.getlist('target') 
+    name_query = request.GET.get('q', '')
+
+    # 4. 초기 진입 시 기본값 설정 (1학년 1반)
+    # (검색어도 없고, 선택도 안 했을 때 데이터가 너무 많으면 느리므로 첫 반만 보여줌)
+    if not selected_targets and not name_query:
+        if filter_data:
+            g = filter_data[0]['grade']
+            c = filter_data[0]['classes'][0]
+            selected_targets = [f"{g}_{c}"]
+
+    # 5. 필터링 적용
+    students = all_students
+
+    if selected_targets:
+        q_objects = Q()
+        for t in selected_targets:
+            if '_' in t:
+                g, c = t.split('_')
+                q_objects |= Q(grade=g, class_no=c)
+        students = students.filter(q_objects)
+
     if name_query:
         students = students.filter(name__contains=name_query)
 
-    # 4. 필터용 목록 만들기 (등록된 학생들 중에서 존재하는 학년/반만 추출)
-    # values_list로 값만 뽑고, distinct로 중복 제거, 정렬
-    grade_list = Student.objects.filter(teacher=request.user).values_list('grade', flat=True).distinct().order_by('grade')
-    class_list = Student.objects.filter(teacher=request.user).values_list('class_no', flat=True).distinct().order_by('class_no')
-
     context = {
         'students': students,
-        'grade_list': grade_list,
-        'class_list': class_list,
-        # 현재 검색 상태 유지용
-        'current_grade': int(grade_query) if grade_query else '',
-        'current_class': int(class_query) if class_query else '',
-        'current_q': name_query if name_query else '',
+        'filter_data': filter_data,       # ★ 트리 데이터 전달
+        'selected_targets': selected_targets, # ★ 선택 상태 유지
+        'current_q': name_query,
     }
     
     return render(request, 'accounts/student_list.html', context)

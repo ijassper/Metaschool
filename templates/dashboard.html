@@ -151,28 +151,34 @@
                                         <td class="text-start fw-bold">{{ act.title }}</td>
                                         <td class="small text-muted">{{ act.section }}</td>
                                         
-                                        <!-- 상태 표시 (아직 기능 구현 전이라 예시) -->
+                                        <!-- 상태 표시 -->
                                         <td>
                                             {% if act.is_active %}
                                                 <span class="badge bg-success">진행중</span>
                                             {% else %}
-                                                <span class="badge bg-secondary">준비중</span>
+                                                <span class="badge bg-secondary">대기중</span>
                                             {% endif %}
                                         </td>
 
                                         <!-- 응시 버튼 -->
                                         <td>
                                             {% if act.is_active %}
-                                                <a href="{% url 'take_test' act.id %}" class="btn btn-primary btn-sm">응시하기</a>
+                                                <!-- 활성화되면: 파란색 응시 버튼 -->
+                                                <a href="{% url 'take_test' act.id %}" class="btn btn-primary btn-sm">
+                                                    <i class="bi bi-pencil"></i> 응시하기
+                                                </a>
                                             {% else %}
-                                                <button class="btn btn-secondary btn-sm" disabled>대기</button>
+                                                <!-- 비활성화되면: 회색 비활성 버튼 (클릭 불가) -->
+                                                <button class="btn btn-secondary btn-sm" disabled>
+                                                    <i class="bi bi-hourglass-split"></i> 대기
+                                                </button>
                                             {% endif %}
                                         </td>
                                     </tr>
                                     {% empty %}
                                     <tr>
                                         <td colspan="5" class="py-5 text-muted">
-                                            등록된 수행평가가 없습니다.
+                                            배정된 수행평가가 없습니다.
                                         </td>
                                     </tr>
                                     {% endfor %}

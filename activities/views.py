@@ -6,6 +6,7 @@ from django.utils import timezone # 날짜 표시용
 from django.db.models import Q  # 복합 필터링
 import json
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 # 모델과 폼 가져오기
 from .models import Activity, Question, Answer
@@ -20,6 +21,35 @@ def activity_list(request):
     activities = Activity.objects.filter(teacher=request.user).order_by('-created_at')
     return render(request, 'activities/activity_list.html', {'activities': activities})
 
+# [공통 함수] 학생 선택용 트리 데이터 생성 (학년-반-학생 구조)
+def get_student_tree(teacher):
+    students = Student.objects.filter(teacher=teacher).order_by('grade', 'class_no', 'number')
+    
+    tree = {}
+    for s in students:
+        if s.grade not in tree: tree[s.grade] = {}
+        if s.class_no not in tree[s.grade]: tree[s.grade][s.class_no] = []
+        
+        # 학생 정보 (ID, 번호, 이름)
+        tree[s.grade][s.class_no].append({
+            'id': s.id,
+            'number': s.number,
+            'name': s.name
+        })
+    
+    # 정렬된 리스트 형태로 변환 (템플릿용)
+    tree_list = []
+    for g in sorted(tree.keys()):
+        classes = []
+        for c in sorted(tree[g].keys()):
+            classes.append({
+                'class_no': c,
+                'students': tree[g][c]
+            })
+        tree_list.append({'grade': g, 'classes': classes})
+        
+    return tree_list
+
 # 2. 평가 생성 (과목명 수동 입력 반영)
 @login_required
 @teacher_required
@@ -28,11 +58,18 @@ def create_test(request):
         a_form = ActivityForm(request.POST)
         q_form = QuestionForm(request.POST)
         
+        # 선택된 학생 ID 리스트 가져오기
+        selected_student_ids = request.POST.getlist('target_students')
+
         if a_form.is_valid() and q_form.is_valid():
             activity = a_form.save(commit=False)
             activity.teacher = request.user
             activity.save()
             
+            # ★ [핵심] 선택된 학생들 연결
+            if selected_student_ids:
+                activity.target_students.set(selected_student_ids)
+
             question = q_form.save(commit=False)
             question.activity = activity
             question.save()
@@ -45,7 +82,13 @@ def create_test(request):
         a_form = ActivityForm(initial=initial_subject)
         q_form = QuestionForm()
         
-    return render(request, 'activities/create_test.html', {'a_form': a_form, 'q_form': q_form, 'action': '생성'})
+    # ★ 트리 데이터 전달
+    student_tree = get_student_tree(request.user)
+    
+    return render(request, 'activities/create_test.html', {
+        'a_form': a_form, 'q_form': q_form, 'action': '생성',
+        'student_tree': student_tree # 전달
+    })
 
 # 3. 평가 수정
 @login_required
@@ -58,17 +101,29 @@ def update_test(request, activity_id):
     if request.method == 'POST':
         a_form = ActivityForm(request.POST, instance=activity)
         q_form = QuestionForm(request.POST, instance=question)
+        selected_student_ids = request.POST.getlist('target_students')
+
         if a_form.is_valid() and q_form.is_valid():
-            a_form.save()
+            activity = a_form.save() # M2M 저장을 위해 save() 먼저
+            # 대상 업데이트
+            activity.target_students.set(selected_student_ids)
             q_form.save()
+            
             messages.success(request, "평가가 수정되었습니다.")
             return redirect('activity_list')
     else:
         a_form = ActivityForm(instance=activity)
         q_form = QuestionForm(instance=question)
 
-    # 생성 페이지(create_test.html)를 재활용하되 action 변수로 구분
-    return render(request, 'activities/create_test.html', {'a_form': a_form, 'q_form': q_form, 'action': '수정'})
+    student_tree = get_student_tree(request.user)
+    # 이미 선택된 학생 ID 리스트 (수정 시 체크 유지용)
+    current_targets = list(activity.target_students.values_list('id', flat=True))
+
+    return render(request, 'activities/create_test.html', {
+        'a_form': a_form, 'q_form': q_form, 'action': '수정',
+        'student_tree': student_tree,
+        'current_targets': current_targets
+    })
 
 # 4. 평가 삭제
 @login_required
@@ -106,8 +161,13 @@ def activity_detail(request, activity_id):
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 1. 학생 목록 가져오기
-    all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    # 1. 평가 '대상 학생(Target)' 가져오기
+    # (만약 대상 학생이 0명이면, 혹시 모르니 선생님 전체 학생을 가져오는 안전장치 추가 가능)
+    all_students = activity.target_students.all().order_by('grade', 'class_no', 'number')
+    
+    # 대상자가 한 명도 없으면(예전 데이터) -> 기존대로 선생님 학생 전체 가져오기 (호환성 유지)
+    if not all_students.exists():
+        all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
 
     # 2. 필터 데이터 만들기 (파이썬 기본 문법 사용 - 가장 안전함!)
     # 복잡한 DB 기능 대신, 직접 리스트를 만듭니다.
@@ -202,11 +262,25 @@ def activity_result(request, activity_id):
 def take_test(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id)
     question = activity.questions.first()
-    
+
+    # 1. 학생 권한 및 활성화 체크
     if request.user.role != 'STUDENT' or not activity.is_active:
         messages.error(request, "접근할 수 없는 평가입니다.")
         return redirect('dashboard')
 
+    # 2. 내 정보 가져오기
+    try:
+        student_info = Student.objects.get(email=request.user.email)
+    except Student.DoesNotExist:
+        messages.error(request, "학생 정보를 찾을 수 없습니다.")
+        return redirect('dashboard')
+
+    # ★ [신규] 3. 내가 대상자가 맞는지 확인 (보안 강화)
+    # (선생님이 나를 체크하지 않았는데 주소 알고 들어오는 것 방지)
+    if student_info not in activity.target_students.all():
+        messages.error(request, "본인의 평가 대상이 아닙니다.")
+        return redirect('dashboard')
+    
     existing_answer = Answer.objects.filter(student__email=request.user.email, question=question).first()
     
     if request.method == 'POST':
@@ -295,3 +369,34 @@ def save_note(request, answer_id):
         messages.success(request, "특이사항 저장 완료.")
         return redirect('activity_result', activity_id=answer.question.activity.id)
     return redirect('dashboard')
+
+# 학생 활동 로그 저장 API
+@login_required
+def log_activity(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            answer_id = data.get('answer_id')
+            action_type = data.get('type') # 'OUT'(이탈) 또는 'IN'(복귀)
+            
+            answer = Answer.objects.get(id=answer_id)
+            
+            # 현재 시간 (한국 시간)
+            now = timezone.localtime()
+            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+            
+            log_msg = ""
+            if action_type == 'OUT':
+                log_msg = f"⚠️ [이탈] {timestamp} - 화면을 벗어남\n"
+            elif action_type == 'IN':
+                log_msg = f"✅ [복귀] {timestamp} - 화면으로 돌아옴\n"
+            
+            # 로그 누적 저장
+            if log_msg:
+                answer.activity_log += log_msg
+                answer.save()
+                
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    return JsonResponse({'status': 'fail'})
