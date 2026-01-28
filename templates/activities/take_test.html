@@ -89,26 +89,51 @@
         <!-- ★ 오른쪽: 답안지 (70%) -->
         <div class="col-lg-8 h-100">
             <div class="card shadow border-primary full-height-card">
-                <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-pencil-square"></i> 답안 작성 ({{ user.name }})</span>
-                    <span id="charCount" class="badge bg-light text-primary">0자</span>
+                <div class="card-header bg-primary text-white py-4"> 
+                    <div class="d-flex justify-content-between align-items-center">
+                        
+                        <!-- 왼쪽: 제목 + 글자 수 카운터 -->
+                        <div class="d-flex align-items-center">
+                            <!-- 글씨 크기 키움 (fs-3) -->
+                            <span class="fs-3 fw-bold me-3">
+                                <i class="bi bi-pencil-square"></i> 답안 작성 ({{ user.name }})
+                            </span>
+                            <!-- 글자 수 뱃지 이동 및 디자인 변경 -->
+                            <span id="charCount" class="badge bg-white text-primary fs-6 border border-white">
+                                0자 / {{ question.max_length|default:'무제한' }}
+                            </span>
+                        </div>
+
+                        <!-- 오른쪽: 나가기 / 제출 버튼 -->
+                        <div>
+                            <!-- 나가기 버튼 (대시보드로 이동) -->
+                            <!-- onclick에 confirm을 넣어서 실수로 나가는 것 방지 -->
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-light btn-lg fw-bold me-2" onclick="return confirm('시험을 종료하고 나가시겠습니까?\n작성 중인 내용은 저장되지 않습니다.');">
+                                <i class="bi bi-box-arrow-left"></i> 나가기
+                            </a>
+                            
+                            <!-- 제출 버튼 (기존 기능 유지, 위치만 이동) -->
+                            <!-- 빨간색 강조 (btn-danger), 테두리 추가 -->
+                            <button type="button" class="btn btn-danger btn-lg fw-bold border border-white" data-bs-toggle="modal" data-bs-target="#submitModal">
+                                <i class="bi bi-send-fill"></i> 답안제출
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body d-flex flex-column p-2">
+
+                <div class="card-body d-flex flex-column p-0">
+                    <!-- 답안 제출 폼 -->
                     <form method="post" id="answerForm" class="h-100 d-flex flex-column">
                         {% csrf_token %}
-                        <!-- ★ 답안지 ID를 form에 숨겨서 보냄 (로그 저장용) -->
                         <input type="hidden" id="answerId" value="{{ form.instance.id }}"> 
 
-                        <div class="flex-grow-1 mb-2">
+                        <!-- 답안 입력창 (높이 100% 꽉 채우기) -->
+                        <div class="flex-grow-1">
+                            <!-- style 수정: 테두리 없애고(border-0), 꽉 채움 -->
                             {{ form.content }}
                         </div>
                         
-                        <!-- 제출 버튼 (빨간색) -->
-                        <div class="d-grid">
-                            <button type="button" class="btn btn-danger btn-lg fw-bold p-3" data-bs-toggle="modal" data-bs-target="#submitModal">
-                                <i class="bi bi-send-fill"></i> 답안 제출하기
-                            </button>
-                        </div>
+                        <!-- [삭제됨] 하단에 있던 커다란 제출 버튼 삭제 -->
                     </form>
                 </div>
             </div>
@@ -295,9 +320,12 @@
     #id_content {
         height: 100% !important;
         resize: none;
-        font-size: 1.1rem;
-        padding: 20px;
-        border: 1px solid #ced4da;
+        font-size: 1.3rem; /* 글씨 입력도 시원하게 키움 */
+        line-height: 1.8;
+        padding: 30px;     /* 안쪽 여백 넉넉하게 */
+        border: none;      /* 테두리 없애서 깔끔하게 */
+        outline: none;     /* 클릭 시 파란 테두리 제거 */
+        border-radius: 0 0 5px 5px; /* 하단 둥근 모서리 */
     }
 </style>
 {% endblock %}
