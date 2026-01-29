@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5 px-4"> <!-- 꽉 찬 화면 -->
+    
+    <!-- 상단 헤더 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold text-success">
+            <i class="bi bi-table"></i> 결과 분석: {{ activity.title }}
+        </h3>
+        <div>
+            <!-- 나중에 여기에 '엑셀 다운로드', 'AI 분석' 버튼을 추가하면 됩니다 -->
+            <a href="{% url 'activity_list' %}" class="btn btn-secondary btn-sm">목록으로</a>
+        </div>
+    </div>
+
+    <!-- 필터 영역 (제출현황 페이지와 동일한 로직 사용) -->
+    <div class="bg-light p-2 rounded mb-3 border d-flex align-items-center">
+        <form method="get" id="filterForm" class="row g-2 align-items-center w-100 m-0">
+            <div class="col-auto">
+                <div class="dropdown">
+                    <button class="btn btn-white border dropdown-toggle btn-sm bg-white" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <i class="bi bi-funnel-fill text-secondary"></i> 학급 선택
+                    </button>
+                    <!-- (필터 드롭다운 내용은 activity_result.html과 동일하게 복사) -->
+                    <!-- ... 필터 드롭다운 코드 생략 (아래 참고 1) ... -->
+                     <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
+                        {% if not filter_data %}<div class="text-muted small">데이터 없음</div>{% endif %}
+                        {% for item in filter_data %}
+                        <div class="mb-2">
+                            <div class="form-check fw-bold text-primary">
+                                <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
+                                <label class="form-check-label">{{ item.grade }}학년</label>
+                            </div>
+                            <div class="ms-3 border-start ps-2 mt-1">
+                                {% for c in item.classes %}
+                                <div class="form-check">
+                                    <input class="form-check-input child-check child-g-{{ item.grade }}" type="checkbox" name="target" value="{{ item.grade }}_{{ c }}" 
+                                           id="c_{{ item.grade }}_{{ c }}" {% if selected_targets %}{% for t in selected_targets %}{% if t == item.grade|stringformat:"s"|add:"_"|add:c|stringformat:"s" %}checked{% endif %}{% endfor %}{% endif %}>
+                                    <label class="form-check-label">{{ c }}반</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="d-grid mt-2 border-top pt-2"><button type="submit" class="btn btn-primary btn-sm">적용</button></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-auto ms-auto">
+                <input type="text" name="q" class="form-control form-control-sm" placeholder="이름 검색" value="{{ current_q }}">
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-outline-secondary btn-sm">초기화</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- 데이터 테이블 (구글 시트 스타일) -->
+    <div class="table-responsive shadow-sm border" style="max-height: 75vh;">
+        <table class="table table-bordered table-hover mb-0" style="font-size: 0.95rem;">
+            <thead class="table-success sticky-top"> <!-- 초록색 헤더 -->
+                <tr class="text-center">
+                    <th style="width: 60px;">학년</th>
+                    <th style="width: 60px;">반</th>
+                    <th style="width: 60px;">번호</th>
+                    <th style="width: 100px;">이름</th>
+                    <th>답안 내용 ({{ question.content|truncatechars:20 }})</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in analysis_list %}
+                <tr>
+                    <td class="text-center">{{ item.student.grade }}</td>
+                    <td class="text-center">{{ item.student.class_no }}</td>
+                    <td class="text-center">{{ item.student.number }}</td>
+                    <td class="text-center fw-bold">{{ item.student.name }}</td>
+                    
+                    <!-- 답안 내용 (클릭 시 전체 보기) -->
+                    <td class="text-start p-2" style="cursor: pointer;" onclick="showContentModal('{{ item.student.name }}', `{{ item.content|escapejs }}`)">
+                        {% if item.has_answer %}
+                            <div class="text-truncate" style="max-width: 600px;">
+                                {{ item.content }}
+                            </div>
+                        {% else %}
+                            <span class="text-muted small fst-italic">(미제출)</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center py-5">데이터가 없습니다.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 내용 전체보기 모달 -->
+<div class="modal fade" id="contentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 bg-light border rounded" style="white-space: pre-wrap; font-size: 1.1rem; line-height: 1.6;" id="modalContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 필터 스크립트 (기존 동일)
+    function toggleGrade(grade) {
+        const parent = document.getElementById('g_' + grade);
+        const children = document.querySelectorAll('.child-g-' + grade);
+        children.forEach(cb => cb.checked = parent.checked);
+    }
+
+    // 모달 띄우기
+    function showContentModal(name, content) {
+        if (!content) return; // 내용 없으면 클릭 무시
+        document.getElementById('modalTitle').innerText = name + " 학생의 답안";
+        document.getElementById('modalContent').innerText = content;
+        new bootstrap.Modal(document.getElementById('contentModal')).show();
+    }
+</script>
+{% endblock %}

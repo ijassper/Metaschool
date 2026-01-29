@@ -20,6 +20,7 @@
                         <th>상태 (On/Off)</th>
                         <th>생성일</th>
                         <th>결과 관리</th> 
+                        <th>결과 분석</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -55,6 +56,12 @@
                         <td>
                             <a href="{% url 'activity_result' activity.id %}" class="btn btn-outline-primary btn-sm fw-bold">
                                 <i class="bi bi-card-list"></i> 제출 현황
+                            </a>
+                        </td>
+                        <!-- 4. 결과 분석 -->
+                        <td>
+                            <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-outline-success btn-sm fw-bold">
+                                <i class="bi bi-table"></i> 결과 분석
                             </a>
                         </td>
                     </tr>

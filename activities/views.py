@@ -400,3 +400,87 @@ def log_activity(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)})
     return JsonResponse({'status': 'fail'})
+
+# 11. 결과 분석 페이지
+@login_required
+@teacher_required
+def activity_analysis(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    question = activity.questions.first() # 현재는 단일 문항 가정
+
+    # 1. 평가 대상 학생 가져오기 (지정된 학생만)
+    all_students = activity.target_students.all().order_by('grade', 'class_no', 'number')
+    
+    # 대상이 없으면 선생님 전체 학생으로 대체 (호환성)
+    if not all_students.exists():
+        all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+
+    # 2. 필터 데이터 생성 (학년/반 트리)
+    temp_dict = {}
+    for s in all_students:
+        g = s.grade
+        c = s.class_no
+        if g not in temp_dict: temp_dict[g] = []
+        if c not in temp_dict[g]: temp_dict[g].append(c)
+    
+    filter_data = []
+    for g in sorted(temp_dict.keys()):
+        filter_data.append({'grade': g, 'classes': sorted(list(set(temp_dict[g])))})
+
+    # 3. 검색 조건 처리
+    selected_targets = request.GET.getlist('target') 
+    name_query = request.GET.get('q', '')
+
+    # 4. [최적화] 초기 진입 시 '1학년 1반' 강제 선택
+    if not selected_targets and not name_query:
+        if filter_data:
+            g = filter_data[0]['grade']
+            c = filter_data[0]['classes'][0]
+            selected_targets = [f"{g}_{c}"]
+
+    # 5. 필터링 적용
+    target_students = all_students
+    if selected_targets:
+        q_objects = Q()
+        for t in selected_targets:
+            try:
+                g, c = t.split('_')
+                q_objects |= Q(grade=g, class_no=c)
+            except: pass
+        target_students = target_students.filter(q_objects)
+
+    if name_query:
+        target_students = target_students.filter(name__contains=name_query)
+
+    # 6. 분석용 데이터 리스트 생성
+    # (제출 현황과 달리, 여기서는 '답안 내용'이 중요합니다)
+    analysis_list = []
+    
+    for student in target_students:
+        answer = Answer.objects.filter(student=student, question=question).first()
+        
+        content = ""
+        submitted_at = ""
+        has_answer = False
+
+        if answer:
+            content = answer.content
+            submitted_at = answer.submitted_at
+            has_answer = True
+        
+        analysis_list.append({
+            'student': student,
+            'has_answer': has_answer,
+            'content': content,
+            'submitted_at': submitted_at,
+        })
+
+    context = {
+        'activity': activity,
+        'question': question,
+        'analysis_list': analysis_list,
+        'filter_data': filter_data,
+        'selected_targets': selected_targets,
+        'current_q': name_query,
+    }
+    return render(request, 'activities/activity_analysis.html', context)
