@@ -484,3 +484,81 @@ def activity_analysis(request, activity_id):
         'current_q': name_query,
     }
     return render(request, 'activities/activity_analysis.html', context)
+
+# 12. 종합 분석 (모든 평가 모아보기)
+@login_required
+@teacher_required
+def integrated_analysis(request):
+    # 1. 필터링을 위한 전체 학생 가져오기 (기존 로직 재사용)
+    all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    
+    # --- 필터 데이터 생성 (기존과 동일) ---
+    temp_dict = {}
+    for s in all_students:
+        g = s.grade
+        c = s.class_no
+        if g not in temp_dict: temp_dict[g] = []
+        if c not in temp_dict[g]: temp_dict[g].append(c)
+    
+    filter_data = []
+    for g in sorted(temp_dict.keys()):
+        filter_data.append({'grade': g, 'classes': sorted(list(set(temp_dict[g])))})
+    
+    # 2. 검색 조건 처리
+    selected_targets = request.GET.getlist('target') 
+    name_query = request.GET.get('q', '')
+
+    # 초기값 설정 (1학년 1반)
+    if not selected_targets and not name_query and filter_data:
+        g = filter_data[0]['grade']
+        c = filter_data[0]['classes'][0]
+        selected_targets = [f"{g}_{c}"]
+
+    # 필터링 적용
+    target_students = all_students
+    if selected_targets:
+        q_objects = Q()
+        for t in selected_targets:
+            if '_' in t:
+                g, c = t.split('_')
+                q_objects |= Q(grade=g, class_no=c)
+        target_students = target_students.filter(q_objects)
+    if name_query:
+        target_students = target_students.filter(name__contains=name_query)
+
+    # ----------------------------------------------------
+    # ★ [핵심] 가로축(열) 만들기: 선생님이 만든 모든 평가 가져오기
+    activities = Activity.objects.filter(teacher=request.user).order_by('created_at')
+    
+    # ★ [핵심] 데이터 매트릭스 만들기 (학생 x 평가)
+    analysis_table = []
+    
+    for student in target_students:
+        row_data = {
+            'student': student,
+            'answers': [] # 평가 순서대로 답안을 채워 넣음
+        }
+        
+        for act in activities:
+            # 해당 평가의 첫 번째 질문에 대한 이 학생의 답안 찾기
+            question = act.questions.first()
+            if question:
+                ans = Answer.objects.filter(student=student, question=question).first()
+                if ans:
+                    # 내용이 있으면 내용, 없으면 결시 사유 등 표시
+                    row_data['answers'].append(ans.content if ans.content.strip() else f"({ans.get_absence_type_display()})")
+                else:
+                    row_data['answers'].append("") # 미응시 (빈칸)
+            else:
+                row_data['answers'].append("-") # 질문 없음
+                
+        analysis_table.append(row_data)
+
+    context = {
+        'filter_data': filter_data,
+        'selected_targets': selected_targets,
+        'current_q': name_query,
+        'activities': activities,   # 헤더(가로축)
+        'analysis_table': analysis_table # 본문(데이터)
+    }
+    return render(request, 'activities/integrated_analysis.html', context)
