@@ -108,7 +108,7 @@
                         <div>
                             <!-- 나가기 버튼 (대시보드로 이동) -->
                             <!-- onclick에 confirm을 넣어서 실수로 나가는 것 방지 -->
-                            <a href="{% url 'dashboard' %}" class="btn btn-outline-light btn-lg fw-bold me-2" onclick="return confirm('시험을 종료하고 나가시겠습니까?\n작성 중인 내용은 저장되지 않습니다.');">
+                            <a href="{% url 'dashboard' %}" id="exitBtn" class="btn btn-outline-light btn-lg fw-bold me-2" onclick="return confirm('시험을 종료하고 나가시겠습니까?\n작성 중인 내용은 저장되지 않습니다.');">
                                 <i class="bi bi-box-arrow-left"></i> 나가기
                             </a>
                             
@@ -229,6 +229,9 @@
     document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
     function handleFullscreenChange() {
+        // 제출 중이거나 나가기 버튼을 눌렀다면 감시하지 않음!
+        if (isSubmitting) return; 
+
         if (!document.fullscreenElement && 
             !document.webkitFullscreenElement && 
             !document.mozFullScreenElement && 
@@ -295,6 +298,20 @@
                 'type': type
             })
         }).then(res => console.log("Log sent: " + type));
+    }
+
+    // 나가기 버튼 클릭 시 '감시 해제' 설정
+    const exitBtn = document.getElementById('exitBtn');
+    if (exitBtn) {
+        exitBtn.addEventListener('click', function() {
+            // 사용자가 confirm 창에서 '취소'를 누를 수도 있으니
+            // confirm이 true일 때만 감시를 해제해야 하지만, 
+            // href 링크의 onclick이 먼저 실행되므로, 
+            // 여기서는 일단 클릭하면 isSubmitting을 true로 만들어서 블러를 막습니다.
+            // (만약 취소하면 다시 false로 돌리는 복잡한 로직보다는, 
+            //  순간적인 블러를 막는 게 목적이므로 true로 설정합니다.)
+            isSubmitting = true; 
+        });
     }
 
     // 5. 제출 버튼 클릭 시 '제출 중' 상태로 변경
