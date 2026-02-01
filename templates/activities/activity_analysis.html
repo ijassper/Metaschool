@@ -25,6 +25,8 @@
                     <!-- (필터 드롭다운 내용은 activity_result.html과 동일하게 복사) -->
                     <!-- ... 필터 드롭다운 코드 생략 (아래 참고 1) ... -->
                      <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
+                        <!-- z-index: 1050 추가! (Bootstrap 모달보다 높거나 비슷하게 설정) -->
+                        <h6 class="dropdown-header fw-bold mb-2">필터링할 학급을 선택하세요</h6>
                         {% if not filter_data %}<div class="text-muted small">데이터 없음</div>{% endif %}
                         {% for item in filter_data %}
                         <div class="mb-2">
@@ -60,7 +62,7 @@
     <!-- 데이터 테이블 (구글 시트 스타일) -->
     <div class="table-responsive shadow-sm border" style="max-height: 75vh;">
         <table class="table table-bordered table-hover mb-0" style="font-size: 0.95rem;">
-            <thead class="table-success sticky-top"> <!-- 초록색 헤더 -->
+            <thead class="table-success sticky-top" style="z-index: 1;"> <!-- 초록색 헤더 -->
                 <tr class="text-center">
                     <th style="width: 60px;">학년</th>
                     <th style="width: 60px;">반</th>
