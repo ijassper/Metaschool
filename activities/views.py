@@ -9,9 +9,9 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 # 모델과 폼 가져오기
-from .models import Activity, Question, Answer, PromptTemplate
+from .models import Activity, Question, Answer
 from .forms import ActivityForm, QuestionForm, AnswerForm
-from accounts.models import Student
+from accounts.models import Student, PromptTemplate, PromptCategory, 
 
 # 1. 내가 만든 평가 목록 보기
 @login_required
