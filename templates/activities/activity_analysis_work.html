@@ -23,7 +23,7 @@
         <!-- 1. 평가 상세 정보 (왼쪽 5단) -->
         <div class="col-md-5">
             <div class="card shadow-sm mb-4 h-100">
-                <div class="card-header bg-light fw-bold">1. 평가 상세 정보 (가져올 내용)</div>
+                <div class="card-header bg-light fw-bold">1. 평가 상세 정보</div>
                 <div class="card-body small" style="background-color: #fafafa; overflow-y: auto;">
                     <div class="row mb-1">
                         <div class="col-4 text-muted">평가대상</div>
@@ -39,12 +39,12 @@
                     </div>
                     <hr>
                     <div class="mb-3">
-                        <div class="text-muted fw-bold mb-2">평가문항 (확장됨)</div>
+                        <div class="text-muted fw-bold mb-2">평가문항</div>
                         <!-- 높이를 250px로 키우고 스크롤 생성 -->
                         <div class="p-3 bg-white border rounded" style="min-height: 200px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; font-size: 1rem;">{{ question.content }}</div>
                     </div>
                     <div class="mb-3">
-                        <div class="text-muted fw-bold mb-2">참고자료 (확장됨)</div>
+                        <div class="text-muted fw-bold mb-2">참고자료</div>
                         <!-- 높이를 400px로 키우고 스크롤 생성 -->
                         <div class="p-3 bg-white border rounded text-muted" style="min-height: 300px; max-height: 500px; overflow-y: auto; white-space: pre-wrap; font-size: 0.95rem;">{{ question.reference|default:"없음" }}</div>
                     </div>
@@ -61,7 +61,7 @@
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-white fw-bold">2. 교사가 기입할 내용 (AI 지시사항)</div>
                 <div class="card-body">
-                    <!-- 템플릿 불러오기 -->
+                    <!-- 템플릿 불러오기 
                     <div class="mb-4 p-3 bg-warning bg-opacity-10 border border-warning rounded">
                         <label class="small fw-bold text-warning-emphasis mb-2"><i class="bi bi-magic"></i> 프롬프트 예시 불러오기</label>
                         <select class="form-select" id="templateSelect" onchange="applyTemplate()">
@@ -69,17 +69,17 @@
                             {% for t in prompt_templates %}<option value="{{ t.id }}">{{ t.title }}</option>{% endfor %}
                         </select>
                     </div>
-
+                    -->
                     <!-- 활동 맥락 및 AI 역할 (텍스트박스로 변경 및 크기 확장) -->
                     <div class="mb-4">
-                        <label class="form-label fw-bold text-dark">활동의 맥락 및 AI의 역할 (확장됨)</label>
+                        <label class="form-label fw-bold text-dark">활동의 맥락 및 AI의 역할</label>
                         <textarea id="p_context" class="form-control" rows="8" placeholder="예: 고등학교 1학년 사회 수업 시간임. 20년 경력의 베테랑 교사로서 학생의 답안을 분석해줘." style="font-size: 1rem; line-height: 1.6; border: 2px solid #e9ecef;"></textarea>
                         <div class="form-text">선생님의 전문적인 페르소나와 수업 상황을 상세히 적어주세요.</div>
                     </div>
 
                     <!-- AI 수행 작업 -->
                     <div class="mb-4">
-                        <label class="form-label fw-bold text-dark">AI가 수행할 작업 (확장됨)</label>
+                        <label class="form-label fw-bold text-dark">AI가 수행할 작업</label>
                         <textarea id="p_task" class="form-control" rows="10" placeholder="예: 학생의 답안을 읽고 논리력, 창의성, 지식 이해도를 평가하여 생활기록부 문구로 변환해줘." style="font-size: 1rem; line-height: 1.6; border: 2px solid #e9ecef;"></textarea>
                     </div>
 
