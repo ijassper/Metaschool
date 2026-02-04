@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-primary"><i class="bi bi-cpu-fill"></i> 분석 작업: {{ activity.title }}</h3>
+        <a href="{% url 'activity_list' %}" class="btn btn-secondary btn-sm">목록으로</a>
+    </div>
+
+    <div class="row">
+        <!-- 1. 평가 상세 정보 (왼쪽) -->
+        <div class="col-md-5">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light fw-bold">1. 평가 상세 정보 (가져올 내용)</div>
+                <div class="card-body small" style="background-color: #fafafa;">
+                    <div class="row mb-1">
+                        <div class="col-4 text-muted">평가대상</div>
+                        <div class="col-8">{{ activity.section }}</div>
+                    </div>
+                    <div class="row mb-1">
+                        <div class="col-4 text-muted">과목명</div>
+                        <div class="col-8">{{ activity.subject_name }}</div>
+                    </div>
+                    <div class="row mb-1">
+                        <div class="col-4 text-muted">평가주제</div>
+                        <div class="col-8 fw-bold">{{ activity.title }}</div>
+                    </div>
+                    <hr>
+                    <div class="mb-2">
+                        <div class="text-muted mb-1">평가문항</div>
+                        <div class="p-2 bg-white border rounded" style="max-height: 100px; overflow-y: auto;">{{ question.content }}</div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="text-muted mb-1">참고자료</div>
+                        <div class="p-2 bg-white border rounded" style="max-height: 150px; overflow-y: auto;">{{ question.reference|default:"없음" }}</div>
+                    </div>
+                    <div class="mb-0">
+                        <div class="text-muted mb-1">작성조건</div>
+                        <div class="p-2 bg-white border rounded">{{ question.conditions|default:"없음" }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 교사 기입 내용 (오른쪽) -->
+        <div class="col-md-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white fw-bold">2. 교사가 기입할 내용 (AI 지시사항)</div>
+                <div class="card-body">
+                    <!-- 템플릿 불러오기 -->
+                    <div class="mb-3 p-2 bg-warning bg-opacity-10 border rounded">
+                        <label class="small fw-bold text-warning-emphasis">프롬프트 예시 불러오기</label>
+                        <select class="form-select form-select-sm" id="templateSelect" onchange="applyTemplate()">
+                            <option value="">-- 예시 선택 --</option>
+                            {% for t in prompt_templates %}<option value="{{ t.id }}">{{ t.title }}</option>{% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">활동의 맥락 및 AI의 역할</label>
+                        <textarea id="p_context" class="form-control" rows="3" placeholder="예: 고등학교 1학년 역사 수업 시간임..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">AI가 수행할 작업</label>
+                        <textarea id="p_task" class="form-control" rows="8" placeholder="예: 학생의 답안을 분석하여 생기부 문구로 변환해줘..."></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">창의성</label>
+                            <input type="range" class="form-range" min="0.1" max="1.0" step="0.1" id="temperature" value="0.7">
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <span class="badge bg-primary fs-6 mt-3">대상 학생: {{ submit_count }}명</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button type="button" class="btn btn-success btn-lg fw-bold" onclick="runDBAnalysis()">
+                            <i class="bi bi-play-circle-fill"></i> 분석 실행
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 로딩 오버레이 (진행률 바 포함) -->
+<div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-90 d-flex flex-column justify-content-center align-items-center" style="z-index: 10000;">
+    <h3 class="text-white fw-bold mb-3">AI가 학생 답안을 분석 중입니다... 🤖</h3>
+    <div class="progress w-50 mb-2" style="height: 30px;">
+        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 0%">0%</div>
+    </div>
+    <div class="text-white fs-5">
+        [ <span id="currentName" class="text-warning">-</span> ] 학생 처리 중... 
+        (<span id="currentCount">0</span> / {{ submit_count }})
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // 1. 서버에서 받은 학생 명단
+    const answerList = JSON.parse('{{ answer_list_json|escapejs }}');
+
+    async function runDBAnalysis() {
+        if (!confirm("분석을 시작하시겠습니까? 학생별 결과가 DB에 자동 저장됩니다.")) return;
+
+        // 설정값 수집
+        const p_context = document.getElementById('p_context').value;
+        const p_task = document.getElementById('p_task').value;
+        const p_example = document.getElementById('p_example').value;
+        const p_length = document.getElementById('p_length').value;
+        const temperature = document.getElementById('temperature').value;
+        
+        // 최종 지시사항 조합
+        const full_instruction = `
+            [맥락/역할] ${p_context}
+            [작업] ${p_task}
+            [결과예시] ${p_example}
+            [분량] ${p_length}
+        `;
+
+        // UI 켜기
+        document.getElementById('loadingOverlay').classList.remove('d-none');
+
+        // 2. 한 명씩 순서대로 제미나이 분석 실행
+        for (let i = 0; i < answerList.length; i++) {
+            const current = answerList[i];
+            
+            // UI 업데이트
+            document.getElementById('currentName').innerText = current.name;
+            document.getElementById('currentCount').innerText = i + 1;
+            const percent = Math.round(((i + 1) / answerList.length) * 100);
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressBar').innerText = percent + '%';
+
+            try {
+                // 서버 API 호출 (Gemini 호출 및 DB 저장 수행)
+                const response = await fetch('/activities/api/process-db-row/', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        'answer_id': current.id,
+                        'prompt_system': full_instruction,
+                        'temperature': temperature,
+                        'ai_model': 'gemini-2.0-flash' // ★ 제미나이 모델 사용
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status !== 'success') {
+                    console.error(`${current.name} 에러: ${data.message}`);
+                }
+
+                // 과속 방지 (구글 무료 티어 대비 1.5초 대기)
+                await new Promise(r => setTimeout(r, 1500));
+
+            } catch (error) {
+                console.error("통신 장애 발생:", error);
+            }
+        }
+
+        // 3. 완료 처리
+        document.getElementById('loadingOverlay').classList.add('d-none');
+        alert("✅ 모든 학생의 AI 분석이 완료되었습니다!\n결과 분석 페이지에서 내용을 확인하세요.");
+        window.location.href = "{% url 'activity_analysis' activity.id %}";
+    }
+
+    // 템플릿 자동채우기 함수 (기존 로직 유지)
+    // 1. 서버에서 받은 템플릿 데이터를 JS 객체로 변환
+    const templates = {
+        {% for t in prompt_templates %}
+        "{{ t.id }}": {
+            "context": `{{ t.context|escapejs }}`,
+            "task": `{{ t.task|escapejs }}`,
+            "example": `{{ t.output_example|escapejs }}`,
+            // 분량 옵션이 있으면 그 value를, 없으면 빈 문자열
+            "length": "{% if t.length_option %}{{ t.length_option.value|escapejs }}{% else %}{% endif %}"
+        },
+        {% endfor %}
+    };
+
+    // 2. 셀렉트 박스 변경 시 실행되는 함수
+    function applyTemplate() {
+        const templateId = document.getElementById('templateSelect').value;
+        
+        // 필드들 가져오기
+        const contextField = document.getElementById('p_context');
+        const taskField = document.getElementById('p_task');
+        const exampleField = document.getElementById('p_example');
+        const lengthField = document.getElementById('p_length'); // 분량 셀렉트박스
+
+        if (templateId && templates[templateId]) {
+            const t = templates[templateId];
+            
+            // 텍스트 영역 채우기
+            contextField.value = t.context;
+            taskField.value = t.task;
+            exampleField.value = t.example;
+            
+            // 분량 셀렉트박스 선택 (값이 일치하는 옵션이 있을 경우)
+            if (lengthField && t.length) {
+                lengthField.value = t.length;
+            }
+        } else {
+            // 선택 해제 시 초기화 (선택 사항)
+            contextField.value = "";
+            taskField.value = "";
+            exampleField.value = "";
+        }
+    }
+</script>
+{% endblock %}

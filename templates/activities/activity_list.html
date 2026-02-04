@@ -24,6 +24,7 @@
                         <th>생성일</th>
                         <th>결과 관리</th> 
                         <th>결과 분석</th>
+                        <th>결과 확인</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -64,6 +65,12 @@
                         <!-- 4. 결과 분석 -->
                         <td>
                             <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-outline-success btn-sm fw-bold">
+                                <i class="bi bi-table"></i> 결과 분석
+                            </a>
+                        </td>
+                        <!-- 3. 결과 확인 (학생답안 + AI결과 합쳐보기) -->
+                        <td>
+                            <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-sm btn-primary w-100">
                                 <i class="bi bi-table"></i> 결과 분석
                             </a>
                         </td>

@@ -562,3 +562,84 @@ def integrated_analysis(request):
         'analysis_table': analysis_table # 본문(데이터)
     }
     return render(request, 'activities/integrated_analysis.html', context)
+
+    # activities/views.py
+
+# 분석 작업 메인 페이지
+@login_required
+@teacher_required
+def activity_analysis_work(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    question = activity.questions.first()
+    
+    # 답안을 제출한 학생들만 가져와서 ID 리스트를 만듦
+    answers = Answer.objects.filter(question=question).select_related('student')
+    
+    # 자바스크립트가 이해할 수 있도록 JSON 명단 생성
+    answer_list = []
+    for a in answers:
+        answer_list.append({
+            'id': a.id,
+            'name': a.student.name,
+            'info': f"{a.student.grade}-{a.student.class_no}-{a.student.number}"
+        })
+
+    context = {
+        'activity': activity,
+        'question': question,
+        'submit_count': len(answer_list),
+        'answer_list_json': json.dumps(answer_list), # JS로 넘길 명단
+        'prompt_templates': PromptTemplate.objects.all(),
+        'length_options': PromptLengthOption.objects.all(),
+    }
+    return render(request, 'activities/activity_analysis_work.html', context)
+
+# DB 답안을 하나씩 AI에게 보내는 로직
+@csrf_exempt
+@login_required
+def api_process_db_row(request):
+    if request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+            answer_id = body.get('answer_id') # 이번엔 index가 아니라 answer의 실제 ID
+            prompt_system = body.get('prompt_system')
+            temperature = float(body.get('temperature', 0.7))
+            ai_model = body.get('ai_model', 'gpt-3.5-turbo')
+            
+            # 1. 답안 데이터 가져오기
+            answer = Answer.objects.get(id=answer_id)
+            student = answer.student
+            
+            # 2. 프롬프트 재료 조합 (학생 정보 + 답안 내용)
+            student_info = f"[학생: {student.name}({student.grade}-{student.class_no}-{student.number})]"
+            student_answer = f"[학생 답안]\n{answer.content}"
+            
+            final_prompt = f"{student_info}\n{student_answer}\n\n[지시사항]\n{prompt_system}"
+            
+            # 3. API 키 가져오기
+            config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
+            # (멀티 키 랜덤 선택 로직은 이전과 동일하게 유지)
+            api_keys = [k.strip() for k in config.value.split(',') if k.strip()]
+            selected_key = random.choice(api_keys)
+            
+            # 4. AI 호출 (GPT 또는 Gemini 선택 로직)
+            # 여기서는 GPT 예시로 작성 (Gemini 로직도 동일하게 추가 가능)
+            client = openai.OpenAI(api_key=selected_key)
+            response = client.chat.completions.create(
+                model=ai_model,
+                messages=[
+                    {"role": "system", "content": "당신은 학생들의 서술형 답안을 전문적으로 분석하는 교사입니다."},
+                    {"role": "user", "content": final_prompt}
+                ],
+                temperature=temperature
+            )
+            ai_text = response.choices[0].message.content
+            
+            # 5. ★ 중요: DB에 분석 결과 즉시 저장 ★
+            answer.ai_result = ai_text
+            answer.save()
+            
+            return JsonResponse({'status': 'success', 'result': '저장 완료'})
+            
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})

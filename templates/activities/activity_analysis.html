@@ -68,7 +68,8 @@
                     <th style="width: 60px;">반</th>
                     <th style="width: 60px;">번호</th>
                     <th style="width: 100px;">이름</th>
-                    <th class="bg-warning bg-opacity-10">{{ activity.title }}</th>
+                    <th>{{ activity.title }} (학생 답안)</th>
+                    <th class="bg-primary text-white">AI 분석 결과</th>
                 </tr>
             </thead>
             <tbody>
@@ -87,6 +88,14 @@
                             </div>
                         {% else %}
                             <span class="text-muted small fst-italic">(미제출)</span>
+                        {% endif %}
+                    </td>
+                    <!-- AI 결과 표시 -->
+                    <td class="text-start bg-light" style="cursor: pointer;" onclick="showAIModal('{{ item.student.name }}', `{{ item.student.ai_result|escapejs }}`)">
+                        {% if item.student.ai_result %}
+                            <div class="text-truncate" style="max-width: 300px;">{{ item.student.ai_result }}</div>
+                        {% else %}
+                            <span class="text-muted small">-</span>
                         {% endif %}
                     </td>
                 </tr>
