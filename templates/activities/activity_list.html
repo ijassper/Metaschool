@@ -17,14 +17,14 @@
             <table class="table table-hover text-center align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>번호</th>
-                        <th>과목</th>
+                        <th style="width: 5%">번호</th>
+                        <th style="width: 8%">과목</th>
                         <th class="text-start">평가 주제</th>
-                        <th>상태 (On/Off)</th>
-                        <th>생성일</th>
-                        <th>결과 관리</th> 
-                        <th>결과 분석</th>
-                        <th>결과 확인</th>
+                        <th style="width: 10%">상태(On/Off)</th>
+                        <th style="width: 10%">생성일</th>
+                        <th style="width: 10%">제출 관리</th> 
+                        <th style="width: 10%">분석 작업</th>
+                        <th style="width: 10%">결과 확인</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -58,14 +58,14 @@
                         
                         <!-- 3. 제출 현황(답안 보기) -->
                         <td>
-                            <a href="{% url 'activity_result' activity.id %}" class="btn btn-outline-primary btn-sm fw-bold">
-                                <i class="bi bi-card-list"></i> 제출 현황
+                            <a href="{% url 'activity_result' activity.id %}" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="bi bi-person-check"></i> 제출 현황
                             </a>
                         </td>
                         <!-- 4. 결과 분석 -->
                         <td>
-                            <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-outline-success btn-sm fw-bold">
-                                <i class="bi bi-table"></i> 결과 분석
+                            <a href="{% url 'activity_analysis_work' activity.id %}" class="btn btn-sm btn-outline-success w-100">
+                                <i class="bi bi-cpu"></i> AI 분석
                             </a>
                         </td>
                         <!-- 3. 결과 확인 (학생답안 + AI결과 합쳐보기) -->
