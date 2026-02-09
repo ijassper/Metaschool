@@ -125,20 +125,46 @@
     </div>
 </div>
 
+<!-- AI 결과 전체보기 모달 -->
+<div class="modal fade" id="aiModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold" id="aiModalTitle"></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 bg-light border rounded" style="white-space: pre-wrap; font-size: 1.1rem; line-height: 1.6;" id="aiModalContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    // 필터 스크립트 (기존 동일)
+    // 학생 답안 전체보기 모달
+    function showContentModal(name, content) {
+        if (!content) return;
+        document.getElementById('modalTitle').innerText = name + " 학생의 답안";
+        document.getElementById('modalContent').innerText = content;
+        new bootstrap.Modal(document.getElementById('contentModal')).show();
+    }
+
+    // AI 분석 결과 전체보기 모달
+    function showAIModal(name, content) {
+        if (!content) return;
+        document.getElementById('aiModalTitle').innerText = name + " 학생 AI 분석 결과";
+        document.getElementById('aiModalContent').innerText = content;
+        new bootstrap.Modal(document.getElementById('aiModal')).show();
+    }
+
+    // 필터 스크립트 (기존 유지)
     function toggleGrade(grade) {
         const parent = document.getElementById('g_' + grade);
         const children = document.querySelectorAll('.child-g-' + grade);
         children.forEach(cb => cb.checked = parent.checked);
-    }
-
-    // 모달 띄우기
-    function showContentModal(name, content) {
-        if (!content) return; // 내용 없으면 클릭 무시
-        document.getElementById('modalTitle').innerText = name + " 학생의 답안";
-        document.getElementById('modalContent').innerText = content;
-        new bootstrap.Modal(document.getElementById('contentModal')).show();
     }
 </script>
 {% endblock %}
