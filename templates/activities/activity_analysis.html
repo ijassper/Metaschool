@@ -91,9 +91,9 @@
                         {% endif %}
                     </td>
                     <!--  AI 결과 표시 -->
-                    <td class="text-start bg-light" style="cursor: pointer;" onclick="showAIModal('{{ item.student.name }}', `{{ item.student.ai_result|escapejs }}`)">
-                        {% if item.student.ai_result %}
-                            <div class="text-truncate" style="max-width: 300px;">{{ item.student.ai_result }}</div>
+                    <td class="text-start bg-light" style="cursor: pointer;" onclick="showAIModal('{{ item.student.name }}', `{{ item.ai_result|escapejs }}`)">
+                        {% if item.ai_result %} <!-- views.py에서 넘겨준 ai_result 변수 사용 -->
+                            <div class="text-truncate" style="max-width: 300px;">{{ item.ai_result }}</div>
                         {% else %}
                             <span class="text-muted small">-</span>
                         {% endif %}
