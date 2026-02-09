@@ -3,7 +3,7 @@ from .views import (
     create_test, activity_list, update_test, delete_test, 
     toggle_activity_status, activity_detail, activity_result, take_test,
     answer_detail, answer_delete, save_note, update_absence, log_activity,
-    activity_analysis, integrated_analysis, 
+    activity_analysis, integrated_analysis, activity_analysis_work, api_process_db_row
 )
 from activities import views
 
@@ -23,6 +23,6 @@ urlpatterns = [
     path('api/log/', log_activity, name='log_activity'), # 학생 답안 화면 이탈로그
     path('analysis/<int:activity_id>/', activity_analysis, name='activity_analysis'), # 결과 분석 페이지
     path('analysis/all/', integrated_analysis, name='integrated_analysis'), # 종합 분석 페이지
-    path('analysis-work/<int:activity_id>/', views.activity_analysis_work, name='activity_analysis_work'), # 분석 작업 메인 페이지
-    path('api/process-db-row/', views.api_process_db_row, name='api_process_db_row'), # DB 답안 AI 처리 API
+    path('analysis-work/<int:activity_id>/', activity_analysis_work, name='activity_analysis_work'), # 분석 작업 메인 페이지
+    path('api/process-db-row/', api_process_db_row, name='api_process_db_row'), # DB 답안 AI 처리 API
 ]
