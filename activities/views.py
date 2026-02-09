@@ -464,11 +464,13 @@ def activity_analysis(request, activity_id):
         
         content = ""
         submitted_at = ""
+        ai_result = ""
         has_answer = False
 
         if answer:
             content = answer.content
             submitted_at = answer.submitted_at
+            ai_result = answer.ai_result
             has_answer = True
         
         analysis_list.append({
@@ -476,6 +478,7 @@ def activity_analysis(request, activity_id):
             'has_answer': has_answer,
             'content': content,
             'submitted_at': submitted_at,
+            'ai_result': ai_result,
         })
 
     context = {
