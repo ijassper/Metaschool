@@ -573,19 +573,28 @@ def activity_analysis_work(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     question = activity.questions.first()
     
-    # 이 평가에 배정된 학생들 중 답안을 제출한 학생 수 확인
-    submit_count = Answer.objects.filter(question=question).count()
+    answer_list = [] # 기본값은 빈 리스트
     
-    # 프롬프트 템플릿 목록 (기존에 만든 예시 불러오기 기능 활용)
-    prompt_templates = PromptTemplate.objects.all()
-    length_options = PromptLengthOption.objects.all()
+    # 질문이 존재할 때만 답안을 찾음
+    if question:
+        answers = Answer.objects.filter(question=question).select_related('student')
+        for a in answers:
+            answer_list.append({
+                'id': a.id,
+                'name': a.student.name,
+                'info': f"{a.student.grade}-{a.student.class_no}-{a.student.number}"
+            })
+
+    # 만약 answer_list가 비어있다면 명시적으로 '[]' 문자열을 만듦
+    answer_list_json = json.dumps(answer_list) if answer_list else "[]"
 
     context = {
         'activity': activity,
         'question': question,
-        'submit_count': submit_count,
-        'prompt_templates': prompt_templates,
-        'length_options': length_options,
+        'submit_count': len(answer_list),
+        'answer_list_json': answer_list_json, # 이제 무조건 '[]' 라도 나감
+        'prompt_templates': PromptTemplate.objects.all(),
+        'length_options': PromptLengthOption.objects.all(),
     }
     return render(request, 'activities/activity_analysis_work.html', context)
 

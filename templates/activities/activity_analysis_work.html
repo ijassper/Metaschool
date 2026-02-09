@@ -135,11 +135,15 @@
 
     // 학생 명단 데이터 (에러 방지를 위해 변수 존재 확인)
     let answerList = [];
+    const rawJson = '{{ answer_list_json|escapejs }}';
+
     try {
-        answerList = JSON.parse('{{ answer_list_json|escapejs }}');
-        console.log("분석 대상 명단:", answerList);
+        // 만약 데이터가 진짜 비어있으면(null/undefined) 빈 배열로 초기화
+        answerList = rawJson ? JSON.parse(rawJson) : [];
+        console.log("분석 대상 명단 로드 성공:", answerList);
     } catch (e) {
-        console.error("데이터 로딩 실패:", e);
+        console.error("데이터 파싱 에러:", e);
+        answerList = []; // 에러 나면 빈 배열로 강제 설정
     }
 
     // ★ 드디어 본체 함수
