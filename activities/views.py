@@ -5,13 +5,16 @@ from django.contrib import messages
 from django.utils import timezone # 날짜 표시용
 from django.db.models import Q  # 복합 필터링
 import json
+import requests
+import random
+import openai
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 # 모델과 폼 가져오기
-from .models import Activity, Question, Answer
+from .models import Activity, Question, Answer, SystemConfig, PromptTemplate, PromptLengthOption
 from .forms import ActivityForm, QuestionForm, AnswerForm
-from accounts.models import Student, PromptTemplate, PromptCategory, PromptLengthOption
+from accounts.models import Student
 
 # 1. 내가 만든 평가 목록 보기
 @login_required
@@ -563,8 +566,6 @@ def integrated_analysis(request):
     }
     return render(request, 'activities/integrated_analysis.html', context)
 
-    # activities/views.py
-
 # 분석 작업 메인 페이지
 @login_required
 @teacher_required
@@ -572,25 +573,19 @@ def activity_analysis_work(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     question = activity.questions.first()
     
-    # 답안을 제출한 학생들만 가져와서 ID 리스트를 만듦
-    answers = Answer.objects.filter(question=question).select_related('student')
+    # 이 평가에 배정된 학생들 중 답안을 제출한 학생 수 확인
+    submit_count = Answer.objects.filter(question=question).count()
     
-    # 자바스크립트가 이해할 수 있도록 JSON 명단 생성
-    answer_list = []
-    for a in answers:
-        answer_list.append({
-            'id': a.id,
-            'name': a.student.name,
-            'info': f"{a.student.grade}-{a.student.class_no}-{a.student.number}"
-        })
+    # 프롬프트 템플릿 목록 (기존에 만든 예시 불러오기 기능 활용)
+    prompt_templates = PromptTemplate.objects.all()
+    length_options = PromptLengthOption.objects.all()
 
     context = {
         'activity': activity,
         'question': question,
-        'submit_count': len(answer_list),
-        'answer_list_json': json.dumps(answer_list), # JS로 넘길 명단
-        'prompt_templates': PromptTemplate.objects.all(),
-        'length_options': PromptLengthOption.objects.all(),
+        'submit_count': submit_count,
+        'prompt_templates': prompt_templates,
+        'length_options': length_options,
     }
     return render(request, 'activities/activity_analysis_work.html', context)
 
@@ -601,45 +596,60 @@ def api_process_db_row(request):
     if request.method == 'POST':
         try:
             body = json.loads(request.body)
-            answer_id = body.get('answer_id') # 이번엔 index가 아니라 answer의 실제 ID
+            answer_id = body.get('answer_id')
             prompt_system = body.get('prompt_system')
             temperature = float(body.get('temperature', 0.7))
-            ai_model = body.get('ai_model', 'gpt-3.5-turbo')
             
+            # ★ 모델명을 gemini-2.0-flash 로 고정하거나 기본값으로 설정
+            ai_model = body.get('ai_model', 'gemini-2.0-flash')
+
             # 1. 답안 데이터 가져오기
             answer = Answer.objects.get(id=answer_id)
             student = answer.student
             
-            # 2. 프롬프트 재료 조합 (학생 정보 + 답안 내용)
+            # 2. 프롬프트 재료 조합
             student_info = f"[학생: {student.name}({student.grade}-{student.class_no}-{student.number})]"
-            student_answer = f"[학생 답안]\n{answer.content}"
+            # 최종 지시사항 조립
+            final_prompt = f"{student_info}\n[학생 답안]\n{answer.content}\n\n[지시사항]\n{prompt_system}"
             
-            final_prompt = f"{student_info}\n{student_answer}\n\n[지시사항]\n{prompt_system}"
+            result_text = ""
+
+            # ---------------------------------------------------------
+            # Google Gemini 2.0 Flash 호출 로직 (REST API 방식)
+            # ---------------------------------------------------------
+            config = SystemConfig.objects.get(key_name='GOOGLE_API_KEY')
+            api_key = config.value.strip()
             
-            # 3. API 키 가져오기
-            config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
-            # (멀티 키 랜덤 선택 로직은 이전과 동일하게 유지)
-            api_keys = [k.strip() for k in config.value.split(',') if k.strip()]
-            selected_key = random.choice(api_keys)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{ai_model}:generateContent?key={api_key}"
             
-            # 4. AI 호출 (GPT 또는 Gemini 선택 로직)
-            # 여기서는 GPT 예시로 작성 (Gemini 로직도 동일하게 추가 가능)
-            client = openai.OpenAI(api_key=selected_key)
-            response = client.chat.completions.create(
-                model=ai_model,
-                messages=[
-                    {"role": "system", "content": "당신은 학생들의 서술형 답안을 전문적으로 분석하는 교사입니다."},
-                    {"role": "user", "content": final_prompt}
-                ],
-                temperature=temperature
-            )
-            ai_text = response.choices[0].message.content
+            payload = {
+                "contents": [{
+                    "parts": [{"text": final_prompt}]
+                }],
+                "generationConfig": {
+                    "temperature": temperature
+                }
+            }
             
-            # 5. ★ 중요: DB에 분석 결과 즉시 저장 ★
-            answer.ai_result = ai_text
+            # 구글 서버로 직접 요청
+            response = requests.post(url, json=payload)
+            response_data = response.json()
+            
+            if "candidates" in response_data:
+                result_text = response_data["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                # 에러 발생 시 상세 메시지 기록
+                result_text = f"[Google API 에러] {response_data}"
+
+            # 3. ★ DB에 분석 결과 저장 ★
+            answer.ai_result = result_text
             answer.save()
             
             return JsonResponse({'status': 'success', 'result': '저장 완료'})
             
+        except SystemConfig.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': '관리자 페이지에서 GOOGLE_API_KEY를 등록해주세요.'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)})
+
+    return JsonResponse({'status': 'fail'}, status=400)

@@ -90,7 +90,7 @@
                             <span class="text-muted small fst-italic">(미제출)</span>
                         {% endif %}
                     </td>
-                    <!-- AI 결과 표시 -->
+                    <!--  AI 결과 표시 -->
                     <td class="text-start bg-light" style="cursor: pointer;" onclick="showAIModal('{{ item.student.name }}', `{{ item.student.ai_result|escapejs }}`)">
                         {% if item.student.ai_result %}
                             <div class="text-truncate" style="max-width: 300px;">{{ item.student.ai_result }}</div>
