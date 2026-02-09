@@ -107,37 +107,71 @@
 
 {% block extra_scripts %}
 <script>
+    // 1. 데이터가 정상적으로 넘어오는지 확인하기 위한 로그
+    console.log("스크립트 로딩 시작");
+
+    // 템플릿 데이터 매핑 (따옴표 구조를 더 안전하게 변경)
+    const templates = {
+        {% for t in prompt_templates %}
+        "{{ t.id }}": {
+            "context": "{{ t.context|escapejs }}",
+            "task": "{{ t.task|escapejs }}",
+            "example": "{{ t.output_example|escapejs }}",
+            "length": "{% if t.length_option %}{{ t.length_option.value|escapejs }}{% endif %}"
+        },
+        {% endfor %}
+    };
+
+    function applyTemplate() {
+        const id = document.getElementById('templateSelect').value;
+        if (id && templates[id]) {
+            const t = templates[id];
+            document.getElementById('p_context').value = t.context;
+            document.getElementById('p_task').value = t.task;
+            document.getElementById('p_example').value = t.example;
+            document.getElementById('p_length').value = t.length;
+        }
+    }
+
+    // 학생 명단 데이터 (에러 방지를 위해 변수 존재 확인)
+    let answerList = [];
+    try {
+        answerList = JSON.parse('{{ answer_list_json|escapejs }}');
+        console.log("분석 대상 명단:", answerList);
+    } catch (e) {
+        console.error("데이터 로딩 실패:", e);
+    }
+
+    // ★ 드디어 본체 함수
     async function runDBAnalysis() {
-        console.log("1. 분석 버튼 클릭됨");
+        console.log("분석 시작 버튼 클릭됨");
         
-        if (typeof answerList === 'undefined' || answerList.length === 0) {
-            console.error("에러: 분석할 학생 명단이 없습니다.");
+        if (!answerList || answerList.length === 0) {
             alert("분석할 학생 답안이 없습니다.");
             return;
         }
-        console.log("2. 분석 대상 수:", answerList.length);
+        
+        const p_context = document.getElementById('p_context').value;
+        const p_task = document.getElementById('p_task').value;
+        const p_example = document.getElementById('p_example').value;
+        const p_length = document.getElementById('p_length').value;
+        const temperature = document.getElementById('temperature').value;
+        
+        const full_instruction = "[맥락]: " + p_context + "\n[작업]: " + p_task + "\n[예시]: " + p_example + "\n[분량]: " + p_length;
 
-        try {
-            const p_context = document.getElementById('p_context').value;
-            const p_task = document.getElementById('p_task').value;
-            const p_example = document.getElementById('p_example').value;
-            const p_length = document.getElementById('p_length').value;
-            const temperature = document.getElementById('temperature').value;
-            
-            console.log("3. 입력값 수집 완료", {p_context, p_task, p_length});
+        if (!confirm(answerList.length + "건의 분석을 시작할까요?")) return;
 
-            if (!confirm(`제출된 ${answerList.length}건의 답안 분석을 시작하시겠습니까?`)) return;
+        document.getElementById('loadingOverlay').classList.remove('d-none');
 
-            document.getElementById('loadingOverlay').classList.remove('d-none');
+        for (let i = 0; i < answerList.length; i++) {
+            const current = answerList[i];
+            document.getElementById('currentName').innerText = current.name;
+            document.getElementById('currentCount').innerText = i + 1;
+            const percent = Math.round(((i + 1) / answerList.length) * 100);
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressBar').innerText = percent + '%';
 
-            for (let i = 0; i < answerList.length; i++) {
-                const current = answerList[i];
-                console.log(`4. ${current.name} 처리 시작...`);
-
-                // UI 업데이트
-                document.getElementById('currentName').innerText = current.name;
-                document.getElementById('currentCount').innerText = i + 1;
-
+            try {
                 const response = await fetch('/activities/api/process-db-row/', {
                     method: 'POST',
                     headers: { 
@@ -146,26 +180,22 @@
                     },
                     body: JSON.stringify({
                         'answer_id': current.id,
-                        'prompt_system': `[맥락]: ${p_context}\n[작업]: ${p_task}\n[예시]: ${p_example}\n[분량]: ${p_length}`,
+                        'prompt_system': full_instruction,
                         'temperature': temperature,
                         'ai_model': 'gemini-2.0-flash' 
                     })
                 });
-
-                const data = await response.json();
-                console.log(`5. ${current.name} 응답 완료:`, data.status);
-
-                await new Promise(r => setTimeout(r, 1000)); 
+                await new Promise(r => setTimeout(r, 1200)); 
+            } catch (error) {
+                console.error("통신 에러:", error);
             }
-
-            alert("✅ 분석이 완료되었습니다!");
-            window.location.href = "{% url 'activity_analysis' activity.id %}";
-
-        } catch (error) {
-            console.error("최종 에러 발생:", error);
-            alert("실행 중 오류가 발생했습니다. 콘솔창(F12)을 확인해주세요.");
-            document.getElementById('loadingOverlay').classList.add('d-none');
         }
+
+        document.getElementById('loadingOverlay').classList.add('d-none');
+        alert("✅ 분석 완료!");
+        window.location.href = "{% url 'activity_analysis' activity.id %}";
     }
+    
+    console.log("스크립트 로딩 완료 - 이제 버튼이 작동할 것입니다.");
 </script>
 {% endblock %}
