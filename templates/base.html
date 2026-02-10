@@ -4,97 +4,132 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Metaschool - 교사 업무 지원</title>
-    <!-- 부트스트랩 CDN (디자인용) -->
+    <!-- 부트스트랩 CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 아이콘 사용을 위한 Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    
     <style>
         body { background-color: #f8f9fa; }
-        .navbar { box-shadow: 0 2px 4px rgba(0,0,0,.1); }
+        .navbar { box-shadow: 0 2px 4px rgba(0,0,0,.05); z-index: 1030; }
+        
+        /* 사이드바 스타일 정의 */
+        .sidebar {
+            min-height: calc(100vh - 56px);
+            background-color: white;
+            border-right: 1px solid #dee2e6;
+            padding-top: 1.5rem;
+        }
+        .sidebar .nav-link {
+            color: #495057;
+            font-size: 0.95rem;
+            padding: 0.7rem 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.2rem;
+        }
+        .sidebar .nav-link:hover {
+            background-color: #e9ecef;
+            color: #0d6efd;
+        }
+        .sidebar .nav-link.active {
+            background-color: #e7f1ff;
+            color: #0d6efd;
+            font-weight: bold;
+        }
+        .sidebar-heading {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            color: #adb5bd;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            padding-left: 1rem;
+        }
+        /* 메인 콘텐츠 영역 여백 */
+        main { padding-top: 1.5rem; }
     </style>
 </head>
 <body>
 
-    <!-- [공통] 상단 메뉴바 (Navbar) -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4 border-bottom">
-        <div class="container">
-            <!-- 로고 클릭 시 대시보드로 이동 -->
+    <!-- [공통] 상단 메뉴바 (기존 유지, 로고 및 사용자 정보 위주) -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top">
+        <div class="container-fluid px-4">
             <a class="navbar-brand fw-bold text-primary" href="{% url 'dashboard' %}">
                 <i class="bi bi-grid-fill"></i> Metaschool
             </a>
             
-            <!-- 모바일 화면용 햄버거 버튼 -->
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
-            <div class="collapse navbar-collapse" id="navbarContent">
+            <div class="ms-auto d-flex align-items-center">
                 {% if user.is_authenticated %}
-                    <!-- 로그인 했을 때 보이는 메뉴 -->
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        <!-- 2. '대시보드' 메뉴 클릭 시 -> 대시보드로 이동 -->
-                        <li class="nav-item">
-                            <a class="nav-link active" href="{% url 'dashboard' %}">대시보드</a>
-                        </li>
-                        
-                        <!-- 3. 교사 이상만 보이는 메뉴들 (게스트/학생에겐 숨김) -->
-                        {% if user.role != 'GUEST' and user.role != 'STUDENT' %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="{% url 'student_list' %}">학생 관리</a>
-                            <!-- ... -->
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link fw-bold text-success" href="{% url 'ai_generator_step1' %}">
-                                <i class="bi bi-magic"></i> 학생결과물 AI 분석
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                    
-                    <!-- 우측 사용자 정보 -->
-                    <div class="d-flex align-items-center">
-                        <!--등급에 따라 호칭 변경 -->
-                        <span class="me-3 text-secondary">
-                            <i class="bi bi-person-circle"></i> 
-                            <strong>{{ user.name }}</strong> 
-                            {% if user.role == 'STUDENT' %}
-                                학생 <!-- 또는 '님' -->
-                            {% else %}
-                                선생님
-                            {% endif %}
-                        </span>
-                        <!-- 관리자 전용 버튼 -->
-                        {% if user.is_superuser %}
-                            <a href="/admin/" target="_blank" class="btn btn-dark btn-sm me-2">
-                                <i class="bi bi-gear-fill"></i> 관리자 메뉴
-                            </a>
-                        {% endif %}
-                        <form action="{% url 'logout' %}" method="post">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-outline-secondary btn-sm">로그아웃</button>
-                        </form>
-                    </div>
+                    <span class="me-3 text-secondary d-none d-md-inline">
+                        <i class="bi bi-person-circle"></i> <strong>{{ user.name }}</strong> 선생님
+                    </span>
+                    {% if user.is_superuser %}
+                        <a href="/admin/" target="_blank" class="btn btn-dark btn-sm me-2">관리자</a>
+                    {% endif %}
+                    <form action="{% url 'logout' %}" method="post" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-secondary btn-sm">로그아웃</button>
+                    </form>
                 {% else %}
-                    <!-- 로그인 안 했을 때 -->
-                    <div class="ms-auto">
-                        <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm me-2">로그인</a>
-                        <a href="{% url 'signup' %}" class="btn btn-primary btn-sm">회원가입</a>
-                    </div>
+                    <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm me-2">로그인</a>
+                    <a href="{% url 'signup' %}" class="btn btn-primary btn-sm">회원가입</a>
                 {% endif %}
             </div>
         </div>
     </nav>
-    <!-- 아이콘 사용을 위한 Bootstrap Icons CDN 추가 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
-    <!-- [변하는 부분] 실제 내용은 이 블록 안에 들어갑니다 -->
-    <div class="container">
-        {% block content %}
-        {% endblock %}
+    <div class="container-fluid">
+        <div class="row">
+            <!-- [왼쪽 사이드바 영역] -->
+            {% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse shadow-sm">
+                <div class="position-sticky px-2">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                                <i class="bi bi-house-door me-2"></i> 대시보드
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'student_list' %}">
+                                <i class="bi bi-people me-2"></i> 학생 관리
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-success fw-bold" href="{% url 'ai_generator_step1' %}">
+                                <i class="bi bi-magic me-2"></i> 학생결과물 AI 분석
+                            </a>
+                        </li>
+
+                        <!-- 신규 7가지 메뉴 그룹 -->
+                        <h6 class="sidebar-heading">교과 활동 분석</h6>
+                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-file-earmark-text me-2"></i>1. 평가 답안 분석</a></li>
+                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-journal-check me-2"></i>2. 수업활동 보고서</a></li>
+                        
+                        <h6 class="sidebar-heading">비교과/리포트</h6>
+                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-calendar-event me-2"></i>3. 교내 행사활동</a></li>
+                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-briefcase me-2"></i>4. 창의적체험활동</a></li>
+                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-compass me-2"></i>5. 진로활동 보고서</a></li>
+
+                        <h6 class="sidebar-heading">학급 경영</h6>
+                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-door-open me-2"></i>6. 학급활동</a></li>
+                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-graph-up-arrow me-2"></i>7. 교사 맞춤 분석</a></li>
+                    </ul>
+                </div>
+            </nav>
+            {% endif %}
+
+            <!-- [오른쪽 메인 콘텐츠 영역] -->
+            <main class="{% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}col-md-9 ms-sm-auto col-lg-10{% else %}col-12{% endif %} px-md-4">
+                {% block content %}
+                <!-- dashboard.html의 내용이 여기 들어갑니다 -->
+                {% endblock %}
+            </main>
+        </div>
     </div>
 
-    <!-- Bootstrap JS (팝업, 드롭다운 메뉴 작동에 필수) -->
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- AI분석 관련 스크립트 -->
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
