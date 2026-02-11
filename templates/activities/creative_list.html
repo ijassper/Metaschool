@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold"><i class="bi bi-list-task text-primary"></i> 창의적체험활동 목록</h3>
+    <a href="{% url 'creative_create' %}" class="btn btn-primary shadow-sm">
+        <i class="bi bi-plus-lg"></i> 새 활동 만들기
+    </a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="vertical-align: middle;">
+            <thead class="table-light">
+                <tr>
+                    <th class="text-center">번호</th>
+                    <th>활동명</th>
+                    <th>주제</th>
+                    <th class="text-center">상태</th>
+                    <th>생성일</th>
+                    <th class="text-center">제출관리</th>
+                    <th class="text-center">분석작업</th>
+                    <th class="text-center">결과확인</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for activity in activities %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td class="fw-bold">{{ activity.title }}</td>
+                    <td>{{ activity.subject }}</td>
+                    <td class="text-center">
+                        <span class="badge rounded-pill bg-success">진행중</span>
+                    </td>
+                    <td>{{ activity.created_at|date:"Y-m-d" }}</td>
+                    <td class="text-center">
+                        <button class="btn btn-outline-primary btn-sm">제출 현황</button>
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-outline-success btn-sm"><i class="bi bi-robot"></i> AI 분석</button>
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-primary btn-sm">결과 분석</button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-5 text-muted">등록된 활동이 없습니다.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,26 +1,58 @@
 from django.db import models
 from django.conf import settings
 from accounts.models import Student
+from django.utils import timezone
 
 class Activity(models.Model):
-    # 선생님 & 과목 정보 (자동 입력)
-    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    subject_name = models.CharField(max_length=50, verbose_name="과목명") # 선생님 과목 자동 저장
-    
-    # 스케치의 입력 항목들
-    section = models.CharField(max_length=100, verbose_name="평가영역명") # 예: 문학
-    title = models.CharField(max_length=200, verbose_name="평가 주제")
+    # 1. 활동 유형 분류 (7가지 메뉴 대응)
+    CATEGORY_CHOICES = [
+        ('ESSAY', '교과 논술형 평가'),
+        ('SUBJECT', '교과 수업활동'),
+        ('EVENT', '교내 행사활동'),
+        ('CREATIVE', '창의적체험활동'),
+        ('CAREER', '진로활동'),
+        ('CLASS', '학급활동'),
+        ('CUSTOM', '교사 맞춤형 분석'),
+    ]
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='ESSAY', verbose_name="활동 유형")
 
-    # 평가 대상 학생들 (Many-to-Many)
-    # blank=True로 두어 나중에 추가할 수도 있게 함
-    target_students = models.ManyToManyField(Student, blank=True, related_name='activities', verbose_name="평가 대상 학생")
+    # 2. 기본 정보
+    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    subject_name = models.CharField(max_length=50, verbose_name="과목명/활동분류") 
+    section = models.CharField(max_length=100, verbose_name="평가영역/활동명") 
+    title = models.CharField(max_length=200, verbose_name="주제")
+
+    # 3. 상세 내용 (신규 추가)
+    question = models.TextField(verbose_name="평가/활동 문항", blank=True)
+    reference_material = models.TextField(null=True, blank=True, verbose_name="참고 자료")
+    conditions = models.TextField(null=True, blank=True, verbose_name="작성 조건")
     
-    # 관리 정보
+    # 4. 제한 및 기한 (신규 추가)
+    deadline = models.DateTimeField(null=True, blank=True, verbose_name="제출 기한")
+    char_limit = models.IntegerField(default=0, verbose_name="분량 제한(자)") # 0은 무제한
+
+    # 5. 대상 및 상태
+    target_students = models.ManyToManyField('Student', blank=True, related_name='activities', verbose_name="대상 학생")
     created_at = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=False, verbose_name="평가 진행중") # 학생에게 보이기 여부
+    is_active = models.BooleanField(default=False, verbose_name="활성화 여부")
+
+    class Meta:
+        verbose_name = "활동 및 평가"
+        verbose_name_plural = "활동 및 평가 목록"
+        ordering = ['-created_at']
 
     def __str__(self):
-        return f"[{self.subject_name}] {self.title}"
+        return f"[{self.get_category_display()}] {self.title}"
+
+    # 상태를 동적으로 판단하는 프로퍼티
+    @property
+    def status_text(self):
+        now = timezone.now()
+        if not self.is_active:
+            return "대기중"
+        if self.deadline and now > self.deadline:
+            return "마감됨"
+        return "진행중"
 
 class Question(models.Model):
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name='questions')

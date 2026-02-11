@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from accounts.decorators import teacher_required
 from django.contrib import messages
 from django.utils import timezone # 날짜 표시용
+from datetime import datetime   # 날짜 비교용
 from django.db.models import Q  # 복합 필터링
 import json
 import requests
@@ -665,3 +666,56 @@ def api_process_db_row(request):
             return JsonResponse({'status': 'error', 'message': str(e)})
 
     return JsonResponse({'status': 'fail'}, status=400)
+
+# 1. 창의적체험활동 목록 뷰
+@login_required
+def creative_list(request):
+    # 로그인한 선생님이 작성한 '창의적체험활동' 카테고리만 필터링
+    activities = Activity.objects.filter(
+        teacher=request.user, 
+        category='CREATIVE'
+    ).order_by('-created_at')
+    
+    return render(request, 'activities/creative_list.html', {
+        'activities': activities
+    })
+
+# 2. 창의적체험활동 생성 뷰
+@login_required
+def creative_create(request):
+    if request.method == 'POST':
+        # 폼에서 데이터 받아오기
+        title = request.POST.get('title')
+        subject = request.POST.get('subject') # 활동 주제
+        section = request.POST.get('section') # 활동명(영역)
+        question = request.POST.get('question')
+        deadline_str = request.POST.get('deadline') # 날짜 문자열
+        char_limit = request.POST.get('char_limit', 0)
+        
+        # 날짜 문자열을 파이썬 datetime 객체로 변환 (Flatpickr 포맷 대응)
+        deadline = None
+        if deadline_str:
+            try:
+                # '2026. 02. 11. PM 11:59' 형태를 변환
+                # 포맷은 HTML의 flatpickr 설정과 일치해야 함
+                # 간단한 변환을 위해 HTML에서 Y-m-d H:i 포맷으로 보내는 것이 안전함
+                deadline = datetime.strptime(deadline_str, "%Y. %m. %d. %p %I:%M")
+            except ValueError:
+                deadline = timezone.now() # 에러 시 현재 시간으로 대체
+
+        # DB 저장
+        activity = Activity.objects.create(
+            teacher=request.user,
+            category='CREATIVE', # 창체 카테고리 고정
+            subject_name=request.user.subject.name if request.user.subject else "공통", # 선생님 담당교과 자동입력
+            title=title,
+            section=section,
+            question=question,
+            deadline=deadline,
+            char_limit=char_limit if char_limit else 0,
+            is_active=True # 생성 시 바로 활성화
+        )
+        
+        return redirect('creative_list') # 저장 후 목록으로 이동
+
+    return render(request, 'activities/creative_form.html')

@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h4 class="mb-0 fw-bold">📝 창의적체험활동 시트 생성</h4>
+        </div>
+        <div class="card-body bg-light-subtle p-4">
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- 입력 행 반복 -->
+                <div class="row mb-3 align-items-center">
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">평가 대상 *</div>
+                    <div class="col-md-9 px-4">
+                        <select class="form-select border-0 shadow-sm" name="target">
+                            <option>평가 대상을 선택하세요</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-3 align-items-center">
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">활동명 *</div>
+                    <div class="col-md-9 px-4">
+                        <input type="text" name="section" class="form-control" placeholder="활동명을 입력하세요">
+                    </div>
+                </div>
+
+                <div class="row mb-3 align-items-center">
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">주제 *</div>
+                    <div class="col-md-9 px-4">
+                        <input type="text" name="title" class="form-control" placeholder="주제를 입력하세요">
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">평가 문항 *</div>
+                    <div class="col-md-9 px-4">
+                        <textarea class="form-control border-0 shadow-sm" rows="5" placeholder="질문 내용을 입력하세요"></textarea>
+                    </div>
+                </div>
+
+                <!-- 제출 기한 (이미지 스타일 구현) -->
+                <div class="row mb-3 align-items-center">
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">제출 기한 *</div>
+                    <div class="col-md-9 px-4">
+                        <div class="d-flex gap-2">
+                            <div class="input-group shadow-sm border-0" style="width: 300px;">
+                                <span class="input-group-text bg-white border-0"><i class="bi bi-calendar3"></i></span>
+                                <input type="text" id="deadline_picker" name="deadline" class="form-control" placeholder="YYYY. MM. DD. PM 11:59">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">참고 자료</div>
+                    <div class="col-md-9 px-4">
+                        <textarea class="form-control border-0 shadow-sm" rows="3" placeholder="제시문 또는 참고 자료"></textarea>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">작성 조건</div>
+                    <div class="col-md-9 px-4">
+                        <textarea class="form-control border-0 shadow-sm" rows="2" placeholder="예: 3문단으로 구성, 두괄식 작성"></textarea>
+                    </div>
+                </div>
+
+                <div class="row mb-4 align-items-center">
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">분량 제한</div>
+                    <div class="col-md-9 px-4 d-flex align-items-center gap-2">
+                        <input type="number" name="char_limit" class="form-control border-0 shadow-sm" style="width: 100px;" value="0">
+                        <span>자 이내</span>
+                        <small class="text-muted ms-3">(무제한일 경우 빈칸으로 두세요)</small>
+                    </div>
+                </div>
+
+                <div class="text-center mt-5">
+                    <button type="button" class="btn btn-secondary px-5 me-2 shadow" onclick="history.back()">취소</button>
+                    <button type="submit" class="btn btn-primary px-5 shadow">활동 생성 완료</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Flatpickr (구글 스타일 달력 라이브러리) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+<script>
+    flatpickr("#deadline_picker", {
+        enableTime: true,
+        dateFormat: "Y. m. d. K h:i",
+        locale: "ko",
+        time_24hr: false,
+        minDate: "today",
+        defaultDate: new Date().setHours(23, 59)
+    });
+</script>
+{% endblock %}
