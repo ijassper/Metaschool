@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -161,3 +162,7 @@ AUTHENTICATION_BACKENDS = [
     'accounts.backends.EmailOrUsernameBackend', # 우리가 만든 것
     'django.contrib.auth.backends.ModelBackend', # 기본 (혹시 모르니 유지)
 ]
+
+# 미디어 파일 설정 (사용자 업로드 파일)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

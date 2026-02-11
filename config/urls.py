@@ -16,6 +16,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     # 최상위 경로('/')로 접속 시 '/accounts/login/'으로 리디렉션
@@ -26,3 +28,7 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('activities/', include('activities.urls'))
 ]
+
+# 개발 및 가비아 환경에서 미디어 파일 서빙 허용
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

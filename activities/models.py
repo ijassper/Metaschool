@@ -16,6 +16,13 @@ class Activity(models.Model):
     ]
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='ESSAY', verbose_name="활동 유형")
 
+    attachment = models.FileField(
+        upload_to='activity_files/%Y/%m/%d/', 
+        null=True, 
+        blank=True, 
+        verbose_name="첨부파일"
+    )
+
     # 2. 기본 정보
     teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     subject_name = models.CharField(max_length=50, verbose_name="과목명/활동분류") 

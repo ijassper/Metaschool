@@ -1,0 +1,140 @@
+<!-- [스타일] 학생 명단 그리드 및 토글 -->
+<style>
+    .student-grid-container {
+        column-count: 5;
+        column-gap: 1rem;
+    }
+    .student-item {
+        break-inside: avoid;
+        margin-bottom: 0.5rem;
+    }
+    .toggle-btn { cursor: pointer; transition: 0.2s; }
+    .toggle-btn:hover { background-color: #f8f9fa; }
+    .form-check { display: flex; align-items: center; gap: 0.5rem; }
+    
+    /* 모바일 대응 */
+    @media (max-width: 768px) {
+        .student-grid-container { column-count: 2; }
+    }
+</style>
+
+<!-- [UI] 평가 대상 선택 컴포넌트 -->
+<div class="row mb-4 align-items-center">
+    <label class="col-md-3 col-form-label fw-bold bg-light text-center border rounded py-2">
+        평가 대상 <span class="text-danger">*</span>
+    </label>
+    <div class="col-md-9">
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary w-100 text-start d-flex justify-content-between align-items-center" 
+                    type="button" id="targetDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                <span id="targetSummary">
+                    {% if current_targets %}
+                        {{ current_targets|length }}명 선택됨
+                    {% else %}
+                        평가 대상을 선택하세요 (클릭하여 명단 열기)
+                    {% endif %}
+                </span>
+                <i class="bi bi-chevron-down"></i>
+            </button>
+            
+            <div class="dropdown-menu w-100 p-3 shadow" style="max-height: 600px; overflow-y: auto;">
+                <!-- 전체 선택/해제 -->
+                <div class="d-flex gap-2 mb-3 border-bottom pb-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary w-50 fw-bold" onclick="toggleAllStudents(true)">
+                        <i class="bi bi-check-all"></i> 전교생 선택
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary w-50" onclick="toggleAllStudents(false)">
+                        <i class="bi bi-x-circle"></i> 선택 해제
+                    </button>
+                </div>
+
+                <!-- 학생 트리 구조 (Controller에서 student_tree를 넘겨줘야 함) -->
+                {% for grade_info in student_tree %}
+                <div class="mb-2 border rounded p-2">
+                    <!-- 학년 -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="form-check fw-bold text-primary mb-0">
+                            <input class="form-check-input parent-check" type="checkbox" id="g_{{ grade_info.grade }}" 
+                                onchange="toggleGroup(this, '.group-g-{{ grade_info.grade }}')">
+                            <label class="form-check-label" for="g_{{ grade_info.grade }}">
+                                {{ grade_info.grade }}학년
+                            </label>
+                        </div>
+                        <i class="bi bi-caret-down-fill text-muted toggle-btn p-1" 
+                           data-bs-toggle="collapse" data-bs-target="#collapse-grade-{{ grade_info.grade }}"></i>
+                    </div>
+                    
+                    <div class="collapse show ms-2 mt-2 border-top pt-2" id="collapse-grade-{{ grade_info.grade }}">
+                        {% for class_info in grade_info.classes %}
+                        <div class="mb-3">
+                            <!-- 반 -->
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="form-check fw-bold text-dark mb-0">
+                                    <input class="form-check-input group-check group-g-{{ grade_info.grade }}" 
+                                        type="checkbox" id="c_{{ grade_info.grade }}_{{ class_info.class_no }}"
+                                        onchange="toggleGroup(this, '.child-c-{{ grade_info.grade }}-{{ class_info.class_no }}')">
+                                    <label class="form-check-label" for="c_{{ grade_info.grade }}_{{ class_info.class_no }}">
+                                        {{ class_info.class_no }}반 ({{ class_info.students|length }}명)
+                                    </label>
+                                </div>
+                                <i class="bi bi-caret-down text-muted toggle-btn p-1" 
+                                   data-bs-toggle="collapse" data-bs-target="#collapse-class-{{ grade_info.grade }}-{{ class_info.class_no }}"></i>
+                            </div>
+
+                            <!-- 학생 명단 -->
+                            <div class="collapse show ps-2" id="collapse-class-{{ grade_info.grade }}-{{ class_info.class_no }}">
+                                <div class="student-grid-container">
+                                    {% for s in class_info.students %}
+                                    <div class="student-item form-check">
+                                        <!-- name="target_students"는 View에서 받을 이름 -->
+                                        <input class="form-check-input student-check child-c-{{ grade_info.grade }}-{{ class_info.class_no }} group-g-{{ grade_info.grade }}" 
+                                            type="checkbox" name="target_students" value="{{ s.id }}" id="s_{{ s.id }}"
+                                            onchange="updateSummary()"
+                                            {% if s in current_targets %}checked{% endif %}>
+                                        <label class="form-check-label small text-secondary" for="s_{{ s.id }}">
+                                            <span class="fw-bold text-dark">{{ s.number|stringformat:"02d" }}</span> {{ s.name }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- [Script] 체크박스 제어 로직 -->
+<script>
+    // 1. 그룹(학년/반) 선택 시 하위 체크박스 일괄 제어
+    function toggleGroup(source, selector) {
+        const checkboxes = document.querySelectorAll(selector);
+        checkboxes.forEach(cb => {
+            cb.checked = source.checked;
+        });
+        updateSummary();
+    }
+
+    // 2. 전체 선택/해제
+    function toggleAllStudents(isChecked) {
+        const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+        allCheckboxes.forEach(cb => cb.checked = isChecked);
+        updateSummary();
+    }
+
+    // 3. 선택된 인원 수 업데이트
+    function updateSummary() {
+        const checkedCount = document.querySelectorAll('input[name="target_students"]:checked').length;
+        const summaryText = document.getElementById('targetSummary');
+        
+        if (checkedCount > 0) {
+            summaryText.innerHTML = `<span class="text-primary fw-bold">${checkedCount}명</span> 선택됨`;
+        } else {
+            summaryText.innerText = "평가 대상을 선택하세요 (클릭하여 명단 열기)";
+        }
+    }
+</script>

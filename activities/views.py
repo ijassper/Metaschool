@@ -684,38 +684,57 @@ def creative_list(request):
 @login_required
 def creative_create(request):
     if request.method == 'POST':
-        # 폼에서 데이터 받아오기
+        # 1. 폼 데이터 받아오기
         title = request.POST.get('title')
-        subject = request.POST.get('subject') # 활동 주제
-        section = request.POST.get('section') # 활동명(영역)
+        subject = request.POST.get('subject') 
+        section = request.POST.get('section') 
         question = request.POST.get('question')
-        deadline_str = request.POST.get('deadline') # 날짜 문자열
+        deadline_str = request.POST.get('deadline')
         char_limit = request.POST.get('char_limit', 0)
         
-        # 날짜 문자열을 파이썬 datetime 객체로 변환 (Flatpickr 포맷 대응)
+        # [신규] 파일 업로드 처리
+        attachment = request.FILES.get('attachment') 
+
+        # 2. 날짜 문자열 변환
         deadline = None
         if deadline_str:
             try:
-                # '2026. 02. 11. PM 11:59' 형태를 변환
-                # 포맷은 HTML의 flatpickr 설정과 일치해야 함
-                # 간단한 변환을 위해 HTML에서 Y-m-d H:i 포맷으로 보내는 것이 안전함
+                # Flatpickr 포맷 "2026. 02. 11. PM 11:59" 대응
+                # %p는 AM/PM을 인식하지만 로케일 설정에 따라 다를 수 있어 주의 필요
                 deadline = datetime.strptime(deadline_str, "%Y. %m. %d. %p %I:%M")
             except ValueError:
-                deadline = timezone.now() # 에러 시 현재 시간으로 대체
+                deadline = None 
 
-        # DB 저장
+        # 3. DB 객체 먼저 생성 (중요: activity 변수가 여기서 정의됨)
         activity = Activity.objects.create(
             teacher=request.user,
-            category='CREATIVE', # 창체 카테고리 고정
-            subject_name=request.user.subject.name if request.user.subject else "공통", # 선생님 담당교과 자동입력
+            category='CREATIVE',
+            # 선생님 프로필의 subject 모델 존재 여부 확인 후 저장
+            subject_name=request.user.subject.name if hasattr(request.user, 'subject') and request.user.subject else "공통",
             title=title,
             section=section,
             question=question,
             deadline=deadline,
-            char_limit=char_limit if char_limit else 0,
-            is_active=True # 생성 시 바로 활성화
+            attachment=attachment, # 파일 저장
+            char_limit=int(char_limit) if char_limit else 0,
+            is_active=True
         )
         
-        return redirect('creative_list') # 저장 후 목록으로 이동
+        # 4. ManyToMany 학생 등록 (객체 생성 '후'에 실행해야 함)
+        target_ids = request.POST.getlist('target_students')
+        if target_ids:
+            activity.target_students.set(target_ids)
+        
+        return redirect('creative_list') 
 
-    return render(request, 'activities/creative_form.html')
+    # --- 여기서부터 GET 요청 처리 (들여쓰기 주의: if문 밖으로 나와야 함) ---
+    
+    # 5. 학생 트리 데이터 생성 (기존 함수 활용)
+    student_tree = get_student_tree(request.user)
+
+    context = {
+        'student_tree': student_tree,
+        'action': '생성'
+    }
+    # [중요] render 함수에 context를 반드시 포함
+    return render(request, 'activities/creative_form.html', context)
