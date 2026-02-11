@@ -32,7 +32,7 @@ class Activity(models.Model):
     char_limit = models.IntegerField(default=0, verbose_name="분량 제한(자)") # 0은 무제한
 
     # 5. 대상 및 상태
-    target_students = models.ManyToManyField('Student', blank=True, related_name='activities', verbose_name="대상 학생")
+    target_students = models.ManyToManyField('accounts.Student', blank=True, related_name='activities', verbose_name="대상 학생")
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=False, verbose_name="활성화 여부")
 
