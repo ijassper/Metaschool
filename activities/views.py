@@ -701,9 +701,12 @@ def creative_create(request):
             try:
                 # Flatpickr 포맷 "2026. 02. 11. PM 11:59" 대응
                 # %p는 AM/PM을 인식하지만 로케일 설정에 따라 다를 수 있어 주의 필요
+                # '오후'를 'PM'으로, '오전'을 'AM'으로 강제 치환 후 파싱
+                temp_str = deadline_str.replace('오후', 'PM').replace('오전', 'AM')
                 deadline = datetime.strptime(deadline_str, "%Y. %m. %d. %p %I:%M")
-            except ValueError:
-                deadline = None 
+            except Exception as e:
+                print(f"Date Parsing Error: {e}") # 로그 확인용
+                deadline = None # 에러 시 날짜 없이 저장 (500 에러 방지) 
 
         # 3. DB 객체 먼저 생성 (중요: activity 변수가 여기서 정의됨)
         activity = Activity.objects.create(
