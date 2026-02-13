@@ -50,7 +50,7 @@
                 <div class="row mb-3">
                     <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">참고 자료</div>
                     <div class="col-md-9 px-4">
-                        <textarea class="form-control border-0 shadow-sm" rows="6" placeholder="제시문 또는 참고 자료"></textarea>
+                        <textarea name="reference_material" class="form-control border-0 shadow-sm mb-2" rows="6" placeholder="제시문 또는 참고 자료를 입력하세요">{{ activity.reference_material|default:'' }}</textarea>
                         <!-- 신규 파일 업로드 -->
                         <div class="input-group">
                             <label class="input-group-text bg-white border-0 shadow-sm" for="attachment">
@@ -58,6 +58,13 @@
                             </label>
                             <input type="file" name="attachment" class="form-control border-0 shadow-sm" id="attachment">
                         </div>
+                        {% if activity.attachment %}
+                            <div class="mt-1 ps-2">
+                                <small class="text-primary">
+                                    <i class="bi bi-file-earmark-check"></i> 기존 파일: {{ activity.attachment.name }}
+                                </small>
+                            </div>
+                        {% endif %}
                         <small class="text-muted ps-2 mt-1 d-block">※ PDF, HWP, 이미지 등 (최대 10MB)</small>
                     </div>
                 </div>
@@ -65,14 +72,14 @@
                 <div class="row mb-3">
                     <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">작성 조건</div>
                     <div class="col-md-9 px-4">
-                        <textarea class="form-control border-0 shadow-sm" rows="2" placeholder="예: 3문단으로 구성, 두괄식 작성"></textarea>
+                        <textarea name="conditions" class="form-control border-0 shadow-sm" rows="2" placeholder="예: 3문단으로 구성, 두괄식 작성">{{ activity.conditions|default:'' }}</textarea>
                     </div>
                 </div>
 
                 <div class="row mb-4 align-items-center">
                     <div class="col-md-3 text-center fw-bold text-secondary border-end">분량 제한</div>
                     <div class="col-md-9 px-4 d-flex align-items-center gap-2">
-                        <input type="number" name="char_limit" class="form-control border-0 shadow-sm" style="width: 100px;" value="0">
+                        <input type="number" name="char_limit" class="form-control border-0 shadow-sm" style="width: 100px;" value="{{ activity.char_limit|default:0 }}">
                         <span>자 이내</span>
                         <small class="text-muted ms-3">(무제한일 경우 빈칸으로 두세요)</small>
                     </div>
