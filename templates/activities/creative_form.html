@@ -16,21 +16,21 @@
                 <div class="row mb-3 align-items-center">
                     <div class="col-md-3 text-center fw-bold text-secondary border-end">활동명 *</div>
                     <div class="col-md-9 px-4">
-                        <input type="text" name="section" class="form-control" placeholder="활동명을 입력하세요" required>
+                        <input type="text" name="section" value="{{ activity.section|default:'' }}" class="form-control" placeholder="활동명을 입력하세요" required>
                     </div>
                 </div>
 
                 <div class="row mb-3 align-items-center">
                     <div class="col-md-3 text-center fw-bold text-secondary border-end">주제 *</div>
                     <div class="col-md-9 px-4">
-                        <input type="text" name="title" class="form-control" placeholder="주제를 입력하세요" required>
+                        <input type="text" name="title" value="{{ activity.title|default:'' }}" class="form-control" placeholder="주제를 입력하세요" required>
                     </div>
                 </div>
 
                 <div class="row mb-3">
                     <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">평가 문항 *</div>
                     <div class="col-md-9 px-4">
-                        <textarea name="question" class="form-control border-0 shadow-sm" rows="6" placeholder="질문 내용을 입력하세요" required></textarea>
+                        <textarea name="question" class="form-control border-0 shadow-sm" rows="6" placeholder="질문 내용을 입력하세요" required>{{ activity.question|default:'' }}</textarea>
                     </div>
                 </div>
 
@@ -41,7 +41,7 @@
                         <div class="d-flex gap-2">
                             <div class="input-group shadow-sm border-0" style="width: 300px;">
                                 <span class="input-group-text bg-white border-0"><i class="bi bi-calendar3"></i></span>
-                                <input type="text" id="deadline_picker" name="deadline" class="form-control" placeholder="YYYY. MM. DD. PM 11:59">
+                                <input type="text" id="deadline_picker" name="deadline" value="{{ activity.deadline|date:'Y. m. d. A h:i' }}" class="form-control" placeholder="YYYY. MM. DD. PM 11:59">
                             </div>
                         </div>
                     </div>

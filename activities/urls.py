@@ -4,7 +4,7 @@ from .views import (
     toggle_activity_status, activity_detail, activity_result, take_test,
     answer_detail, answer_delete, save_note, update_absence, log_activity,
     activity_analysis, integrated_analysis, activity_analysis_work, api_process_db_row,
-    creative_list, creative_create
+    creative_list, creative_create, creative_detail, creative_update, creative_delete
 )
 from activities import views
 
@@ -28,4 +28,7 @@ urlpatterns = [
     path('api/process-db-row/', api_process_db_row, name='api_process_db_row'), # DB 답안 AI 처리 API
     path('creative/', creative_list, name='creative_list'), # 창의적체험활동 목록
     path('creative/create/', creative_create, name='creative_create'),  # 창의적체험활동 생성
+    path('creative/<int:pk>/', creative_detail, name='creative_detail'),  # 창의적체험활동 상세
+    path('creative/<int:pk>/edit/', creative_update, name='creative_update'), # 창의적체험활동 수정
+    path('creative/<int:pk>/delete/', creative_delete, name='creative_delete'),   # 창의적체험활동 삭제
 ]

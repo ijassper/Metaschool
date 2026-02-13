@@ -741,3 +741,61 @@ def creative_create(request):
     }
     # [중요] render 함수에 context를 반드시 포함
     return render(request, 'activities/creative_form.html', context)
+
+# 상세 페이지
+@login_required
+def creative_detail(request, pk):
+    activity = get_object_or_404(Activity, pk=pk, teacher=request.user)
+    return render(request, 'activities/creative_detail.html', {'activity': activity})
+
+# 수정 페이지
+@login_required
+def creative_update(request, pk):
+    activity = get_object_or_404(Activity, pk=pk, teacher=request.user)
+    
+    if request.method == 'POST':
+        activity.section = request.POST.get('section')
+        activity.title = request.POST.get('title')
+        activity.question = request.POST.get('question')
+        activity.conditions = request.POST.get('conditions')
+        activity.reference_material = request.POST.get('reference_material')
+        activity.char_limit = request.POST.get('char_limit', 0)
+        
+        # 파일 업로드 처리 (새 파일이 있을 때만 교체)
+        if request.FILES.get('attachment'):
+            activity.attachment = request.FILES.get('attachment')
+            
+        # 날짜 처리 (기존 로직 활용)
+        deadline_str = request.POST.get('deadline')
+        if deadline_str:
+            try:
+                temp_str = deadline_str.replace('오후', 'PM').replace('오전', 'AM')
+                activity.deadline = datetime.strptime(temp_str, "%Y. %m. %d. %p %I:%M")
+            except: pass
+            
+        activity.save()
+
+        # 학생 재설정
+        target_ids = request.POST.getlist('target_students')
+        if target_ids:
+            activity.target_students.set(target_ids)
+            
+        return redirect('creative_detail', pk=activity.pk)
+
+    # 수정 시에도 학생 트리와 현재 선택된 학생 목록이 필요함
+    context = {
+        'activity': activity,
+        'student_tree': get_student_tree(request.user),
+        'current_targets': activity.target_students.values_list('id', flat=True), # 현재 선택된 학생 ID들
+        'action': '수정'
+    }
+    return render(request, 'activities/creative_form.html', context)
+
+# 삭제 처리
+@login_required
+def creative_delete(request, pk):
+    activity = get_object_or_404(Activity, pk=pk, teacher=request.user)
+    if request.method == 'POST':
+        activity.delete()
+        return redirect('creative_list')
+    return redirect('creative_detail', pk=pk)

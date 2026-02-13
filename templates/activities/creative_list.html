@@ -26,10 +26,16 @@
                 {% for activity in activities %}
                 <tr>
                     <td class="text-center">{{ forloop.counter }}</td>
-                    <td class="fw-bold">{{ activity.title }}</td>
-                    <td>{{ activity.subject }}</td>
+                    <td class="fw-bold">
+                        <a href="{% url 'creative_detail' activity.id %}" class="text-decoration-none text-dark">
+                            {{ activity.section }}
+                        </a>
+                    </td>
+                    <td>{{ activity.title }}</td>
                     <td class="text-center">
-                        <span class="badge rounded-pill bg-success">진행중</span>
+                        <span class="badge rounded-pill {% if activity.status_text == '진행중' %}bg-success{% else %}bg-secondary{% endif %}">
+                            {{ activity.status_text }}
+                        </span>
                     </td>
                     <td>{{ activity.created_at|date:"Y-m-d" }}</td>
                     <td class="text-center">
