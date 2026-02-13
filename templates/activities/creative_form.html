@@ -80,11 +80,11 @@
                 </div>
 
                 <div class="row mb-4 align-items-center">
-                    <div class="col-md-3 text-center fw-bold text-secondary border-end">분량 제한</div>
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">작성 분량</div>
                     <div class="col-md-9 px-4 d-flex align-items-center gap-2">
                         <input type="number" name="char_limit" class="form-control border-0 shadow-sm" style="width: 100px;" value="{{ activity.char_limit|default:0 }}">
-                        <span>자 이내</span>
-                        <small class="text-muted ms-3">(무제한일 경우 빈칸으로 두세요)</small>
+                        <span>자 이상</span>
+                        <small class="text-muted ms-3">(제한이 없으면 0 또는 빈칸으로 두세요)</small>
                     </div>
                 </div>
 

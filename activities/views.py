@@ -690,9 +690,19 @@ def creative_create(request):
         section = request.POST.get('section') 
         question = request.POST.get('question')
         deadline_str = request.POST.get('deadline')
-        char_limit = request.POST.get('char_limit', 0)
+        char_limit_raw = request.POST.get('char_limit', '').strip()
+        if not char_limit_raw:  # 빈칸('')이거나 데이터가 없으면
+            char_limit = 0
+        else:
+            try:
+                char_limit = int(char_limit_raw)
+            except ValueError:
+                char_limit = 0
+
+        # 이후 객체 저장 시 이 char_limit 값을 사용합니다.
+        activity.char_limit = char_limit
         
-        # [신규] 파일 업로드 처리
+        # 파일 업로드 처리
         attachment = request.FILES.get('attachment') 
 
         # 2. 날짜 문자열 변환
@@ -730,7 +740,7 @@ def creative_create(request):
         
         return redirect('creative_list') 
 
-    # --- 여기서부터 GET 요청 처리 (들여쓰기 주의: if문 밖으로 나와야 함) ---
+    # --- 여기서부터 GET 요청 처리 ---
     
     # 5. 학생 트리 데이터 생성 (기존 함수 활용)
     student_tree = get_student_tree(request.user)
@@ -739,7 +749,7 @@ def creative_create(request):
         'student_tree': student_tree,
         'action': '생성'
     }
-    # [중요] render 함수에 context를 반드시 포함
+    # render 함수에 context를 반드시 포함
     return render(request, 'activities/creative_form.html', context)
 
 # 상세 페이지
@@ -761,7 +771,17 @@ def creative_update(request, pk):
         activity.question = request.POST.get('question')
         activity.conditions = request.POST.get('conditions')
         activity.reference_material = request.POST.get('reference_material')
-        activity.char_limit = request.POST.get('char_limit', 0)
+        char_limit_raw = request.POST.get('char_limit', '').strip()
+        if not char_limit_raw:  # 빈칸('')이거나 데이터가 없으면
+            char_limit = 0
+        else:
+            try:
+                char_limit = int(char_limit_raw)
+            except ValueError:
+                char_limit = 0
+
+        # 이후 객체 저장 시 이 char_limit 값을 사용합니다.
+        activity.char_limit = char_limit
         
         # 파일 업로드 처리 (새 파일이 있을 때만 교체)
         if request.FILES.get('attachment'):
