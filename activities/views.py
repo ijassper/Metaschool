@@ -751,11 +751,13 @@ def creative_detail(request, pk):
 # 수정 페이지
 @login_required
 def creative_update(request, pk):
+    # 1. 수정할 데이터를 DB에서 가져오기 (이 줄이 반드시 먼저 있어야 합니다)
     activity = get_object_or_404(Activity, pk=pk, teacher=request.user)
     
     if request.method == 'POST':
-        activity.section = request.POST.get('section')
-        activity.title = request.POST.get('title')
+        # 2. POST 요청일 때: 사용자가 입력한 값으로 DB 업데이트
+        activity.section = request.POST.get('section') # 활동명 (스크린샷에 빠져있던 부분)
+        activity.title = request.POST.get('title')     # 주제
         activity.question = request.POST.get('question')
         activity.conditions = request.POST.get('conditions')
         activity.reference_material = request.POST.get('reference_material')
@@ -765,14 +767,17 @@ def creative_update(request, pk):
         if request.FILES.get('attachment'):
             activity.attachment = request.FILES.get('attachment')
             
-        # 날짜 처리 (기존 로직 활용)
+        # 날짜 처리
         deadline_str = request.POST.get('deadline')
         if deadline_str:
             try:
+                # 오후/오전 한글 대응
                 temp_str = deadline_str.replace('오후', 'PM').replace('오전', 'AM')
                 activity.deadline = datetime.strptime(temp_str, "%Y. %m. %d. %p %I:%M")
-            except: pass
+            except:
+                pass
             
+        # 데이터 저장
         activity.save()
 
         # 학생 재설정
@@ -780,15 +785,18 @@ def creative_update(request, pk):
         if target_ids:
             activity.target_students.set(target_ids)
             
+        # 수정 완료 후 상세 페이지로 이동
         return redirect('creative_detail', pk=activity.pk)
 
-    # 수정 시에도 학생 트리와 현재 선택된 학생 목록이 필요함
+    # 3. GET 요청일 때: 수정 페이지 화면을 보여주기
+    # 학생 트리와 현재 선택된 학생 목록을 준비합니다.
     context = {
         'activity': activity,
         'student_tree': get_student_tree(request.user),
         'current_targets': activity.target_students.values_list('id', flat=True), # 현재 선택된 학생 ID들
         'action': '수정'
     }
+    # 반드시 context를 포함하여 render를 호출해야 화면에 값이 나옵니다.
     return render(request, 'activities/creative_form.html', context)
 
 # 삭제 처리

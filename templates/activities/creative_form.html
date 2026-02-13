@@ -6,7 +6,7 @@
             <h4 class="mb-0 fw-bold">📝 창의적체험활동 시트 생성</h4>
         </div>
         <div class="card-body bg-light-subtle p-4">
-            <form method="post">
+            <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 
                 <!-- 입력 행 반복 -->
@@ -60,8 +60,11 @@
                         </div>
                         {% if activity.attachment %}
                             <div class="mt-1 ps-2">
-                                <small class="text-primary">
-                                    <i class="bi bi-file-earmark-check"></i> 기존 파일: {{ activity.attachment.name }}
+                                <small class="text-primary fw-bold">
+                                    <i class="bi bi-file-earmark-check"></i> 기존 파일: 
+                                    <a href="{{ activity.attachment.url }}" target="_blank" class="text-decoration-none">
+                                        {{ activity.attachment.name|cut:"activity_files/" }} <!-- 경로명 생략하고 파일명만 표시 -->
+                                    </a>
                                 </small>
                             </div>
                         {% endif %}
