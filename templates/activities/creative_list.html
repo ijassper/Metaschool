@@ -15,7 +15,7 @@
                     <th class="text-center">번호</th>
                     <th>활동명</th>
                     <th>주제</th>
-                    <th class="text-center">상태</th>
+                    <th class="text-center">상태(On/Off)</th>
                     <th>생성일</th>
                     <th class="text-center">제출관리</th>
                     <th class="text-center">분석작업</th>
@@ -32,10 +32,22 @@
                         </a>
                     </td>
                     <td>{{ activity.title }}</td>
+                    <!-- 2. 상태 토글 버튼 (클릭하면 즉시 시작/마감) -->
                     <td class="text-center">
-                        <span class="badge rounded-pill {% if activity.status_text == '진행중' %}bg-success{% else %}bg-secondary{% endif %}">
-                            {{ activity.status_text }}
-                        </span>
+                        <!-- 클릭 시 views.py의 toggle_activity_status 함수 호출 -->
+                        <a href="{% url 'toggle_activity_status' activity.id %}" class="text-decoration-none">
+                            {% if activity.is_active %}
+                                <!-- 진행중일 때: 초록색 버튼 형태 -->
+                                <span class="badge bg-success rounded-pill px-3 py-2 shadow-sm" style="cursor: pointer;">
+                                    <i class="bi bi-play-fill"></i> 진행중
+                                </span>
+                            {% else %}
+                                <!-- 대기중일 때: 회색 버튼 형태 (약간 투명하게) -->
+                                <span class="badge bg-secondary rounded-pill px-3 py-2 opacity-75 shadow-sm" style="cursor: pointer;">
+                                    <i class="bi bi-pause-fill"></i> 대기중
+                                </span>
+                            {% endif %}
+                        </a>
                     </td>
                     <td>{{ activity.created_at|date:"Y-m-d" }}</td>
                     <td class="text-center">
