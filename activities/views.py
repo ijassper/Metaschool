@@ -813,7 +813,7 @@ def creative_update(request, pk):
     context = {
         'activity': activity,
         'student_tree': get_student_tree(request.user),
-        'current_targets': activity.target_students.values_list('id', flat=True), # 현재 선택된 학생 ID들
+        'current_targets': list(activity.target_students.values_list('id', flat=True)), # 현재 선택된 학생 ID들
         'action': '수정'
     }
     # 반드시 context를 포함하여 render를 호출해야 화면에 값이 나옵니다.

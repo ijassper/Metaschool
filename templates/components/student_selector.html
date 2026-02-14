@@ -90,7 +90,7 @@
                                         <input class="form-check-input student-check child-c-{{ grade_info.grade }}-{{ class_info.class_no }} group-g-{{ grade_info.grade }}" 
                                             type="checkbox" name="target_students" value="{{ s.id }}" id="s_{{ s.id }}"
                                             onchange="updateSummary()"
-                                            {% if s in current_targets %}checked{% endif %}>
+                                            {% if s.id in current_targets %}checked{% endif %}>
                                         <label class="form-check-label small text-secondary" for="s_{{ s.id }}">
                                             <span class="fw-bold text-dark">{{ s.number|stringformat:"02d" }}</span> {{ s.name }}
                                         </label>
@@ -110,6 +110,34 @@
 
 <!-- [Script] 체크박스 제어 로직 -->
 <script>
+    // 페이지 로드 시 실행
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. 모든 반(class) 체크박스 상태 업데이트
+        document.querySelectorAll('.group-check').forEach(groupCb => {
+            const targetClass = groupCb.getAttribute('onchange').match(/'([^']+)'/)[1];
+            const children = document.querySelectorAll(targetClass);
+            const checkedChildren = document.querySelectorAll(targetClass + ':checked');
+            
+            if (children.length > 0 && children.length === checkedChildren.length) {
+                groupCb.checked = true;
+            }
+        });
+
+        // 2. 모든 학년(grade) 체크박스 상태 업데이트
+        document.querySelectorAll('.parent-check').forEach(parentCb => {
+            const targetGrade = parentCb.getAttribute('onchange').match(/'([^']+)'/)[1];
+            const children = document.querySelectorAll(targetGrade);
+            const checkedChildren = document.querySelectorAll(targetGrade + ':checked');
+            
+            if (children.length > 0 && children.length === checkedChildren.length) {
+                parentCb.checked = true;
+            }
+        });
+
+        // 3. 상단 요약 문구 업데이트
+        updateSummary();
+    });
+
     // 1. 그룹(학년/반) 선택 시 하위 체크박스 일괄 제어
     function toggleGroup(source, selector) {
         const checkboxes = document.querySelectorAll(selector);
