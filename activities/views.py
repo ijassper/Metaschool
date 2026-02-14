@@ -17,12 +17,16 @@ from .models import Activity, Question, Answer
 from .forms import ActivityForm, QuestionForm, AnswerForm
 from accounts.models import Student, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption
 
-# 1. 내가 만든 평가 목록 보기
+# 교과 논술형 평가 목록 보기
 @login_required
 @teacher_required
 def activity_list(request):
-    # 최신순으로 정렬해서 가져오기
-    activities = Activity.objects.filter(teacher=request.user).order_by('-created_at')
+    # category='ESSAY' (또는 모델에 설정한 교과평가용 코드)만 필터링합니다.
+    activities = Activity.objects.filter(
+        teacher=request.user, 
+        category='ESSAY'  # 이 부분을 추가하세요
+    ).order_by('-created_at')
+    
     return render(request, 'activities/activity_list.html', {'activities': activities})
 
 # [공통 함수] 학생 선택용 트리 데이터 생성 (학년-반-학생 구조)
@@ -143,13 +147,19 @@ def delete_test(request, activity_id):
 @teacher_required
 def toggle_activity_status(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    
     # 상태 뒤집기 (True <-> False)
     activity.is_active = not activity.is_active
     activity.save()
-    
+
     status_msg = "평가가 [시작]되었습니다." if activity.is_active else "평가가 [마감]되었습니다."
     messages.success(request, status_msg)
-    return redirect('activity_list')
+
+    # 활동의 카테고리에 따라 원래 목록 페이지로 리다이렉트
+    if activity.category == 'CREATIVE':
+        return redirect('creative_list') # 창체 목록으로 이동
+    else:
+        return redirect('activity_list') # 교과 평가 목록으로 이동
 
 # 6. 평가 상세 페이지 (여기서 수정/삭제 가능)
 @login_required
@@ -673,7 +683,7 @@ def creative_list(request):
     # 로그인한 선생님이 작성한 '창의적체험활동' 카테고리만 필터링
     activities = Activity.objects.filter(
         teacher=request.user, 
-        category='CREATIVE'
+        category='CREATIVE' # 창체 카테고리만 필터링
     ).order_by('-created_at')
     
     return render(request, 'activities/creative_list.html', {
