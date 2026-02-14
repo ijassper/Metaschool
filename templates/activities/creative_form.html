@@ -41,7 +41,7 @@
                         <div class="d-flex gap-2">
                             <div class="input-group shadow-sm border-0" style="width: 300px;">
                                 <span class="input-group-text bg-white border-0"><i class="bi bi-calendar3"></i></span>
-                                <input type="text" id="deadline_picker" name="deadline" value="{{ activity.deadline|date:'Y. m. d. A h:i' }}" class="form-control" placeholder="YYYY. MM. DD. PM 11:59">
+                                <input type="text" id="deadline_picker" name="deadline" value="{{ activity.deadline|date:'Y. m. d. A h:i' }}" class="form-control border-0 shadow-sm" placeholder="날짜를 선택하세요" value="{% if activity.deadline %}{{ activity.deadline|date:'Y. m. d. A h:i' }}{% endif %}" required>
                             </div>
                         </div>
                     </div>
@@ -102,14 +102,20 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
 <script>
-    flatpickr("#deadline_picker", {
+    // Flatpickr 초기화
+    const deadlineInput = document.getElementById('deadline_picker');
+
+    flatpickr(deadlineInput, {
         enableTime: true,
-        dateFormat: "Y. m. d. K h:i",
+        dateFormat: "Y. m. d. K h:i", // K는 오전/오후 표시 (locale 'ko' 설정 시)
         locale: "ko",
         time_24hr: false,
         minDate: "today",
-        defaultDate: new Date().setHours(23, 59)
+        // defaultDate 설정을 삭제하거나 아래처럼 조건부로 변경합니다.
+        // 만약 input에 이미 값이 있다면(수정 모드), 그 값을 유지합니다.
+        defaultDate: deadlineInput.value ? deadlineInput.value : new Date().setHours(23, 59)
     });
+
     // 파일 크기 제한 (10MB)
     document.getElementById('attachment').onchange = function() {
         if(this.files[0].size > 10 * 1024 * 1024) { // 10MB 제한
