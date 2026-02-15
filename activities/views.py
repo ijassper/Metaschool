@@ -58,7 +58,7 @@ def get_student_tree(teacher):
         
     return tree_list
 
-# 2. 평가 생성 (과목명 수동 입력 반영)
+# 2. 평가 생성
 @login_required
 @teacher_required
 def create_test(request):
@@ -66,15 +66,26 @@ def create_test(request):
         a_form = ActivityForm(request.POST)
         q_form = QuestionForm(request.POST)
         
-        # 선택된 학생 ID 리스트 가져오기
+        # 선택된 학생 ID 리스트
         selected_student_ids = request.POST.getlist('target_students')
 
         if a_form.is_valid() and q_form.is_valid():
             activity = a_form.save(commit=False)
             activity.teacher = request.user
-            activity.save()
             
-            # ★ [핵심] 선택된 학생들 연결
+            # 1. 카테고리 고정 (교과 논술형)
+            activity.category = 'ESSAY'
+            
+            # 2. 작성 분량 (안전하게 숫자로 변환)
+            char_limit_raw = request.POST.get('char_limit', '').strip()
+            activity.char_limit = int(char_limit_raw) if char_limit_raw else 0
+            
+            # 3. 응시 환경 유형
+            activity.exam_mode = request.POST.get('exam_mode', 'CLOSED')
+            
+            activity.save() # 이제 모든 필드가 포함되어 저장됨
+            
+            # 학생 연결
             if selected_student_ids:
                 activity.target_students.set(selected_student_ids)
 
@@ -82,20 +93,18 @@ def create_test(request):
             question.activity = activity
             question.save()
             
-            messages.success(request, "평가가 생성되었습니다.")
-            return redirect('activity_list') # 생성 후 목록으로 이동
+            messages.success(request, "평가가 성공적으로 생성되었습니다.")
+            return redirect('activity_list')
     else:
-        # 과목명 기본값으로 선생님 담당과목 넣어주기 (편의성)
         initial_subject = {'subject_name': request.user.subject.name if request.user.subject else ''}
         a_form = ActivityForm(initial=initial_subject)
         q_form = QuestionForm()
         
-    # ★ 트리 데이터 전달
     student_tree = get_student_tree(request.user)
     
     return render(request, 'activities/create_test.html', {
         'a_form': a_form, 'q_form': q_form, 'action': '생성',
-        'student_tree': student_tree # 전달
+        'student_tree': student_tree
     })
 
 # 3. 평가 수정
@@ -103,7 +112,6 @@ def create_test(request):
 @teacher_required
 def update_test(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
-    # 현재 구조상 Activity 하나당 Question 하나라고 가정하고 첫 번째 질문을 가져옴
     question = activity.questions.first() 
 
     if request.method == 'POST':
@@ -112,25 +120,36 @@ def update_test(request, activity_id):
         selected_student_ids = request.POST.getlist('target_students')
 
         if a_form.is_valid() and q_form.is_valid():
-            activity = a_form.save() # M2M 저장을 위해 save() 먼저
-            # 대상 업데이트
+            # [중요] 수정 시에도 수동 필드 업데이트 필요
+            activity = a_form.save(commit=False)
+            
+            # 작성 분량 처리
+            char_limit_raw = request.POST.get('char_limit', '').strip()
+            activity.char_limit = int(char_limit_raw) if char_limit_raw else 0
+            
+            # 응시 환경 유형 처리
+            activity.exam_mode = request.POST.get('exam_mode', 'CLOSED')
+            
+            activity.save() # 변경사항 반영
+            
+            # 학생 대상 업데이트
             activity.target_students.set(selected_student_ids)
             q_form.save()
             
-            messages.success(request, "평가가 수정되었습니다.")
+            messages.success(request, "평가 정보가 수정되었습니다.")
             return redirect('activity_list')
     else:
         a_form = ActivityForm(instance=activity)
         q_form = QuestionForm(instance=question)
 
     student_tree = get_student_tree(request.user)
-    # 이미 선택된 학생 ID 리스트 (수정 시 체크 유지용)
     current_targets = list(activity.target_students.values_list('id', flat=True))
 
     return render(request, 'activities/create_test.html', {
         'a_form': a_form, 'q_form': q_form, 'action': '수정',
         'student_tree': student_tree,
-        'current_targets': current_targets
+        'current_targets': current_targets,
+        'activity': activity # 템플릿에서 activity.exam_mode 등을 참조하기 위해 추가
     })
 
 # 4. 평가 삭제
@@ -711,6 +730,9 @@ def creative_create(request):
 
         # 이후 객체 저장 시 이 char_limit 값을 사용합니다.
         activity.char_limit = char_limit
+
+        # 시험 모드 설정 (기본값은 'CLOSED'로 설정)
+        exam_mode = request.POST.get('exam_mode', 'CLOSED')
         
         # 파일 업로드 처리
         attachment = request.FILES.get('attachment') 
@@ -740,6 +762,7 @@ def creative_create(request):
             deadline=deadline,
             attachment=attachment, # 파일 저장
             char_limit=int(char_limit) if char_limit else 0,
+            exam_mode=exam_mode,
             is_active=True
         )
         
@@ -806,6 +829,9 @@ def creative_update(request, pk):
                 activity.deadline = datetime.strptime(temp_str, "%Y. %m. %d. %p %I:%M")
             except:
                 pass
+
+        # 시험 모드 설정
+        activity.exam_mode = request.POST.get('exam_mode', 'CLOSED')
             
         # 데이터 저장
         activity.save()

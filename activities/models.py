@@ -16,6 +16,18 @@ class Activity(models.Model):
     ]
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='ESSAY', verbose_name="활동 유형")
 
+    # 응시 환경 설정 (OPEN: 개방형, CLOSED: 폐쇄형)
+    EXAM_MODE_CHOICES = [
+        ('OPEN', '개방형 (참고자료 확인 가능, 멀티태스킹 허용)'),
+        ('CLOSED', '폐쇄형 (브라우저 이탈 방지, 키보드 보안 적용)'),
+    ]
+    exam_mode = models.CharField(
+        max_length=10, 
+        choices=EXAM_MODE_CHOICES, 
+        default='CLOSED', 
+        verbose_name="응시 환경 유형"
+    )
+
     attachment = models.FileField(
         upload_to='activity_files/%Y/%m/%d/', 
         null=True, 

@@ -166,169 +166,145 @@
 
 <!-- ★ 보안 및 기능 스크립트 -->
 <script>
+    /**
+     * 1. 초기 설정 및 환경 변수
+     */
+    const EXAM_MODE = "{{ activity.exam_mode }}"; // 'OPEN' 또는 'CLOSED'
     const textarea = document.getElementById('id_content');
     const counter = document.getElementById('charCount');
-    const limit = {{ question.max_length|default:0 }};
+    const charLimit = {{ activity.char_limit|default:0 }}; // "자 이상" 기준값
+    const answerId = "{{ answer_id|default:'' }}"; 
     
-    // 제출 중인지 확인하는 상태 변수
-    let isSubmitting = false;
-    // 답안지 ID (DB에 이미 생성된 껍데기가 있어야 함. create_or_get 로직 필요)
-    // * 주의: 처음에 답안지가 없는 상태라면 뷰에서 context로 answer.id를 넘겨줘야 함.
-    // * views.py의 take_test 함수에서 existing_answer.id를 context에 넣어주세요.
-    const answerId = "{{ form.instance.id|default:'' }}"; 
+    let isSubmitting = false; // 제출 중에는 감시 로직 중단용
 
-    // 1. 뒤로가기 감옥 (History Trap)
+    /**
+     * 2. 공통 기능: 뒤로가기 방지 (Data Loss 방지)
+     * 모드에 상관없이 작성 중인 데이터 보호를 위해 유지합니다.
+     */
     history.pushState(null, null, location.href);
     window.onpopstate = function () {
         history.go(1);
-        alert("평가 중에는 뒤로 갈 수 없습니다. 제출 버튼을 이용해주세요.");
+        alert("평가 중에는 브라우저 뒤로가기를 사용할 수 없습니다. 하단 버튼을 이용해주세요.");
     };
-    
-    // 1. 글자 수 세기
-    textarea.addEventListener('input', function() {
-        const currentLength = this.value.length;
-        if (limit > 0) {
-            counter.innerText = `${currentLength}자 / ${limit}자`;
-            counter.className = currentLength > limit ? 'badge bg-danger' : 'badge bg-light text-primary';
-        } else {
-            counter.innerText = `${currentLength}자`;
-        }
-    });
 
-    // 2. 시험 시작 및 전체 화면 강제 함수
-    function startTest() {
-        const elem = document.documentElement;
-        
-        // 브라우저 호환성을 위한 전체화면 요청
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen().then(() => {
-                showContent();
-            }).catch(err => {
-                alert("전체 화면 모드를 허용해야 시험을 볼 수 있습니다.");
-            });
-        } else if (elem.webkitRequestFullscreen) { /* Safari */
-            elem.webkitRequestFullscreen();
-            showContent();
-        } else if (elem.msRequestFullscreen) { /* IE11 */
-            elem.msRequestFullscreen();
-            showContent();
-        }
+    /**
+     * 3. 공통 기능: 실시간 글자 수 세기 (디자인 반영)
+     */
+    if (textarea && counter) {
+        textarea.addEventListener('input', function() {
+            const currentLength = this.value.length;
+            if (charLimit > 0) {
+                // "자 이상" 로직: 목표 도달 시 초록색, 미달 시 파란색/빨간색
+                counter.innerText = `${currentLength}자 / 최소 ${charLimit}자`;
+                counter.className = currentLength >= charLimit ? 'badge bg-success' : 'badge bg-light text-primary';
+            } else {
+                counter.innerText = `${currentLength}자`;
+            }
+        });
     }
 
-    // 화면 보여주기 함수
-    function showContent() {
-        document.getElementById('startOverlay').classList.add('d-none');
-        document.getElementById('testContainer').style.filter = "none";
-    }
+    /**
+     * 4. [폐쇄형 모드 전용] 보안 및 모니터링 로직
+     */
+    if (EXAM_MODE === 'CLOSED') {
+        // --- (1) 전체 화면 강제 로직 ---
+        function startTest() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().then(() => showContent()).catch(() => alert("전체 화면이 필요합니다."));
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen(); showContent();
+            }
+        }
 
-    // ★ [핵심] 전체 화면 상태 감지 리스너
-    // (ESC나 F11로 전체 화면이 풀리면 즉시 가림막을 내립니다)
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+        function showContent() {
+            document.getElementById('startOverlay').classList.add('d-none');
+            document.getElementById('testContainer').style.filter = "none";
+        }
 
-    function handleFullscreenChange() {
-        // 제출 중이거나 나가기 버튼을 눌렀다면 감시하지 않음!
-        if (isSubmitting) return; 
+        // 전체 화면 이탈 감지
+        const handleFullscreenChange = () => {
+            if (isSubmitting) return;
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                // 이탈 시 가림막 활성화
+                document.getElementById('testContainer').style.filter = "blur(15px)";
+                document.getElementById('startOverlay').classList.remove('d-none');
+                const btn = document.querySelector('#startOverlay button');
+                if(btn) {
+                    btn.innerText = "⚠️ 보안 위험: 전체 화면으로 복귀하세요";
+                    btn.classList.replace('btn-primary', 'btn-danger');
+                }
+            }
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
-        if (!document.fullscreenElement && 
-            !document.webkitFullscreenElement && 
-            !document.mozFullScreenElement && 
-            !document.msFullscreenElement) {
-            
-            // 전체 화면이 아님! -> 가림막 활성화
-            document.getElementById('testContainer').style.filter = "blur(10px)";
-            document.getElementById('startOverlay').classList.remove('d-none');
-            
-            // 버튼 텍스트 변경 (재진입 유도)
-            const btn = document.querySelector('#startOverlay button');
-            btn.innerText = "⚠️ 시험 계속하기 (전체 화면 복귀)";
-            btn.classList.replace('btn-primary', 'btn-danger');
-        } else {
-            // 전체 화면 상태임 -> 내용 보이기
+        // --- (2) 키보드 및 마우스 제한 ---
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F11') e.preventDefault(); // 전체화면 해제 방지
+            // Ctrl+A, C, V 차단
+            if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v'].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+                alert("폐쇄형 모드에서는 복사/붙여넣기를 사용할 수 없습니다.");
+            }
+        });
+        document.addEventListener('contextmenu', e => e.preventDefault()); // 우클릭 금지
+
+        // --- (3) 탭 이탈 감지 및 로그 전송 ---
+        document.addEventListener("visibilitychange", () => {
+            if (isSubmitting) return;
+            if (document.hidden) {
+                alert("⚠️ 경고: 화면 이탈이 감지되었습니다. 로그에 기록됩니다.");
+                sendLog('OUT');
+            } else {
+                sendLog('IN');
+            }
+        });
+
+    } else {
+        /**
+         * 5. [개방형 모드 전용] 자유로운 환경 로직
+         */
+        // 개방형은 시작 버튼 클릭 시 바로 가림막 제거 (전체화면 불필요)
+        function startTest() {
             showContent();
         }
+        function showContent() {
+            document.getElementById('startOverlay').classList.add('d-none');
+            document.getElementById('testContainer').style.filter = "none";
+        }
+        console.log("개방형 응시 모드 활성화: 자료 참고가 가능합니다.");
     }
 
-    // 3. 부정행위 방지 (키보드 막기)
-    document.addEventListener('keydown', function(e) {
-        // F11 (전체화면 해제 시도) 차단
-        if (e.key === 'F11') {
-            e.preventDefault();
-            alert("보안상 전체화면을 해제할 수 없습니다.");
-            return false;
-        }
-        // Ctrl+A, Ctrl+C, Ctrl+V 차단
-        if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'A', 'C', 'V'].includes(e.key)) {
-            e.preventDefault();
-            // alert("보안상 단축키를 사용할 수 없습니다."); // (너무 자주 뜨면 귀찮으니 주석 처리 가능)
-            return false;
-        }
-    });
-
-    // 마우스 우클릭 차단
-    document.addEventListener('contextmenu', event => event.preventDefault());
-
-    // 4. 화면 이탈 감지 (Alt+Tab 등)
-    document.addEventListener("visibilitychange", () => {
-        // ★ 제출 버튼을 누른 상태(isSubmitting)라면 경고를 띄우지 않음!
-        if (isSubmitting) return;
-
-        if (document.hidden) {
-            alert("⚠️ 경고: 화면을 이탈하지 마세요! 부정행위로 간주될 수 있습니다.");
-            sendLog('OUT');
-        } else {
-            sendLog('IN');
-        }
-    });
-
-    // 로그 전송 함수 (AJAX)
+    /**
+     * 6. 서버 로그 전송 (AJAX)
+     */
     function sendLog(type) {
-        if (!answerId) return; // 답안지 ID가 없으면 기록 불가 (최초 진입 시)
-
+        if (!answerId) return;
         fetch('/activities/api/log/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            body: JSON.stringify({
-                'answer_id': answerId,
-                'type': type
-            })
-        }).then(res => console.log("Log sent: " + type));
+            body: JSON.stringify({ 'answer_id': answerId, 'type': type })
+        }).then(res => console.log("Security Log: " + type));
     }
 
-    // 나가기 버튼 클릭 시 '감시 해제' 설정
-    const exitBtn = document.getElementById('exitBtn');
-    if (exitBtn) {
-        exitBtn.addEventListener('click', function() {
-            // 사용자가 confirm 창에서 '취소'를 누를 수도 있으니
-            // confirm이 true일 때만 감시를 해제해야 하지만, 
-            // href 링크의 onclick이 먼저 실행되므로, 
-            // 여기서는 일단 클릭하면 isSubmitting을 true로 만들어서 블러를 막습니다.
-            // (만약 취소하면 다시 false로 돌리는 복잡한 로직보다는, 
-            //  순간적인 블러를 막는 게 목적이므로 true로 설정합니다.)
-            isSubmitting = true; 
-        });
-    }
-
-    // 5. 제출 버튼 클릭 시 '제출 중' 상태로 변경
-    // (모달이 뜨는 버튼에 id="submitBtn"을 추가하거나, 아래처럼 선택자로 잡음)
-    const submitBtn = document.querySelector('[data-bs-target="#submitModal"]');
-    if(submitBtn) {
-        submitBtn.addEventListener('click', function() {
-            isSubmitting = true; // 이제부터 감시 중단
-        });
-    }
-
-    // (만약 모달에서 '취소'를 누르면 다시 감시 시작)
+    /**
+     * 7. 상태 제어: 제출/종료 시 감시 해제
+     */
+    // 제출 모달이 뜰 때 감시 중단
     const submitModal = document.getElementById('submitModal');
     if(submitModal) {
-        submitModal.addEventListener('hidden.bs.modal', function () {
-            isSubmitting = false; // 다시 감시 시작
-        });
+        submitModal.addEventListener('show.bs.modal', () => isSubmitting = true);
+        submitModal.addEventListener('hidden.bs.modal', () => isSubmitting = false);
+    }
+    
+    // 나가기 버튼 클릭 시 감시 중단
+    const exitBtn = document.getElementById('exitBtn');
+    if(exitBtn) {
+        exitBtn.addEventListener('click', () => isSubmitting = true);
     }
 </script>
 
