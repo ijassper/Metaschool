@@ -127,63 +127,102 @@
                 </div>
             </div>
 
-            <!-- 2. 우리 반 평가 목록 -->
-            <div class="row justify-content-center mt-5 mb-5">
-                <div class="col-md-10">
-                    <div class="card shadow-sm border-primary">
-                        <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-pencil-square"></i> 교과 논술형 평가 목록</span>
-                            <span class="badge bg-light text-primary">{{ my_teacher.name }} 선생님</span>
-                        </div>
-                        
-                        <div class="card-body p-0">
-                            <table class="table table-hover text-center align-middle mb-0">
+            <!-- 2. 평가 목록 -->
+            <div class="container-fluid px-4 py-4">
+                <!-- [섹션 1] 교과 논술형 평가 목록 -->
+                <div class="card shadow-sm border-0 mb-5">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-book me-2"></i> 교과 논술형 평가 목록</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 w-100"> <!-- w-100으로 꽉 차게 설정 -->
                                 <thead class="table-light">
-                                    <tr>
-                                        <th>과목</th>
-                                        <th class="text-start">평가 제목</th>
-                                        <th>영역</th>
-                                        <th>상태</th>
-                                        <th>응시</th>
+                                    <tr class="text-center">
+                                        <th style="width: 10%;">과목</th>
+                                        <th style="width: 35%;">평가 주제</th>
+                                        <th style="width: 20%;">영역</th>
+                                        <th style="width: 10%;">상태</th>
+                                        <th style="width: 12.5%;">응시</th>
+                                        <th style="width: 12.5%;">결과확인</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for act in student_activities %}
-                                    <tr>
-                                        <td><span class="badge bg-secondary">{{ act.subject_name }}</span></td>
-                                        <td class="text-start fw-bold">{{ act.title }}</td>
-                                        <td class="small text-muted">{{ act.section }}</td>
-                                        
-                                        <!-- 상태 표시 -->
+                                    {% for activity in essay_activities %}
+                                    <tr class="text-center">
+                                        <td><span class="badge bg-secondary opacity-75">{{ activity.subject_name }}</span></td>
+                                        <td class="text-start fw-bold px-4">{{ activity.title }}</td>
+                                        <td>{{ activity.section }}</td>
                                         <td>
-                                            {% if act.is_active %}
-                                                <span class="badge bg-success">진행중</span>
+                                            {% if activity.is_active %}
+                                                <span class="badge rounded-pill bg-success">진행중</span>
                                             {% else %}
-                                                <span class="badge bg-secondary">대기중</span>
+                                                <span class="badge rounded-pill bg-secondary opacity-50">대기중</span>
                                             {% endif %}
                                         </td>
-
-                                        <!-- 응시 버튼 -->
                                         <td>
-                                            {% if act.is_active %}
-                                                <!-- 활성화되면: 파란색 응시 버튼 -->
-                                                <a href="{% url 'take_test' act.id %}" class="btn btn-primary btn-sm">
-                                                    <i class="bi bi-pencil"></i> 응시하기
-                                                </a>
-                                            {% else %}
-                                                <!-- 비활성화되면: 회색 비활성 버튼 (클릭 불가) -->
-                                                <button class="btn btn-secondary btn-sm" disabled>
-                                                    <i class="bi bi-hourglass-split"></i> 대기
-                                                </button>
-                                            {% endif %}
+                                            <a href="{% url 'take_test' activity.id %}" class="btn btn-sm btn-outline-primary px-3">
+                                                <i class="bi bi-pencil-square"></i> 응시하기
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <!-- 나중에 피드백/결과 페이지 연결 -->
+                                            <button class="btn btn-sm btn-info text-white px-3" {% if not activity.is_active %}disabled{% endif %}>
+                                                <i class="bi bi-file-earmark-bar-graph"></i> 결과보기
+                                            </button>
                                         </td>
                                     </tr>
                                     {% empty %}
-                                    <tr>
-                                        <td colspan="5" class="py-5 text-muted">
-                                            배정된 수행평가가 없습니다.
+                                    <tr><td colspan="6" class="text-center py-5 text-muted">등록된 교과 논술형 평가가 없습니다.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- [섹션 2] 자율활동 평가 목록 (새로운 머리글 적용) -->
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-success text-white py-3">
+                        <h5 class="mb-0 fw-bold"><i class="bi bi-star me-2"></i> 자율활동 평가 목록</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 w-100">
+                                <thead class="table-light">
+                                    <tr class="text-center">
+                                        <th style="width: 25%;">활동명</th>
+                                        <th style="width: 35%;">주제</th>
+                                        <th style="width: 10%;">상태</th>
+                                        <th style="width: 15%;">응시</th>
+                                        <th style="width: 15%;">결과확인</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for activity in creative_activities %}
+                                    <tr class="text-center">
+                                        <td class="fw-bold">{{ activity.section }}</td> <!-- 자율활동은 section이 활동명 -->
+                                        <td class="text-start px-4">{{ activity.title }}</td> <!-- title이 주제 -->
+                                        <td>
+                                            {% if activity.is_active %}
+                                                <span class="badge rounded-pill bg-success">진행중</span>
+                                            {% else %}
+                                                <span class="badge rounded-pill bg-secondary opacity-50">대기중</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'take_test' activity.id %}" class="btn btn-sm btn-outline-primary px-4">
+                                                <i class="bi bi-pencil-square"></i> 응시
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-info text-white px-4" {% if not activity.is_active %}disabled{% endif %}>
+                                                <i class="bi bi-search"></i> 결과확인
+                                            </button>
                                         </td>
                                     </tr>
+                                    {% empty %}
+                                    <tr><td colspan="5" class="text-center py-5 text-muted">등록된 자율활동이 없습니다.</td></tr>
                                     {% endfor %}
                                 </tbody>
                             </table>

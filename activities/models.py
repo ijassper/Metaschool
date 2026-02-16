@@ -15,6 +15,7 @@ class Activity(models.Model):
         ('CUSTOM', '교사 맞춤형 분석'),
     ]
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='ESSAY', verbose_name="활동 유형")
+    result = models.TextField(blank=True, verbose_name="평가 결과", help_text="학생에게 보여줄 피드백") # 결과 텍스트
 
     # 응시 환경 설정 (OPEN: 개방형, CLOSED: 폐쇄형)
     EXAM_MODE_CHOICES = [
