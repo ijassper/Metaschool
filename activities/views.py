@@ -20,21 +20,27 @@ from accounts.models import Student, SystemConfig, PromptTemplate, PromptCategor
 # 1. 학생 대시보드 (응시 가능한 평가 목록)
 @login_required
 def student_dashboard(request):
-    # 현재 로그인한 학생이 대상에 포함된 모든 활동 가져오기
-    # (Student 모델이 User와 1:1 관계인 'student' 프로필이 있다고 가정)
-    student_profile = request.user.student 
-    
-    # 1. 교과 논술형 평가 (ESSAY)
-    essay_activities = Activity.objects.filter(
-        target_students=student_profile,
-        category='ESSAY'
-    ).order_by('-created_at')
+    # 1. 현재 로그인한 유저와 연결된 학생 객체 가져오기
+    # CustomUser 모델에 student 프로필이 연결되어 있다고 가정합니다.
+    try:
+        student_profile = request.user.student 
+    except AttributeError:
+        # 만약 연결된 학생 프로필이 없다면 빈 목록 반환
+        return render(request, 'activities/student_dashboard.html', {
+            'essay_activities': [],
+            'creative_activities': [],
+        })
 
-    # 2. 자율활동 (CREATIVE)
-    creative_activities = Activity.objects.filter(
+    # 2. 공통 필터: 대상 학생에 포함되어 있고 + 진행중(is_active=True)인 것만!
+    # 만약 '대기중'인 것도 학생에게 보여주고 싶다면 .filter(is_active=True)를 삭제하세요.
+    base_query = Activity.objects.filter(
         target_students=student_profile,
-        category='CREATIVE'
-    ).order_by('-created_at')
+        is_active=True  # 이 부분이 False면 목록에 나오지 않습니다.
+    )
+
+    # 3. 카테고리별 분류
+    essay_activities = base_query.filter(category='ESSAY').order_of_created()
+    creative_activities = base_query.filter(category='CREATIVE').order_of_created()
 
     return render(request, 'activities/student_dashboard.html', {
         'essay_activities': essay_activities,
