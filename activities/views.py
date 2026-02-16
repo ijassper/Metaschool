@@ -72,7 +72,7 @@ def create_test(request):
         if a_form.is_valid() and q_form.is_valid():
             activity = a_form.save(commit=False)
             activity.teacher = request.user
-            
+            ㅇㅇㅇㅇㅇㅁㄴㅇㄻㄴㅇㄹ
             # 1. 카테고리 고정 (교과 논술형)
             activity.category = 'ESSAY'
             

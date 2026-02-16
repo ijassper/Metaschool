@@ -9,7 +9,7 @@ class Activity(models.Model):
         ('ESSAY', '교과 논술형 평가'),
         ('SUBJECT', '교과 수업활동'),
         ('EVENT', '교내 행사활동'),
-        ('CREATIVE', '창의적체험활동'),
+        ('CREATIVE', '자율활동'),
         ('CAREER', '진로활동'),
         ('CLASS', '학급활동'),
         ('CUSTOM', '교사 맞춤형 분석'),
