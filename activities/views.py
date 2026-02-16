@@ -16,31 +16,38 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Activity, Question, Answer
 from .forms import ActivityForm, QuestionForm, AnswerForm
 from accounts.models import Student, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption
+import logging
+logger = logging.getLogger(__name__)
 
 # 1. 학생 대시보드 (응시 가능한 평가 목록)
 @login_required
 def student_dashboard(request):
-    # 1. 현재 로그인한 유저와 연결된 학생 객체 가져오기
-    # CustomUser 모델에 student 프로필이 연결되어 있다고 가정합니다.
+    # 1. 유저 정보 확인
+    user = request.user
+    print(f"DEBUG: 현재 로그인 유저 - {user.email}, 등급 - {user.role}")
+
+    # 2. 학생 프로필 찾기 (CustomUser 모델과 Student 모델의 관계 확인)
+    # 만약 Student 모델에 user 필드가 OneToOne으로 연결되어 있다면:
     try:
-        student_profile = request.user.student 
-    except AttributeError:
-        # 만약 연결된 학생 프로필이 없다면 빈 목록 반환
-        return render(request, 'activities/student_dashboard.html', {
-            'essay_activities': [],
-            'creative_activities': [],
-        })
+        # Student 모델에 user 필드가 있다면 student = Student.objects.get(user=user)
+        # 만약 CustomUser에 student 프로필이 있다면 user.student
+        student_profile = Student.objects.get(email=user.email) 
+        print(f"DEBUG: 학생 프로필 발견 - {student_profile.name} (ID: {student_profile.id})")
+    except Student.DoesNotExist:
+        print("DEBUG: 에러 - Student 모델에서 이 유저의 이메일을 찾을 수 없습니다.")
+        return render(request, 'activities/student_dashboard.html', {'error': '학생 정보가 없습니다.'})
 
-    # 2. 공통 필터: 대상 학생에 포함되어 있고 + 진행중(is_active=True)인 것만!
-    # 만약 '대기중'인 것도 학생에게 보여주고 싶다면 .filter(is_active=True)를 삭제하세요.
-    base_query = Activity.objects.filter(
-        target_students=student_profile,
-        is_active=True  # 이 부분이 False면 목록에 나오지 않습니다.
-    )
+    # 3. 전체 활동 먼저 가져와보기 (필터링 전 단계 확인)
+    all_assigned = Activity.objects.filter(target_students=student_profile)
+    print(f"DEBUG: 이 학생에게 할당된 전체 활동 수 - {all_assigned.count()}")
 
-    # 3. 카테고리별 분류
-    essay_activities = base_query.filter(category='ESSAY').order_of_created()
-    creative_activities = base_query.filter(category='CREATIVE').order_of_created()
+    # 4. 진행중인 것만 필터링
+    active_assigned = all_assigned.filter(is_active=True)
+    print(f"DEBUG: 진행중(is_active=True)인 활동 수 - {active_assigned.count()}")
+
+    # 5. 최종 카테고리 분리
+    essay_activities = active_assigned.filter(category='ESSAY')
+    creative_activities = active_assigned.filter(category='CREATIVE')
 
     return render(request, 'activities/student_dashboard.html', {
         'essay_activities': essay_activities,
