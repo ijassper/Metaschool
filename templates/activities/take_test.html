@@ -36,53 +36,82 @@
 <div class="container-fluid" id="testContainer" style="filter: blur(5px);"> 
     <div class="row h-100 g-2">
         <!-- 왼쪽: 문제지 (30%) -->
-        <div class="col-lg-4 h-100">
-            <div class="card shadow-sm border-secondary full-height-card" style="overflow-y: auto;">
-                <div class="card-header bg-secondary text-white fw-bold sticky-top">
-                    <i class="bi bi-file-text"></i> 문제지
-                </div>
-                <div class="card-body bg-light">
-                    <!-- 문제 내용 표시 -->
-                    <div class="mb-3">
-                        <label class="fw-bold text-secondary small">과목 / 영역</label>
-                        <div class="bg-white border rounded p-2 text-dark">
+        <div class="card shadow-sm border-0 h-100 overflow-auto">
+            <div class="card-header bg-secondary text-white py-2">
+                <h6 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i> 문제지</h6>
+            </div>
+            <div class="card-body p-3">
+                
+                <!-- 1. 과목/영역 (ESSAY) vs 활동명 (CREATIVE) -->
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">
+                        {% if activity.category == 'CREATIVE' %}활동명{% else %}과목 / 영역{% endif %}
+                    </label>
+                    <div class="p-2 bg-light border rounded small">
+                        {% if activity.category == 'CREATIVE' %}
+                            {{ activity.section }}
+                        {% else %}
                             {{ activity.subject_name }} / {{ activity.section }}
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <label class="fw-bold text-secondary small">평가 주제</label>
-                        <div class="bg-white border rounded p-2 fw-bold text-primary">
-                            {{ activity.title }}
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <!-- 문항 내용 -->
-                    <div class="mb-3">
-                        <label class="fw-bold text-dark"><i class="bi bi-question-circle-fill"></i> 평가 문항</label>
-                        <div class="p-3 bg-white border rounded text-break" style="white-space: pre-wrap;">{{ question.content }}</div>
-                    </div>
-
-                    <!-- 참고 자료 -->
-                    {% if question.reference %}
-                    <div class="mb-3">
-                        <label class="fw-bold text-dark"><i class="bi bi-journal-text"></i> 참고 자료</label>
-                        <div class="p-3 bg-white border rounded text-muted small text-break" style="white-space: pre-wrap;">{{ question.reference }}</div>
-                    </div>
-                    {% endif %}
-
-                    <!-- 작성 조건 -->
-                    <div class="mb-3">
-                        <label class="fw-bold text-dark"><i class="bi bi-exclamation-circle"></i> 작성 조건</label>
-                        <div class="alert alert-warning mb-0 small">
-                            {{ question.conditions|default:"특별한 조건이 없습니다."|linebreaksbr }}
-                            {% if question.max_length %}
-                                <br><strong>(분량 제한: {{ question.max_length }}자 이내)</strong>
-                            {% endif %}
-                        </div>
+                        {% endif %}
                     </div>
                 </div>
+
+                <!-- 2. 평가 주제 (공통) -->
+                <div class="mb-3">
+                    <label class="small text-muted mb-1">평가 주제</label>
+                    <div class="p-2 border rounded fw-bold text-primary small" style="background-color: #fdfdfd;">
+                        {{ activity.title }}
+                    </div>
+                </div>
+
+                <!-- 3. 평가 문항 (공통) -->
+                <div class="mb-3 border-top pt-3">
+                    <label class="small text-muted mb-1"><i class="bi bi-question-circle-fill me-1"></i> 평가 문항</label>
+                    <div class="p-3 border rounded bg-white shadow-sm small">
+                        {{ activity.question|linebreaks }}
+                    </div>
+                </div>
+
+                <!-- 4. 참고 자료 (자율활동은 문항 바로 아래 배치) -->
+                {% if activity.reference_material or activity.attachment %}
+                <div class="mb-3">
+                    <label class="small text-muted mb-1"><i class="bi bi-info-circle-fill me-1"></i> 참고 자료</label>
+                    <div class="p-2 border rounded bg-light small overflow-auto" style="max-height: 200px;">
+                        {{ activity.reference_material|linebreaks|default:"설명이 없습니다." }}
+                        
+                        {% if activity.attachment %}
+                        <div class="mt-2 border-top pt-2">
+                            <a href="{{ activity.attachment.url }}" class="btn btn-sm btn-outline-dark w-100" target="_blank">
+                                <i class="bi bi-download"></i> 첨부파일 보기/다운로드
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 5. 작성 조건 (공통) -->
+                <div class="mb-3 border-top pt-3">
+                    <label class="small text-muted mb-1"><i class="bi bi-exclamation-circle-fill me-1"></i> 작성 조건</label>
+                    <div class="p-2 border rounded small" style="background-color: #fff9e6;">
+                        {{ activity.conditions|linebreaks|default:"특별한 조건이 없습니다." }}
+                    </div>
+                </div>
+
+                <!-- 6. 자율활동 전용 추가 정보 (작성분량, 제출기한) -->
+                {% if activity.category == 'CREATIVE' %}
+                <div class="mt-3 p-2 border-top">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="small text-muted">작성 분량</span>
+                        <span class="small fw-bold text-danger">{{ activity.char_limit|default:0 }}자 이상</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="small text-muted">제출 기한</span>
+                        <span class="small fw-bold">{{ activity.deadline|date:"Y-m-d H:i"|default:"무제한" }}</span>
+                    </div>
+                </div>
+                {% endif %}
+
             </div>
         </div>
 
