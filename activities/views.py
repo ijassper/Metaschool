@@ -22,32 +22,28 @@ logger = logging.getLogger(__name__)
 # 1. 학생 대시보드 (응시 가능한 평가 목록)
 @login_required
 def student_dashboard(request):
-    # 1. 유저 정보 확인
-    user = request.user
-    print(f"DEBUG: 현재 로그인 유저 - {user.email}, 등급 - {user.role}")
+    # 1. 학생 객체 찾기 (이메일 기반으로 찾는 것이 가장 정확함)
+    student_profile = Student.objects.filter(email=request.user.email).first()
+    
+    if not student_profile:
+        # 이메일로 못 찾으면 연결된 프로필로 재시도
+        student_profile = getattr(request.user, 'student', None)
 
-    # 2. 학생 프로필 찾기 (CustomUser 모델과 Student 모델의 관계 확인)
-    # 만약 Student 모델에 user 필드가 OneToOne으로 연결되어 있다면:
-    try:
-        # Student 모델에 user 필드가 있다면 student = Student.objects.get(user=user)
-        # 만약 CustomUser에 student 프로필이 있다면 user.student
-        student_profile = Student.objects.get(email=user.email) 
-        print(f"DEBUG: 학생 프로필 발견 - {student_profile.name} (ID: {student_profile.id})")
-    except Student.DoesNotExist:
-        print("DEBUG: 에러 - Student 모델에서 이 유저의 이메일을 찾을 수 없습니다.")
-        return render(request, 'activities/student_dashboard.html', {'error': '학생 정보가 없습니다.'})
+    if not student_profile:
+        return render(request, 'activities/student_dashboard.html', {
+            'essay_activities': [], 'creative_activities': []
+        })
 
-    # 3. 전체 활동 먼저 가져와보기 (필터링 전 단계 확인)
+    # 2. 이 학생에게 할당된 모든 활동 가져오기 (상태 필터 일단 제거하여 데이터 확인)
     all_assigned = Activity.objects.filter(target_students=student_profile)
-    print(f"DEBUG: 이 학생에게 할당된 전체 활동 수 - {all_assigned.count()}")
 
-    # 4. 진행중인 것만 필터링
-    active_assigned = all_assigned.filter(is_active=True)
-    print(f"DEBUG: 진행중(is_active=True)인 활동 수 - {active_assigned.count()}")
+    # 3. 카테고리 분류 (핵심 수정: 공백이나 오타를 방지하기 위해 icontains 사용)
+    # 쉘에서 발견된 'ESSAY ' 문제를 해결하기 위해 포함(icontains) 방식으로 필터링합니다.
+    essay_activities = all_assigned.filter(category__icontains='ESSAY').order_by('-created_at')
+    creative_activities = all_assigned.filter(category__icontains='CREATIVE').order_by('-created_at')
 
-    # 5. 최종 카테고리 분리
-    essay_activities = active_assigned.filter(category='ESSAY')
-    creative_activities = active_assigned.filter(category='CREATIVE')
+    # (디버깅용 출력: 가비아 터미널에서 확인 가능)
+    print(f"DEBUG: 학생 {student_profile.name} / 총 할당: {all_assigned.count()} / 논술형: {essay_activities.count()} / 자율: {creative_activities.count()}")
 
     return render(request, 'activities/student_dashboard.html', {
         'essay_activities': essay_activities,
