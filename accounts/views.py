@@ -27,6 +27,8 @@ from activities.models import Activity  # 평가관리
 # 대시보드 (로그인 후 첫 화면)
 @login_required
 def dashboard(request):
+    # 로그인한 사용자 정보 가져오기
+    user = request.user
     context = {}
     
     # 학교 대표(LEADER)일 경우, 우리 학교 정보 가져오기
@@ -49,24 +51,26 @@ def dashboard(request):
     if request.user.role == 'STUDENT':
         # 내 이메일로 Student 명부 찾기
         try:
-            # 내 정보 찾기
-            student_info = Student.objects.get(email=request.user.email)
-            my_teacher = student_info.teacher # (화면 표시용)
+            # 1. 학생 객체 가져오기 (이메일 매칭 등)
+            from activities.models import Student
+            student_profile = Student.objects.filter(email=user.email).first()
             
-            # ★ [핵심 수정]
-            # 조건 1: target_students 필드에 '나(student_info)'가 포함되어 있어야 함.
-            # 조건 2: is_active 필터는 뺍니다! (꺼져 있어도 '대기중'으로 봐야 하니까요)
-            activities = Activity.objects.filter(
-                target_students=student_info
-            ).order_by('-created_at')
-            
-            context['student_activities'] = activities
-            context['my_teacher'] = my_teacher
+            # 2. 데이터 분류
+            if student_profile:
+                base_query = Activity.objects.filter(target_students=student_profile, is_active=True)
+                essay_activities = base_query.filter(category__icontains='ESSAY').order_by('-created_at')
+                creative_activities = base_query.filter(category__icontains='CREATIVE').order_by('-created_at')
+            else:
+                essay_activities = []
+                creative_activities = []
             
         except Student.DoesNotExist:
             context['error_msg'] = "학생 명부에서 정보를 찾을 수 없습니다."
 
-    return render(request, 'dashboard.html', context)
+    return render(request, 'dashboard.html', {
+            'essay_activities': essay_activities,
+            'creative_activities': creative_activities,
+        })
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
 class SignUpView(generic.CreateView):
