@@ -82,8 +82,8 @@
                             <td>{{ activity.section }}</td>
                             <td class="text-start px-4">{{ activity.title }}</td>
                             <td><span class="badge bg-success">진행중</span></td>
-                            <td><a href="{% url 'take_test' activity.id %}" class="btn btn-sm btn-outline-primary">응시</a></td>
-                            <td><button class="btn btn-sm btn-info text-white">결과확인</button></td>
+                            <td><a href="{% url 'take_test' activity.id %}" class="btn btn-sm btn-outline-primary">응시하기</a></td>
+                            <td><button class="btn btn-sm btn-info text-white">결과보기</button></td>
                         </tr>
                         {% endfor %}
                     </tbody>
