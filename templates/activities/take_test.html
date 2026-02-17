@@ -33,54 +33,51 @@
     </div>
 </div>
 
-<div class="container-fluid" id="testContainer" style="filter: blur(5px);"> 
-    <div class="row h-100 g-2">
-        <!-- 왼쪽: 문제지 (30%) -->
-        <div class="card shadow-sm border-0 h-100 overflow-auto">
-            <div class="card-header bg-secondary text-white py-2">
-                <h6 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i> 문제지</h6>
-            </div>
-            <div class="card-body p-3">
+<!-- 화면 전체를 꽉 채우기 위해 container-fluid 및 높이 설정 -->
+<div class="container-fluid vh-100 p-0 overflow-hidden" style="margin-top: -25px;">
+    <div class="row h-100 g-0">
+        
+        <!-- [좌측 영역: 문제지 (비율 3)] -->
+        <div class="col-md-3 h-100 border-end bg-light shadow-sm overflow-auto p-3" style="max-height: 100vh;">
+            <div class="card border-0 bg-transparent">
+                <div class="card-header bg-dark text-white py-2 mb-3 rounded">
+                    <h6 class="mb-0 small"><i class="bi bi-file-earmark-text me-2"></i> 문제지</h6>
+                </div>
                 
-                <!-- 1. 과목/영역 (ESSAY) vs 활동명 (CREATIVE) -->
+                <!-- 활동명/과목 -->
                 <div class="mb-3">
-                    <label class="small text-muted mb-1">
+                    <label class="small text-muted fw-bold mb-1">
                         {% if activity.category == 'CREATIVE' %}활동명{% else %}과목 / 영역{% endif %}
                     </label>
-                    <div class="p-2 bg-light border rounded small">
-                        {% if activity.category == 'CREATIVE' %}
-                            {{ activity.section }}
-                        {% else %}
-                            {{ activity.subject_name }} / {{ activity.section }}
-                        {% endif %}
+                    <div class="p-2 bg-white border rounded small shadow-sm">
+                        {% if activity.category == 'CREATIVE' %}{{ activity.section }}{% else %}{{ activity.subject_name }} / {{ activity.section }}{% endif %}
                     </div>
                 </div>
 
-                <!-- 2. 평가 주제 (공통) -->
+                <!-- 평가 주제 -->
                 <div class="mb-3">
-                    <label class="small text-muted mb-1">평가 주제</label>
-                    <div class="p-2 border rounded fw-bold text-primary small" style="background-color: #fdfdfd;">
+                    <label class="small text-muted fw-bold mb-1">평가 주제</label>
+                    <div class="p-2 border rounded fw-bold text-primary small bg-white shadow-sm">
                         {{ activity.title }}
                     </div>
                 </div>
 
-                <!-- 3. 평가 문항 (공통) -->
-                <div class="mb-3 border-top pt-3">
-                    <label class="small text-muted mb-1"><i class="bi bi-question-circle-fill me-1"></i> 평가 문항</label>
-                    <div class="p-3 border rounded bg-white shadow-sm small">
+                <!-- 평가 문항 -->
+                <div class="mb-3 pt-2">
+                    <label class="small text-muted fw-bold mb-1"><i class="bi bi-question-circle-fill me-1"></i> 평가 문항</label>
+                    <div class="p-3 border rounded bg-white shadow-sm small" style="line-height: 1.6;">
                         {{ activity.question|linebreaks }}
                     </div>
                 </div>
 
-                <!-- 4. 참고 자료 (자율활동은 문항 바로 아래 배치) -->
+                <!-- 참고 자료 (카테고리 구분 없이 데이터 있으면 출력) -->
                 {% if activity.reference_material or activity.attachment %}
-                <div class="mb-3">
-                    <label class="small text-muted mb-1"><i class="bi bi-info-circle-fill me-1"></i> 참고 자료</label>
-                    <div class="p-2 border rounded bg-light small overflow-auto" style="max-height: 200px;">
-                        {{ activity.reference_material|linebreaks|default:"설명이 없습니다." }}
-                        
+                <div class="mb-3 pt-2">
+                    <label class="small text-muted fw-bold mb-1"><i class="bi bi-info-circle-fill me-1"></i> 참고 자료</label>
+                    <div class="p-3 border rounded bg-white shadow-sm small">
+                        {{ activity.reference_material|linebreaks|default:"내용 없음" }}
                         {% if activity.attachment %}
-                        <div class="mt-2 border-top pt-2">
+                        <div class="mt-3">
                             <a href="{{ activity.attachment.url }}" class="btn btn-sm btn-outline-dark w-100" target="_blank">
                                 <i class="bi bi-download"></i> 첨부파일 보기/다운로드
                             </a>
@@ -90,83 +87,61 @@
                 </div>
                 {% endif %}
 
-                <!-- 5. 작성 조건 (공통) -->
-                <div class="mb-3 border-top pt-3">
-                    <label class="small text-muted mb-1"><i class="bi bi-exclamation-circle-fill me-1"></i> 작성 조건</label>
-                    <div class="p-2 border rounded small" style="background-color: #fff9e6;">
+                <!-- 작성 조건 -->
+                <div class="mb-3 pt-2">
+                    <label class="small text-muted fw-bold mb-1"><i class="bi bi-exclamation-circle-fill me-1"></i> 작성 조건</label>
+                    <div class="p-3 border rounded small shadow-sm" style="background-color: #fff9e6; border-left: 4px solid #ffc107 !important;">
                         {{ activity.conditions|linebreaks|default:"특별한 조건이 없습니다." }}
+                        {% if activity.char_limit > 0 %}
+                        <div class="mt-2 fw-bold text-danger">(분량 제한: {{ activity.char_limit }}자 이상)</div>
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- 6. 자율활동 전용 추가 정보 (작성분량, 제출기한) -->
+                <!-- 자율활동 전용 요약 (하단 고정 느낌으로 추가) -->
                 {% if activity.category == 'CREATIVE' %}
-                <div class="mt-3 p-2 border-top">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="small text-muted">작성 분량</span>
-                        <span class="small fw-bold text-danger">{{ activity.char_limit|default:0 }}자 이상</span>
+                <div class="mt-4 p-3 border rounded bg-white shadow-sm small">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">작성 분량</span>
+                        <span class="fw-bold text-danger">{{ activity.char_limit|default:0 }}자 이상</span>
                     </div>
                     <div class="d-flex justify-content-between">
-                        <span class="small text-muted">제출 기한</span>
-                        <span class="small fw-bold">{{ activity.deadline|date:"Y-m-d H:i"|default:"무제한" }}</span>
+                        <span class="text-muted">제출 기한</span>
+                        <span class="fw-bold">{{ activity.deadline|date:"Y-m-d H:i" }}</span>
                     </div>
                 </div>
                 {% endif %}
-
             </div>
+            <div style="height: 50px;"></div> <!-- 하단 여유 공간 -->
         </div>
 
-        <!-- ★ 오른쪽: 답안지 (70%) -->
-        <div class="col-lg-8 h-100">
-            <div class="card shadow border-primary full-height-card">
-                <div class="card-header bg-primary text-white py-4"> 
-                    <div class="d-flex justify-content-between align-items-center">
-                        
-                        <!-- 왼쪽: 제목 + 글자 수 카운터 -->
-                        <div class="d-flex align-items-center">
-                            <!-- 글씨 크기 키움 (fs-3) -->
-                            <span class="fs-3 fw-bold me-3">
-                                <i class="bi bi-pencil-square"></i> 답안 작성 ({{ user.name }})
-                            </span>
-                            <!-- 글자 수 뱃지 이동 및 디자인 변경 -->
-                            <span id="charCount" class="badge bg-white text-primary fs-6 border border-white">
-                                0자 / {{ question.max_length|default:'무제한' }}
-                            </span>
-                        </div>
-
-                        <!-- 오른쪽: 나가기 / 제출 버튼 -->
-                        <div>
-                            <!-- 나가기 버튼 (대시보드로 이동) -->
-                            <!-- onclick에 confirm을 넣어서 실수로 나가는 것 방지 -->
-                            <a href="{% url 'dashboard' %}" id="exitBtn" class="btn btn-outline-light btn-lg fw-bold me-2" onclick="return confirm('시험을 종료하고 나가시겠습니까?\n작성 중인 내용은 저장되지 않습니다.');">
-                                <i class="bi bi-box-arrow-left"></i> 나가기
-                            </a>
-                            
-                            <!-- 제출 버튼 (기존 기능 유지, 위치만 이동) -->
-                            <!-- 빨간색 강조 (btn-danger), 테두리 추가 -->
-                            <button type="button" class="btn btn-danger btn-lg fw-bold border border-white" data-bs-toggle="modal" data-bs-target="#submitModal">
-                                <i class="bi bi-send-fill"></i> 답안제출
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card-body d-flex flex-column p-0">
-                    <!-- 답안 제출 폼 -->
-                    <form method="post" id="answerForm" class="h-100 d-flex flex-column">
-                        {% csrf_token %}
-                        <input type="hidden" id="answerId" value="{{ form.instance.id }}"> 
-
-                        <!-- 답안 입력창 (높이 100% 꽉 채우기) -->
-                        <div class="flex-grow-1">
-                            <!-- style 수정: 테두리 없애고(border-0), 꽉 채움 -->
-                            {{ form.content }}
-                        </div>
-                        
-                        <!-- [삭제됨] 하단에 있던 커다란 제출 버튼 삭제 -->
-                    </form>
+        <!-- [우측 영역: 답안지 (비율 7)] -->
+        <div class="col-md-9 h-100 d-flex flex-column bg-white">
+            <!-- 답안지 헤더 -->
+            <div class="bg-primary text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
+                <h5 class="mb-0 fw-bold">
+                    <i class="bi bi-pencil-square me-2"></i> 답안 작성 ({{ user.name }})
+                </h5>
+                <div class="d-flex align-items-center gap-2">
+                    <!-- 글자수 표시 -->
+                    <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {% if activity.char_limit %}{{ activity.char_limit }}자 이상{% else %}무제한{% endif %}</span>
+                    <button type="button" class="btn btn-outline-light btn-sm px-3" id="exitBtn" onclick="location.href='{% url 'dashboard' %}'">
+                        <i class="bi bi-box-arrow-right"></i> 나가기
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">
+                        <i class="bi bi-send-fill"></i> 답안제출
+                    </button>
                 </div>
             </div>
+
+            <!-- 답안 작성창 (높이 자동 꽉 채움) -->
+            <div class="flex-grow-1 p-4">
+                <textarea id="id_content" name="content" class="form-control border-0 h-100 shadow-none" 
+                          style="resize: none; font-size: 1.1rem; outline: none;" 
+                          placeholder="여기에 답안을 작성하세요."></textarea>
+            </div>
         </div>
+        
     </div>
 </div>
 
