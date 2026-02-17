@@ -37,24 +37,28 @@
 <div class="container-fluid vh-100 p-0 overflow-hidden" style="margin-top: -25px;">
     <div class="row h-100 g-0">
         
-        <!-- [좌측 영역: 문제지 (비율 3)] -->
-        <div class="col-md-3 h-100 border-end bg-light shadow-sm overflow-auto p-3" style="max-height: 100vh;">
+        <!-- [좌측 영역: 문제지] -->
+        <div class="col-md-3 h-100 border-end bg-light shadow-sm overflow-auto p-3">
             <div class="card border-0 bg-transparent">
                 <div class="card-header bg-dark text-white py-2 mb-3 rounded">
                     <h6 class="mb-0 small"><i class="bi bi-file-earmark-text me-2"></i> 문제지</h6>
                 </div>
                 
-                <!-- 활동명/과목 -->
+                <!-- 1. 과목/영역/활동명 -->
                 <div class="mb-3">
                     <label class="small text-muted fw-bold mb-1">
                         {% if activity.category == 'CREATIVE' %}활동명{% else %}과목 / 영역{% endif %}
                     </label>
                     <div class="p-2 bg-white border rounded small shadow-sm">
-                        {% if activity.category == 'CREATIVE' %}{{ activity.section }}{% else %}{{ activity.subject_name }} / {{ activity.section }}{% endif %}
+                        {% if activity.category == 'CREATIVE' %}
+                            {{ activity.section }}
+                        {% else %}
+                            {{ activity.subject_name }} / {{ activity.section }}
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- 평가 주제 -->
+                <!-- 2. 평가 주제 -->
                 <div class="mb-3">
                     <label class="small text-muted fw-bold mb-1">평가 주제</label>
                     <div class="p-2 border rounded fw-bold text-primary small bg-white shadow-sm">
@@ -62,24 +66,34 @@
                     </div>
                 </div>
 
-                <!-- 평가 문항 -->
+                <!-- 3. 평가 문항 (구조별 분기 처리) -->
                 <div class="mb-3 pt-2">
                     <label class="small text-muted fw-bold mb-1"><i class="bi bi-question-circle-fill me-1"></i> 평가 문항</label>
-                    <div class="p-3 border rounded bg-white shadow-sm small" style="line-height: 1.6;">
-                        {{ activity.question|linebreaks }}
+                    <div class="p-3 border rounded bg-white shadow-sm small">
+                        {% if activity.category == 'CREATIVE' %}
+                            {{ activity.question|linebreaks }}
+                        {% else %}
+                            <!-- 교과 논술형의 경우 연결된 첫 번째 문항을 가져옴 -->
+                            {{ activity.questions.first.content|linebreaks|default:"문항 내용이 없습니다." }}
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- 참고 자료 (카테고리 구분 없이 데이터 있으면 출력) -->
-                {% if activity.reference_material or activity.attachment %}
+                <!-- 4. 참고 자료 -->
+                {% if activity.reference_material or activity.attachment or activity.questions.first.reference_material %}
                 <div class="mb-3 pt-2">
                     <label class="small text-muted fw-bold mb-1"><i class="bi bi-info-circle-fill me-1"></i> 참고 자료</label>
                     <div class="p-3 border rounded bg-white shadow-sm small">
-                        {{ activity.reference_material|linebreaks|default:"내용 없음" }}
+                        {% if activity.category == 'CREATIVE' %}
+                            {{ activity.reference_material|linebreaks }}
+                        {% else %}
+                            {{ activity.questions.first.reference_material|linebreaks|default:"참고 자료가 없습니다." }}
+                        {% endif %}
+                        
                         {% if activity.attachment %}
                         <div class="mt-3">
                             <a href="{{ activity.attachment.url }}" class="btn btn-sm btn-outline-dark w-100" target="_blank">
-                                <i class="bi bi-download"></i> 첨부파일 보기/다운로드
+                                <i class="bi bi-download"></i> 첨부파일 보기
                             </a>
                         </div>
                         {% endif %}
@@ -87,62 +101,52 @@
                 </div>
                 {% endif %}
 
-                <!-- 작성 조건 -->
+                <!-- 5. 작성 조건 -->
                 <div class="mb-3 pt-2">
                     <label class="small text-muted fw-bold mb-1"><i class="bi bi-exclamation-circle-fill me-1"></i> 작성 조건</label>
-                    <div class="p-3 border rounded small shadow-sm" style="background-color: #fff9e6; border-left: 4px solid #ffc107 !important;">
-                        {{ activity.conditions|linebreaks|default:"특별한 조건이 없습니다." }}
+                    <div class="p-3 border rounded small shadow-sm" style="background-color: #fff9e6;">
+                        {% if activity.category == 'CREATIVE' %}
+                            {{ activity.conditions|linebreaks|default:"특별한 조건이 없습니다." }}
+                        {% else %}
+                            {{ activity.questions.first.conditions|linebreaks|default:"특별한 조건이 없습니다." }}
+                        {% endif %}
+                        
                         {% if activity.char_limit > 0 %}
                         <div class="mt-2 fw-bold text-danger">(분량 제한: {{ activity.char_limit }}자 이상)</div>
                         {% endif %}
                     </div>
                 </div>
-
-                <!-- 자율활동 전용 요약 (하단 고정 느낌으로 추가) -->
-                {% if activity.category == 'CREATIVE' %}
-                <div class="mt-4 p-3 border rounded bg-white shadow-sm small">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">작성 분량</span>
-                        <span class="fw-bold text-danger">{{ activity.char_limit|default:0 }}자 이상</span>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span class="text-muted">제출 기한</span>
-                        <span class="fw-bold">{{ activity.deadline|date:"Y-m-d H:i" }}</span>
-                    </div>
-                </div>
-                {% endif %}
             </div>
-            <div style="height: 50px;"></div> <!-- 하단 여유 공간 -->
         </div>
 
-        <!-- [우측 영역: 답안지 (비율 7)] -->
+        <!-- [우측 영역: 답안지] -->
         <div class="col-md-9 h-100 d-flex flex-column bg-white">
-            <!-- 답안지 헤더 -->
             <div class="bg-primary text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
                 <h5 class="mb-0 fw-bold">
                     <i class="bi bi-pencil-square me-2"></i> 답안 작성 ({{ user.name }})
                 </h5>
                 <div class="d-flex align-items-center gap-2">
-                    <!-- 글자수 표시 -->
-                    <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {% if activity.char_limit %}{{ activity.char_limit }}자 이상{% else %}무제한{% endif %}</span>
-                    <button type="button" class="btn btn-outline-light btn-sm px-3" id="exitBtn" onclick="location.href='{% url 'dashboard' %}'">
-                        <i class="bi bi-box-arrow-right"></i> 나가기
-                    </button>
-                    <button type="button" class="btn btn-danger btn-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">
-                        <i class="bi bi-send-fill"></i> 답안제출
-                    </button>
+                    <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {{ activity.char_limit|default:0 }}자 이상</span>
+                    <button type="button" class="btn btn-outline-light btn-sm px-3" onclick="location.href='{% url 'dashboard' %}'">나가기</button>
+                    <button type="button" class="btn btn-danger btn-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">답안제출</button>
                 </div>
             </div>
 
-            <!-- 답안 작성창 (높이 자동 꽉 채움) -->
             <div class="flex-grow-1 p-4">
                 <textarea id="id_content" name="content" class="form-control border-0 h-100 shadow-none" 
-                          style="resize: none; font-size: 1.1rem; outline: none;" 
-                          placeholder="여기에 답안을 작성하세요."></textarea>
+                          style="resize: none; font-size: 1.1rem;" placeholder="여기에 답안을 작성하세요."></textarea>
             </div>
         </div>
-        
     </div>
+</div>
+
+<!-- 시작 가림막 (전체화면 유도) -->
+<div id="startOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-dark d-flex flex-column justify-content-center align-items-center" style="z-index: 9999; --bs-bg-opacity: .95;">
+    <div class="text-white text-center mb-4">
+        <h2 class="fw-bold mb-3">평가 응시 준비</h2>
+        <p>평가 보안을 위해 전체 화면 모드로 전환됩니다.</p>
+    </div>
+    <button class="btn btn-primary btn-lg px-5 py-3 fw-bold" onclick="startTest()">응시 시작하기</button>
 </div>
 
 <!-- 3. 제출 확인 모달 (중앙 정렬) -->
@@ -168,7 +172,7 @@
   </div>
 </div>
 
-<!-- ★ 보안 및 기능 스크립트 -->
+<!-- ★ 통합 보안 및 응시 기능 스크립트 -->
 <script>
     /**
      * 1. 초기 설정 및 환경 변수
@@ -176,19 +180,20 @@
     const EXAM_MODE = "{{ activity.exam_mode }}"; // 'OPEN' 또는 'CLOSED'
     const textarea = document.getElementById('id_content');
     const counter = document.getElementById('charCount');
-    const charLimit = {{ activity.char_limit|default:0 }}; // "자 이상" 기준값
+    const charLimit = {{ activity.char_limit|default:0 }}; 
     const answerId = "{{ answer_id|default:'' }}"; 
     
-    let isSubmitting = false; // 제출 중에는 감시 로직 중단용
+    let isSubmitting = false; // 제출/나가기 중 감시 중단 플래그
+    let testStarted = false;  // [신규] '응시 시작' 버튼을 눌렀는지 여부
 
     /**
-     * 2. 공통 기능: 뒤로가기 방지 (Data Loss 방지)
-     * 모드에 상관없이 작성 중인 데이터 보호를 위해 유지합니다.
+     * 2. 공통 기능: 뒤로가기 방지 (History Trap)
+     * 어떤 모드에서든 작성 중인 데이터 유실을 막기 위해 유지합니다.
      */
     history.pushState(null, null, location.href);
     window.onpopstate = function () {
         history.go(1);
-        alert("평가 중에는 브라우저 뒤로가기를 사용할 수 없습니다. 하단 버튼을 이용해주세요.");
+        alert("평가 중에는 뒤로 갈 수 없습니다. 제출 또는 나가기 버튼을 이용해주세요.");
     };
 
     /**
@@ -198,9 +203,9 @@
         textarea.addEventListener('input', function() {
             const currentLength = this.value.length;
             if (charLimit > 0) {
-                // "자 이상" 로직: 목표 도달 시 초록색, 미달 시 파란색/빨간색
+                // "n자 이상" 목표 도달 여부에 따른 디자인 변경
                 counter.innerText = `${currentLength}자 / 최소 ${charLimit}자`;
-                counter.className = currentLength >= charLimit ? 'badge bg-success' : 'badge bg-light text-primary';
+                counter.className = currentLength >= charLimit ? 'badge bg-success px-3 py-2' : 'badge bg-light text-primary px-3 py-2';
             } else {
                 counter.innerText = `${currentLength}자`;
             }
@@ -208,57 +213,88 @@
     }
 
     /**
-     * 4. [폐쇄형 모드 전용] 보안 및 모니터링 로직
+     * 4. 응시 시작 로직 (가림막 제거 및 전체화면 요청)
+     */
+    function startTest() {
+        const elem = document.documentElement;
+        
+        if (EXAM_MODE === 'CLOSED') {
+            // [폐쇄형] 전체 화면 요청 후 시작
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().then(() => completeStart()).catch(err => {
+                    alert("전체 화면 모드를 허용해야 시험을 볼 수 있습니다.");
+                });
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen(); completeStart();
+            } else if (elem.msRequestFullscreen) { /* IE11 */
+                elem.msRequestFullscreen(); completeStart();
+            }
+        } else {
+            // [개방형] 바로 시작
+            completeStart();
+        }
+    }
+
+    function completeStart() {
+        testStarted = true; // 이제부터 모든 보안 감시 가동
+        document.getElementById('startOverlay').classList.add('d-none');
+        // 문제지가 흐릿하게 보였다면 해제 (있을 경우)
+        const testContainer = document.getElementById('testContainer');
+        if(testContainer) testContainer.style.filter = "none";
+    }
+
+    /**
+     * 5. [폐쇄형 전용] 보안 및 모니터링 상세 로직
      */
     if (EXAM_MODE === 'CLOSED') {
-        // --- (1) 전체 화면 강제 로직 ---
-        function startTest() {
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen().then(() => showContent()).catch(() => alert("전체 화면이 필요합니다."));
-            } else if (elem.webkitRequestFullscreen) {
-                elem.webkitRequestFullscreen(); showContent();
-            }
-        }
-
-        function showContent() {
-            document.getElementById('startOverlay').classList.add('d-none');
-            document.getElementById('testContainer').style.filter = "none";
-        }
-
-        // 전체 화면 이탈 감지
+        
+        // --- (1) 전체 화면 상태 실시간 감지 ---
         const handleFullscreenChange = () => {
-            if (isSubmitting) return;
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                // 이탈 시 가림막 활성화
-                document.getElementById('testContainer').style.filter = "blur(15px)";
+            if (!testStarted || isSubmitting) return; 
+
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement) {
+                // 전체 화면이 풀렸을 때만 가림막을 다시 내리고 경고합니다.
                 document.getElementById('startOverlay').classList.remove('d-none');
                 const btn = document.querySelector('#startOverlay button');
                 if(btn) {
                     btn.innerText = "⚠️ 보안 위험: 전체 화면으로 복귀하세요";
                     btn.classList.replace('btn-primary', 'btn-danger');
                 }
+                // 화면 블러 처리 (선택 사항)
+                const testContainer = document.getElementById('testContainer');
+                if(testContainer) testContainer.style.filter = "blur(15px)";
             }
         };
+
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
-        // --- (2) 키보드 및 마우스 제한 ---
+        // --- (2) 부정행위 방지 (키보드 및 마우스 제한) ---
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'F11') e.preventDefault(); // 전체화면 해제 방지
-            // Ctrl+A, C, V 차단
+            if (!testStarted) return;
+
+            // F11(전체화면 해제) 및 단축키 차단
+            if (e.key === 'F11') {
+                e.preventDefault();
+                alert("보안상 전체화면을 해제할 수 없습니다.");
+            }
             if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v'].includes(e.key.toLowerCase())) {
                 e.preventDefault();
                 alert("폐쇄형 모드에서는 복사/붙여넣기를 사용할 수 없습니다.");
             }
         });
-        document.addEventListener('contextmenu', e => e.preventDefault()); // 우클릭 금지
 
-        // --- (3) 탭 이탈 감지 및 로그 전송 ---
+        // 우클릭 차단
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        // --- (3) 화면 이탈 감지 (Alt+Tab 등) 및 로그 전송 ---
         document.addEventListener("visibilitychange", () => {
-            if (isSubmitting) return;
+            if (!testStarted || isSubmitting) return;
+
             if (document.hidden) {
-                alert("⚠️ 경고: 화면 이탈이 감지되었습니다. 로그에 기록됩니다.");
+                alert("⚠️ 경고: 화면을 이탈하지 마세요! 부정행위로 간주되어 로그에 기록됩니다.");
                 sendLog('OUT');
             } else {
                 sendLog('IN');
@@ -266,48 +302,47 @@
         });
 
     } else {
-        /**
-         * 5. [개방형 모드 전용] 자유로운 환경 로직
-         */
-        // 개방형은 시작 버튼 클릭 시 바로 가림막 제거 (전체화면 불필요)
-        function startTest() {
-            showContent();
-        }
-        function showContent() {
-            document.getElementById('startOverlay').classList.add('d-none');
-            document.getElementById('testContainer').style.filter = "none";
-        }
-        console.log("개방형 응시 모드 활성화: 자료 참고가 가능합니다.");
+        // [개방형] 자유로운 환경 안내
+        console.log("개방형 응시 모드: 참고자료 확인 및 화면 전환이 허용됩니다.");
     }
 
     /**
-     * 6. 서버 로그 전송 (AJAX)
+     * 6. 서버 로그 전송 함수 (AJAX)
      */
     function sendLog(type) {
-        if (!answerId) return;
+        if (!answerId) return; 
+
         fetch('/activities/api/log/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            body: JSON.stringify({ 'answer_id': answerId, 'type': type })
-        }).then(res => console.log("Security Log: " + type));
+            body: JSON.stringify({
+                'answer_id': answerId,
+                'type': type
+            })
+        }).then(res => console.log("Security Log Sent: " + type));
     }
 
     /**
-     * 7. 상태 제어: 제출/종료 시 감시 해제
+     * 7. 상태 제어: 제출/나가기 시 감시 일시 해제
      */
-    // 제출 모달이 뜰 때 감시 중단
+    // (1) 제출 버튼 클릭 및 모달 제어
+    const submitBtn = document.querySelector('[data-bs-target="#submitModal"]');
+    if(submitBtn) {
+        submitBtn.addEventListener('click', () => isSubmitting = true);
+    }
+
     const submitModal = document.getElementById('submitModal');
     if(submitModal) {
-        submitModal.addEventListener('show.bs.modal', () => isSubmitting = true);
+        // 모달을 닫으면 다시 감시 시작 (실수로 눌렀을 경우 대비)
         submitModal.addEventListener('hidden.bs.modal', () => isSubmitting = false);
     }
-    
-    // 나가기 버튼 클릭 시 감시 중단
+
+    // (2) 나가기 버튼 클릭 시
     const exitBtn = document.getElementById('exitBtn');
-    if(exitBtn) {
+    if (exitBtn) {
         exitBtn.addEventListener('click', () => isSubmitting = true);
     }
 </script>
