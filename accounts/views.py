@@ -18,7 +18,7 @@ import io
 import json
 import pandas as pd  # 엑셀 처리를 위해 필요
 from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼
-from .models import Student, CustomUser, School  # Student, CustomUser, School 모델 모두 가져오기
+from .models import CustomUser, School  # CustomUser, School 모델 모두 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import Activity, Student  # 평가관리, 학생 모델 가져오기
