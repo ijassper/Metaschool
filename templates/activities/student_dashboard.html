@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- 1. 반갑습니다 섹션 (학생용) -->
+    <div class="text-center mb-5">
+        <h2 class="fw-bold">반갑습니다, <span class="text-primary">{{ user.name }}</span>님! 👋</h2>
+        <p class="text-muted">현재 회원님의 등급은 <span class="badge bg-success">학생</span> 입니다.</p>
+        <p class="small text-secondary">소속: {{ user.school.name|default:"메타고등학교" }}</p>
+    </div>
+
+    <!-- 2. 내 정보 관리 (비밀번호 변경 등) -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-6">
+            <div class="card border-info shadow-sm">
+                <div class="card-header bg-info text-white fw-bold">
+                    <i class="bi bi-person-lock"></i> 내 정보 관리
+                </div>
+                <div class="card-body text-center">
+                    <p class="card-text mb-3">보안을 위해 비밀번호를 주기적으로 변경해주세요.</p>
+                    <a href="{% url 'password_change' %}" class="btn btn-primary">비밀번호 변경하기</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 교과 논술형 평가 목록 (앞서 만든 테이블 코드) -->
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="card-header bg-primary text-white py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-book me-2"></i> 교과 논술형 평가 목록</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr class="text-center">
+                            <th>과목</th>
+                            <th>평가 주제</th>
+                            <th>영역</th>
+                            <th>상태</th>
+                            <th>응시</th>
+                            <th>결과확인</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in essay_activities %}
+                        <tr class="text-center">
+                            <td>{{ activity.subject_name }}</td>
+                            <td class="text-start px-4">{{ activity.title }}</td>
+                            <td>{{ activity.section }}</td>
+                            <td><span class="badge bg-success">진행중</span></td>
+                            <td><a href="{% url 'take_test' activity.id %}" class="btn btn-sm btn-outline-primary">응시하기</a></td>
+                            <td><button class="btn btn-sm btn-info text-white">결과보기</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 자율활동 평가 목록 (앞서 만든 테이블 코드) -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-success text-white py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-star me-2"></i> 자율활동 평가 목록</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr class="text-center">
+                            <th>활동명</th>
+                            <th>주제</th>
+                            <th>상태</th>
+                            <th>응시</th>
+                            <th>결과확인</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in creative_activities %}
+                        <tr class="text-center">
+                            <td>{{ activity.section }}</td>
+                            <td class="text-start px-4">{{ activity.title }}</td>
+                            <td><span class="badge bg-success">진행중</span></td>
+                            <td><a href="{% url 'take_test' activity.id %}" class="btn btn-sm btn-outline-primary">응시</a></td>
+                            <td><button class="btn btn-sm btn-info text-white">결과확인</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

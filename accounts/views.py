@@ -1,10 +1,3 @@
-import requests
-import random
-import openai
-import pandas as pd
-import io
-import json
-import pandas as pd  # 엑셀 처리를 위해 필요
 from django.db.models import Q  # 다중 필터 기능
 from django.urls import reverse_lazy
 from django.http import JsonResponse  # 검색 기능을 위해 필요
@@ -16,12 +9,19 @@ from django.contrib.auth import login  # 자동 로그인을 위해 필요
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages  # 알림 메시지(성공/실패)를 위해 필요
 from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
-from django.db import transaction   # 
+from django.db import transaction   # 트랜잭션 처리를 위해 필요
+import requests
+import random
+import openai
+import pandas as pd
+import io
+import json
+import pandas as pd  # 엑셀 처리를 위해 필요
 from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼
 from .models import Student, CustomUser, School  # Student, CustomUser, School 모델 모두 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
-from activities.models import Activity  # 평가관리
+from activities.models import Activity, Student  # 평가관리, 학생 모델 가져오기
 
 
 # 대시보드 (로그인 후 첫 화면)
@@ -31,46 +31,42 @@ def dashboard(request):
     user = request.user
     context = {}
     
-    # 학교 대표(LEADER)일 경우, 우리 학교 정보 가져오기
-    if request.user.role == 'LEADER' and request.user.school:
-        # 1. 승인 대기 중인 우리 학교 게스트 교사들
+    # 1. 선생님/학교대표(LEADER) 로직
+    if user.role == 'LEADER' and user.school:
         guest_teachers = CustomUser.objects.filter(
-            school=request.user.school, 
+            school=user.school, 
             role='GUEST'
         )
-        
-        # 2. 우리 학교 전체 학생 수 (또는 명단)
-        # teacher__school 로 검색해서 우리 학교 선생님들이 등록한 모든 학생을 찾음
-        school_students = Student.objects.filter(teacher__school=request.user.school)
+        # 이제 Student가 최상단에 임포트되어 있어 에러가 나지 않습니다.
+        school_students = Student.objects.filter(teacher__school=user.school)
         
         context['guest_teachers'] = guest_teachers
         context['school_students'] = school_students
         context['student_count'] = school_students.count()
-    
-    # 2. 학생일 경우: 선생님이 낸 평가 목록 가져오기
-    if request.user.role == 'STUDENT':
-        # 내 이메일로 Student 명부 찾기
-        try:
-            # 1. 학생 객체 가져오기 (이메일 매칭 등)
-            from activities.models import Student
-            student_profile = Student.objects.filter(email=user.email).first()
-            
-            # 2. 데이터 분류
-            if student_profile:
-                base_query = Activity.objects.filter(target_students=student_profile, is_active=True)
-                essay_activities = base_query.filter(category__icontains='ESSAY').order_by('-created_at')
-                creative_activities = base_query.filter(category__icontains='CREATIVE').order_by('-created_at')
-            else:
-                essay_activities = []
-                creative_activities = []
-            
-        except Student.DoesNotExist:
+
+    # 2. 학생(STUDENT) 로직
+    if user.role == 'STUDENT':
+        student_profile = Student.objects.filter(email=user.email).first()
+        
+        if student_profile:
+            base_query = Activity.objects.filter(target_students=student_profile, is_active=True)
+            # category__icontains로 공백 문제 방어
+            essay_activities = base_query.filter(category__icontains='ESSAY').order_by('-created_at')
+            creative_activities = base_query.filter(category__icontains='CREATIVE').order_by('-created_at')
+        else:
+            essay_activities = []
+            creative_activities = []
             context['error_msg'] = "학생 명부에서 정보를 찾을 수 없습니다."
 
-    return render(request, 'dashboard.html', {
-            'essay_activities': essay_activities,
-            'creative_activities': creative_activities,
-        })
+        # 학생용 데이터 context에 추가
+        context['essay_activities'] = essay_activities
+        context['creative_activities'] = creative_activities
+        
+        # 학생 전용 템플릿 반환
+        return render(request, 'activities/student_dashboard.html', context)
+
+    # 3. 교사/관리자 등은 기존 대시보드 반환
+    return render(request, 'dashboard.html', context)
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
 class SignUpView(generic.CreateView):
