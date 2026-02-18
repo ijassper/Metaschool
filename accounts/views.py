@@ -56,10 +56,17 @@ def dashboard(request):
             
             # 각 활동 객체에 제출 여부 플래그(has_submitted)를 동적으로 달아줌
             for activity in essay_activities:
-                activity.has_submitted = Answer.objects.filter(student=student_profile, activity=activity).exists()
-            
+                # Answer -> Question -> Activity 경로로 역추적하여 필터링
+                activity.has_submitted = Answer.objects.filter(
+                    student=student_profile, 
+                    question__activity=activity
+                ).exists()
+
             for activity in creative_activities:
-                activity.has_submitted = Answer.objects.filter(student=student_profile, activity=activity).exists()
+                activity.has_submitted = Answer.objects.filter(
+                    student=student_profile, 
+                    question__activity=activity
+                ).exists()
         else:
             essay_activities = []
             creative_activities = []
