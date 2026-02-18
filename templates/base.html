@@ -10,43 +10,59 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     
     <style>
+        /* 1. 기본 레이아웃 (유지) */
         body { background-color: #f8f9fa; }
         .navbar { box-shadow: 0 2px 4px rgba(0,0,0,.05); z-index: 1030; }
-        
-        /* 사이드바 스타일 정의 */
+        main { padding-top: 1.5rem; }
+
+        /* 2. 사이드바 기본 컨테이너 (유지 및 보완) */
         .sidebar {
             min-height: calc(100vh - 56px);
             background-color: white;
             border-right: 1px solid #dee2e6;
-            padding-top: 1.5rem;
+            padding-top: 1rem;
         }
+
+        /* 3. [변경] 대분류 타이틀 스타일 (클릭 안됨) */
+        .sidebar-heading-custom {
+            font-size: 1.1rem;      /* 글씨 크기 키움 */
+            font-weight: 800;       /* 강조를 위해 아주 두껍게 */
+            color: #212529;         /* 진한 색상 */
+            margin-top: 2rem;       /* 섹션 간 간격 확대 */
+            margin-bottom: 0.6rem;
+            padding: 0.5rem 1rem;
+            border-left: 5px solid #0d6efd; /* 강조 포인트 바 */
+            background-color: #f8f9fa;      /* 살짝 배경색을 주어 구분 */
+            pointer-events: none;   /* 마우스 클릭 차단 */
+            user-select: none;      /* 텍스트 선택 방지 */
+        }
+
+        /* 4. [변경] 하위 세부 메뉴 스타일 */
         .sidebar .nav-link {
             color: #495057;
-            font-size: 0.95rem;
-            padding: 0.7rem 1rem;
+            font-size: 1.05rem;     /* 기존 0.95 -> 1.05로 확대 */
+            padding: 0.7rem 1.2rem;
             border-radius: 0.5rem;
-            margin-bottom: 0.2rem;
+            margin-bottom: 0.3rem;
+            margin-left: 0.5rem;    /* 들여쓰기로 계층 구조 표현 */
+            margin-right: 0.5rem;
+            transition: all 0.2s ease;
         }
+
+        /* 마우스 호버 시 효과 강화 */
         .sidebar .nav-link:hover {
-            background-color: #e9ecef;
+            background-color: #f0f4f8;
             color: #0d6efd;
+            padding-left: 1.5rem;   /* 호버 시 살짝 오른쪽으로 미는 효과 */
         }
+
+        /* 현재 활성화된 페이지 강조 (유지 및 보완) */
         .sidebar .nav-link.active {
             background-color: #e7f1ff;
             color: #0d6efd;
             font-weight: bold;
+            box-shadow: inset 3px 0 0 #0d6efd; /* 안쪽에 파란 선 추가 */
         }
-        .sidebar-heading {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            font-weight: bold;
-            color: #adb5bd;
-            margin-top: 1.5rem;
-            margin-bottom: 0.5rem;
-            padding-left: 1rem;
-        }
-        /* 메인 콘텐츠 영역 여백 */
-        main { padding-top: 1.5rem; }
     </style>
 </head>
 <body>
@@ -83,13 +99,13 @@
             <!-- [왼쪽 사이드바 영역] -->
             {% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}
             <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse shadow-sm">
-                <div class="position-sticky px-2">
+                <div class="position-sticky px-3 py-4">
                     <ul class="nav flex-column">
-                        <li class="nav-item">
+                        <!-- <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
                                 <i class="bi bi-house-door me-2"></i> 대시보드
                             </a>
-                        </li>
+                        </li> -->
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'student_list' %}">
                                 <i class="bi bi-people me-2"></i> 학생 관리
@@ -97,33 +113,63 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-success fw-bold" href="{% url 'ai_generator_step1' %}">
-                                <i class="bi bi-magic me-2"></i> 학생결과물 AI 분석
+                                <i class="bi bi-magic me-2"></i> 학생결과물 AI 분석(엑셀)
                             </a>
                         </li>
 
                         <!-- 신규 7가지 메뉴 그룹 -->
-                        <h6 class="sidebar-heading">교과 활동 분석</h6>
+                        <!-- 1. 교과 논술형 평가 -->
+                        <h6 class="sidebar-heading-custom">1. 교과 논술형 평가</h6>
                         <li class="nav-item">
-                            <a class="nav-link py-1 {% if '/activities/list/' in request.path or activity.category == 'ESSAY' %}active{% endif %}" 
+                            <a class="nav-link sub-menu {% if '/activities/list/' in request.path or activity.category == 'ESSAY' %}active{% endif %}" 
                             href="{% url 'activity_list' %}">
-                                <i class="bi bi-file-earmark-text me-2"></i>교과 논술형 평가
+                                <i class="bi bi-pencil-square me-2"></i>과목별 수행평가
                             </a>
                         </li>
-                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-journal-check me-2"></i>교과 수업활동</a></li>
+                        <!-- 2. 교과 수업활동 평가 -->
+                        <h6 class="sidebar-heading-custom">2. 교과 수업활동 평가</h6>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-chat-left-text me-2"></i>수업중 발표활동 보고서</a></li>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-people me-2"></i>수업중 모둠활동 보고서</a></li>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-palette me-2"></i>수업중 창작활동 보고서</a></li>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-activity me-2"></i>수업중 실기활동 보고서</a></li>
                         
-                        <h6 class="sidebar-heading">비교과/리포트</h6>
-                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-calendar-event me-2"></i>교내 행사활동</a></li>
+                        <!-- 3. 교내 행사활동 -->
+                        <h6 class="sidebar-heading-custom">3. 교내 행사활동</h6>
                         <li class="nav-item">
-                            <a class="nav-link py-1 {% if '/activities/creative/' in request.path or activity.category == 'CREATIVE' %}active{% endif %}" href="{% url 'creative_list' %}">
-                                <i class="bi bi-briefcase me-2"></i>자율활동
+                            <a class="nav-link sub-menu" href="#">
+                                <i class="bi bi-calendar-event me-2"></i>행사활동 기록/분석
                             </a>
                         </li>
-                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-compass me-2"></i>동아리활동</a></li>
-                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-compass me-2"></i>진로활동</a></li>
 
-                        <h6 class="sidebar-heading">학급 경영</h6>
-                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-door-open me-2"></i>학교생활</a></li>
-                        <li class="nav-item"><a class="nav-link py-1" href="#"><i class="bi bi-graph-up-arrow me-2"></i>교사 맞춤형 평가</a></li>
+                        <!-- 4. 자율활동 -->
+                        <h6 class="sidebar-heading-custom">4. 자율활동</h6>
+                        <li class="nav-item"><a class="nav-link sub-menu {% if '/activities/creative/' in request.path or activity.category == 'CREATIVE' %}active{% endif %}" href="{% url 'creative_list' %}"><i class="bi bi-book me-2"></i>범교과교육</a></li>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-mortboard me-2"></i>학교주도활동</a></li>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-map me-2"></i>현장체험학습</a></li>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-people-fill me-2"></i>학생자치회활동</a></li>
+
+                        <!-- 5. 동아리활동 -->
+                        <h6 class="sidebar-heading-custom">5. 동아리활동</h6>
+                        <li class="nav-item">
+                            <a class="nav-link sub-menu" href="#">
+                                <i class="bi bi-puzzle me-2"></i>동아리활동 기록/분석
+                            </a>
+                        </li>
+
+                        <!-- 6. 진로활동 -->
+                        <h6 class="sidebar-heading-custom">6. 진로활동</h6>
+                        <li class="nav-item">
+                            <a class="nav-link sub-menu" href="#">
+                                <i class="bi bi-compass me-2"></i>진로활동 기록/분석
+                            </a>
+                        </li>
+
+                        <!-- 7. 기타 학교생활 -->
+                        <h6 class="sidebar-heading-custom">7. 기타 학교생활</h6>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-sun me-2"></i>아침 등교 생활</a></li>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-person-badge me-2"></i>교복 생활</a></li>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-trash me-2"></i>청소 생활</a></li>
+                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-house-gear me-2"></i>학급 생활</a></li>
                     </ul>
                 </div>
             </nav>
