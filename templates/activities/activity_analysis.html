@@ -10,7 +10,10 @@
         </h3>
         <div>
             <!-- 나중에 여기에 '엑셀 다운로드', 'AI 분석' 버튼을 추가하면 됩니다 -->
-            <a href="{% url 'activity_list' %}" class="btn btn-secondary btn-sm">목록으로</a>
+            <a href="{% if activity.category == 'CREATIVE' %}{% url 'creative_list' %}{% else %}{% url 'activity_list' %}{% endif %}" 
+            class="btn btn-secondary shadow-sm">
+                목록으로
+            </a>
         </div>
     </div>
 
