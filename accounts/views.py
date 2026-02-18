@@ -416,7 +416,7 @@ def api_process_one_row(request):
             selected_cols = body.get('selected_cols')
             prompt_system = body.get('prompt_system')
             temperature = float(body.get('temperature', 0.7))
-            ai_model = body.get('ai_model', 'gpt-3.5-turbo') # ★ 모델 정보 받기
+            ai_model = body.get('ai_model', 'GPT-4o-mini') # ★ 모델 정보 받기
             
             # 세션에서 데이터 원본 가져오기
             df_json = request.session.get('df_data')
