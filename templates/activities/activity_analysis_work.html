@@ -13,92 +13,78 @@
     </div>
 </div>
 
-<div class="container-fluid mt-4 mb-5 px-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold text-primary"><i class="bi bi-cpu-fill"></i> 분석 작업: {{ activity.title }}</h3>
-        <a href="{% if activity.category == 'CREATIVE' %}{% url 'creative_list' %}{% else %}{% url 'activity_list' %}{% endif %}" 
-        class="btn btn-secondary shadow-sm">
-            목록으로
-        </a>
+<div class="container-fluid px-4 py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <i class="bi bi-cpu text-primary me-2"></i> 분석 작업: {{ activity.title }}</h3>
+        <div class="ms-auto">
+            <a href="{% if activity.category == 'CREATIVE' %}{% url 'creative_list' %}{% else %}{% url 'activity_list' %}{% endif %}" 
+               class="btn btn-outline-secondary btn-sm shadow-sm">
+                <i class="bi bi-list"></i> 목록으로
+            </a>
+        </div>
     </div>
 
-    <div class="row">
-        <!-- [좌측 영역: 평가 상세 정보] -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-body p-4">
-                <h5 class="fw-bold mb-4 text-muted">1. {% if activity.category == 'CREATIVE' %}활동{% else %}평가{% endif %} 상세 정보 (불러온 내용)</h5>
+    <!-- [핵심] 3:7 비율 레이아웃 시작 -->
+    <div class="row g-4">
+        
+        <!-- [1] 좌측 영역: 평가 상세 정보 (비율 3) -->
+        <div class="col-lg-3 col-md-4">
+            <div class="card shadow-sm border-0 sticky-top" style="top: 80px; z-index: 10;">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-4 text-muted border-bottom pb-2">1. {% if activity.category == 'CREATIVE' %}활동{% else %}평가{% endif %} 상세 정보</h5>
 
-                <!-- 1. 과목/영역 vs 활동명 -->
-                <div class="mb-3">
-                    <label class="small text-muted mb-1">
-                        {% if activity.category == 'CREATIVE' %}활동명{% else %}과목/영역{% endif %}
-                    </label>
-                    <div class="p-2 bg-light border-0 rounded small">
-                        {% if activity.category == 'CREATIVE' %}
-                            {{ activity.section }}
-                        {% else %}
-                            {{ activity.subject_name }} / {{ activity.section }}
-                        {% endif %}
+                    <!-- 활동명/과목명 -->
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1">{% if activity.category == 'CREATIVE' %}활동명{% else %}과목/영역{% endif %}</label>
+                        <div class="p-2 bg-light border-0 rounded small fw-bold">
+                            {% if activity.category == 'CREATIVE' %}{{ activity.section }}{% else %}{{ activity.subject_name }} / {{ activity.section }}{% endif %}
+                        </div>
                     </div>
-                </div>
 
-                <!-- 2. 평가 주제 -->
-                <div class="mb-3">
-                    <label class="small text-muted mb-1">평가주제</label>
-                    <div class="p-2 border-0 rounded fw-bold small" style="background-color: #f8f9fa;">
-                        {{ activity.title }}
+                    <!-- 평가 주제 -->
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1">평가주제</label>
+                        <div class="p-2 border-0 rounded small bg-white shadow-none" style="border: 1px solid #eee !important;">
+                            {{ activity.title }}
+                        </div>
                     </div>
-                </div>
 
-                <hr class="my-3 opacity-25">
-
-                <!-- 3. 평가 문항 (데이터 출처 분기) -->
-                <div class="mb-3">
-                    <label class="small text-muted mb-1">평가문항</label>
-                    <div class="p-3 border rounded bg-white shadow-sm small" style="max-height: 200px; overflow-y: auto;">
-                        {% if activity.category == 'CREATIVE' %}
-                            {{ activity.question|linebreaks }}
-                        {% else %}
-                            {{ activity.questions.first.content|linebreaks|default:"문항 내용이 없습니다." }}
-                        {% endif %}
+                    <!-- 평가 문항 (스크롤 처리) -->
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1">평가문항</label>
+                        <div class="p-2 border rounded bg-white small overflow-auto" style="max-height: 150px;">
+                            {% if activity.category == 'CREATIVE' %}{{ activity.question|linebreaks }}{% else %}{{ activity.questions.first.content|linebreaks }}{% endif %}
+                        </div>
                     </div>
-                </div>
 
-                <!-- 4. 참고자료 -->
-                <div class="mb-3">
-                    <label class="small text-muted mb-1">참고자료</label>
-                    <div class="p-2 border-0 rounded bg-light small">
-                        {% if activity.category == 'CREATIVE' %}
-                            {{ activity.reference_material|linebreaks|default:"없음" }}
-                        {% else %}
-                            {{ activity.questions.first.reference_material|linebreaks|default:"없음" }}
-                        {% endif %}
+                    <!-- 참고자료 -->
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1">참고자료</label>
+                        <div class="p-2 border-0 rounded bg-light small">
+                            {% if activity.category == 'CREATIVE' %}{{ activity.reference_material|linebreaks|default:"없음" }}{% else %}{{ activity.questions.first.reference_material|linebreaks|default:"없음" }}{% endif %}
+                        </div>
                     </div>
-                </div>
 
-                <!-- 5. 작성조건 -->
-                <div class="mb-3">
-                    <label class="small text-muted mb-1">작성조건</label>
-                    <div class="p-2 border-0 rounded small" style="background-color: #fff9e6;">
-                        {% if activity.category == 'CREATIVE' %}
-                            {{ activity.conditions|linebreaks|default:"특별한 조건이 없습니다." }}
-                        {% else %}
-                            {{ activity.questions.first.conditions|linebreaks|default:"특별한 조건이 없습니다." }}
-                        {% endif %}
+                    <!-- 작성조건 -->
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1">작성조건</label>
+                        <div class="p-2 border-0 rounded small" style="background-color: #fff9e6;">
+                            {% if activity.category == 'CREATIVE' %}{{ activity.conditions|linebreaks }}{% else %}{{ activity.questions.first.conditions|linebreaks }}{% endif %}
+                        </div>
                     </div>
-                </div>
 
-                <!-- 6. 작성분량 (자율활동 전용 노출) -->
-                {% if activity.char_limit > 0 %}
-                <div class="mt-3 p-2 border-top border-warning-subtle text-end">
-                    <span class="small text-muted">권장 분량: </span>
-                    <span class="small fw-bold text-danger">{{ activity.char_limit }}자 이상</span>
+                    <!-- 작성분량 정보 -->
+                    {% if activity.char_limit > 0 %}
+                    <div class="mt-3 p-2 border-top text-end">
+                        <span class="small text-muted">권장 분량: </span>
+                        <span class="small fw-bold text-danger">{{ activity.char_limit }}자 이상</span>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
         </div>
 
-        <!-- 2. 교사 기입 내용 (오른쪽) -->
+        <!-- [2] 우측 영역: AI 분석 지시 (비율 7) -->
         <div class="col-md-8">
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-white fw-bold text-success">2. AI 분석 상세 지시 (프롬프트 구성)</div>
