@@ -50,15 +50,24 @@
                         </a>
                     </td>
                     <td>{{ activity.created_at|date:"Y-m-d" }}</td>
-                    <td class="text-center">
-                        <button class="btn btn-outline-primary btn-sm">제출 현황</button>
-                    </td>
-                    <td class="text-center">
-                        <button class="btn btn-outline-success btn-sm"><i class="bi bi-robot"></i> AI 분석</button>
-                    </td>
-                    <td class="text-center">
-                        <button class="btn btn-primary btn-sm">결과 분석</button>
-                    </td>
+                    <!-- 3. 제출 현황(답안 보기) -->
+                        <td>
+                            <a href="{% url 'activity_result' activity.id %}" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="bi bi-person-check"></i> 제출 현황
+                            </a>
+                        </td>
+                        <!-- 4. 결과 분석 -->
+                        <td>
+                            <a href="{% url 'activity_analysis_work' activity.id %}" class="btn btn-sm btn-outline-success w-100">
+                                <i class="bi bi-cpu"></i> AI 분석
+                            </a>
+                        </td>
+                        <!-- 3. 결과 확인 (학생답안 + AI결과 합쳐보기) -->
+                        <td>
+                            <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-sm btn-primary w-100">
+                                <i class="bi bi-table"></i> 결과 분석
+                            </a>
+                        </td>
                 </tr>
                 {% empty %}
                 <tr>
