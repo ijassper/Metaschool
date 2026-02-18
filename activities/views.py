@@ -798,6 +798,16 @@ def creative_create(request):
             exam_mode=exam_mode,
             is_active=True
         )
+
+        # 자율활동용 문항(Question) 자동 생성 (답안 제출 시 IntegrityError 방지)
+        Question.objects.get_or_create(
+            activity=activity,
+            defaults={
+                'content': question,
+                'conditions': request.POST.get('conditions', ''),
+                'reference_material': request.POST.get('reference_material', '')
+            }
+        )
         
         # 4. ManyToMany 학생 등록 (객체 생성 '후'에 실행해야 함)
         target_ids = request.POST.getlist('target_students')
@@ -868,6 +878,12 @@ def creative_update(request, pk):
             
         # 데이터 저장
         activity.save()
+
+        question_obj, created = Question.objects.get_or_create(activity=activity)
+        question_obj.content = activity.question
+        question_obj.conditions = activity.conditions
+        question_obj.reference_material = activity.reference_material
+        question_obj.save()
 
         # 학생 재설정
         target_ids = request.POST.getlist('target_students')
