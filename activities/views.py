@@ -797,7 +797,6 @@ def creative_create(request):
             activity=activity,
             content=question,
             conditions=conditions,
-            reference_material=reference_material
         )
 
         # 4. 학생 등록
