@@ -746,87 +746,73 @@ def creative_list(request):
 @login_required
 def creative_create(request):
     if request.method == 'POST':
-        # 1. 폼 데이터 받아오기
+        if request.method == 'POST':
+        # 1. 폼 데이터 먼저 모두 받아오기 (변수에 담기)
         title = request.POST.get('title')
-        subject = request.POST.get('subject') 
-        section = request.POST.get('section') 
+        section = request.POST.get('section')
         question = request.POST.get('question')
+        conditions = request.POST.get('conditions', '')
+        reference_material = request.POST.get('reference_material', '')
         deadline_str = request.POST.get('deadline')
+        
+        # 작성 분량 숫자 변환
         char_limit_raw = request.POST.get('char_limit', '').strip()
-        if not char_limit_raw:  # 빈칸('')이거나 데이터가 없으면
-            char_limit = 0
-        else:
-            try:
-                char_limit = int(char_limit_raw)
-            except ValueError:
-                char_limit = 0
-
-        # 이후 객체 저장 시 이 char_limit 값을 사용합니다.
-        activity.char_limit = char_limit
-
-        # 시험 모드 설정 (기본값은 'CLOSED'로 설정)
+        char_limit = int(char_limit_raw) if char_limit_raw else 0
+        
+        # 응시 환경 유형
         exam_mode = request.POST.get('exam_mode', 'CLOSED')
         
-        # 파일 업로드 처리
-        attachment = request.FILES.get('attachment') 
+        # 파일 업로드
+        attachment = request.FILES.get('attachment')
 
-        # 2. 날짜 문자열 변환
+        # 날짜 처리
         deadline = None
         if deadline_str:
             try:
-                # Flatpickr 포맷 "2026. 02. 11. PM 11:59" 대응
-                # %p는 AM/PM을 인식하지만 로케일 설정에 따라 다를 수 있어 주의 필요
-                # '오후'를 'PM'으로, '오전'을 'AM'으로 강제 치환 후 파싱
                 temp_str = deadline_str.replace('오후', 'PM').replace('오전', 'AM')
-                deadline = datetime.strptime(deadline_str, "%Y. %m. %d. %p %I:%M")
-            except Exception as e:
-                print(f"Date Parsing Error: {e}") # 로그 확인용
-                deadline = None # 에러 시 날짜 없이 저장 (500 에러 방지) 
+                deadline = datetime.strptime(temp_str, "%Y. %m. %d. %p %I:%M")
+            except:
+                deadline = None
 
-        # 3. DB 객체 먼저 생성 (중요: activity 변수가 여기서 정의됨)
+        # 2. [중요] 여기서 'activity' 변수를 생성합니다 (모든 필드를 한 번에 넣기)
         activity = Activity.objects.create(
             teacher=request.user,
             category='CREATIVE',
-            # 선생님 프로필의 subject 모델 존재 여부 확인 후 저장
             subject_name=request.user.subject.name if hasattr(request.user, 'subject') and request.user.subject else "공통",
             title=title,
             section=section,
             question=question,
+            conditions=conditions,
+            reference_material=reference_material,
             deadline=deadline,
-            attachment=attachment, # 파일 저장
-            char_limit=int(char_limit) if char_limit else 0,
+            attachment=attachment,
+            char_limit=char_limit,
             exam_mode=exam_mode,
             is_active=True
         )
 
-        # 자율활동용 문항(Question) 자동 생성 (답안 제출 시 IntegrityError 방지)
-        Question.objects.get_or_create(
+        # 3. 자율활동용 문항(Question) 자동 생성 (답안 제출 에러 방지)
+        from .models import Question
+        Question.objects.create(
             activity=activity,
-            defaults={
-                'content': question,
-                'conditions': request.POST.get('conditions', ''),
-                'reference_material': request.POST.get('reference_material', '')
-            }
+            content=question,
+            conditions=conditions,
+            reference_material=reference_material
         )
-        
-        # 4. ManyToMany 학생 등록 (객체 생성 '후'에 실행해야 함)
+
+        # 4. 학생 등록
         target_ids = request.POST.getlist('target_students')
         if target_ids:
             activity.target_students.set(target_ids)
-        
-        return redirect('creative_list') 
+            
+        return redirect('creative_list')
 
-    # --- 여기서부터 GET 요청 처리 ---
-    
-    # 5. 학생 트리 데이터 생성 (기존 함수 활용)
+    # GET 요청 시
     student_tree = get_student_tree(request.user)
-
-    context = {
+    return render(request, 'activities/creative_form.html', {
         'student_tree': student_tree,
         'action': '생성'
-    }
-    # render 함수에 context를 반드시 포함
-    return render(request, 'activities/creative_form.html', context)
+    })
 
 # 상세 페이지
 @login_required
