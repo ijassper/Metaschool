@@ -211,7 +211,9 @@
                             {% if item.student.id %} <!-- (item 변수 구조에 따라 수정 필요) -->
                                 <!-- 여기서는 item.answer_id 를 써야 함 -->
                                 {% if item.answer_id %}
-                                    <button class="btn btn-outline-dark btn-sm" onclick="alert('{{ item.log|escapejs }}')">
+                                    <button class="btn btn-sm btn-outline-dark" 
+                                    onclick="showActivityLog('{{ a.student.name }}', '{{ a.activity_log|escapejs }}')"
+                                    {% if not a.activity_log %}disabled{% endif %}>
                                         <i class="bi bi-clock-history"></i> 기록
                                     </button>
                                 {% else %}
@@ -236,6 +238,21 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- 로그 확인용 모달 (페이지 하단 추가) -->
+<div class="modal fade" id="logModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-shield-exclamation me-2"></i> <span id="logStudentName"></span> 학생 활동 기록</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="logContent" class="bg-light p-3 border rounded" style="white-space: pre-wrap; font-size: 0.85rem; height: 300px; overflow-y: auto;"></pre>
+            </div>
         </div>
     </div>
 </div>
@@ -276,6 +293,13 @@
                 alert('저장 실패: ' + data.message);
             }
         });
+    }
+
+    // 활동 로그 모달 표시 함수
+    function showActivityLog(name, log) {
+        document.getElementById('logStudentName').innerText = name;
+        document.getElementById('logContent').innerText = log ? log : "기록된 활동이 없습니다.";
+        new bootstrap.Modal(document.getElementById('logModal')).show();
     }
 </script>
 {% endblock %}

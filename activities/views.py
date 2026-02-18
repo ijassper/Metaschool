@@ -447,25 +447,27 @@ def log_activity(request):
             
             answer = Answer.objects.get(id=answer_id)
             
-            # 현재 시간 (한국 시간)
-            now = timezone.localtime()
-            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+            # 기존 로그에 새로운 기록 추가 (줄바꿈 포함)
+            current_log = answer.activity_log if answer.activity_log else ""
+            timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            log_msg = ""
-            if action_type == 'OUT':
-                log_msg = f"⚠️ [이탈] {timestamp} - 화면을 벗어남\n"
-            elif action_type == 'IN':
-                log_msg = f"✅ [복귀] {timestamp} - 화면으로 돌아옴\n"
+            # 로그 메시지 매핑
+            log_messages = {
+                'OUT': '화면 이탈(Alt+Tab 또는 창 전환)',
+                'IN': '화면 복귀',
+                'COPY': '복사 시도',
+                'PASTE': '붙여넣기 시도',
+                'RIGHT_CLICK': '우클릭 시도'
+            }
             
-            # 로그 누적 저장
-            if log_msg:
-                answer.activity_log += log_msg
-                answer.save()
-                
+            new_entry = f"[{timestamp}] {log_messages.get(log_type, log_type)}\n"
+            answer.activity_log = current_log + new_entry
+            answer.save()
+            
             return JsonResponse({'status': 'success'})
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)})
-    return JsonResponse({'status': 'fail'})
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error'}, status=405)
 
 # 11. 결과 분석 페이지
 @login_required

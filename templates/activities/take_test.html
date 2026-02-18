@@ -315,21 +315,35 @@
      * 6. 서버 로그 전송 함수 (AJAX)
      */
     function sendLog(type) {
-        if (!answerId) return; 
+        // answerId가 비어있는지 확인 (비어있으면 서버에서 로그를 저장할 곳이 없음)
+        if (!answerId || answerId === "") {
+            console.error("로그 기록 실패: answerId가 없습니다.");
+            return;
+        }
 
-        fetch('/activities/api/log/', {
+        const logData = {
+            'answer_id': answerId,
+            'type': type,
+            'timestamp': new Date().toLocaleString() // 정확한 시간 추가
+        };
+
+        fetch('/activities/api/log/', {  // URL 경로가 urls.py와 일치하는지 확인
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': '{{ csrf_token }}', // 장고 보안 토큰
+                'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({
-                'answer_id': answerId,
-                'type': type
-            })
-        }).then(res => console.log("Security Log Sent: " + type));
+            body: JSON.stringify(logData)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                console.log(`Security Log [${type}] 저장 완료`);
+            }
+        })
+        .catch(err => console.error("Log API Error:", err));
     }
-
     /**
      * 7. 상태 제어: 제출/나가기 시 감시 일시 해제
      */
