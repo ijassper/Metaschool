@@ -53,6 +53,13 @@ def dashboard(request):
             # category__icontains로 공백 문제 방어
             essay_activities = base_query.filter(category__icontains='ESSAY').order_by('-created_at')
             creative_activities = base_query.filter(category__icontains='CREATIVE').order_by('-created_at')
+            
+            # 각 활동 객체에 제출 여부 플래그(has_submitted)를 동적으로 달아줌
+            for activity in essay_activities:
+                activity.has_submitted = Answer.objects.filter(student=student_profile, activity=activity).exists()
+            
+            for activity in creative_activities:
+                activity.has_submitted = Answer.objects.filter(student=student_profile, activity=activity).exists()
         else:
             essay_activities = []
             creative_activities = []
