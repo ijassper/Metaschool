@@ -746,7 +746,7 @@ def creative_list(request):
 @login_required
 def creative_create(request):
     if request.method == 'POST':
-        if request.method == 'POST':
+        
         # 1. 폼 데이터 먼저 모두 받아오기 (변수에 담기)
         title = request.POST.get('title')
         section = request.POST.get('section')
