@@ -10,58 +10,59 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     
     <style>
-        /* 1. 기본 레이아웃 */
-        body { background-color: #f8f9fa; }
-        .navbar { box-shadow: 0 2px 4px rgba(0,0,0,.05); z-index: 1030; }
-        main { padding-top: 1rem; }
-
-        /* 2. 사이드바 컨테이너 */
+        /* 1. 사이드바 기본 스타일 */
         .sidebar {
             min-height: calc(100vh - 56px);
-            background-color: white;
+            background-color: #ffffff;
             border-right: 1px solid #dee2e6;
-            padding-top: 0.5rem; /* 상단 여백 줄임 */
         }
 
-        /* 3. 대분류 타이틀 스타일 (글번호 삭제 및 간격 축소) */
-        .sidebar-heading-custom {
-            font-size: 1.05rem;     /* 글씨 크기 살짝 조정 */
-            font-weight: 800;
-            color: #212529;
-            margin-top: 1.2rem;     /* 섹션 간 간격 축소 (2rem -> 1.2rem) */
-            margin-bottom: 0.2rem;  /* 하단 간격 축소 */
-            padding: 0.3rem 1rem;   /* 내부 여백 축소 */
-            border-left: 5px solid #0d6efd;
+        /* 2. 대메뉴(부모) 스타일 */
+        .menu-parent {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #343a40 !important;
+            padding: 0.6rem 0.75rem;
+            transition: background-color 0.2s;
+        }
+        .menu-parent:hover {
             background-color: #f8f9fa;
-            pointer-events: none;
-            user-select: none;
+            color: #0d6efd !important;
         }
 
-        /* 4. 하위 세부 메뉴 스타일 (줄간격 축소의 핵심) */
-        .sidebar .nav-link {
-            color: #495057;
-            font-size: 1rem;        /* 1.05 -> 1로 소폭 조정하여 가독성 유지 */
-            padding: 0.4rem 1.2rem; /* 위아래 패딩 축소 (0.7rem -> 0.4rem) */
-            border-radius: 0.5rem;
-            margin-bottom: 0.1rem;  /* 메뉴 간 간격 최소화 */
+        /* 3. 화살표 회전 애니메이션 */
+        .small-arrow {
+            transition: transform 0.3s;
+            font-size: 0.7rem;
+            color: #adb5bd;
+        }
+        .menu-parent[aria-expanded="true"] .small-arrow {
+            transform: rotate(180deg);
+            color: #0d6efd;
+        }
+
+        /* 4. 소메뉴(자식) 스타일 */
+        .sub-menu {
+            font-size: 0.88rem;
+            color: #6c757d !important;
+            padding: 0.3rem 0.5rem;
             margin-left: 0.5rem;
-            margin-right: 0.5rem;
-            transition: all 0.2s ease;
+            border-left: 1px solid #e9ecef;
         }
-
-        /* 마우스 호버 시 효과 */
-        .sidebar .nav-link:hover {
-            background-color: #f0f4f8;
-            color: #0d6efd;
-            padding-left: 1.4rem;
+        .sub-menu:hover {
+            color: #0d6efd !important;
+            background-color: #f0f7ff;
         }
-
-        /* 현재 활성화된 페이지 강조 */
-        .sidebar .nav-link.active {
-            background-color: #e7f1ff;
-            color: #0d6efd;
+        .sub-menu.active {
+            color: #0d6efd !important;
             font-weight: bold;
-            box-shadow: inset 3px 0 0 #0d6efd;
+            border-left: 2px solid #0d6efd;
+        }
+
+        /* 대시보드 전용 활성화 스타일 */
+        .nav-link.active:not(.sub-menu) {
+            background-color: #e7f1ff;
+            color: #0d6efd !important;
         }
     </style>
 </head>
@@ -99,7 +100,7 @@
             <!-- [왼쪽 사이드바 영역] -->
             {% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}
             <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse shadow-sm">
-                <div class="position-sticky px-3 py-4">
+                <div class="position-sticky px-2 py-3">
                     <ul class="nav flex-column">
                         <!-- <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
@@ -119,57 +120,114 @@
 
                         <!-- 신규 7가지 메뉴 그룹 -->
                         <!-- 1. 교과 논술형 평가 -->
-                        <h6 class="sidebar-heading-custom">교과 논술형 평가</h6>
-                        <li class="nav-item">
-                            <a class="nav-link sub-menu {% if '/activities/list/' in request.path or activity.category == 'ESSAY' %}active{% endif %}" 
-                            href="{% url 'activity_list' %}">
-                                <i class="bi bi-pencil-square me-2"></i>과목별 수행평가
+                        <li class="nav-item border-bottom pb-1 mb-1">
+                            <a class="nav-link menu-parent d-flex justify-content-between align-items-center" 
+                            data-bs-toggle="collapse" href="#essayMenu" role="button" 
+                            aria-expanded="{% if '/activities/list/' in request.path or '/activities/creative/' in request.path %}true{% else %}false{% endif %}">
+                                <span><i class="bi bi-pencil-square me-2"></i>교과 논술형 평가</span>
+                                <i class="bi bi-chevron-down small-arrow"></i>
                             </a>
+                            <div class="collapse {% if '/activities/list/' in request.path %}show{% endif %}" id="essayMenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item"><a class="nav-link sub-menu {% if request.resolver_match.url_name == 'activity_list' %}active{% endif %}" href="{% url 'activity_list' %}">과목별 수행평가</a></li>
+                                </ul>
+                            </div>
                         </li>
+
                         <!-- 2. 교과 수업활동 평가 -->
-                        <h6 class="sidebar-heading-custom">교과 수업활동 평가</h6>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-chat-left-text me-2"></i>수업중 발표활동 보고서</a></li>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-people me-2"></i>수업중 모둠활동 보고서</a></li>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-palette me-2"></i>수업중 창작활동 보고서</a></li>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-activity me-2"></i>수업중 실기활동 보고서</a></li>
-                        
-                        <!-- 3. 교내 행사활동 -->
-                        <h6 class="sidebar-heading-custom">교내 행사활동</h6>
-                        <li class="nav-item">
-                            <a class="nav-link sub-menu" href="#">
-                                <i class="bi bi-calendar-event me-2"></i>행사활동 기록/분석
+                        <li class="nav-item border-bottom pb-1 mb-1">
+                            <a class="nav-link menu-parent d-flex justify-content-between align-items-center" 
+                            data-bs-toggle="collapse" href="#subjectMenu" role="button">
+                                <span><i class="bi bi-journal-check me-2"></i>교과 수업활동 평가</span>
+                                <i class="bi bi-chevron-down small-arrow"></i>
                             </a>
+                            <div class="collapse" id="subjectMenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">발표활동 보고서</a></li>
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">모둠활동 보고서</a></li>
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">창작활동 보고서</a></li>
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">실기활동 보고서</a></li>
+                                </ul>
+                            </div>
+                        </li>
+
+                        <!-- 3. 교내 행사활동 -->
+                        <li class="nav-item border-bottom pb-1 mb-1">
+                            <a class="nav-link menu-parent d-flex justify-content-between align-items-center" 
+                            data-bs-toggle="collapse" href="#eventMenu" role="button">
+                                <span><i class="bi bi-calendar-event me-2"></i>교내 행사활동</span>
+                                <i class="bi bi-chevron-down small-arrow"></i>
+                            </a>
+                            <div class="collapse" id="eventMenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">행사활동 기록/분석</a></li>
+                                </ul>
+                            </div>
                         </li>
 
                         <!-- 4. 자율활동 -->
-                        <h6 class="sidebar-heading-custom">자율활동</h6>
-                        <li class="nav-item"><a class="nav-link sub-menu {% if '/activities/creative/' in request.path or activity.category == 'CREATIVE' %}active{% endif %}" href="{% url 'creative_list' %}"><i class="bi bi-book me-2"></i>범교과교육</a></li>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-building me-2"></i>학교주도활동</a></li>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-map me-2"></i>현장체험학습</a></li>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-people-fill me-2"></i>학생자치회활동</a></li>
+                        <li class="nav-item border-bottom pb-1 mb-1">
+                            <a class="nav-link menu-parent d-flex justify-content-between align-items-center" 
+                            data-bs-toggle="collapse" href="#creativeMenu" role="button"
+                            aria-expanded="{% if '/activities/creative/' in request.path %}true{% else %}false{% endif %}">
+                                <span><i class="bi bi-briefcase me-2"></i>자율활동</span>
+                                <i class="bi bi-chevron-down small-arrow"></i>
+                            </a>
+                            <div class="collapse {% if '/activities/creative/' in request.path %}show{% endif %}" id="creativeMenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item"><a class="nav-link sub-menu {% if request.resolver_match.url_name == 'creative_list' %}active{% endif %}" href="{% url 'creative_list' %}">범교과교육</a></li>
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">학교주도활동</a></li>
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">현장체험학습</a></li>
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">학생자치회활동</a></li>
+                                </ul>
+                            </div>
+                        </li>
 
                         <!-- 5. 동아리활동 -->
-                        <h6 class="sidebar-heading-custom">동아리활동</h6>
-                        <li class="nav-item">
-                            <a class="nav-link sub-menu" href="#">
-                                <i class="bi bi-puzzle me-2"></i>동아리활동 기록/분석
+                        <li class="nav-item border-bottom pb-1 mb-1">
+                            <a class="nav-link menu-parent d-flex justify-content-between align-items-center" 
+                            data-bs-toggle="collapse" href="#clubMenu" role="button">
+                                <span><i class="bi bi-puzzle me-2"></i>동아리활동</span>
+                                <i class="bi bi-chevron-down small-arrow"></i>
                             </a>
+                            <div class="collapse" id="clubMenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">동아리활동 기록/분석</a></li>
+                                </ul>
+                            </div>
                         </li>
 
                         <!-- 6. 진로활동 -->
-                        <h6 class="sidebar-heading-custom">진로활동</h6>
-                        <li class="nav-item">
-                            <a class="nav-link sub-menu" href="#">
-                                <i class="bi bi-compass me-2"></i>진로활동 기록/분석
+                        <li class="nav-item border-bottom pb-1 mb-1">
+                            <a class="nav-link menu-parent d-flex justify-content-between align-items-center" 
+                            data-bs-toggle="collapse" href="#careerMenu" role="button">
+                                <span><i class="bi bi-compass me-2"></i>진로활동</span>
+                                <i class="bi bi-chevron-down small-arrow"></i>
                             </a>
+                            <div class="collapse" id="careerMenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">진로활동 기록/분석</a></li>
+                                </ul>
+                            </div>
                         </li>
 
                         <!-- 7. 기타 학교생활 -->
-                        <h6 class="sidebar-heading-custom">기타 학교생활</h6>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-sun me-2"></i>아침 등교 생활</a></li>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-person-badge me-2"></i>교복 생활</a></li>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-trash me-2"></i>청소 생활</a></li>
-                        <li class="nav-item"><a class="nav-link sub-menu" href="#"><i class="bi bi-house-gear me-2"></i>학급 생활</a></li>
+                        <li class="nav-item border-bottom pb-1 mb-1">
+                            <a class="nav-link menu-parent d-flex justify-content-between align-items-center" 
+                            data-bs-toggle="collapse" href="#schoolLifeMenu" role="button">
+                                <span><i class="bi bi-house-gear me-2"></i>기타 학교생활</span>
+                                <i class="bi bi-chevron-down small-arrow"></i>
+                            </a>
+                            <div class="collapse" id="schoolLifeMenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">아침 등교 생활</a></li>
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">교복 생활</a></li>
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">청소 생활</a></li>
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">학급 생활</a></li>
+                                    <li class="nav-item"><a class="nav-link sub-menu" href="#">학생 상담</a></li>
+                                </ul>
+                            </div>
+                        </li>
                     </ul>
                 </div>
             </nav>
