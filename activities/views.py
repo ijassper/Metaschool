@@ -327,47 +327,60 @@ def activity_result(request, activity_id):
 @login_required
 def take_test(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id)
-    question = activity.questions.first()
 
     # 1. 학생 권한 및 활성화 체크
     if request.user.role != 'STUDENT' or not activity.is_active:
         messages.error(request, "접근할 수 없는 평가입니다.")
         return redirect('dashboard')
 
-    # 2. 내 정보 가져오기
-    try:
-        student_info = Student.objects.get(email=request.user.email)
-    except Student.DoesNotExist:
+    # 2. 내 학생 정보 가져오기
+    student_info = Student.objects.filter(email=request.user.email).first()
+    if not student_info:
         messages.error(request, "학생 정보를 찾을 수 없습니다.")
         return redirect('dashboard')
 
-    # ★ [신규] 3. 내가 대상자가 맞는지 확인 (보안 강화)
-    # (선생님이 나를 체크하지 않았는데 주소 알고 들어오는 것 방지)
+    # 3. 내가 평가 대상자가 맞는지 확인 (보안)
     if student_info not in activity.target_students.all():
         messages.error(request, "본인의 평가 대상이 아닙니다.")
         return redirect('dashboard')
-    
-    existing_answer = Answer.objects.filter(student__email=request.user.email, question=question).first()
-    
-    if request.method == 'POST':
-        form = AnswerForm(request.POST, instance=existing_answer)
-        if form.is_valid():
-            answer = form.save(commit=False)
-            try:
-                answer.student = Student.objects.get(email=request.user.email)
-                answer.question = question
-                answer.save()
-                messages.success(request, "답안이 제출되었습니다!")
-                return redirect('dashboard')
-            except Student.DoesNotExist:
-                messages.error(request, "학생 정보를 찾을 수 없습니다.")
-    else:
-        form = AnswerForm(instance=existing_answer)
 
+    # 4. 문항(Question) 가져오기 및 자율활동 예외 처리
+    # (자율활동은 문항 객체가 없을 수 있으므로 즉석 생성하여 IntegrityError 방지)
+    question = activity.questions.first()
+    if not question and activity.category == 'CREATIVE':
+        from .models import Question
+        question = Question.objects.create(
+            activity=activity,
+            content=activity.question,
+            conditions=activity.conditions,
+            reference_material=activity.reference_material
+        )
+
+    # 5. [핵심] 답안지(Answer) 껍데기 미리 생성/가져오기
+    # 페이지 접속 시점에 만들어둬야 실시간 이탈 로그(AJAX)를 기록할 수 있습니다.
+    answer, created = Answer.objects.get_or_create(
+        student=student_info,
+        question=question
+    )
+
+    if request.method == 'POST':
+        # 6. 답안 제출 처리 (이미 생성된 객체에 내용만 업데이트)
+        content = request.POST.get('content', '').strip()
+        if not content:
+            messages.error(request, "내용을 입력해주세요.")
+        else:
+            answer.content = content
+            answer.submitted_at = timezone.now() # 제출 시간 기록
+            answer.save()
+            messages.success(request, "답안이 제출되었습니다!")
+            return redirect('dashboard')
+
+    # 7. 화면에 데이터 전달
     context = {
         'activity': activity,
         'question': question,
-        'form': form,
+        'answer_id': answer.id,  # JS에서 로그 보낼 때 쓸 ID
+        'existing_content': answer.content, # 작성 중이던 내용 복구용
         'today': timezone.now()
     }
     return render(request, 'activities/take_test.html', context)

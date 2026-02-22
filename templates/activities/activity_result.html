@@ -172,31 +172,50 @@
                             {% endif %}
                         </td>
 
-                        <!-- 특이사항 (기존 유지 - 결시생도 메모 가능) -->
+                        <!-- 특이사항 -->
                         <td>
                             {% if item.answer_id %}
-                                <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#noteModal{{ item.answer_id }}">
-                                    {% if item.note %}<i class="bi bi-sticky-fill"></i>{% else %}<i class="bi bi-sticky"></i>{% endif %}
+                                <button class="btn btn-link p-0 text-decoration-none" 
+                                        onclick="openNoteModal('{{ a.id }}', '{{ a.student.name }}', '{{ a.note|escapejs }}', '{{ a.activity_log|escapejs }}')">
+                                    {% if a.note %}
+                                        <i class="bi bi-file-earmark-text-fill text-warning fs-5"></i>
+                                    {% else %}
+                                        <i class="bi bi-file-earmark-plus text-muted fs-5 opacity-50"></i>
+                                    {% endif %}
                                 </button>
 
                                 <!-- 메모 모달 -->
-                                <div class="modal fade" id="noteModal{{ item.answer_id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered">
-                                        <div class="modal-content">
-                                            <div class="modal-header bg-warning bg-opacity-25">
-                                                <h5 class="modal-title fw-bold">특이사항 메모</h5>
+                                        <div class="modal-content border-0 shadow-lg">
+                                            <div class="modal-header bg-warning-subtle">
+                                                <h5 class="modal-title fw-bold"><i class="bi bi-sticky-fill me-2"></i>특이사항 메모</h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                             </div>
-                                            <form action="{% url 'save_note' item.answer_id %}" method="post">
-                                                {% csrf_token %}
-                                                <div class="modal-body">
-                                                    <p class="text-start mb-2"><strong>{{ item.student.name }}</strong> 학생에 대한 메모:</p>
-                                                    <textarea name="note" class="form-control" rows="5">{{ item.note }}</textarea>
+                                            <div class="modal-body p-4">
+                                                
+                                                <!-- [추가] 폐쇄형 평가일 때만 보이는 출입관리 기록 섹션 -->
+                                                {% if activity.exam_mode == 'CLOSED' %}
+                                                <div id="logSection" class="mb-4">
+                                                    <label class="fw-bold mb-2 text-danger small"><i class="bi bi-shield-exclamation me-1"></i> 출입관리 기록 (부정행위 의심 로그)</label>
+                                                    <div id="modalLogContent" class="p-3 bg-light border rounded-3 small text-secondary" 
+                                                        style="max-height: 150px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5;">
+                                                        <!-- 로그 데이터가 여기에 들어감 -->
+                                                    </div>
+                                                    <hr class="my-4">
                                                 </div>
-                                                <div class="modal-footer">
-                                                    <button type="submit" class="btn btn-primary">저장</button>
+                                                {% endif %}
+
+                                                <!-- 기존 메모 입력 섹션 -->
+                                                <div class="mb-3">
+                                                    <label class="fw-bold mb-2 small"><span id="noteStudentName"></span> 학생에 대한 메모</label>
+                                                    <textarea id="noteTextArea" class="form-control border-0 shadow-sm bg-light" 
+                                                            rows="5" placeholder="선생님만 볼 수 있는 메모를 입력하세요."></textarea>
                                                 </div>
-                                            </form>
+                                            </div>
+                                            <div class="modal-footer border-0 pt-0 justify-content-center pb-4">
+                                                <button type="button" class="btn btn-primary px-5 rounded-pill fw-bold" onclick="saveNote()">저장</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -205,33 +224,15 @@
                             {% endif %}
                         </td>
 
-                        <!-- [이탈 기록] 버튼 추가 -->
-                        <td>
-                            <!-- 로그가 있는 경우에만 빨간 버튼 표시 -->
-                            {% if item.student.id %} <!-- (item 변수 구조에 따라 수정 필요) -->
-                                <!-- 여기서는 item.answer_id 를 써야 함 -->
-                                {% if item.answer_id %}
-                                    <button class="btn btn-sm btn-outline-dark" 
-                                    onclick="showActivityLog('{{ a.student.name }}', '{{ a.activity_log|escapejs }}')"
-                                    {% if not a.activity_log %}disabled{% endif %}>
-                                        <i class="bi bi-clock-history"></i> 기록
-                                    </button>
-                                {% else %}
-                                    -
-                                {% endif %}
-                            {% endif %}
-                        </td>
-
                         <!--  폐기 버튼 (제출 완료일 때만 보임) -->
-                        <td>
-                            {% if item.status == '제출 완료' %}
-                                <a href="{% url 'answer_delete' item.answer_id %}" 
-                                class="btn btn-outline-danger btn-sm"
-                                onclick="return confirm('이 학생의 답안을 삭제하시겠습니까?\n삭제 후 학생은 다시 응시할 수 있습니다.');">
-                                폐기
-                                </a>
+                        <td class="text-center">
+                            {% if a.status == '제출 완료' or a.activity_log %}
+                                <!-- 폐기 버튼을 관리 칸으로 이동 -->
+                                <button class="btn btn-sm btn-outline-danger px-2" onclick="discardAnswer('{{ a.id }}', '{{ a.student.name }}')">
+                                    <i class="bi bi-trash3"></i> 폐기
+                                </button>
                             {% else %}
-                                <span class="text-muted">-</span>
+                                -
                             {% endif %}
                         </td>
                     </tr>
@@ -295,11 +296,29 @@
         });
     }
 
-    // 활동 로그 모달 표시 함수
-    function showActivityLog(name, log) {
-        document.getElementById('logStudentName').innerText = name;
-        document.getElementById('logContent').innerText = log ? log : "기록된 활동이 없습니다.";
-        new bootstrap.Modal(document.getElementById('logModal')).show();
+    // 메모 모달 열기 함수 (테이블의 메모 아이콘 클릭 시 호출)
+    function openNoteModal(answerId, studentName, currentNote, activityLog) {
+        window.currentEditingAnswerId = answerId;
+        
+        // 학생 이름 및 메모 세팅
+        document.getElementById('noteStudentName').innerText = studentName;
+        document.getElementById('noteTextArea').value = currentNote;
+
+        // [중요] 폐쇄형일 경우 로그 데이터 세팅
+        const logContainer = document.getElementById('modalLogContent');
+        if (logContainer) {
+            logContainer.innerText = activityLog ? activityLog : "기록된 부정행위 의심 활동이 없습니다.";
+        }
+
+        new bootstrap.Modal(document.getElementById('noteModal')).show();
+    }
+
+    // 폐기 확인 함수
+    function discardAnswer(answerId, studentName) {
+        if (confirm(`[${studentName}] 학생의 답안을 정말로 폐기하시겠습니까?\n폐기된 답안은 복구할 수 없으며 학생은 재응시해야 합니다.`)) {
+            // 실제 폐기 처리 API 호출 로직 (기존 코드 유지)
+            location.href = `/activities/answer/${answerId}/delete/`; 
+        }
     }
 </script>
 {% endblock %}

@@ -292,7 +292,13 @@
         });
 
         // 우클릭 차단
-        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.addEventListener('contextmenu', function(e) {
+            if (EXAM_MODE === 'CLOSED') {
+                e.preventDefault();
+                sendLog('RIGHT_CLICK'); // "우클릭 시도" 로그 전송
+                alert("우클릭은 금지되어 있습니다.");
+            }
+        });
 
         // --- (3) 화면 이탈 감지 (Alt+Tab 등) 및 로그 전송 ---
         document.addEventListener("visibilitychange", () => {
@@ -300,9 +306,27 @@
 
             if (document.hidden) {
                 alert("⚠️ 경고: 화면을 이탈하지 마세요! 부정행위로 간주되어 로그에 기록됩니다.");
-                sendLog('OUT');
+                sendLog('OUT'); // "화면 이탈" 로그 전송
             } else {
-                sendLog('IN');
+                sendLog('IN'); // "화면 복귀" 로그 전송
+            }
+        });
+
+        // 복사(Copy) 감지
+        document.addEventListener('copy', function(e) {
+            if (EXAM_MODE === 'CLOSED') {
+                e.preventDefault();
+                sendLog('COPY'); // "복사 시도" 로그 전송
+                alert("내용을 복사할 수 없습니다.");
+            }
+        });
+
+        // 붙여넣기(Paste) 감지
+        document.addEventListener('paste', function(e) {
+            if (EXAM_MODE === 'CLOSED') {
+                e.preventDefault();
+                sendLog('PASTE'); // "붙여넣기 시도" 로그 전송
+                alert("외부 내용을 붙여넣을 수 없습니다.");
             }
         });
 
