@@ -305,8 +305,8 @@
             if (!testStarted || isSubmitting) return;
 
             if (document.hidden) {
-                alert("⚠️ 경고: 화면을 이탈하지 마세요! 부정행위로 간주되어 로그에 기록됩니다.");
                 sendLog('OUT'); // "화면 이탈" 로그 전송
+                alert("⚠️ 경고: 화면을 이탈하지 마세요! 부정행위로 간주되어 로그에 기록됩니다.");
             } else {
                 sendLog('IN'); // "화면 복귀" 로그 전송
             }

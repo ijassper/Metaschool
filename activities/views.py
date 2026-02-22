@@ -470,8 +470,8 @@ def log_activity(request):
                 'IN': '화면 복귀',
                 'COPY': '복사 시도',
                 'PASTE': '붙여넣기 시도',
-                'RIGHT_CLICK': '우클릭 시도'
-                'EXIT': '학생이 [나가기] 버튼 클릭하여 중도 퇴장'
+                'RIGHT_CLICK': '우클릭 시도',
+                'EXIT': '중도 퇴장',
             }
             
             new_entry = f"[{timestamp}] {log_messages.get(log_type, log_type)}\n"
