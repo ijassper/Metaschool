@@ -186,7 +186,7 @@
     const textarea = document.getElementById('id_content');
     const counter = document.getElementById('charCount');
     const charLimit = parseInt("{{ activity.char_limit|default:0 }}");
-    const answerId = "{{ answer_id|default:'' }}"; 
+    const answerId = "{{ answer_id }}"; 
     
     let isSubmitting = false; // 제출/나가기 중 감시 중단 플래그
     let testStarted = false;  // [신규] '응시 시작' 버튼을 눌렀는지 여부
@@ -340,7 +340,7 @@
      */
     function sendLog(type) {
         // answerId가 비어있는지 확인 (비어있으면 서버에서 로그를 저장할 곳이 없음)
-        if (!answerId || answerId === "") {
+        if (!answerId || answerId === "None" || answerId === "") {
             console.error("로그 기록 실패: answerId가 없습니다.");
             return;
         }
@@ -385,8 +385,20 @@
 
     // (2) 나가기 버튼 클릭 시
     const exitBtn = document.getElementById('exitBtn');
-    if (exitBtn) {
-        exitBtn.addEventListener('click', () => isSubmitting = true);
+        if (exitBtn) {
+        exitBtn.addEventListener('click', function(e) {
+            if (confirm('정말 나가시겠습니까? 작성 중인 내용은 저장되지 않습니다.')) {
+                isSubmitting = true; // 경고창 방지
+                
+                // [추가] 나가기 버튼 클릭 로그 전송
+                sendLog('EXIT'); 
+                
+                // 로그 전송 시간을 벌기 위해 아주 잠깐의 지연 후 이동
+                setTimeout(() => {
+                    location.href = "{% url 'dashboard' %}";
+                }, 200);
+            }
+        });
     }
 </script>
 

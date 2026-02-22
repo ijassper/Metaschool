@@ -59,13 +59,15 @@ def dashboard(request):
                 # Answer -> Question -> Activity 경로로 역추적하여 필터링
                 activity.has_submitted = Answer.objects.filter(
                     student=student_profile, 
-                    question__activity=activity
+                    question__activity=activity,
+                    submitted_at__isnull=False # 제출 시간이 기록된 것만 체크
                 ).exists()
 
             for activity in creative_activities:
                 activity.has_submitted = Answer.objects.filter(
                     student=student_profile, 
-                    question__activity=activity
+                    question__activity=activity,
+                    submitted_at__isnull=False # 제출 시간이 기록된 것만 체크
                 ).exists()
         else:
             essay_activities = []
