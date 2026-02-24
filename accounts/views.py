@@ -407,7 +407,36 @@ def ai_generator_step2(request):
     # 여기서는 무조건 화면(HTML)만 보여주면 됩니다.
     return render(request, 'accounts/ai_generator_step2.html', context)
 
-# [신규] 1명씩 처리하는 API (JavaScript가 호출함)
+def call_openai_api(api_key, model, prompt_system, prompt_user, temperature=0.7):
+    """
+    OpenAI API를 직접 호출하는 헬퍼 함수
+    """
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": prompt_system},
+            {"role": "user", "content": prompt_user}
+        ],
+        "temperature": temperature
+    }
+    
+    # 가비아 환경의 특성을 고려해 timeout 60초 설정
+    response = requests.post(url, headers=headers, json=payload, timeout=60)
+    
+    if response.status_code == 200:
+        return response.json()['choices'][0]['message']['content']
+    else:
+        # 에러 발생 시 로그를 남김
+        error_msg = response.json().get('error', {}).get('message', '알 수 없는 에러')
+        print(f"DEBUG: OpenAI API Error ({response.status_code}): {error_msg}")
+        raise Exception(f"AI 응답 실패: {error_msg}")
+    
+# 1명씩 처리하는 API (JavaScript가 호출함)
 @csrf_exempt
 @login_required
 def api_process_one_row(request):
@@ -418,7 +447,7 @@ def api_process_one_row(request):
             selected_cols = body.get('selected_cols')
             prompt_system = body.get('prompt_system')
             temperature = float(body.get('temperature', 0.7))
-            ai_model = body.get('ai_model', 'GPT-4o-mini') # ★ 모델 정보 받기
+            ai_model = body.get('ai_model', 'gpt-4o-mini') # ★ 모델 정보 받기
             
             # 세션에서 데이터 원본 가져오기
             df_json = request.session.get('df_data')
@@ -452,25 +481,27 @@ def api_process_one_row(request):
             # [분기 1] OpenAI GPT 사용
             # ---------------------------------------------------------
             if ai_model.startswith('gpt'):
-                # 키 가져오기 (멀티 키 지원)
+                # 1. 키 가져오기 (멀티 키 지원)
                 config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
                 api_keys_list = [k.strip() for k in config.value.split(',') if k.strip()]
                 
                 if not api_keys_list:
                     return JsonResponse({'status': 'error', 'message': 'OpenAI API 키가 없습니다.'})
-                
-                import random
-                client = openai.OpenAI(api_key=random.choice(api_keys_list))
-                
-                response = client.chat.completions.create(
-                    model=ai_model,
-                    messages=[
-                        {"role": "system", "content": "당신은 생활기록부 전문가입니다."},
-                        {"role": "user", "content": final_prompt}
-                    ],
-                    temperature=temperature
-                )
-                result_text = response.choices[0].message.content
+            
+                selected_key = random.choice(api_keys_list) # 랜덤 키 선택
+
+                # 2. [변경 포인트] 라이브러리 대신 직접 만든 call_openai_api 함수 호출
+                try:
+                    result_text = call_openai_api(
+                        api_key=selected_key,
+                        model=ai_model,
+                        prompt_system="당신은 생활기록부 전문가입니다.", # 시스템 역할
+                        prompt_user=final_prompt,                      # 조합된 데이터 + 지시사항
+                        temperature=temperature
+                    )
+                except Exception as api_err:
+                    print(f"DEBUG: OpenAI API Call Failed - {str(api_err)}")
+                    return JsonResponse({'status': 'error', 'message': f'API 호출 에러: {str(api_err)}'})
 
             # ---------------------------------------------------------
             # [분기 2] Google Gemini 사용 (신규)
