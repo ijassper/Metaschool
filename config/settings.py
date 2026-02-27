@@ -141,6 +141,20 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# 1. 모든 HTTP 요청을 HTTPS로 자동 리다이렉트
+# 서버(DEBUG=False)에서만 작동하도록 설정하여 개발 환경에서는 편리하게 HTTP로 테스트할 수 있게 합니다.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+
+# 2. 가비아 컨테이너와 같은 프록시 서버 환경에서 HTTPS 여부를 판별하기 위한 설정
+# 가비아 서버가 내부적으로 HTTPS 요청을 처리할 때 이 헤더를 사용합니다.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# 3. 브라우저가 일정 기간 동안 HTTPS로만 접속하도록 강제 (선택 사항)
+SECURE_HSTS_SECONDS = 31536000  # 1년
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
 # [보안 설정] 403 에러 해결을 위해 도메인 허용
 CSRF_TRUSTED_ORIGINS = [
     'https://jacknov.gabia.io',
