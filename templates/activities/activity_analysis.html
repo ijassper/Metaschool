@@ -152,34 +152,34 @@
 <!-- [그리드 뷰 영역] -->
 <div id="gridView" class="d-none"> <!-- 기본적으로는 숨김 -->
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">
-        {% for a in answers %}
-        <div class="col student-card-item" data-name="{{ a.student.name }}" data-grade="{{ a.student.grade }}" data-class="{{ a.student.class_no }}">
+        {% for item in analysis_list %}
+        <div class="col student-card-item" data-name="{{ item.student.name }}" data-grade="{{ item.student.grade }}" data-class="{{ item.student.class_no }}">
             <div class="card h-100 shadow-sm border-0 post-it">
                 <!-- 상단: 반/번호/이름 -->
                 <div class="card-header bg-white border-0 pt-3 pb-0">
                     <span class="badge bg-primary-subtle text-primary mb-2">
-                        {{ a.student.grade }}-{{ a.student.class_no }} / {{ a.student.number }}번
+                        {{ item.student.grade }}-{{ item.student.class_no }} / {{ item.student.number }}번
                     </span>
-                    <h6 class="fw-bold">{{ a.student.name }}</h6>
+                    <h6 class="fw-bold">{{ item.student.name }}</h6>
                 </div>
                 
                 <div class="card-body py-2">
                     <!-- 학생 답안 (200자 제한) -->
-                     <div class="pointer-cursor mb-2" onclick="showDetailModal('{{ a.student.name }} 학생 답안', '{{ a.content|escapejs }}', 'student')">
+                     <div class="pointer-cursor mb-2" onclick="showDetailModal('{{ item.student.name }} 학생 답안', '{{ item.content|escapejs }}', 'student')">
                         <label class="small text-muted">[학생 답안]</label>
-                        <div class="small text-secondary">{{ a.content|truncatechars:200|default:"(미제출)" }}</div>
+                        <div class="small text-secondary">{{ item.content|truncatechars:200|default:"(미제출)" }}</div>
                     </div>
 
                     <!-- AI 분석 결과 (200자 제한) -->
-                     <div class="pointer-cursor p-2 bg-light rounded" onclick="showDetailModal('AI 분석 결과', '{{ a.ai_result|escapejs }}', 'ai')">
+                     <div class="pointer-cursor p-2 bg-light rounded" onclick="showDetailModal('AI 분석 결과', '{{ item.ai_result|escapejs }}', 'ai')">
                         <label class="small text-success fw-bold">[AI 분석 결과]</label>
-                        <div class="small">{{ a.ai_result|truncatechars:200|default:"분석 전입니다." }}</div>
+                        <div class="small">{{ item.ai_result|truncatechars:200|default:"분석 전입니다." }}</div>
                     </div>
                 </div>
                 
                 <!-- 하단: 상태 표시 -->
                 <div class="card-footer bg-transparent border-0 text-end pb-3">
-                    <small class="text-muted" style="font-size: 0.65rem;">최종 업데이트: {{ a.submitted_at|date:"m-d H:i" }}</small>
+                    <small class="text-muted" style="font-size: 0.65rem;">최종 업데이트: {{ item.submitted_at|date:"m-d H:i" }}</small>
                 </div>
             </div>
         </div>
