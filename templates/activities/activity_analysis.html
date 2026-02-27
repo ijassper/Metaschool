@@ -50,13 +50,14 @@
         </div>
     </div>
 
-    <!-- 필터 영역 (제출현황 페이지와 동일한 로직 사용) -->
-    <div class="bg-light p-2 rounded mb-3 border d-flex align-items-center">
+    <!-- 필터 및 검색 바 -->
+    <div class="bg-light p-2 rounded mb-3 border>
         <form method="get" id="filterForm" class="row g-2 align-items-center w-100 m-0">
+            <!-- 1. 학급 선택 -->
             <div class="col-auto">
                 <div class="dropdown">
-                    <button class="btn btn-white border dropdown-toggle btn-sm bg-white" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                        <i class="bi bi-funnel-fill text-secondary"></i> 학급 선택
+                    <button class="btn btn-white btn-sm border dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-filter me-1"></i> 학급 선택
                     </button>
                     <!-- (필터 드롭다운 내용은 activity_result.html과 동일하게 복사) -->
                     <!-- ... 필터 드롭다운 코드 생략 (아래 참고 1) ... -->
@@ -86,23 +87,28 @@
                 </div>
             </div>
             
-            
+            <!-- 보기 모드 전환 버튼 (우측 상단) -->
             <div class="col-auto ms-auto">
-                <!-- 보기 모드 전환 버튼 (우측 상단) -->
-                <div class="d-flex justify-content-end mb-3 gap-2">
+                <!-- 보기 모드 전환 버튼 -->
+                <div class="btn-group shadow-sm" role="group" style="height: 31px;">
                     <div class="btn-group shadow-sm" role="group">
-                        <button type="button" class="btn btn-outline-primary active" id="btnList" onclick="changeView('list')">
-                            <i class="bi bi-list-ul"></i> 리스트형
+                        <button type="button" class="btn btn-sm btn-outline-primary active" id="btnList" onclick="changeView('list')" title="리스트형">
+                            <i class="bi bi-list-ul"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-primary" id="btnGrid" onclick="changeView('grid')">
-                            <i class="bi bi-grid-3x3-gap"></i> 그리드형
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btnGrid" onclick="changeView('grid')" title="그리드형">
+                            <i class="bi bi-grid-3x3-gap"></i>
                         </button>
                     </div>
                 </div>
-                <input type="text" name="q" class="form-control form-control-sm" placeholder="이름 검색" value="{{ current_q }}">
-            </div>
-            <div class="col-auto">
-                <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-outline-secondary btn-sm">초기화</a>
+                <!-- 이름 검색 필드 -->
+                <div class="input-group input-group-sm" style="width: 250px;">
+                    <input type="text" name="q" class="form-control" placeholder="이름 검색" value="{{ current_q|default:'' }}">
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                </div>
+                <!-- 초기화 버튼 -->
+                <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-outline-secondary btn-sm text-nowrap">
+                    초기화
+                </a>
             </div>
         </form>
     </div>
@@ -167,31 +173,43 @@
         {% for item in analysis_list %}
         <div class="col student-card-item" data-name="{{ item.student.name }}" data-grade="{{ item.student.grade }}" data-class="{{ item.student.class_no }}">
             <div class="card h-100 shadow-sm border-0 post-it">
-                <!-- 상단: 반/번호/이름 -->
+                <!-- 헤더: 한 줄 정렬 -->
                 <div class="card-header bg-white border-0 pt-3 pb-2 d-flex align-items-center gap-2">
-                    <span class="badge bg-primary-subtle text-primary" style="font-size: 0.75rem;">
+                    <span class="badge bg-primary-subtle text-primary" style="font-size: 0.7rem;">
                         {{ item.student.grade }}-{{ item.student.class_no }} / {{ item.student.number }}번
                     </span>
-                    <h6 class="fw-bold mb-0 text-truncate">{{ item.student.name }}</h6>
+                    <h6 class="fw-bold mb-0 text-truncate" style="font-size: 0.95rem;">{{ item.student.name }}</h6>
                 </div>
                 
                 <div class="card-body py-2">
-                    <!-- 학생 답안 (200자 제한) -->
-                     <div class="pointer-cursor mb-2" onclick="showContentModal('{{ item.student.name }} 학생 답안', '{{ item.content|escapejs }}', 'student')">
-                        <label class="small text-muted">[학생 답안]</label>
-                        <div class="small text-secondary">{{ item.content|truncatechars:100|default:"(미제출)" }}</div>
+                    <!-- 학생 답안 섹션 -->
+                    <div class="pointer-cursor mb-3" onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
+                        <div class="d-flex justify-content-between align-items-end mb-1">
+                            <label class="text-muted mb-0" style="font-size: 0.7rem; font-weight: bold;">[학생 답안]</label>
+                            <!-- 시간 정보 우측 배치 -->
+                            <span class="text-muted" style="font-size: 0.65rem;">
+                                {{ item.submitted_at|date:"m-d H:i"|default:"" }}
+                            </span>
+                        </div>
+                        <div class="small text-secondary px-1 overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; min-height: 4.2rem; line-height: 1.5;">
+                            {{ item.content|truncatechars:200|default:"(미제출)" }}
+                        </div>
                     </div>
 
-                    <!-- AI 분석 결과 (200자 제한) -->
-                     <div class="pointer-cursor p-2 bg-light rounded" onclick="showAIModal('{{ item.student.name }} AI 분석 결과', '{{ item.ai_result|escapejs }}')">
-                        <label class="small text-success fw-bold">[AI 분석 결과]</label>
-                        <div class="small">{{ item.ai_result|truncatechars:100|default:"분석 전입니다." }}</div>
+                    <!-- AI 분석 결과 섹션 -->
+                    <div class="pointer-cursor p-2 rounded" style="background-color: #f0f7ff;" 
+                         onclick="showAIModal('{{ item.student.name }}', '{{ item.ai_result|escapejs }}')">
+                        <div class="d-flex justify-content-between align-items-end mb-1">
+                            <label class="text-primary fw-bold mb-0" style="font-size: 0.7rem;">[AI 분석 결과]</label>
+                            <!-- AI 분석 시간 정보 (필드가 있다면 사용, 없다면 빈칸) -->
+                            <span class="text-primary-emphasis opacity-75" style="font-size: 0.65rem;">
+                                {{ item.ai_updated_at|date:"m-d H:i"|default:"" }}
+                            </span>
+                        </div>
+                        <div class="small text-dark overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; line-height: 1.5;">
+                            {{ item.ai_result|default:"분석 전입니다."|truncatechars:200 }}
+                        </div>
                     </div>
-                </div>
-                
-                <!-- 하단: 상태 표시 -->
-                <div class="card-footer bg-transparent border-0 text-end pb-3">
-                    <small class="text-muted" style="font-size: 0.65rem;">최종 업데이트: {{ item.submitted_at|date:"m-d H:i" }}</small>
                 </div>
             </div>
         </div>

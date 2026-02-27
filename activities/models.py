@@ -94,6 +94,7 @@ class Answer(models.Model):
     submitted_at = models.DateTimeField(auto_now=True, verbose_name="제출/수정 시간")
     activity_log = models.TextField(blank=True, default="", verbose_name="활동 로그")
     ai_result = models.TextField(blank=True, null=True, verbose_name="AI 분석 결과")
+    ai_updated_at = models.DateTimeField(null=True, blank=True, verbose_name="AI 분석 일시")
     
      # 결시 사유 선택지
     class Absence(models.TextChoices):

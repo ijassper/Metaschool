@@ -734,6 +734,7 @@ def api_process_db_row(request):
 
             # 3. ★ DB에 분석 결과 저장 ★
             answer.ai_result = result_text
+            answer.ai_updated_at = timezone.now() # AI 분석 일시 기록
             answer.save()
             
             return JsonResponse({'status': 'success', 'result': '저장 완료'})
