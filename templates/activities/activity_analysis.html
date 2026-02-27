@@ -1,6 +1,28 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<style>
+    /* 클릭 가능한 텍스트에 손가락 모양 커서 적용 */
+    .pointer-cursor {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .pointer-cursor:hover {
+        background-color: rgba(0, 123, 255, 0.05); /* 마우스 올리면 아주 살짝 강조 */
+    }
+
+    /* 그리드 포스트잇 스타일 */
+    .post-it {
+        transition: transform 0.2s;
+        border-radius: 12px;
+        border-top: 5px solid #198754 !important; /* 자율활동 포인트 컬러 */
+    }
+    .post-it:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important;
+    }
+</style>
+
 <div class="container-fluid mt-4 mb-5 px-4"> <!-- 꽉 찬 화면 -->
     
     <!-- 상단 헤더 -->
@@ -52,6 +74,17 @@
                     </div>
                 </div>
             </div>
+            <!-- 보기 모드 전환 버튼 (우측 상단) -->
+            <div class="d-flex justify-content-end mb-3 gap-2">
+                <div class="btn-group shadow-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary active" id="btnList" onclick="changeView('list')">
+                        <i class="bi bi-list-ul"></i> 리스트형
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btnGrid" onclick="changeView('grid')">
+                        <i class="bi bi-grid-3x3-gap"></i> 그리드형
+                    </button>
+                </div>
+            </div>
             
             <div class="col-auto ms-auto">
                 <input type="text" name="q" class="form-control form-control-sm" placeholder="이름 검색" value="{{ current_q }}">
@@ -83,20 +116,27 @@
                     <td class="text-center">{{ item.student.number }}</td>
                     <td class="text-center fw-bold">{{ item.student.name }}</td>
                     
-                    <!-- 답안 내용 (클릭 시 전체 보기) -->
-                    <td class="text-start p-2" style="cursor: pointer;" onclick="showContentModal('{{ item.student.name }}', `{{ item.content|escapejs }}`)">
+                    <!-- 1. 답안 내용 (클릭 시 전체 보기) -->
+                    <td class="text-start p-2 pointer-cursor" 
+                        style="cursor: pointer; max-width: 400px;" 
+                        onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
                         {% if item.has_answer %}
-                            <div class="text-truncate" style="max-width: 600px;">
-                                {{ item.content }}
+                            <div class="text-truncate">
+                                {{ item.content|truncatechars:200 }}
                             </div>
                         {% else %}
                             <span class="text-muted small fst-italic">(미제출)</span>
                         {% endif %}
                     </td>
-                    <!--  AI 결과 표시 -->
-                    <td class="text-start bg-light" style="cursor: pointer;" onclick="showAIModal('{{ item.student.name }}', `{{ item.ai_result|escapejs }}`)">
-                        {% if item.ai_result %} <!-- views.py에서 넘겨준 ai_result 변수 사용 -->
-                            <div class="text-truncate" style="max-width: 300px;">{{ item.ai_result }}</div>
+
+                    <!-- 2. AI 결과 표시 (클릭 시 전체 보기) -->
+                    <td class="text-start bg-light pointer-cursor" 
+                        style="cursor: pointer; max-width: 300px;" 
+                        onclick="showAIModal('{{ item.student.name }}', '{{ item.ai_result|escapejs }}')">
+                        {% if item.ai_result %}
+                            <div class="text-truncate">
+                                {{ item.ai_result|truncatechars:200 }}
+                            </div>
                         {% else %}
                             <span class="text-muted small">-</span>
                         {% endif %}
@@ -107,6 +147,43 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+<!-- [그리드 뷰 영역] -->
+<div id="gridView" class="d-none"> <!-- 기본적으로는 숨김 -->
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">
+        {% for a in answers %}
+        <div class="col student-card-item" data-name="{{ a.student.name }}" data-grade="{{ a.student.grade }}" data-class="{{ a.student.class_no }}">
+            <div class="card h-100 shadow-sm border-0 post-it">
+                <!-- 상단: 반/번호/이름 -->
+                <div class="card-header bg-white border-0 pt-3 pb-0">
+                    <span class="badge bg-primary-subtle text-primary mb-2">
+                        {{ a.student.grade }}-{{ a.student.class_no }} / {{ a.student.number }}번
+                    </span>
+                    <h6 class="fw-bold">{{ a.student.name }}</h6>
+                </div>
+                
+                <div class="card-body py-2">
+                    <!-- 학생 답안 (200자 제한) -->
+                     <div class="pointer-cursor mb-2" onclick="showDetailModal('{{ a.student.name }} 학생 답안', '{{ a.content|escapejs }}', 'student')">
+                        <label class="small text-muted">[학생 답안]</label>
+                        <div class="small text-secondary">{{ a.content|truncatechars:200|default:"(미제출)" }}</div>
+                    </div>
+
+                    <!-- AI 분석 결과 (200자 제한) -->
+                     <div class="pointer-cursor p-2 bg-light rounded" onclick="showDetailModal('AI 분석 결과', '{{ a.ai_result|escapejs }}', 'ai')">
+                        <label class="small text-success fw-bold">[AI 분석 결과]</label>
+                        <div class="small">{{ a.ai_result|truncatechars:200|default:"분석 전입니다." }}</div>
+                    </div>
+                </div>
+                
+                <!-- 하단: 상태 표시 -->
+                <div class="card-footer bg-transparent border-0 text-end pb-3">
+                    <small class="text-muted" style="font-size: 0.65rem;">최종 업데이트: {{ a.submitted_at|date:"m-d H:i" }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 
@@ -147,27 +224,95 @@
 </div>
 
 <script>
-    // 학생 답안 전체보기 모달
+    /**
+     * 1. 모달 팝업 관련 함수
+     */
+    // 학생 답안 전체보기 (contentModal 사용)
     function showContentModal(name, content) {
-        if (!content) return;
+        if (!content || content === 'None' || content.trim() === '') return;
+        
         document.getElementById('modalTitle').innerText = name + " 학생의 답안";
         document.getElementById('modalContent').innerText = content;
-        new bootstrap.Modal(document.getElementById('contentModal')).show();
+        
+        const modalElem = document.getElementById('contentModal');
+        const myModal = new bootstrap.Modal(modalElem);
+        myModal.show();
     }
 
-    // AI 분석 결과 전체보기 모달
+    // AI 분석 결과 전체보기 (aiModal 사용)
     function showAIModal(name, content) {
-        if (!content) return;
+        if (!content || content === 'None' || content.trim() === '') return;
+        
         document.getElementById('aiModalTitle').innerText = name + " 학생 AI 분석 결과";
         document.getElementById('aiModalContent').innerText = content;
-        new bootstrap.Modal(document.getElementById('aiModal')).show();
+        
+        const modalElem = document.getElementById('aiModal');
+        const myModal = new bootstrap.Modal(modalElem);
+        myModal.show();
     }
 
-    // 필터 스크립트 (기존 유지)
+    /**
+     * 2. 필터링 관련 함수 (기존 유지)
+     */
     function toggleGrade(grade) {
         const parent = document.getElementById('g_' + grade);
         const children = document.querySelectorAll('.child-g-' + grade);
-        children.forEach(cb => cb.checked = parent.checked);
+        children.forEach(cb => {
+            cb.checked = parent.checked;
+        });
+        // 만약 실시간 필터링 함수가 따로 있다면 여기서 호출 (예: applyFilter())
     }
+
+    /**
+     * 3. 보기 모드 전환 (리스트 <-> 그리드)
+     */
+    function changeView(mode) {
+        const listView = document.getElementById('listView');
+        const gridView = document.getElementById('gridView');
+        const btnList = document.getElementById('btnList');
+        const btnGrid = document.getElementById('btnGrid');
+
+        if (mode === 'grid') {
+            // 그리드 모드 활성화
+            if(listView) listView.classList.add('d-none');
+            if(gridView) gridView.classList.remove('d-none');
+            
+            btnGrid.classList.add('active');
+            btnList.classList.remove('active');
+            
+            localStorage.setItem('analysis_view_mode', 'grid');
+        } else {
+            // 리스트 모드 활성화
+            if(listView) listView.classList.remove('d-none');
+            if(gridView) gridView.classList.add('d-none');
+            
+            btnList.classList.add('active');
+            btnGrid.classList.remove('active');
+            
+            localStorage.setItem('analysis_view_mode', 'list');
+        }
+    }
+
+    /**
+     * 4. 페이지 초기화 로직
+     */
+    document.addEventListener("DOMContentLoaded", function() {
+        // 저장된 보기 모드 불러오기
+        const savedMode = localStorage.getItem('analysis_view_mode');
+        if (savedMode === 'grid') {
+            changeView('grid');
+        } else {
+            changeView('list');
+        }
+
+        // (옵션) 가비아 서버 등에서 발생할 수 있는 뒤로가기 시 모달 잔상 제거
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('hidden.bs.modal', function () {
+                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                document.body.style.overflow = 'auto';
+            });
+        });
+    });
 </script>
 {% endblock %}
