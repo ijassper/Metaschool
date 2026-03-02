@@ -177,6 +177,24 @@
   </div>
 </div>
 
+<!-- 뒤로가기 방지 경고 모달 -->
+<div class="modal fade" id="backButtonModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> 주의: 뒤로가기 금지</h5>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="fs-5 mb-0">평가 중에는 브라우저 뒤로가기를 사용할 수 없습니다.</p>
+                <p class="text-muted small mt-2">응시를 중단하시려면 우측 상단의 [나가기] 버튼을 이용해주세요.</p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center">
+                <button type="button" class="btn btn-danger px-5 rounded-pill fw-bold" data-bs-dismiss="modal">확인했습니다</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ★ 통합 보안 및 응시 기능 스크립트 -->
 <script>
     /**
@@ -197,7 +215,8 @@
      */
     history.pushState(null, null, location.href);
     window.onpopstate = function () {
-        history.go(1);
+        // 뒤로가기 감지 시 즉시 현재 주소를 다시 밀어넣어 스택을 복구
+        history.pushState(null, null, location.href);
         alert("평가 중에는 뒤로 갈 수 없습니다. 제출 또는 나가기 버튼을 이용해주세요.");
     };
 
@@ -334,6 +353,34 @@
         // [개방형] 자유로운 환경 안내
         console.log("개방형 응시 모드: 참고자료 확인 및 화면 전환이 허용됩니다.");
     }
+
+    /**
+     * 뒤로가기 감옥 (History Trap) + 로그 기록
+     */
+    history.pushState(null, null, location.href);
+
+    window.onpopstate = function () {
+        // 1. 즉시 히스토리를 다시 밀어넣어 페이지 이탈 방지
+        history.pushState(null, null, location.href);
+        
+        // 2. [핵심] 뒤로가기 시도 로그를 서버로 전송
+        // 'BACK_BUTTON' 이라는 타입을 정의하여 보냅니다.
+        sendLog('BACK_BUTTON'); 
+
+        // 3. 커스텀 모달 팝업 띄우기
+        const backModal = new bootstrap.Modal(document.getElementById('backButtonModal'));
+        backModal.show();
+
+        // 4. [시각 효과] 배경을 두 번째 스크린샷처럼 흐리게 처리 (선택 사항)
+        const container = document.getElementById('testContainer');
+        if(container) container.style.filter = "blur(10px)";
+    };
+
+    // 모달이 닫힐 때 배경 흐림 제거
+    document.getElementById('backButtonModal').addEventListener('hidden.bs.modal', function () {
+        const container = document.getElementById('testContainer');
+        if(container) container.style.filter = "none";
+    });
 
     /**
      * 6. 서버 로그 전송 함수 (AJAX)

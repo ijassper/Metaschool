@@ -457,6 +457,7 @@ def log_activity(request):
             data = json.loads(request.body)
             answer_id = data.get('answer_id')
             action_type = data.get('type') # 'OUT'(이탈) 또는 'IN'(복귀)
+            log_type = data.get('type')
             
             answer = Answer.objects.get(id=answer_id)
             
@@ -472,6 +473,7 @@ def log_activity(request):
                 'PASTE': '붙여넣기 시도',
                 'RIGHT_CLICK': '우클릭 시도',
                 'EXIT': '중도 퇴장',
+                'BACK_BUTTON': '브라우저 뒤로가기 버튼 클릭 시도'
             }
             
             new_entry = f"[{timestamp}] {log_messages.get(log_type, log_type)}\n"
