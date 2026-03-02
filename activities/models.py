@@ -91,10 +91,11 @@ class Answer(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     content = models.TextField(verbose_name="학생 답안")
-    submitted_at = models.DateTimeField(auto_now=True, verbose_name="제출/수정 시간")
+    submitted_at = models.DateTimeField(null=True, blank=True, verbose_name="제출/수정 시간")
     activity_log = models.TextField(blank=True, default="", verbose_name="활동 로그")
     ai_result = models.TextField(blank=True, null=True, verbose_name="AI 분석 결과")
     ai_updated_at = models.DateTimeField(null=True, blank=True, verbose_name="AI 분석 일시")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="마지막 수정 시간")
     
      # 결시 사유 선택지
     class Absence(models.TextChoices):
