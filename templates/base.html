@@ -68,7 +68,8 @@
 </head>
 <body>
 
-    <!-- [공통] 상단 메뉴바 (기존 유지, 로고 및 사용자 정보 위주) -->
+    <!-- [공통] 상단 메뉴바 (로그인 페이지가 아닐 때만 상단바 노출) -->
+     {% if request.resolver_match.url_name != 'login' %}
     <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top">
         <div class="container-fluid px-4">
             <a class="navbar-brand fw-bold text-primary" href="{% url 'dashboard' %}">
@@ -94,6 +95,12 @@
             </div>
         </div>
     </nav>
+    {% endif %}
+    <!-- 메인 콘텐츠 영역: 로그인 페이지면 container를 제거하여 꽉 채움 -->
+    <main class="{% if request.resolver_match.url_name != 'login' %}container py-4{% endif %}">
+        {% block content %}
+        {% endblock %}
+    </main>
 
     <main class="{% if request.resolver_match.url_name != 'login' %}container{% endif %}">
         <div class="row">
