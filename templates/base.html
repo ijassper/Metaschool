@@ -69,7 +69,7 @@
 <body>
 
     <!-- [공통] 상단 메뉴바 (로그인 페이지가 아닐 때만 상단바 노출) -->
-     {% if request.resolver_match.url_name != 'login' %}
+    {% if request.resolver_match.url_name != 'login' %}
     <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top">
         <div class="container-fluid px-4">
             <a class="navbar-brand fw-bold text-primary" href="{% url 'dashboard' %}">
@@ -96,11 +96,6 @@
         </div>
     </nav>
     {% endif %}
-    <!-- 메인 콘텐츠 영역: 로그인 페이지면 container를 제거하여 꽉 채움 -->
-    <main class="{% if request.resolver_match.url_name != 'login' %}container py-4{% endif %}">
-        {% block content %}
-        {% endblock %}
-    </main>
 
     <main class="{% if request.resolver_match.url_name != 'login' %}container{% endif %}">
         <div class="row">
@@ -241,13 +236,11 @@
             {% endif %}
 
             <!-- [오른쪽 메인 콘텐츠 영역] -->
-            <main class="{% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}col-md-9 ms-sm-auto col-lg-10{% else %}col-12{% endif %} px-md-4">
+            <main class="{% if request.resolver_match.url_name == 'login' %}{# 1. 로그인 페이지: 클래스 없음 (꽉 채움) #}{% elif user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}col-md-9 ms-sm-auto col-lg-10 px-md-4{# 2. 교사/관리자: 사이드바 제외 영역 #}{% else %}container py-4{# 3. 학생/기타: 중앙 정렬 컨테이너 #}{% endif %}">
                 {% block content %}
-                <!-- dashboard.html의 내용이 여기 들어갑니다 -->
+                <!-- 이 자리에 각 페이지의 내용이 들어갑니다 -->
                 {% endblock %}
             </main>
-        </div>
-    </main>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
