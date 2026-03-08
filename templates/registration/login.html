@@ -3,141 +3,110 @@
 
 {% block content %}
 <!-- 1. 최신 트렌드 폰트(Inter) 로드 -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
 
 <style>
-    /* [전체 레이아웃] base.html의 모든 방해 요소를 무시하도록 설정 */
-    body { background-color: white !important; margin: 0 !important; padding: 0 !important; font-family: 'Inter', 'Noto Sans KR', sans-serif; }
+    /* [기존 스타일 무시] */
+    body { margin: 0 !important; padding: 0 !important; font-family: "Pretendard Variable", Pretendard, -apple-system, sans-serif !important; }
     .navbar { display: none !important; }
 
-    /* 화면을 좌우 5:5로 강제 분할 */
-    .login-full-wrapper {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100vw; height: 100vh;
-        display: flex;
-        z-index: 9999;
-        background-color: white;
+    /* 전체 화면 고정 레이아웃 */
+    .login-full-screen {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        display: flex; z-index: 9999; background: #fff;
     }
 
-    /* --- 좌측: 브랜드 사이드 (피그마 음영 로직 적용) --- */
+    /* --- 좌측: 브랜드 사이드 (피그마 감성 재현) --- */
     .brand-side {
-        flex: 1;
+        flex: 1.1; /* 좌측을 살짝 더 넓게 */
         position: relative;
-        background: #512da8 url('{% static "images/ingrid_bg.jpg" %}') no-repeat center center;
+        background: #2d1b69 url('{% static "images/ingrid_bg.jpg" %}') no-repeat center center;
         background-size: cover;
-        padding: 60px;
+        padding: 80px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         color: white;
     }
 
-    /* 피그마 스타일의 세련된 음영 오버레이 */
+    /* 피그마의 깊은 음영 처리 (오버레이) */
     .brand-side::before {
-        content: "";
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: linear-gradient(135deg, rgba(81, 45, 168, 0.45) 0%, rgba(33, 14, 82, 0.6) 100%);
+        content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(145deg, rgba(45, 27, 105, 0.8) 0%, rgba(81, 45, 168, 0.3) 50%, rgba(0, 0, 0, 0.4) 100%);
         z-index: 1;
     }
 
     .brand-content { position: relative; z-index: 2; }
 
-    .logo-area { display: flex; align-items: center; gap: 12px; margin-bottom: 80px; }
-    .logo-name { font-size: 1.6rem; font-weight: 700; letter-spacing: -1px; }
+    /* 로고 */
+    .logo-box { font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 80px; }
 
-    .main-headline {
-        font-size: 3rem;
-        font-weight: 700;
-        line-height: 1.25;
-        letter-spacing: -1.5px;
-        margin-bottom: 25px;
-        text-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    /* 메인 카피 */
+    .headline {
+        font-size: 3.2rem; font-weight: 800; line-height: 1.2;
+        letter-spacing: -2px; margin-bottom: 30px;
+        text-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }
+    .sub-headline { font-size: 1.25rem; opacity: 0.85; line-height: 1.7; font-weight: 400; }
 
-    .sub-copy {
-        font-size: 1.15rem;
-        opacity: 0.9;
-        line-height: 1.6;
-        max-width: 500px;
+    /* 하단 글래스모피즘 아이콘 */
+    .feature-list {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+        position: relative; z-index: 2;
     }
-
-    /* 하단 특징 아이콘 (피그마 글래스모피즘 적용) */
-    .feature-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 15px;
-        z-index: 2;
-        position: relative;
-    }
-    .feature-item {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 12px 15px;
-        border-radius: 12px;
-        backdrop-filter: blur(8px);
+    .feature-card {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px); /* 유리알 효과 */
+        -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.15);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 0.85rem;
+        padding: 15px 20px; border-radius: 16px;
+        display: flex; align-items: center; gap: 12px; font-size: 0.95rem;
     }
 
-    /* --- 우측: 로그인 폼 사이드 --- */
+    /* --- 우측: 로그인 폼 (피그마 디자인 100% 일치) --- */
     .form-side {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 40px;
-        background-color: white;
+        flex: 0.9; display: flex; align-items: center; justify-content: center;
+        background: white; padding: 40px;
+    }
+    .login-wrapper { width: 100%; max-width: 400px; }
+    .login-wrapper h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 45px; letter-spacing: -1px; }
+
+    /* 선택 토글 */
+    .role-toggle {
+        background: #f1f3f5; padding: 5px; border-radius: 16px;
+        display: flex; margin-bottom: 35px;
+    }
+    .role-toggle input { display: none; }
+    .role-toggle label {
+        flex: 1; text-align: center; padding: 12px; border-radius: 12px;
+        cursor: pointer; font-weight: 700; color: #adb5bd; transition: 0.2s;
+    }
+    .role-toggle input:checked + label {
+        background: white; color: #512da8; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
 
-    .login-box { width: 100%; max-width: 380px; }
-    .login-title { font-size: 2.2rem; font-weight: 700; margin-bottom: 40px; color: #1e293b; letter-spacing: -1px; }
-
-    /* 역할 선택 토글 */
-    .role-selector {
-        display: flex;
-        background-color: #f1f3f5;
-        padding: 5px;
-        border-radius: 14px;
-        margin-bottom: 30px;
-    }
-    .role-selector input { display: none; }
-    .role-selector label {
-        flex: 1; text-align: center; padding: 12px; border-radius: 10px;
-        cursor: pointer; font-weight: 600; color: #adb5bd; transition: 0.2s;
-    }
-    .role-selector input:checked + label {
-        background-color: white; color: #8e44ad; box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-    }
-
-    /* 입력창 */
-    .field-label { font-size: 0.95rem; font-weight: 700; color: #334155; margin-bottom: 8px; display: block; }
+    /* 입력 필드 */
+    .input-group-custom { margin-bottom: 25px; }
+    .input-label { font-size: 0.95rem; font-weight: 700; color: #495057; margin-bottom: 8px; display: block; }
     .form-input {
-        width: 100%; padding: 16px; border: 1px solid #dee2e6;
-        border-radius: 12px; margin-bottom: 25px; outline: none; transition: 0.2s;
-        box-sizing: border-box; /* 패딩이 너비를 넘지 않게 함 */
+        width: 100%; padding: 16px 20px; border: 1px solid #dee2e6;
+        border-radius: 14px; font-size: 1rem; outline: none; transition: 0.2s;
+        background: #fdfdfd;
     }
-    .form-input:focus { border-color: #8e44ad; box-shadow: 0 0 0 4px rgba(142, 68, 173, 0.1); }
+    .form-input:focus { border-color: #512da8; background: white; box-shadow: 0 0 0 4px rgba(81, 45, 168, 0.1); }
 
-    /* 로그인 버튼 (물결 배경 + 음영) */
-    .btn-ingrid-submit {
-        width: 100%; padding: 16px; border: none; border-radius: 14px;
-        color: white; font-weight: 700; font-size: 1.1rem; cursor: pointer;
-        background: linear-gradient(rgba(142, 68, 173, 0.7), rgba(142, 68, 173, 0.7)), url('{% static "images/ingrid_bg.jpg" %}') center;
-        background-size: cover;
-        box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
-        transition: transform 0.2s;
+    /* [로그인 버튼] */
+    .btn-submit-final {
+        width: 100%; padding: 18px; border: none; border-radius: 16px;
+        color: white; font-weight: 800; font-size: 1.15rem; cursor: pointer;
+        /* 보라색-핑크 그라데이션 적용 */
+        background: linear-gradient(135deg, #ff80b5 0%, #512da8 100%);
+        box-shadow: 0 8px 25px rgba(81, 45, 168, 0.3);
+        transition: 0.3s;
     }
-    .btn-ingrid-submit:hover { transform: translateY(-2px); filter: brightness(1.1); }
+    .btn-submit-final:hover { transform: translateY(-3px); filter: brightness(1.1); }
 
-    /* 모바일 대응 */
-    @media (max-width: 1024px) {
-        .brand-side { display: none; }
-        .login-full-wrapper { position: relative; height: auto; min-height: 100vh; }
-    }
+    @media (max-width: 1024px) { .brand-side { display: none; } }
 </style>
 
 <div class="login-full-wrapper">
