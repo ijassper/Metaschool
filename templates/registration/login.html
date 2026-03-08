@@ -3,129 +3,134 @@
 
 {% block content %}
 <!-- 1. 최신 트렌드 폰트(Inter) 로드 -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
-    /* 1. 전체 화면 초기화 */
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-    
-    .login-container {
+    /* [레이아웃 초기화] base.html의 컨테이너를 무시하고 전체 화면 점유 */
+    body { background-color: white !important; margin: 0; padding: 0; font-family: 'Inter', 'Noto Sans KR', sans-serif; }
+    .navbar { display: none !important; } /* 로그인 페이지 상단바 숨김 */
+
+    .login-full-wrapper {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
         display: flex;
-        height: 100vh;
-        width: 100vw;
+        z-index: 9999;
     }
 
-    /* 2. [핵심] 좌측 배경 섹션 */
+    /* --- 좌측: 브랜드 사이드 (Ingrid 배경 이미지) --- */
     .brand-side {
         flex: 1;
         position: relative;
-        /* 배경 이미지 설정: 이미지를 중앙에 고정하고 꽉 채움 */
-        background: url('{% static "images/ingrid_fluid_bg.jpg" %}') no-repeat center center;
+        background: #512da8 url('{% static "images/ingrid_bg.jpg" %}') no-repeat center center;
         background-size: cover;
+        padding: 60px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        padding: 80px; /* 여백을 넉넉히 주어야 피그마 느낌이 납니다 */
         color: white;
-        font-family: 'Inter', sans-serif;
     }
 
-    /* 배경 위에 부드러운 보라색 필터 (이미지 무늬를 살리면서 가독성 높임) */
-    .brand-side::after {
-        content: "";
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: linear-gradient(135deg, rgba(81, 45, 168, 0.2) 0%, rgba(0, 0, 0, 0.1) 100%);
+    /* 배경 가독성을 위한 레이어 */
+    .brand-side::before {
+        content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(135deg, rgba(81, 45, 168, 0.4) 0%, rgba(0, 0, 0, 0.1) 100%);
         z-index: 1;
     }
 
-    /* 3. 내부 콘텐츠 (텍스트 등) */
     .brand-content { position: relative; z-index: 2; }
 
-    .logo-area { display: flex; align-items: center; gap: 12px; margin-bottom: 100px; }
-    .logo-icon { width: 32px; height: 32px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #512da8; }
-    .logo-name { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+    /* 상단 로고 스타일 */
+    .logo-area { display: flex; align-items: center; gap: 12px; }
+    .logo-icon { width: 35px; height: 35px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+    .logo-name { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
 
+    /* 메인 카피 스타일 (피그마 느낌) */
     .main-headline {
-        font-size: 3.8rem; /* 크게 가야 합니다 */
+        font-size: 3.2rem;
         font-weight: 700;
-        line-height: 1.1;
-        letter-spacing: -2px;
-        margin-bottom: 24px;
-        max-width: 600px;
+        line-height: 1.25;
+        letter-spacing: -1.5px;
+        margin-top: 100px;
+        margin-bottom: 25px;
     }
 
     .sub-copy {
         font-size: 1.2rem;
+        opacity: 0.9;
         line-height: 1.6;
-        opacity: 0.8;
+        font-weight: 400;
         max-width: 500px;
     }
 
-    /* 4. 하단 통계 섹션 */
-    .stats-row {
-        display: flex;
-        gap: 60px;
-        position: relative;
+    /* 하단 특징 아이콘 그리드 */
+    .feature-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
         z-index: 2;
     }
-    .stat-item h2 { font-size: 2.2rem; font-weight: 700; margin: 0; }
-    .stat-item p { font-size: 0.9rem; opacity: 0.7; margin: 5px 0 0 0; }
+    .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
 
-    /* 5. 우측 폼 섹션 (심플하게 유지) */
+    /* --- 우측: 로그인 폼 사이드 --- */
     .form-side {
         flex: 1;
-        background-color: white;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 40px;
+        background-color: white;
     }
 
-    /* 텍스트 스타일 */
-    .login-title { font-size: 2.2rem; font-weight: 700; margin-bottom: 40px; letter-spacing: -1px; }
-    .form-label-bold { font-size: 0.95rem; font-weight: 700; color: #333; margin-bottom: 8px; display: block; }
+    .login-box { width: 100%; max-width: 400px; }
+    .login-box h2 { font-size: 2.2rem; font-weight: 700; margin-bottom: 40px; color: #1e293b; letter-spacing: -1px; }
 
-    /* 입력창 디자인 */
-    .form-control-custom {
-        width: 100%; padding: 15px 20px; border: 1px solid #dee2e6;
-        border-radius: 12px; font-size: 1rem; outline: none; transition: 0.2s;
-        margin-bottom: 25px;
+    /* 역할 선택 토글 */
+    .role-selector {
+        background: #f1f3f5; padding: 5px; border-radius: 14px;
+        display: flex; margin-bottom: 30px;
     }
-    .form-control-custom:focus { border-color: #8e44ad; box-shadow: 0 0 0 3px rgba(142, 68, 173, 0.1); }
-
-    /* 교사/학생 선택 토글 */
-    .role-selector { display: flex; background-color: #f1f3f5; padding: 5px; border-radius: 14px; margin-bottom: 30px; }
     .role-selector input { display: none; }
     .role-selector label {
         flex: 1; text-align: center; padding: 12px; border-radius: 10px;
         cursor: pointer; font-weight: 600; color: #adb5bd; transition: 0.2s;
     }
-    .role-selector input:checked + label { background-color: white; color: #8e44ad; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-
-    /* [핵심] 로그인 버튼 - 물결 무늬 그라데이션 */
-    .btn-submit {
-        width: 100%; padding: 16px; border: none; border-radius: 14px; color: white;
-        font-weight: bold; font-size: 1.1rem; cursor: pointer;
-        background-image: url('{% static "images/ingrid_bg.jpg" %}');
-        background-size: cover; background-position: center;
-        transition: transform 0.2s, filter 0.2s;
-        box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
+    .role-selector input:checked + label {
+        background: white; color: #8e44ad; box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
-    .btn-submit:hover { transform: translateY(-2px); filter: brightness(1.1); }
 
-    /* 하단 통계/특징 */
-    .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; position: relative; z-index: 2; }
-    .feature-item { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; opacity: 0.9; }
+    /* 입력창 및 라벨 */
+    .field-label { font-size: 0.95rem; font-weight: 700; color: #334155; margin-bottom: 8px; display: block; }
+    .form-input {
+        width: 100%; padding: 16px; border: 1px solid #dee2e6;
+        border-radius: 12px; margin-bottom: 25px; outline: none; transition: 0.2s;
+    }
+    .form-input:focus { border-color: #8e44ad; box-shadow: 0 0 0 4px rgba(142, 68, 173, 0.1); }
 
-    /* 모달 및 기타 스타일 */
+    /* 로그인 버튼 (물결 배경 + 그라데이션) */
+    .btn-ingrid-submit {
+        width: 100%; padding: 16px; border: none; border-radius: 14px;
+        color: white; font-weight: 700; font-size: 1.1rem; cursor: pointer;
+        background: linear-gradient(rgba(142, 68, 173, 0.6), rgba(142, 68, 173, 0.6)), url('{% static "images/ingrid_bg.jpg" %}');
+        background-size: cover; background-position: center;
+        box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
+        transition: transform 0.2s;
+    }
+    .btn-ingrid-submit:hover { transform: translateY(-2px); filter: brightness(1.1); }
+
     .text-purple { color: #8e44ad; font-weight: 700; text-decoration: none; }
 
     @media (max-width: 1024px) { .brand-side { display: none; } }
 </style>
 
-<div class="login-container">
-    <!-- 1. 좌측 (brand-side) -->
+<div class="login-full-wrapper">
+    <!-- 좌측 브랜드 섹션 -->
     <div class="brand-side">
         <!-- 상단 로고 -->
         <div class="brand-content logo-area">
@@ -142,41 +147,37 @@
             </p>
         </div>
 
-        <!-- 하단 통계 -->
-        <div class="stats-row">
-            <div class="stat-item"><i class="bi bi-database-check fs-4"></i> 데이터 기반 학습 진단</div>
-            <div class="stat-item"><i class="bi bi-chat-dots fs-4"></i> AI 맞춤형 개별 피드백</div>
-            <div class="stat-item"><i class="bi bi-lightbulb fs-4"></i> 스마트 수업 설계 보조</div>
-            <div class="stat-item"><i class="bi bi-cpu fs-4"></i> 교무 업무 최적화 솔루션</div>
+        <!-- 하단 통계/특징 -->
+        <div class="feature-grid">
+            <div class="feature-item"><i class="bi bi-database-check fs-5"></i> 데이터 기반 학습 진단</div>
+            <div class="feature-item"><i class="bi bi-chat-dots fs-5"></i> AI 맞춤형 개별 피드백</div>
+            <div class="feature-item"><i class="bi bi-lightbulb fs-5"></i> 스마트 수업 설계 보조</div>
+            <div class="feature-item"><i class="bi bi-cpu fs-5"></i> 교무 업무 최적화 솔루션</div>
         </div>
     </div>
 
-    <!-- 2. 우측 (form-side) -->
+    <!-- 우측 로그인 폼 섹션 -->
     <div class="form-side">
         <div class="login-box px-3">
-            <h1 class="login-title">로그인</h1>
+            <h2>로그인</h2>
             
             <form method="post" action="{% url 'login' %}">
                 {% csrf_token %}
                 
-                <!-- 회원 유형 선택 -->
-                <div class="role-selector">
+                <div class="role-selector shadow-sm">
                     <input type="radio" name="login_type" id="type_teacher" value="teacher" checked>
                     <label for="type_teacher">교사</label>
                     <input type="radio" name="login_type" id="type_student" value="student">
                     <label for="type_student">학생</label>
                 </div>
 
-                <!-- 아이디 -->
-                <label class="form-label-bold" id="label_username">아이디</label>
-                <input type="text" name="username" class="form-control-custom" id="id_username" placeholder="아이디를 입력하세요" required>
+                <label class="field-label" id="label_username">아이디</label>
+                <input type="text" name="username" class="form-input" id="id_username" placeholder="아이디를 입력하세요" required>
 
-                <!-- 비밀번호 -->
-                <label class="form-label-bold">비밀번호</label>
-                <input type="password" name="password" class="form-control-custom" id="id_password" placeholder="비밀번호를 입력하세요" required>
+                <label class="field-label">비밀번호</label>
+                <input type="password" name="password" class="form-input" id="id_password" placeholder="비밀번호를 입력하세요" required>
 
-                <!-- 하단 링크 -->
-                <div class="d-flex justify-content-between align-items-center mb-5 px-1">
+                <div class="d-flex justify-content-between mb-5 px-1">
                     <div class="form-check d-flex align-items-center gap-2">
                         <input class="form-check-input" type="checkbox" id="rememberMe" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
                         <label class="form-check-label text-secondary small" for="rememberMe" style="cursor: pointer;">로그인 유지</label>
@@ -184,14 +185,14 @@
                     <a href="#" class="text-purple small">비밀번호 찾기</a>
                 </div>
 
-                <button type="submit" class="btn-submit">
+                <button type="submit" class="btn-ingrid-submit">
                     로그인
                 </button>
             </form>
 
             <div class="text-center mt-5 small">
                 <span class="text-secondary">계정이 없으신가요?</span>
-                <a href="{% url 'signup' %}" id="signup-link" class="text-purple ms-2">교사 회원가입</a>
+                <a href="{% url 'signup' %}" class="text-purple ms-2">교사 회원가입</a>
             </div>
         </div>
     </div>
