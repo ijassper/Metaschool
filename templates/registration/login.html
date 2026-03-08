@@ -6,127 +6,80 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
-    /* [레이아웃 초기화] base.html의 컨테이너를 무시하고 전체 화면 점유 */
-    body { background-color: white !important; margin: 0; padding: 0; font-family: 'Inter', 'Noto Sans KR', sans-serif; }
-    .navbar { display: none !important; } /* 로그인 페이지 상단바 숨김 */
-
-    .login-full-wrapper {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100vw; height: 100vh;
-        display: flex;
-        z-index: 9999;
-    }
-
-    /* --- 좌측: 브랜드 사이드 (Ingrid 배경 이미지) --- */
+    /* 1. 좌측 브랜드 사이드 음영 고도화 */
     .brand-side {
         flex: 1;
         position: relative;
-        background: #512da8 url('{% static "images/ingrid_bg.jpg" %}') no-repeat center center;
+        /* 배경 이미지: 이미지를 약간 어둡게 처리하기 위해 이미지 앞에 검은색 레이어를 섞습니다 */
+        background: url('{% static "images/ingrid_bg.jpg" %}') no-repeat center center;
         background-size: cover;
-        padding: 60px;
+        padding: 80px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         color: white;
+        overflow: hidden;
     }
 
-    /* 배경 가독성을 위한 레이어 */
+    /* [핵심] 피그마 스타일의 세련된 음영 레이어 */
+    /* 아래에서 위로, 왼쪽에서 오른쪽으로 퍼지는 복합 그라데이션을 씌웁니다 */
     .brand-side::before {
-        content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background: linear-gradient(135deg, rgba(81, 45, 168, 0.4) 0%, rgba(0, 0, 0, 0.1) 100%);
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: 
+            /* 하단을 어둡게 눌러주는 레이어 (텍스트 가독성 + 고급스러움) */
+            linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 50%),
+            /* 전체적으로 보라색 톤을 차분하게 만들어주는 레이어 */
+            linear-gradient(135deg, rgba(81, 45, 168, 0.4) 0%, rgba(33, 14, 82, 0.5) 100%);
         z-index: 1;
     }
 
-    .brand-content { position: relative; z-index: 2; }
+    /* 이미지 자체를 부드럽게 만들기 위해 배경 필터 적용 */
+    .brand-side {
+        /* 이미지의 대비를 살짝 낮추고 부드럽게 처리 */
+        backdrop-filter: contrast(90%) brightness(90%);
+    }
 
-    /* 상단 로고 스타일 */
-    .logo-area { display: flex; align-items: center; gap: 12px; }
-    .logo-icon { width: 35px; height: 35px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
-    .logo-name { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
+    /* 2. 텍스트가 배경 뚫고 나오게 하기 (깊이감) */
+    .brand-content {
+        position: relative;
+        z-index: 2;
+        /* 글자 뒤에 은은한 그림자를 주어 입체감 부여 */
+        text-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
 
-    /* 메인 카피 스타일 (피그마 느낌) */
     .main-headline {
         font-size: 3.2rem;
         font-weight: 700;
-        line-height: 1.25;
-        letter-spacing: -1.5px;
+        line-height: 1.2;
+        letter-spacing: -2px;
         margin-top: 100px;
         margin-bottom: 25px;
+        /* 피그마 특유의 폰트 렌더링 방식 모방 */
+        -webkit-font-smoothing: antialiased;
     }
 
-    .sub-copy {
-        font-size: 1.2rem;
-        opacity: 0.9;
-        line-height: 1.6;
-        font-weight: 400;
-        max-width: 500px;
-    }
-
-    /* 하단 특징 아이콘 그리드 */
+    /* 3. 하단 특징 아이콘 영역 가독성 보강 */
     .feature-grid {
+        position: relative;
+        z-index: 2;
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        z-index: 2;
+        gap: 25px;
     }
+    
     .feature-item {
+        background: rgba(255, 255, 255, 0.1); /* 아이콘 배경에 아주 투명한 박스 추가 */
+        padding: 10px 15px;
+        border-radius: 12px;
+        backdrop-filter: blur(5px); /* 유리 질감 추가 */
+        border: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         align-items: center;
-        gap: 10px;
-        font-size: 0.95rem;
-        font-weight: 500;
+        gap: 12px;
+        font-size: 0.9rem;
     }
-
-    /* --- 우측: 로그인 폼 사이드 --- */
-    .form-side {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 40px;
-        background-color: white;
-    }
-
-    .login-box { width: 100%; max-width: 400px; }
-    .login-box h2 { font-size: 2.2rem; font-weight: 700; margin-bottom: 40px; color: #1e293b; letter-spacing: -1px; }
-
-    /* 역할 선택 토글 */
-    .role-selector {
-        background: #f1f3f5; padding: 5px; border-radius: 14px;
-        display: flex; margin-bottom: 30px;
-    }
-    .role-selector input { display: none; }
-    .role-selector label {
-        flex: 1; text-align: center; padding: 12px; border-radius: 10px;
-        cursor: pointer; font-weight: 600; color: #adb5bd; transition: 0.2s;
-    }
-    .role-selector input:checked + label {
-        background: white; color: #8e44ad; box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-    }
-
-    /* 입력창 및 라벨 */
-    .field-label { font-size: 0.95rem; font-weight: 700; color: #334155; margin-bottom: 8px; display: block; }
-    .form-input {
-        width: 100%; padding: 16px; border: 1px solid #dee2e6;
-        border-radius: 12px; margin-bottom: 25px; outline: none; transition: 0.2s;
-    }
-    .form-input:focus { border-color: #8e44ad; box-shadow: 0 0 0 4px rgba(142, 68, 173, 0.1); }
-
-    /* 로그인 버튼 (물결 배경 + 그라데이션) */
-    .btn-ingrid-submit {
-        width: 100%; padding: 16px; border: none; border-radius: 14px;
-        color: white; font-weight: 700; font-size: 1.1rem; cursor: pointer;
-        background: linear-gradient(rgba(142, 68, 173, 0.6), rgba(142, 68, 173, 0.6)), url('{% static "images/ingrid_bg.jpg" %}');
-        background-size: cover; background-position: center;
-        box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
-        transition: transform 0.2s;
-    }
-    .btn-ingrid-submit:hover { transform: translateY(-2px); filter: brightness(1.1); }
-
-    .text-purple { color: #8e44ad; font-weight: 700; text-decoration: none; }
-
-    @media (max-width: 1024px) { .brand-side { display: none; } }
 </style>
 
 <div class="login-full-wrapper">
@@ -140,10 +93,10 @@
 
         <!-- 중앙 메인 카피 -->
         <div class="brand-content">
-            <h1 class="main-headline">선생님의 가장 스마트한<br>교육 파트너,<br>Ingrid가 곁에 있습니다.</h1>
+            <h1 class="main-headline">선생님의 가장 스마트한<br>교육 파트너,<br>스쿨 AI가 곁에 있습니다.</h1>
             <p class="sub-copy">
-                반복되는 행정 업무의 부담은 덜어내고,<br>
-                AI를 통해 정교한 맞춤형 피드백을 완성하세요.
+                반복되는 행정 업무의 부담은 덜어내고, AI 활용을 통해<br>
+                학생 한 명 한 명에게 닿는 정교한 맞춤형 피드백을 완성하세요.
             </p>
         </div>
 
