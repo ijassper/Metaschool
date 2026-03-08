@@ -3,47 +3,84 @@
 
 {% block content %}
 <!-- 1. 최신 트렌드 폰트(Inter) 로드 -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
 <style>
-    /* 전체 레이아웃 초기화 */
-    body { font-family: 'Inter', 'Noto Sans KR', sans-serif; margin: 0; background-color: white; }
+    /* 1. 전체 화면 초기화 */
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
     
-    .login-wrapper {
+    .login-container {
         display: flex;
         height: 100vh;
         width: 100vw;
-        margin-top: -56px; /* 상단바 높이만큼 위로 올려서 꽉 채움 */
     }
 
-    /* 좌측: 브랜드 사이드 (이미지 배경) */
+    /* 2. [핵심] 좌측 배경 섹션 */
     .brand-side {
         flex: 1;
-        background: #512da8 url('{% static "images/ingrid_bg.jpg" %}') no-repeat center center;
+        position: relative;
+        /* 배경 이미지 설정: 이미지를 중앙에 고정하고 꽉 채움 */
+        background: url('{% static "images/ingrid_fluid_bg.jpg" %}') no-repeat center center;
         background-size: cover;
-        padding: 80px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        position: relative;
+        padding: 80px; /* 여백을 넉넉히 주어야 피그마 느낌이 납니다 */
         color: white;
+        font-family: 'Inter', sans-serif;
     }
-    .brand-side::before {
-        content: ""; position: absolute; top:0; left:0; right:0; bottom:0;
-        background: rgba(0, 0, 0, 0.15); z-index: 1;
+
+    /* 배경 위에 부드러운 보라색 필터 (이미지 무늬를 살리면서 가독성 높임) */
+    .brand-side::after {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(135deg, rgba(81, 45, 168, 0.2) 0%, rgba(0, 0, 0, 0.1) 100%);
+        z-index: 1;
     }
+
+    /* 3. 내부 콘텐츠 (텍스트 등) */
     .brand-content { position: relative; z-index: 2; }
 
-    /* 우측: 폼 사이드 (로그인 박스) */
+    .logo-area { display: flex; align-items: center; gap: 12px; margin-bottom: 100px; }
+    .logo-icon { width: 32px; height: 32px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #512da8; }
+    .logo-name { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+
+    .main-headline {
+        font-size: 3.8rem; /* 크게 가야 합니다 */
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -2px;
+        margin-bottom: 24px;
+        max-width: 600px;
+    }
+
+    .sub-copy {
+        font-size: 1.2rem;
+        line-height: 1.6;
+        opacity: 0.8;
+        max-width: 500px;
+    }
+
+    /* 4. 하단 통계 섹션 */
+    .stats-row {
+        display: flex;
+        gap: 60px;
+        position: relative;
+        z-index: 2;
+    }
+    .stat-item h2 { font-size: 2.2rem; font-weight: 700; margin: 0; }
+    .stat-item p { font-size: 0.9rem; opacity: 0.7; margin: 5px 0 0 0; }
+
+    /* 5. 우측 폼 섹션 (심플하게 유지) */
     .form-side {
         flex: 1;
+        background-color: white;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 40px;
-        background-color: white;
     }
-    .login-box { width: 100%; max-width: 400px; }
 
     /* 텍스트 스타일 */
     .login-title { font-size: 2.2rem; font-weight: 700; margin-bottom: 40px; letter-spacing: -1px; }
@@ -87,25 +124,30 @@
     @media (max-width: 1024px) { .brand-side { display: none; } }
 </style>
 
-<div class="login-wrapper">
+<div class="login-container">
     <!-- 1. 좌측 (brand-side) -->
     <div class="brand-side">
+        <!-- 상단 로고 -->
+        <div class="brand-content logo-area">
+            <div class="logo-icon"><i class="bi bi-layers-fill"></i></div>
+            <span class="logo-name">Ingrid</span>
+        </div>
+
+        <!-- 중앙 메인 카피 -->
         <div class="brand-content">
-            <h2 class="fw-bold mb-5" style="font-size: 1.8rem; letter-spacing: -1px;">Ingrid</h2>
-            <h1 class="display-4 fw-bold mb-4" style="line-height: 1.2;">
-                선생님의 가장 스마트한<br>교육 파트너,<br>Ingrid가 곁에 있습니다.
-            </h1>
-            <p class="fs-5 opacity-75">
+            <h1 class="main-headline">선생님의 가장 스마트한<br>교육 파트너,<br>Ingrid가 곁에 있습니다.</h1>
+            <p class="sub-copy">
                 반복되는 행정 업무의 부담은 덜어내고,<br>
                 AI를 통해 정교한 맞춤형 피드백을 완성하세요.
             </p>
         </div>
 
-        <div class="feature-grid">
-            <div class="feature-item"><i class="bi bi-database-check fs-4"></i> 데이터 기반 학습 진단</div>
-            <div class="feature-item"><i class="bi bi-chat-dots fs-4"></i> AI 맞춤형 개별 피드백</div>
-            <div class="feature-item"><i class="bi bi-lightbulb fs-4"></i> 스마트 수업 설계 보조</div>
-            <div class="feature-item"><i class="bi bi-cpu fs-4"></i> 교무 업무 최적화 솔루션</div>
+        <!-- 하단 통계 -->
+        <div class="stats-row">
+            <div class="stat-item"><i class="bi bi-database-check fs-4"></i> 데이터 기반 학습 진단</div>
+            <div class="stat-item"><i class="bi bi-chat-dots fs-4"></i> AI 맞춤형 개별 피드백</div>
+            <div class="stat-item"><i class="bi bi-lightbulb fs-4"></i> 스마트 수업 설계 보조</div>
+            <div class="stat-item"><i class="bi bi-cpu fs-4"></i> 교무 업무 최적화 솔루션</div>
         </div>
     </div>
 
