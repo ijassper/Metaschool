@@ -39,24 +39,24 @@
         content: "";
         position: absolute;
         /* 블러(Blur) 적용 시 외곽선이 하얗게 뜨는 것을 방지하기 위해 상하좌우를 -20px 정도 넓힙니다. */
-        top: -20px; left: -20px; right: -20px; bottom: -20px;
+        top: -10px; left: -10px; right: -10px; bottom: -10px;
         
         background-image: url('{% static "images/ingrid_bg.jpg" %}');
         background-size: cover;
         background-position: center;
         
-        /* [수정 포인트 1] 투명도를 더 낮춤 (0.3 -> 0.15~0.2) */
-        opacity: 0.18; 
+        /* [수정 포인트 1] 투명도를 더 낮춤 (0.3 ~ 0.2) */
+        opacity: 0.22; 
         
         /* [수정 포인트 2] 선을 흐리게 만드는 블러 효과 추가 */
-        filter: blur(4px); 
+        filter: blur(2px); 
         
         /* [수정 포인트 3] 혼합 모드를 overlay 혹은 soft-light로 조정 */
         mix-blend-mode: overlay; 
         
         z-index: 1;
         /* 블러 효과 때문에 이미지가 커져야 하므로 살짝 확대 */
-        transform: scale(1.4); 
+        transform: scale(1.2); 
     }
 
     .brand-content { position: relative; z-index: 2; }
