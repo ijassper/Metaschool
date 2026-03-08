@@ -141,38 +141,52 @@
         font-weight: 800;
         font-size: 1.1rem;
         cursor: pointer;
-        position: relative;
-        overflow: hidden;
+        position: relative; /* 가상 요소를 위한 기준 */
+        overflow: hidden;   /* 가상 요소가 버튼 밖으로 나가지 않게 함 */
+        z-index: 1;
         
-        /* [핵심] 그라데이션과 이미지를 레이어처럼 쌓고 섞습니다 */
-        background-image: 
-            /* 상단 레이어: 차분한 보라색 그라데이션 (약간 투명하게) */
-            linear-gradient(90deg, rgba(108, 92, 231, 0.85) 0%, rgba(142, 68, 173, 0.85) 100%),
-            /* 하단 레이어: 물결 배경 이미지 */
-            url('{% static "images/ingrid_bg.jpg" %}');
+        /* [수정 1] 버튼의 기본 배경색 (가장 바탕이 되는 진한 보라색) */
+        background: linear-gradient(90deg, #512da8 0%, #8E44AD 100%);
+        box-shadow: 0 8px 20px rgba(81, 45, 168, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    /* [핵심] 물결 무늬만 담당하는 레이어 분리 */
+    .btn-ingrid-submit::before {
+        content: "";
+        position: absolute;
+        /* 블러 효과 시 끝부분이 하얘지는 걸 방지하기 위해 영역 확장 */
+        top: -5px; left: -5px; right: -5px; bottom: -5px;
         
-        background-size: 180% auto;
+        background-image: url('{% static "images/ingrid_bg.jpg" %}');
+        /* [수정 2] 무늬를 큼직하고 은은하게 퍼뜨림 */
+        background-size: 200% auto;
         background-position: top center;
         
-        /* 두 레이어를 자연스럽게 합성 (overlay 또는 multiply) */
-        background-blend-mode: multiply;
-
-        /* [수정 포인트 4] 블러를 1px로 최소화하여 버튼 안에서 무늬의 형체는 살립니다 */
-        filter: contrast(110%) blur(1px);
+        /* [수정 3] 투명도를 대폭 낮추어 왼쪽 패널처럼 은은하게 만듦 */
+        opacity: 0.25; 
         
-        /* 버튼 입체감 */
-        box-shadow: 0 8px 20px rgba(81, 45, 168, 0.2);
-        transition: all 0.3s ease;
-
-        /* 5. 글자가 더 잘 보이도록 그림자 추가 */
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        /* [수정 4] 물결 무늬에만 블러를 주어 부드럽게 만듦 (글자 영향 없음) */
+        filter: blur(2px);
+        
+        /* 배경색과 부드럽게 합성 */
+        mix-blend-mode: overlay;
+        
+        z-index: -1; /* 글자보다 뒤로 보냄 */
+        pointer-events: none;
     }
 
     .btn-ingrid-submit:hover {
         transform: translateY(-2px);
-        /* 호버 시 은은하게 밝아지는 효과 */
         filter: brightness(1.1);
         box-shadow: 0 10px 25px rgba(81, 45, 168, 0.4);
+    }
+
+    /* 글자 선명도 강조 */
+    .btn-ingrid-submit {
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        /* 시스템 폰트가 흐릿해 보일 수 있으므로 선명도 보정 */
+        -webkit-font-smoothing: antialiased;
     }
 
     @media (max-width: 1024px) {
