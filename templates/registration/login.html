@@ -38,7 +38,7 @@
     .brand-side::before {
         content: "";
         position: absolute;
-        /* 블러(Blur) 적용 시 외곽선이 하얗게 뜨는 것을 방지하기 위해 상하좌우를 -20px 정도 넓힙니다. */
+        /* 블러(Blur) 적용 시 외곽선이 하얗게 뜨는 것을 방지하기 위해 상하좌우를 -10px 정도 넓힘 */
         top: -10px; left: -10px; right: -10px; bottom: -10px;
         
         background-image: url('{% static "images/ingrid_bg.jpg" %}');
@@ -147,7 +147,7 @@
         /* [핵심] 그라데이션과 이미지를 레이어처럼 쌓고 섞습니다 */
         background-image: 
             /* 상단 레이어: 차분한 보라색 그라데이션 (약간 투명하게) */
-            linear-gradient(90deg, rgba(162, 155, 254, 0.5) 0%, rgba(142, 68, 173, 0.5) 100%),
+            linear-gradient(90deg, rgba(108, 92, 231, 0.85) 0%, rgba(142, 68, 173, 0.85) 100%),
             /* 하단 레이어: 물결 배경 이미지 */
             url('{% static "images/ingrid_bg.jpg" %}');
         
@@ -155,15 +155,17 @@
         background-position: top;
         
         /* 두 레이어를 자연스럽게 합성 (overlay 또는 multiply) */
-        background-blend-mode: overlay;
+        background-blend-mode: soft-light;
+
+        /* [수정 포인트 4] 블러를 1px로 최소화하여 버튼 안에서 무늬의 형체는 살립니다 */
+        filter: contrast(110%) brightness(105%); /* 블러 대신 대비를 살짝 높여보세요 */
         
         /* 버튼 입체감 */
         box-shadow: 0 8px 20px rgba(81, 45, 168, 0.2);
         transition: all 0.3s ease;
 
         /* 5. 글자가 더 잘 보이도록 그림자 추가 */
-        text-shadow: 0 8px 20px rgba(81, 45, 168, 0.2);
-        transition: all 0.3s ease;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
 
     .btn-ingrid-submit:hover {
