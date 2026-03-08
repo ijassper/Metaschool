@@ -6,107 +6,82 @@
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
 
 <style>
-    /* [기존 스타일 무시] */
-    body { margin: 0 !important; padding: 0 !important; font-family: "Pretendard Variable", Pretendard, -apple-system, sans-serif !important; }
-    .navbar { display: none !important; }
+    /* 1. 전체 레이아웃 강제 초기화 (깨짐 방지 핵심) */
+    body { background-color: white !important; margin: 0 !important; padding: 0 !important; }
+    .navbar { display: none !important; } /* 로그인에선 상단바 제거 */
 
-    /* 전체 화면 고정 레이아웃 */
-    .login-full-screen {
+    /* 2. 화면 5:5 분할 고정 레이아웃 */
+    .ingrid-login-container {
         position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        display: flex; z-index: 9999; background: #fff;
+        display: flex; z-index: 9999;
     }
 
-    /* --- 좌측: 브랜드 사이드 (피그마 감성 재현) --- */
-    .brand-side {
-        flex: 1.1; /* 좌측을 살짝 더 넓게 */
-        position: relative;
-        background: #2d1b69 url('{% static "images/ingrid_bg.jpg" %}') no-repeat center center;
-        background-size: cover;
-        padding: 80px;
+    /* --- 좌측: 2번 디자인의 보라색 그라데이션 --- */
+    .brand-panel {
+        flex: 1;
+        /* 2번 디자인의 메인 컬러 그라데이션 */
+        background: linear-gradient(135deg, #8E44AD 0%, #512DA8 100%);
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
+        justify-content: center;
+        padding: 60px;
         color: white;
     }
 
-    /* 피그마의 깊은 음영 처리 (오버레이) */
-    .brand-side::before {
-        content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-        background: linear-gradient(145deg, rgba(45, 27, 105, 0.8) 0%, rgba(81, 45, 168, 0.3) 50%, rgba(0, 0, 0, 0.4) 100%);
-        z-index: 1;
+    .brand-panel h1 { font-size: 3rem; font-weight: 800; line-height: 1.2; margin-bottom: 20px; letter-spacing: -1.5px; }
+    .brand-panel p { font-size: 1.2rem; opacity: 0.8; line-height: 1.6; }
+
+    /* --- 우측: 깔끔한 화이트 로그인 폼 --- */
+    .form-panel {
+        flex: 1;
+        background-color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
     }
 
-    .brand-content { position: relative; z-index: 2; }
+    .login-box { width: 100%; max-width: 380px; }
+    .login-box h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 40px; color: #333; }
 
-    /* 로고 */
-    .logo-box { font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 80px; }
-
-    /* 메인 카피 */
-    .headline {
-        font-size: 3.2rem; font-weight: 800; line-height: 1.2;
-        letter-spacing: -2px; margin-bottom: 30px;
-        text-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    }
-    .sub-headline { font-size: 1.25rem; opacity: 0.85; line-height: 1.7; font-weight: 400; }
-
-    /* 하단 글래스모피즘 아이콘 */
-    .feature-list {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
-        position: relative; z-index: 2;
-    }
-    .feature-card {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(12px); /* 유리알 효과 */
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        padding: 15px 20px; border-radius: 16px;
-        display: flex; align-items: center; gap: 12px; font-size: 0.95rem;
-    }
-
-    /* --- 우측: 로그인 폼 (피그마 디자인 100% 일치) --- */
-    .form-side {
-        flex: 0.9; display: flex; align-items: center; justify-content: center;
-        background: white; padding: 40px;
-    }
-    .login-wrapper { width: 100%; max-width: 400px; }
-    .login-wrapper h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 45px; letter-spacing: -1px; }
-
-    /* 선택 토글 */
+    /* 교사/학생 선택 토글 (피그마 2번 스타일) */
     .role-toggle {
-        background: #f1f3f5; padding: 5px; border-radius: 16px;
-        display: flex; margin-bottom: 35px;
+        display: flex;
+        background-color: #f1f3f5;
+        padding: 5px;
+        border-radius: 12px;
+        margin-bottom: 30px;
     }
     .role-toggle input { display: none; }
     .role-toggle label {
-        flex: 1; text-align: center; padding: 12px; border-radius: 12px;
+        flex: 1; text-align: center; padding: 12px; border-radius: 8px;
         cursor: pointer; font-weight: 700; color: #adb5bd; transition: 0.2s;
     }
     .role-toggle input:checked + label {
-        background: white; color: #512da8; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        background-color: white; color: #8E44AD; box-shadow: 0 2px 6px rgba(0,0,0,0.08);
     }
 
-    /* 입력 필드 */
-    .input-group-custom { margin-bottom: 25px; }
-    .input-label { font-size: 0.95rem; font-weight: 700; color: #495057; margin-bottom: 8px; display: block; }
-    .form-input {
-        width: 100%; padding: 16px 20px; border: 1px solid #dee2e6;
-        border-radius: 14px; font-size: 1rem; outline: none; transition: 0.2s;
-        background: #fdfdfd;
+    /* 입력창 디자인 */
+    .input-label { font-size: 0.9rem; font-weight: 700; color: #666; margin-bottom: 8px; display: block; }
+    .custom-input {
+        width: 100%; padding: 15px; border: 1px solid #ddd;
+        border-radius: 10px; margin-bottom: 20px; outline: none;
     }
-    .form-input:focus { border-color: #512da8; background: white; box-shadow: 0 0 0 4px rgba(81, 45, 168, 0.1); }
+    .custom-input:focus { border-color: #8E44AD; }
 
-    /* [로그인 버튼] */
-    .btn-submit-final {
-        width: 100%; padding: 18px; border: none; border-radius: 16px;
-        color: white; font-weight: 800; font-size: 1.15rem; cursor: pointer;
-        /* 보라색-핑크 그라데이션 적용 */
-        background: linear-gradient(135deg, #ff80b5 0%, #512da8 100%);
-        box-shadow: 0 8px 25px rgba(81, 45, 168, 0.3);
-        transition: 0.3s;
+    /* [핵심] 로그인 버튼 (2번 디자인의 보라색 적용) */
+    .btn-login-final {
+        width: 100%; padding: 16px; border: none; border-radius: 12px;
+        background-color: #8E44AD; color: white; font-weight: 800;
+        font-size: 1.1rem; cursor: pointer; transition: 0.2s;
+        box-shadow: 0 4px 12px rgba(142, 68, 173, 0.3);
     }
-    .btn-submit-final:hover { transform: translateY(-3px); filter: brightness(1.1); }
+    .btn-login-final:hover { background-color: #732d91; transform: translateY(-2px); }
 
-    @media (max-width: 1024px) { .brand-side { display: none; } }
+    /* 모바일 대응 */
+    @media (max-width: 1024px) {
+        .brand-panel { display: none; }
+    }
 </style>
 
 <div class="login-full-wrapper">
