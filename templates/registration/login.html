@@ -6,79 +6,137 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
-    /* 1. 좌측 브랜드 사이드 음영 고도화 */
+    /* [전체 레이아웃] base.html의 모든 방해 요소를 무시하도록 설정 */
+    body { background-color: white !important; margin: 0 !important; padding: 0 !important; font-family: 'Inter', 'Noto Sans KR', sans-serif; }
+    .navbar { display: none !important; }
+
+    /* 화면을 좌우 5:5로 강제 분할 */
+    .login-full-wrapper {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        display: flex;
+        z-index: 9999;
+        background-color: white;
+    }
+
+    /* --- 좌측: 브랜드 사이드 (피그마 음영 로직 적용) --- */
     .brand-side {
         flex: 1;
         position: relative;
-        /* 배경 이미지: 이미지를 약간 어둡게 처리하기 위해 이미지 앞에 검은색 레이어를 섞습니다 */
-        background: url('{% static "images/ingrid_bg.jpg" %}') no-repeat center center;
+        background: #512da8 url('{% static "images/ingrid_bg.jpg" %}') no-repeat center center;
         background-size: cover;
-        padding: 80px;
+        padding: 60px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         color: white;
-        overflow: hidden;
     }
 
-    /* [핵심] 피그마 스타일의 세련된 음영 레이어 */
-    /* 아래에서 위로, 왼쪽에서 오른쪽으로 퍼지는 복합 그라데이션을 씌웁니다 */
+    /* 피그마 스타일의 세련된 음영 오버레이 */
     .brand-side::before {
         content: "";
         position: absolute;
         top: 0; left: 0; right: 0; bottom: 0;
-        background: 
-            /* 하단을 어둡게 눌러주는 레이어 (텍스트 가독성 + 고급스러움) */
-            linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 50%),
-            /* 전체적으로 보라색 톤을 차분하게 만들어주는 레이어 */
-            linear-gradient(135deg, rgba(81, 45, 168, 0.4) 0%, rgba(33, 14, 82, 0.5) 100%);
+        background: linear-gradient(135deg, rgba(81, 45, 168, 0.45) 0%, rgba(33, 14, 82, 0.6) 100%);
         z-index: 1;
     }
 
-    /* 이미지 자체를 부드럽게 만들기 위해 배경 필터 적용 */
-    .brand-side {
-        /* 이미지의 대비를 살짝 낮추고 부드럽게 처리 */
-        backdrop-filter: contrast(90%) brightness(90%);
-    }
+    .brand-content { position: relative; z-index: 2; }
 
-    /* 2. 텍스트가 배경 뚫고 나오게 하기 (깊이감) */
-    .brand-content {
-        position: relative;
-        z-index: 2;
-        /* 글자 뒤에 은은한 그림자를 주어 입체감 부여 */
-        text-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    }
+    .logo-area { display: flex; align-items: center; gap: 12px; margin-bottom: 80px; }
+    .logo-name { font-size: 1.6rem; font-weight: 700; letter-spacing: -1px; }
 
     .main-headline {
-        font-size: 3.2rem;
+        font-size: 3rem;
         font-weight: 700;
-        line-height: 1.2;
-        letter-spacing: -2px;
-        margin-top: 100px;
+        line-height: 1.25;
+        letter-spacing: -1.5px;
         margin-bottom: 25px;
-        /* 피그마 특유의 폰트 렌더링 방식 모방 */
-        -webkit-font-smoothing: antialiased;
+        text-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
 
-    /* 3. 하단 특징 아이콘 영역 가독성 보강 */
+    .sub-copy {
+        font-size: 1.15rem;
+        opacity: 0.9;
+        line-height: 1.6;
+        max-width: 500px;
+    }
+
+    /* 하단 특징 아이콘 (피그마 글래스모피즘 적용) */
     .feature-grid {
-        position: relative;
-        z-index: 2;
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 25px;
+        gap: 15px;
+        z-index: 2;
+        position: relative;
     }
-    
     .feature-item {
-        background: rgba(255, 255, 255, 0.1); /* 아이콘 배경에 아주 투명한 박스 추가 */
-        padding: 10px 15px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 12px 15px;
         border-radius: 12px;
-        backdrop-filter: blur(5px); /* 유리 질감 추가 */
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
         display: flex;
         align-items: center;
-        gap: 12px;
-        font-size: 0.9rem;
+        gap: 10px;
+        font-size: 0.85rem;
+    }
+
+    /* --- 우측: 로그인 폼 사이드 --- */
+    .form-side {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        background-color: white;
+    }
+
+    .login-box { width: 100%; max-width: 380px; }
+    .login-title { font-size: 2.2rem; font-weight: 700; margin-bottom: 40px; color: #1e293b; letter-spacing: -1px; }
+
+    /* 역할 선택 토글 */
+    .role-selector {
+        display: flex;
+        background-color: #f1f3f5;
+        padding: 5px;
+        border-radius: 14px;
+        margin-bottom: 30px;
+    }
+    .role-selector input { display: none; }
+    .role-selector label {
+        flex: 1; text-align: center; padding: 12px; border-radius: 10px;
+        cursor: pointer; font-weight: 600; color: #adb5bd; transition: 0.2s;
+    }
+    .role-selector input:checked + label {
+        background-color: white; color: #8e44ad; box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    /* 입력창 */
+    .field-label { font-size: 0.95rem; font-weight: 700; color: #334155; margin-bottom: 8px; display: block; }
+    .form-input {
+        width: 100%; padding: 16px; border: 1px solid #dee2e6;
+        border-radius: 12px; margin-bottom: 25px; outline: none; transition: 0.2s;
+        box-sizing: border-box; /* 패딩이 너비를 넘지 않게 함 */
+    }
+    .form-input:focus { border-color: #8e44ad; box-shadow: 0 0 0 4px rgba(142, 68, 173, 0.1); }
+
+    /* 로그인 버튼 (물결 배경 + 음영) */
+    .btn-ingrid-submit {
+        width: 100%; padding: 16px; border: none; border-radius: 14px;
+        color: white; font-weight: 700; font-size: 1.1rem; cursor: pointer;
+        background: linear-gradient(rgba(142, 68, 173, 0.7), rgba(142, 68, 173, 0.7)), url('{% static "images/ingrid_bg.jpg" %}') center;
+        background-size: cover;
+        box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
+        transition: transform 0.2s;
+    }
+    .btn-ingrid-submit:hover { transform: translateY(-2px); filter: brightness(1.1); }
+
+    /* 모바일 대응 */
+    @media (max-width: 1024px) {
+        .brand-side { display: none; }
+        .login-full-wrapper { position: relative; height: auto; min-height: 100vh; }
     }
 </style>
 
