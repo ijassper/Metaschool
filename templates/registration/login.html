@@ -147,29 +147,30 @@
         /* [핵심] 그라데이션과 이미지를 레이어처럼 쌓고 섞습니다 */
         background-image: 
             /* 상단 레이어: 차분한 보라색 그라데이션 (약간 투명하게) */
-            linear-gradient(90deg, rgba(108, 92, 231, 0.95) 0%, rgba(142, 68, 173, 0.95) 100%),
+            linear-gradient(90deg, rgba(162, 155, 254, 0.5) 0%, rgba(142, 68, 173, 0.5) 100%),
             /* 하단 레이어: 물결 배경 이미지 */
             url('{% static "images/ingrid_bg.jpg" %}');
         
         background-size: cover;
-        background-position: center;
+        background-position: top;
         
         /* 두 레이어를 자연스럽게 합성 (overlay 또는 multiply) */
-        background-blend-mode: multiply;
+        background-blend-mode: overlay;
         
         /* 버튼 입체감 */
-        box-shadow: 0 10px 25px rgba(81, 45, 168, 0.4);
+        box-shadow: 0 8px 20px rgba(81, 45, 168, 0.2);
         transition: all 0.3s ease;
 
         /* 5. 글자가 더 잘 보이도록 그림자 추가 */
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        text-shadow: 0 8px 20px rgba(81, 45, 168, 0.2);
+        transition: all 0.3s ease;
     }
 
     .btn-ingrid-submit:hover {
         transform: translateY(-2px);
-        /* 호버 시 이미지가 살짝 더 밝아지는 효과 */
+        /* 호버 시 은은하게 밝아지는 효과 */
         filter: brightness(1.1);
-        box-shadow: 0 12px 30px rgba(81, 45, 168, 0.5);
+        box-shadow: 0 10px 25px rgba(81, 45, 168, 0.3);
     }
 
     @media (max-width: 1024px) {
