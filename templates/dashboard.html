@@ -1,145 +1,74 @@
 {% extends 'base.html' %}
-{% load static %}
 
 {% block content %}
 <style>
-    /* Ingrid 전용 대시보드 스타일 */
-    .stat-card {
-        border-radius: 16px;
-        border: 1px solid rgba(0,0,0,0.05);
-        transition: transform 0.2s;
-    }
-    .stat-card:hover { transform: translateY(-5px); }
+    /* 대시보드 내부 전용 스타일 */
+    .page-title { font-weight: 800; font-size: 1.8rem; margin-bottom: 5px; }
+    .status-col { background-color: #F1F3F5; border-radius: 20px; padding: 20px; min-height: 75vh; }
+    .col-label { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; font-weight: 700; color: #495057; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
     
-    .bg-ingrid-gradient {
-        background: linear-gradient(135deg, #8E44AD 0%, #512DA8 100%);
-        color: white;
+    .eval-card {
+        background: white; border-radius: 15px; padding: 20px; margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: 0.2s; cursor: pointer; border: 1px solid transparent;
     }
-    
-    .glass-panel {
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
+    .eval-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.05); border-color: #EEF2FF; }
+    .card-meta { font-size: 0.75rem; font-weight: 700; color: #ADB5BD; margin-bottom: 8px; }
+    .card-title { font-weight: 700; font-size: 1rem; color: #212529; line-height: 1.4; }
 </style>
 
-<div class="container-fluid px-4 py-4">
-    <!-- 1. 상단 환영 섹션 (Ingrid 스타일) -->
-    <div class="card shadow-sm border-0 mb-4 bg-ingrid-gradient overflow-hidden">
-        <div class="card-body p-5 position-relative">
-            <div style="position: relative; z-index: 2;">
-                <h2 class="fw-bold mb-2">안녕하세요, {{ user.name }} 선생님! 👋</h2>
-                <p class="opacity-75 fs-5 mb-4">{{ user.school.name }} | {{ user.subject.name|default:"담당 과목 미설정" }}</p>
-                <div class="d-flex gap-2">
-                    <a href="{% url 'profile_update' %}" class="btn btn-sm btn-light rounded-pill px-3">내 정보 수정</a>
-                    <a href="{% url 'create_test' %}" class="btn btn-sm btn-warning rounded-pill px-3 fw-bold">＋ 새 평가 만들기</a>
-                </div>
-            </div>
-            <!-- 배경에 물결 무늬 은은하게 삽입 (선택 사항) -->
-            <div style="position: absolute; right: -50px; top: -50px; opacity: 0.1;">
-                <i class="bi bi-layers-fill" style="font-size: 250px;"></i>
-            </div>
+<div class="py-2">
+    <!-- 상단 헤더 -->
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="page-title">평가 현황</h2>
+            <p class="text-muted mb-0">진행 중인 평가와 활동을 실시간으로 관리하세요.</p>
         </div>
+        <a href="{% url 'create_test' %}" class="btn btn-primary rounded-3 px-4 shadow-sm fw-bold">+ 새 평가</a>
     </div>
 
+    <!-- 3단 칸반 보드 -->
     <div class="row g-4">
-        <!-- 2. 좌측: 핵심 요약 지표 (Stat Cards) -->
-        <div class="col-lg-8">
-            <div class="row g-3 mb-4">
-                <div class="col-md-4">
-                    <div class="card stat-card shadow-sm p-4 text-center">
-                        <div class="text-muted small mb-1">전체 학생</div>
-                        <h2 class="fw-bold text-primary mb-0">{{ student_count|default:"0" }}명</h2>
-                    </div>
+        <!-- 1. 대기중 -->
+        <div class="col-lg-4">
+            <div class="status-col">
+                <div class="col-label"><span class="dot bg-secondary"></span> 대기중 <span class="badge bg-white text-muted rounded-pill shadow-sm ms-auto">{{ waiting_activities|length }}</span></div>
+                {% for act in waiting_activities %}
+                <div class="eval-card" onclick="location.href='{% url 'activity_detail' act.id %}'">
+                    <div class="card-meta">{{ act.get_category_display }}</div>
+                    <div class="card-title">{{ act.title }}</div>
+                    <div class="mt-3"><span class="badge bg-light text-secondary rounded-pill px-3">{{ act.section }}</span></div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card stat-card shadow-sm p-4 text-center">
-                        <div class="text-muted small mb-1">분석 대기 답안</div>
-                        <h2 class="fw-bold text-success mb-0">12건</h2>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card stat-card shadow-sm p-4 text-center border-danger-subtle">
-                        <div class="text-muted small mb-1">마감 임박</div>
-                        <h2 class="fw-bold text-danger mb-0">2건</h2>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 3. 중앙: 최근 평가 현황 (요약 테이블) -->
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0">최근 평가 현황</h5>
-                    <a href="{% url 'activity_list' %}" class="small text-decoration-none">전체보기</a>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr class="small text-muted">
-                                <th>활동명</th>
-                                <th>주제</th>
-                                <th>제출현황</th>
-                                <th>관리</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- 실제 데이터 연동 시 for문 사용 -->
-                            <tr>
-                                <td><span class="badge bg-primary-subtle text-primary">수행평가</span></td>
-                                <td class="fw-bold">국어 논술형 평가 1차</td>
-                                <td>24/30명</td>
-                                <td><a href="#" class="btn btn-sm btn-outline-secondary">관리</a></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                {% endfor %}
             </div>
         </div>
 
-        <!-- 4. 우측: 알림 및 관리 패널 -->
+        <!-- 2. 평가진행중 -->
         <div class="col-lg-4">
-            <!-- 학교 대표용 승인 대기 패널 -->
-            {% if user.role == 'LEADER' %}
-            <div class="card shadow-sm border-0 rounded-4 mb-4">
-                <div class="card-header bg-warning-subtle py-3 border-0">
-                    <h6 class="fw-bold mb-0 text-warning-emphasis"><i class="bi bi-person-check-fill me-2"></i>교사 승인 대기</h6>
+            <div class="status-col">
+                <div class="col-label"><span class="dot bg-primary"></span> 평가진행중 <span class="badge bg-white text-muted rounded-pill shadow-sm ms-auto">{{ ongoing_activities|length }}</span></div>
+                {% for act in ongoing_activities %}
+                <div class="eval-card" onclick="location.href='{% url 'activity_result' act.id %}'">
+                    <div class="card-meta">{{ act.get_category_display }}</div>
+                    <div class="card-title">{{ act.title }}</div>
+                    <div class="progress mt-3 mb-2" style="height: 6px;"><div class="progress-bar" style="width: 60%"></div></div>
+                    <div class="d-flex justify-content-between small text-muted"><span>60% 제출</span><span>마감: {{ act.deadline|date:"m/d" }}</span></div>
                 </div>
-                <div class="card-body p-0">
-                    {% if guest_teachers %}
-                        <div class="list-group list-group-flush">
-                            {% for teacher in guest_teachers %}
-                            <div class="list-group-item p-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="small">
-                                        <div class="fw-bold">{{ teacher.name }}</div>
-                                        <div class="text-muted">{{ teacher.subject }}</div>
-                                    </div>
-                                    <form action="{% url 'approve_teacher' teacher.id %}" method="post">
-                                        {% csrf_token %}
-                                        <button class="btn btn-sm btn-primary">승인</button>
-                                    </form>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="p-4 text-center text-muted small">승인 대기 중인 교사가 없습니다.</div>
-                    {% endif %}
-                </div>
+                {% endfor %}
             </div>
-            {% endif %}
+        </div>
 
-            <!-- 퀵 메뉴 섹션 (7가지 메뉴 반영) -->
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-light py-3 border-0">
-                    <h6 class="fw-bold mb-0">학생 관리 단축 메뉴</h6>
+        <!-- 3. 평가완료 -->
+        <div class="col-lg-4">
+            <div class="status-col">
+                <div class="col-label"><span class="dot bg-success"></span> 평가완료 <span class="badge bg-white text-muted rounded-pill shadow-sm ms-auto">{{ completed_activities|length }}</span></div>
+                {% for act in completed_activities %}
+                <div class="eval-card" onclick="location.href='{% url 'activity_analysis' act.id %}'">
+                    <div class="card-meta text-success">분석완료</div>
+                    <div class="card-title text-secondary">{{ act.title }}</div>
+                    <div class="mt-3 small text-muted"><i class="bi bi-check-circle-fill me-1"></i> 분석 데이터 생성 완료</div>
                 </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{% url 'student_list' %}" class="btn btn-light text-start border-0"><i class="bi bi-people me-2"></i>학생 명렬표 관리</a>
-                        <a href="{% url 'ai_generator_step1' %}" class="btn btn-light text-start border-0"><i class="bi bi-magic me-2"></i>엑셀 결과물 AI 분석</a>
-                    </div>
-                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
