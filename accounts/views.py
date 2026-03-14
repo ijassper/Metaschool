@@ -33,16 +33,32 @@ def dashboard(request):
     
     # 1. 선생님/학교대표(LEADER) 로직
     if user.role == 'LEADER' and user.school:
-        guest_teachers = CustomUser.objects.filter(
-            school=user.school, 
-            role='GUEST'
-        )
-        # 이제 Student가 최상단에 임포트되어 있어 에러가 나지 않습니다.
-        school_students = Student.objects.filter(teacher__school=user.school)
-        
+        guest_teachers = CustomUser.objects.filter(school=user.school, role='GUEST')
+        school_students = Student.objects.filter(teacher__school=user.school)        
         context['guest_teachers'] = guest_teachers
         context['school_students'] = school_students
         context['student_count'] = school_students.count()
+    
+        # 5개 블록 구성을 위한 로직
+        # 1. 선생님이 만든 모든 활동을 최신순으로 가져옴
+        my_activities = Activity.objects.filter(teacher=user).order_by('-created_at')
+
+        # 2. 활동이 존재하는 카테고리들을 순서대로 추출 (최대 5개)
+        category_blocks = []
+        seen_categories = []
+
+        for act in my_activities:
+            if act.category not in seen_categories:
+                if len(seen_categories) < 5: # 최대 5개 블록 제한
+                    seen_categories.append(act.category)
+                    # 해당 카테고리에 속한 활동들만 따로 필터링해서 묶음
+                    category_blocks.append({
+                        'name': act.get_category_display(), # 카테고리 한글명
+                        'items': my_activities.filter(category=act.category)
+                    })
+
+        context['category_blocks'] = category_blocks
+        return render(request, 'dashboard.html', context)
 
     # 2. 학생(STUDENT) 로직
     if user.role == 'STUDENT':
