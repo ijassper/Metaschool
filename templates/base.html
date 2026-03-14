@@ -1,184 +1,171 @@
-<!-- [base.html] 스타일 정의 영역 -->
-<style>
-    /* 1. 사이드바 배경 및 기본 설정 */
-    .sidebar {
-        height: 100vh;
-        background-color: #ffffff;
-        border-right: 1px solid #f0f0f0;
-        position: fixed;
-        top: 0; left: 0;
-        z-index: 1000;
-        width: 280px; /* 피그마 비율에 맞춘 너비 */
-    }
-
-    .brand-area {
-        padding: 30px 25px;
-        font-size: 1.5rem;
-        font-weight: 800;
-        color: #4C6FFF; /* 피그마의 밝은 블루/보라색 */
-        text-decoration: none !important;
-        display: block;
-    }
-
-    /* 2. 대메뉴 스타일 (확장형 버튼) */
-    .nav-item-wrapper { list-style: none; padding: 0; margin: 0; }
-
-    .menu-btn {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 20px;
-        margin: 4px 15px;
-        border-radius: 12px;
-        color: #555555;
-        font-weight: 500;
-        text-decoration: none !important;
-        transition: 0.2s;
-        cursor: pointer;
-        border: none;
-        background: none;
-        width: calc(100% - 30px);
-    }
-
-    /* 활성화된 메뉴 (피그마 디자인) */
-    .menu-btn.active {
-        background-color: #4C6FFF; /* 피그마 액티브 배경색 */
-        color: #ffffff !important;
-    }
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingrid - AI 교사 업무 지원</title>
+    <!-- 부트스트랩 5 및 아이콘 CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     
-    .menu-btn:hover:not(.active) {
-        background-color: #f8f9ff;
-        color: #4C6FFF;
-    }
+    <style>
+        /* 1. 기본 레이아웃 및 폰트 */
+        body { 
+            background-color: #F8F9FA; 
+            margin: 0; 
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
 
-    /* 3. 소메뉴 스타일 (확장되었을 때 나타나는 메뉴) */
-    .sub-menu-list {
-        list-style: none;
-        padding: 5px 0 10px 0;
-        margin: 0;
-        background-color: #fafafa; /* 소메뉴 영역 배경색 살짝 다르게 */
-    }
+        /* 2. 사이드바 스타일 (피그마 디자인 반영) */
+        .sidebar {
+            height: 100vh;
+            background-color: #ffffff;
+            border-right: 1px solid #f0f0f0;
+            position: fixed;
+            top: 0; left: 0;
+            z-index: 1000;
+            width: 280px; /* 고정 너비 */
+            display: flex;
+            flex-direction: column;
+        }
 
-    .sub-menu-item {
-        display: block;
-        padding: 8px 20px 8px 55px;
-        font-size: 0.9rem;
-        color: #777777;
-        text-decoration: none !important;
-        transition: 0.2s;
-    }
+        .brand-area {
+            padding: 30px 25px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #4C6FFF;
+            text-decoration: none !important;
+            display: block;
+        }
 
-    .sub-menu-item:hover {
-        color: #4C6FFF;
-    }
+        /* 메뉴 리스트 점(bullet) 제거 및 간격 조정 */
+        .nav-item-wrapper { 
+            list-style: none !important; 
+            padding: 0 !important; 
+            margin: 0; 
+            flex-grow: 1;
+            overflow-y: auto;
+        }
 
-    /* 화살표 애니메이션 */
-    .arrow-icon {
-        font-size: 0.8rem;
-        transition: transform 0.2s;
-    }
-    .menu-btn:not(.collapsed) .arrow-icon {
-        transform: rotate(180deg);
-    }
+        .menu-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            margin: 4px 15px;
+            border-radius: 12px;
+            color: #555555;
+            font-weight: 500;
+            text-decoration: none !important;
+            transition: 0.2s;
+            cursor: pointer;
+        }
 
-    /* --- 하단 프로필 영역 통합 디자인 --- */
-    .sidebar-profile {
-        margin-top: auto; /* 사이드바의 남은 공간을 모두 차지하여 맨 아래로 밀어냄 */
-        padding: 20px 15px;
-        border-top: 1px solid #f0f0f0; /* 상단과 구분하는 미세한 선 */
-    }
+        .menu-btn.active {
+            background-color: #4C6FFF;
+            color: #ffffff !important;
+        }
+        
+        .menu-btn:hover:not(.active) {
+            background-color: #f8f9ff;
+            color: #4C6FFF;
+        }
 
-    .profile-card {
-        background-color: #f4f7ff; /* 피그마의 연한 블루톤 배경 */
-        padding: 12px 15px;
-        border-radius: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between; /* 이름과 설정 아이콘 양끝 정렬 */
-        gap: 10px;
-        transition: all 0.2s ease;
-    }
+        /* 소메뉴 스타일 */
+        .sub-menu-list {
+            list-style: none !important;
+            padding: 5px 0 10px 0 !important;
+            margin: 0;
+            background-color: #fafafa;
+        }
 
-    /* 프로필 카드 내 설정 아이콘 호버 효과 */
-    #userMenuButton {
-        transition: transform 0.3s ease;
-        color: #4C6FFF; /* 피그마 메인 컬러 */
-        padding: 0;
-        line-height: 1;
-    }
-    #userMenuButton:hover {
-        transform: rotate(45deg);
-        color: #512DA8 !important;
-    }
+        .sub-menu-item {
+            display: block;
+            padding: 8px 20px 8px 55px;
+            font-size: 0.9rem;
+            color: #777777;
+            text-decoration: none !important;
+            transition: 0.2s;
+        }
 
-    /* 드롭다운 메뉴 세련되게 수정 */
-    .dropdown-menu {
-        border: none !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
-        border-radius: 12px !important;
-        padding: 8px !important;
-        margin-bottom: 10px !important; /* 카드 위로 살짝 뜨게 함 */
-    }
+        .sub-menu-item:hover, .sub-menu-item.active {
+            color: #4C6FFF;
+            font-weight: 600;
+        }
 
-    .dropdown-item {
-        border-radius: 8px !important;
-        padding: 8px 12px !important;
-        font-size: 0.88rem;
-        color: #495057;
-    }
+        /* 화살표 아이콘 */
+        .arrow-icon { font-size: 0.8rem; transition: transform 0.2s; }
+        .menu-btn:not(.collapsed) .arrow-icon { transform: rotate(180deg); }
 
-    .dropdown-item:hover {
-        background-color: #EEF2FF;
-        color: #4C6FFF;
-    }
+        /* 3. 하단 프로필 카드 */
+        .sidebar-footer {
+            padding: 15px;
+            margin-top: auto;
+        }
+        .profile-card {
+            background-color: #f4f7ff;
+            padding: 12px 15px;
+            border-radius: 16px;
+        }
 
-    .dropdown-item i {
-        font-size: 1rem;
-        margin-right: 8px;
-        vertical-align: middle;
-    }
-</style>
+        /* 4. 메인 콘텐츠 영역 (사이드바 너비만큼 왼쪽 마진) */
+        .main-wrapper {
+            margin-left: 280px;
+            min-height: 100vh;
+        }
 
-<div class="container-fluid p-0">
-    <div class="row g-0">
-        <!-- [왼쪽 사이드바 영역] 선생님/대표 계정만 노출 -->
-        {% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}
-        <nav id="sidebarMenu" class="col-auto sidebar d-flex flex-column shadow-sm">
-                <!-- 상단 브랜드 로고 -->
-                <a href="{% url 'dashboard' %}" class="brand-area text-primary">Ingrid</a>
+        /* 모바일 대응 */
+        @media (max-width: 991.98px) {
+            .sidebar { transform: translateX(-100%); transition: 0.3s; }
+            .main-wrapper { margin-left: 0; }
+        }
+
+        /* 로그인 페이지 여백 제거 로직 */
+        .no-sidebar { margin-left: 0 !important; }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+            <!-- [왼쪽 확장형 사이드바] -->
+            {% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}
+            <nav id="sidebarMenu" class="sidebar shadow-sm">
+                <a href="{% url 'dashboard' %}" class="brand-area">Ingrid</a>
                 
-                <div class="nav-item-wrapper overflow-auto flex-grow-1">
+                <div class="nav-item-wrapper">
                     <!-- 0. 대시보드 (단독) -->
                     <a href="{% url 'dashboard' %}" class="menu-btn {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
                         <span><i class="bi bi-grid-fill me-2"></i> 대시보드</span>
                     </a>
 
-                    <!-- 1. 학생 관리 (단독) -->
+                    <!-- 1. 학생 관리 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#studentSubMenu" role="button">
+                        <div class="menu-btn d-flex justify-content-between {% if '/student/' not in request.path %}collapsed{% endif %}" 
+                            data-bs-toggle="collapse" href="#studentSubMenu" role="button">
                             <span><i class="bi bi-people me-2"></i> 학생 관리</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse" id="studentSubMenu">
+                        <div class="collapse {% if '/student/' in request.path %}show{% endif %}" id="studentSubMenu">
                             <div class="sub-menu-list">
-                                <a href="{% url 'student_list' %}" class="sub-menu-item">등록된 학생 조회</a>
+                                <a href="{% url 'student_list' %}" class="sub-menu-item {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}">등록된 학생 조회</a>
                                 <a href="#" class="sub-menu-item">학생 일괄 등록</a>
                                 <a href="#" class="sub-menu-item">학생 개별 등록</a>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 2. 학생 결과물 AI 분석 -->
-                    <a href="{% url 'ai_generator_step1' %}" class="menu-btn">
-                        <span><i class="bi bi-file-earmark-text me-2"></i> 학생 결과물 AI 분석</span>
+                    <!-- 2. 학생 결과물 AI 분석 (엑셀) -->
+                    <a href="{% url 'ai_generator_step1' %}" class="menu-btn {% if '/ai-generator/' in request.path %}active{% endif %}">
+                        <span><i class="bi bi-file-earmark-excel me-2 text-success"></i> AI 분석 (엑셀)</span>
                     </a>
 
                     <!-- 3. 교과 논술형 평가 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between align-items-center {% if '/activities/list/' not in request.path and '/activities/detail/' not in request.path %}collapsed{% endif %}" 
-                            data-bs-toggle="collapse" href="#essayMenu" role="button"
-                            aria-expanded="{% if '/activities/list/' in request.path %}true{% else %}false{% endif %}">
-                            <span><i class="bi bi-pencil-square me-2"></i>교과 논술형 평가</span>
+                        <div class="menu-btn d-flex justify-content-between {% if '/activities/list/' not in request.path and '/activities/detail/' not in request.path %}collapsed{% endif %}" 
+                            data-bs-toggle="collapse" href="#essayMenu" role="button">
+                            <span><i class="bi bi-pencil-square me-2"></i> 교과 논술형 평가</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
                         <div class="collapse {% if '/activities/list/' in request.path or '/activities/detail/' in request.path %}show{% endif %}" id="essayMenu">
@@ -190,9 +177,8 @@
 
                     <!-- 4. 교과 수업활동 평가 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between align-items-center collapsed" 
-                            data-bs-toggle="collapse" href="#subjectMenu" role="button">
-                            <span><i class="bi bi-journal-check me-2"></i>교과 수업활동 평가</span>
+                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#subjectMenu" role="button">
+                            <span><i class="bi bi-journal-check me-2"></i> 교과 수업활동 평가</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
                         <div class="collapse" id="subjectMenu">
@@ -207,9 +193,8 @@
 
                     <!-- 5. 교내 행사활동 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between align-items-center collapsed" 
-                            data-bs-toggle="collapse" href="#eventMenu" role="button">
-                            <span><i class="bi bi-calendar-event me-2"></i>교내 행사활동</span>
+                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#eventMenu" role="button">
+                            <span><i class="bi bi-calendar-event me-2"></i> 교내 행사활동</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
                         <div class="collapse" id="eventMenu">
@@ -221,13 +206,14 @@
 
                     <!-- 6. 자율활동 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#creativeSubMenu" role="button">
+                        <div class="menu-btn d-flex justify-content-between {% if '/activities/creative/' not in request.path %}collapsed{% endif %}" 
+                            data-bs-toggle="collapse" href="#creativeSubMenu" role="button">
                             <span><i class="bi bi-stars me-2"></i> 자율활동</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse" id="creativeSubMenu">
+                        <div class="collapse {% if '/activities/creative/' in request.path %}show{% endif %}" id="creativeSubMenu">
                             <div class="sub-menu-list">
-                                <a href="{% url 'creative_list' %}" class="sub-menu-item">범교과교육</a>
+                                <a href="{% url 'creative_list' %}" class="sub-menu-item {% if request.resolver_match.url_name == 'creative_list' %}active{% endif %}">범교과교육</a>
                                 <a href="#" class="sub-menu-item">학교주도활동</a>
                                 <a href="#" class="sub-menu-item">현장체험학습</a>
                                 <a href="#" class="sub-menu-item">학생자치회활동</a>
@@ -237,12 +223,11 @@
 
                     <!-- 7. 동아리활동 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between align-items-center collapsed" 
-                            data-bs-toggle="collapse" href="#clubSubMenu" role="button">
-                            <span><i class="bi bi-puzzle me-2"></i>동아리활동</span>
+                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#clubMenu" role="button">
+                            <span><i class="bi bi-puzzle me-2"></i> 동아리활동</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse" id="clubSubMenu">
+                        <div class="collapse" id="clubMenu">
                             <div class="sub-menu-list">
                                 <a href="#" class="sub-menu-item">동아리활동 기록/분석</a>
                             </div>
@@ -251,12 +236,11 @@
 
                     <!-- 8. 진로활동 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between align-items-center collapsed" 
-                            data-bs-toggle="collapse" href="#careerSubMenu" role="button">
-                            <span><i class="bi bi-compass me-2"></i>진로활동</span>
+                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#careerMenu" role="button">
+                            <span><i class="bi bi-compass me-2"></i> 진로활동</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse" id="careerSubMenu">
+                        <div class="collapse" id="careerMenu">
                             <div class="sub-menu-list">
                                 <a href="#" class="sub-menu-item">진로활동 기록/분석</a>
                             </div>
@@ -265,9 +249,8 @@
 
                     <!-- 9. 기타 학교생활 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between align-items-center collapsed" 
-                            data-bs-toggle="collapse" href="#schoolLifeSubMenu" role="button">
-                            <span><i class="bi bi-house-gear me-2"></i>기타 학교생활</span>
+                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#schoolLifeSubMenu" role="button">
+                            <span><i class="bi bi-house-gear me-2"></i> 기타 학교생활</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
                         <div class="collapse" id="schoolLifeSubMenu">
@@ -280,55 +263,44 @@
                             </div>
                         </div>
                     </div>
-                </ul>
+                </div>
 
-                <!-- 하단 사용자 프로필 (개인 메뉴 추가 버전) -->
-                <div class="sidebar-profile">
-                    <div class="profile-card shadow-sm border d-flex align-items-center justify-content-between p-3" style="background-color: #F8F9FA; border-radius: 16px;">
+                <!-- 하단 프로필 영역 -->
+                <div class="sidebar-footer">
+                    <div class="profile-card d-flex align-items-center justify-content-between dropup">
                         <div class="d-flex align-items-center gap-2 overflow-hidden">
-                            <!-- 아바타 -->
-                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px; font-weight: 700;">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 35px; height: 35px; font-weight: 700; font-size: 0.8rem;">
                                 {{ user.name|slice:":1" }}
                             </div>
-                            <!-- 이름 및 학교 -->
-                            <div class="overflow-hidden">
-                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem;">{{ user.name }} 선생님</div>
-                                <div class="text-muted text-truncate" style="font-size: 0.7rem;">{{ user.school.name }}</div>
+                            <div class="overflow-hidden text-start">
+                                <div class="fw-bold text-dark text-truncate small" style="line-height:1.2;">{{ user.name }} 선생님</div>
+                                <div class="text-muted text-truncate" style="font-size: 0.65rem;">{{ user.school.name }}</div>
                             </div>
                         </div>
-
-                        <!-- 개인 메뉴 드롭다운 -->
-                        <div class="dropdown">
-                            <button class="btn btn-link p-0 text-muted" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-gear-fill fs-5"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 p-2" aria-labelledby="userMenuButton" style="font-size: 0.85rem; min-width: 160px;">
-                                <li class="px-3 py-2 border-bottom mb-2">
-                                    <span class="fw-bold text-primary">개인 설정</span>
-                                </li>
-                                <li><a class="dropdown-item rounded-2 py-2" href="{% url 'profile_update' %}"><i class="bi bi-person me-2"></i>내 프로필 수정</a></li>
-                                <li><a class="dropdown-item rounded-2 py-2" href="{% url 'password_change' %}"><i class="bi bi-shield-lock me-2"></i>비밀번호 변경</a></li>
-                                <li><a class="dropdown-item rounded-2 py-2" href="#"><i class="bi bi-bar-chart me-2"></i>AI 사용량 현황</a></li>
-                                <li><a class="dropdown-item rounded-2 py-2" href="#"><i class="bi bi-question-circle me-2"></i>사용 가이드</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <form action="{% url 'logout' %}" method="post" class="m-0">
-                                        {% csrf_token %}
-                                        <button type="submit" class="dropdown-item rounded-2 py-2 text-danger"><i class="bi bi-box-arrow-right me-2"></i>로그아웃</button>
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
+                        <button class="btn btn-link p-0 text-muted" data-bs-toggle="dropdown"><i class="bi bi-gear-fill"></i></button>
+                        <ul class="dropdown-menu shadow border-0 p-2">
+                            <li><a class="dropdown-item rounded-2" href="{% url 'profile_update' %}">내 정보 수정</a></li>
+                            <li><a class="dropdown-item rounded-2" href="{% url 'password_change' %}">비밀번호 변경</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="{% url 'logout' %}" method="post" class="m-0">
+                                    {% csrf_token %}<button type="submit" class="dropdown-item text-danger">로그아웃</button>
+                                </form>
+                            </li>
+                        </ul>
                     </div>
                 </div>
-            
-        </nav>
-        {% endif %}
+            </nav>
+            {% endif %}
 
-        <!-- [오른쪽 메인 콘텐츠 영역] -->
-        <main class="{% if request.resolver_match.url_name == 'login' %}col-12 p-0{% elif user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4{% else %}container py-4{% endif %}" style="background-color: #F8F9FA;">
-            {% block content %}
-            {% endblock %}
-        </main>
+            <!-- [오른쪽 메인 콘텐츠 영역] -->
+            <div class="col main-wrapper {% if request.resolver_match.url_name == 'login' or user.role == 'STUDENT' %}no-sidebar{% endif %}">
+                <main class="p-4">
+                    {% block content %}{% endblock %}
+                </main>
+            </div>
+        </div>
     </div>
-</div>
+
+    <!-- 부트스트랩 JS (팝업, 드롭다운 등 인터랙션 기능) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
