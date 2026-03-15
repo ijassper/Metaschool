@@ -286,7 +286,9 @@
                                 <div class="text-muted text-truncate" style="font-size: 0.65rem;">{{ user.school.name }}</div>
                             </div>
                         </div>
-                        <button class="btn btn-link p-0 text-primary " data-bs-toggle="dropdown"><i class="bi bi-gear-fill"></i></button>
+                        <button class="btn btn-link p-0 ingrid-primary" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-gear-fill fs-5"></i>
+                        </button>
                         <ul class="dropdown-menu shadow border-0 p-2">
                             <li><a class="dropdown-item rounded-2" href="{% url 'profile_update' %}">내 정보 수정</a></li>
                             <li><a class="dropdown-item rounded-2" href="{% url 'password_change' %}">비밀번호 변경</a></li>
