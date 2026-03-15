@@ -277,7 +277,8 @@
                 <div class="sidebar-footer">
                     <div class="profile-card d-flex align-items-center justify-content-between dropup">
                         <div class="d-flex align-items-center gap-2 overflow-hidden">
-                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 35px; height: 35px; font-weight: 700; font-size: 0.8rem;">
+                            <div class="text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" 
+                                style="width: 35px; height: 35px; font-weight: 700; font-size: 0.8rem; background: var(--ingrid-gradient) !important;">
                                 {{ user.name|slice:":1" }}
                             </div>
                             <div class="overflow-hidden text-start">
@@ -285,7 +286,7 @@
                                 <div class="text-muted text-truncate" style="font-size: 0.65rem;">{{ user.school.name }}</div>
                             </div>
                         </div>
-                        <button class="btn btn-link p-0 text-muted" data-bs-toggle="dropdown"><i class="bi bi-gear-fill"></i></button>
+                        <button class="btn btn-link p-0 text-primary " data-bs-toggle="dropdown"><i class="bi bi-gear-fill"></i></button>
                         <ul class="dropdown-menu shadow border-0 p-2">
                             <li><a class="dropdown-item rounded-2" href="{% url 'profile_update' %}">내 정보 수정</a></li>
                             <li><a class="dropdown-item rounded-2" href="{% url 'password_change' %}">비밀번호 변경</a></li>

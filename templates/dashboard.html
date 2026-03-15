@@ -23,14 +23,14 @@
         box-shadow: 0 4px 10px rgba(0,0,0,0.02);
     }
 
-    /* 파스텔 배경 클래스들 */
-    .pastel-yellow { background-color: #FFF9DB; }
-    .pastel-blue   { background-color: #E7F5FF; }
-    .pastel-red    { background-color: #FFF5F5; }
-    .pastel-orange { background-color: #FFF4E6; }
-    .pastel-green  { background-color: #EBFBEE; }
-    .pastel-purple { background-color: #F3F0FF; }
-    .pastel-pink   { background-color: #FFF0F6; }
+    /* [수정] 각 파스텔 블록별 호버 테두리 컬러 지정 */
+    .pastel-purple .eval-item-card:hover { border-color: #B292FF !important; }
+    .pastel-blue .eval-item-card:hover   { border-color: #74C0FC !important; }
+    .pastel-green .eval-item-card:hover  { border-color: #63E6BE !important; }
+    .pastel-yellow .eval-item-card:hover { border-color: #FFD43B !important; }
+    .pastel-orange .eval-item-card:hover { border-color: #FF922B !important; }
+    .pastel-red .eval-item-card:hover    { border-color: #FF8787 !important; }
+    .pastel-pink .eval-item-card:hover   { border-color: #FAA2C1 !important; }
 
     .block-header {
         display: flex;
@@ -62,8 +62,8 @@
         border-radius: 18px;
         padding: 16px;
         margin-bottom: 15px;
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        transition: 0.2s;
+        border: 2px solid transparent; /* 테두리 두께를 2px로 해서 효과를 더 명확히 함 */
+        transition: all 0.2s ease;
         cursor: pointer;
     }
     .eval-item-card:hover {
