@@ -13,88 +13,120 @@
 
     .category-block {
         background: #ffffff;
-        border-radius: 18px;
-        border: 1px solid #f0f0f0;
-        padding: 20px;
+        border-radius: 24px;
+        border: none;
+        padding: 24px;
         /* 높이를 고정하거나 유연하게 두되, 내부 스크롤이 작동하도록 설정 */
         display: flex;
         flex-direction: column;
     }
 
+    /* 파스텔 배경 클래스들 */
+    .pastel-yellow { background-color: #FFF9DB; }
+    .pastel-blue   { background-color: #E7F5FF; }
+    .pastel-red    { background-color: #FFF5F5; }
+    .pastel-orange { background-color: #FFF4E6; }
+    .pastel-green  { background-color: #EBFBEE; }
+    .pastel-purple { background-color: #F3F0FF; }
+    .pastel-pink   { background-color: #FFF0F6; }
+
     .block-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
     }
 
-    .block-title { font-weight: 800; color: #333; font-size: 1.05rem; }
-
-    /* [핵심] 3개 이상일 때 스크롤이 생기는 영역 */
-    .scroll-area {
-        flex-grow: 1;
-        overflow-y: auto;
-        padding-right: 5px;
-    }
+    .block-title { font-weight: 800; color: #333; font-size: 1.1rem; }
 
     /* 스크롤바 디자인 (크롬/엣지) */
     .scroll-area::-webkit-scrollbar { width: 4px; }
     .scroll-area::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 
+    /* 개별 평가 카드 (내부) */
     .eval-item-card {
-        background: #F8F9FA;
-        border-radius: 12px;
-        padding: 15px;
+        background: rgba(255, 255, 255, 0.6); /* 반투명 흰색 */
+        backdrop-filter: blur(5px);
+        border-radius: 18px;
+        padding: 18px;
         margin-bottom: 12px;
-        border: 1px solid transparent;
+        border: 1px solid rgba(255, 255, 255, 0.5);
         transition: 0.2s;
         cursor: pointer;
     }
     .eval-item-card:hover {
         background: #ffffff;
-        border-color: #4C6FFF;
-        box-shadow: 0 5px 15px rgba(76, 111, 255, 0.1);
-        transform: translateX(5px);
+        /*border-color: #4C6FFF;*/
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+        transform: translateY(-3px);
     }
+
+    /* 텍스트 정보 레이아웃 */
+    .info-row { font-size: 0.8rem; margin-bottom: 4px; display: flex; justify-content: space-between; }
+    .info-label { color: #868e96; font-weight: 500; }
+    .info-value { color: #495057; font-weight: 600; }
+    .item-title { font-weight: 800; font-size: 1rem; color: #212529; margin: 10px 0; line-height: 1.4; }
+
+    /* [핵심] 3개 이상일 때 스크롤이 생기는 스크롤 영역 */
+    .scroll-area { flex-grow: 1; overflow-y: auto; padding-right: 5px; }
+    .scroll-area::-webkit-scrollbar { width: 4px; }
+    .scroll-area::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+
+    /* 상단 버튼 색상 변경 */
+    .btn-ingrid-main {
+        background: var(--ingrid-gradient);
+        color: white; border: none; border-radius: 14px;
+        padding: 12px 25px; font-weight: 700;
+        box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
+    }
+
+    @media (max-width: 1400px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }    
 </style>
 
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-end mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
-            <h3 class="fw-bold">안녕하세요, {{ user.name }} 선생님! 👋</h3>
-            <p class="text-muted small">영역별 평가 진행 현황입니다.</p>
+            <h2 class="fw-bold" style="color: var(--ingrid-primary);">Dashboard</h2>
+            <p class="text-muted">안녕하세요, {{ user.name }} 선생님! 오늘의 평가 현황입니다.</p>
         </div>
-        <a href="{% url 'create_test' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">+ 새 평가 생성</a>
+        <a href="{% url 'create_test' %}" class="btn btn-ingrid-main">+ 새 평가 생성</a>
     </div>
 
-    <!-- 5개 통합 블록 그리드 -->
+    <!-- 블록 그리드 -->
     <div class="dashboard-grid">
         {% for block in category_blocks %}
-            <div class="category-block shadow-sm">
+            <!-- 파스텔 색상을 순서대로 적용 (Django cycle 태그 활용) -->
+            <div class="category-block {% cycle 'pastel-purple' 'pastel-blue' 'pastel-green' 'pastel-yellow' 'pastel-orange' 'pastel-red' 'pastel-pink' %} shadow-sm">
                 <div class="block-header">
                     <span class="block-title">{{ block.name }}</span>
-                    <span class="badge bg-light text-primary rounded-pill">{{ block.items|length }}건</span>
+                    <span class="badge rounded-pill bg-white text-dark shadow-sm">{{ block.items|length }}건</span>
                 </div>
                 
                 <!-- 평가 리스트 영역: 3개 이상일 때 스크롤을 위해 max-height 설정 -->
-                <div class="scroll-area" style="max-height: 400px; overflow-y: auto;">
+                <div class="scroll-area">
                     {% for act in block.items %}
                     <div class="eval-item-card" onclick="location.href='{% url 'activity_result' act.id %}'">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <span class="badge bg-white text-muted border small">{{ act.section }}</span>
-                            <!-- 상태 텍스트 (프로퍼티 활용) -->
-                            <small class="{% if act.status_text == '진행중' %}text-primary{% else %}text-secondary{% endif %} fw-bold">
-                                {{ act.status_text }}
-                            </small>
+                        <!-- 정보 텍스트 [대메뉴, 과목명, 생성일 등] -->
+                        <div class="info-row">
+                            <span class="info-label">영역</span>
+                            <span class="info-value">{{ act.get_category_display }}</span>
                         </div>
-                        <div class="fw-bold text-dark mb-2" style="font-size: 0.95rem;">{{ act.title }}</div>
+                        <div class="info-row">
+                            <span class="info-label">과목</span>
+                            <span class="info-value text-primary">{{ act.subject_name }}</span>
+                        </div>
                         
-                        <!-- 진행률 표시 (현재는 75% 고정이지만 나중에 데이터 연결 가능) -->
-                        <div class="mt-2 d-flex justify-content-between align-items-center">
-                            <div class="progress flex-grow-1 me-3" style="height: 5px;">
-                                <div class="progress-bar" style="width: 75%"></div>
-                            </div>
-                            <span class="text-muted" style="font-size: 0.75rem;">75%</span>
+                        <div class="item-title">{{ act.title }}</div>
+
+                        <div class="info-row border-top pt-2 mt-2">
+                            <span class="info-label">평가영역</span>
+                            <span class="info-value small">{{ act.section }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="badge {% if act.status_text == '진행중' %}bg-success{% else %}bg-secondary{% endif %} rounded-pill">
+                                {{ act.status_text }}
+                            </span>
+                            <span class="text-muted" style="font-size: 0.75rem;">{{ act.created_at|date:"Y-m-d" }}</span>
                         </div>
                     </div>
                     {% endfor %}

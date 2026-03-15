@@ -57,7 +57,10 @@ def dashboard(request):
                         'items': my_activities.filter(category=act.category)
                     })
 
-        context['category_blocks'] = category_blocks
+        context = {
+            'category_blocks': category_blocks,
+            'student_count': Student.objects.filter(teacher__school=user.school).count() if user.school else 0,
+        }
         return render(request, 'dashboard.html', context)
 
     # 2. 학생(STUDENT) 로직

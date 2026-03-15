@@ -9,6 +9,13 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     
     <style>
+        :root {
+            /* 인그리드 시그니처 색상 */
+            --ingrid-gradient: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);
+            --ingrid-primary: #8E44AD;
+            --ingrid-secondary: #512DA8;
+            --ingrid-active-bg: #F3F0FF; /* 연보라 활성 배경 */
+        }
         /* 1. 기본 레이아웃 및 폰트 */
         body { 
             background-color: #F8F9FA; 
@@ -34,7 +41,7 @@
             padding: 30px 25px;
             font-size: 1.5rem;
             font-weight: 800;
-            color: #4C6FFF;
+            color: var(--ingrid-primary) !important;
             text-decoration: none !important;
             display: block;
         }
@@ -63,13 +70,13 @@
         }
 
         .menu-btn.active {
-            background-color: #4C6FFF;
+            background: var(--ingrid-gradient) !important;
             color: #ffffff !important;
         }
         
         .menu-btn:hover:not(.active) {
-            background-color: #f8f9ff;
-            color: #4C6FFF;
+            background-color: #FFF0F6;
+            color: #FF80B5;
         }
 
         /* 소메뉴 스타일 */
@@ -90,8 +97,8 @@
         }
 
         .sub-menu-item:hover, .sub-menu-item.active {
-            color: #4C6FFF;
-            font-weight: 600;
+            color: var(--ingrid-primary);
+            /*font-weight: 600;*/
         }
 
         /* 화살표 아이콘 */
@@ -229,7 +236,8 @@
                         </div>
                         <div class="collapse" id="clubMenu">
                             <div class="sub-menu-list">
-                                <a href="#" class="sub-menu-item">동아리활동 기록/분석</a>
+                                <a href="#" class="sub-menu-item">동아리활동 일지</a>
+                                <a href="#" class="sub-menu-item">동아리활동 보고서</a>
                             </div>
                         </div>
                     </div>
