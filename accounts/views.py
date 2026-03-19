@@ -30,7 +30,7 @@ def dashboard(request):
     # 로그인한 사용자 정보 가져오기
     user = request.user
     context = {}
-    
+    print(f"DEBUG: {user.name}의 역할은 {user.role}")
     # 2. 학생(STUDENT) 로직
     if user.role == 'STUDENT':
         student_profile = Student.objects.filter(email=user.email).first()
