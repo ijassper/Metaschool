@@ -2,12 +2,15 @@
 {% block content %}
 <div class="container py-4">
     <div class="card shadow-sm border-0">
+        <!-- [평가/활동 제목 영역]  -->
         <div class="card-header bg-white py-3 border-bottom">
-            <h4 class="mb-0 fw-bold">📝 자율활동 시트 생성</h4>
+            <h4 class="mb-0 fw-bold text-primary">📝 {{ sub_menu }} 생성</h4>
         </div>
         <div class="card-body bg-light-subtle p-4">
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
+                <!-- 현재 어떤 소메뉴에서 왔는지 자동으로 담깁니다 -->
+                <input type="hidden" name="sub_category" value="{{ sub_menu }}">
                 
                 <!-- 입력 행 반복 -->
                 <!-- 평가대상 컴포넌트 불러오기 -->

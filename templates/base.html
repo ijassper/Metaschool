@@ -130,6 +130,9 @@
 
         /* 로그인 페이지 여백 제거 로직 */
         .no-sidebar { margin-left: 0 !important; }
+
+        /* 브랜드 컬러 클래스 추가 (설정 아이콘용) */
+        .text-ingrid { color: #8E44AD !important; }
     </style>
 </head>
 <body>
@@ -220,10 +223,10 @@
                         </div>
                         <div class="collapse {% if '/activities/creative/' in request.path %}show{% endif %}" id="creativeSubMenu">
                             <div class="sub-menu-list">
-                                <a href="{% url 'creative_list' %}" class="sub-menu-item {% if request.resolver_match.url_name == 'creative_list' %}active{% endif %}">범교과교육</a>
-                                <a href="#" class="sub-menu-item">학교주도활동</a>
-                                <a href="#" class="sub-menu-item">현장체험학습</a>
-                                <a href="#" class="sub-menu-item">학생자치회활동</a>
+                                <a href="{% url 'creative_create' %}?sub=범교과교육" class="sub-menu-item {% if request.resolver_match.url_name == 'creative_list' %}active{% endif %}">범교과교육</a>
+                                <a href="{% url 'creative_create' %}?sub=학교주도활동" class="sub-menu-item">학교주도활동</a>
+                                <a href="{% url 'creative_create' %}?sub=현장체험학습" class="sub-menu-item">현장체험학습</a>
+                                <a href="{% url 'creative_create' %}?sub=학생자치회활동" class="sub-menu-item">학생자치회활동</a>
                             </div>
                         </div>
                     </div>
@@ -286,7 +289,7 @@
                                 <div class="text-muted text-truncate" style="font-size: 0.65rem;">{{ user.school.name }}</div>
                             </div>
                         </div>
-                        <button class="btn btn-link p-0 ingrid-primary" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                        <button class="btn btn-link p-0 text-ingrid" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-gear-fill fs-5"></i>
                         </button>
                         <ul class="dropdown-menu shadow border-0 p-2">

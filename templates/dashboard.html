@@ -97,6 +97,9 @@
     .status-active { background-color: #EBFBEE; color: #2F9E44; }
     .status-waiting { background-color: #F1F3F5; color: #868E96; }
 
+    /* 브랜드 컬러 클래스 추가 (설정 아이콘용) */
+    .text-ingrid { color: #8E44AD !important; }
+
     @media (max-width: 1600px) { .dashboard-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 1200px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
@@ -127,7 +130,8 @@
                     <div class="eval-item-card" onclick="location.href='{% url 'activity_result' act.id %}'">
                         <!-- 1행: 카테고리명 | 과목명 (라벨 제거) -->
                         <div class="card-row-top">
-                            <span>{{ act.get_category_display }}</span>
+                            <!-- 소메뉴가 있다면 출력, 없으면 기본 카테고리 출력 -->
+                            <span>{{ act.sub_category|default:act.get_category_display }}</span>
                             <span class="subject-tag">{{ act.subject_name }}</span>
                         </div>
                         

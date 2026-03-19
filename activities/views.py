@@ -764,9 +764,13 @@ def creative_list(request):
 # 2. 창의적체험활동 생성 뷰
 @login_required
 def creative_create(request):
+    # URL에서 소메뉴 정보를 가져옴 (예: /create/?sub=범교과교육)
+    sub_menu = request.GET.get('sub', '일반')
+
     if request.method == 'POST':
         
         # 1. 폼 데이터 먼저 모두 받아오기 (변수에 담기)
+        post_sub_menu = request.POST.get('sub_category')
         title = request.POST.get('title')
         section = request.POST.get('section')
         question = request.POST.get('question')
@@ -797,6 +801,7 @@ def creative_create(request):
         activity = Activity.objects.create(
             teacher=request.user,
             category='CREATIVE',
+            sub_category = post_sub_menu, # 폼에서 넘어온 소메뉴 저장
             subject_name=request.user.subject.name if hasattr(request.user, 'subject') and request.user.subject else "공통",
             title=title,
             section=section,
@@ -828,6 +833,7 @@ def creative_create(request):
     # GET 요청 시
     student_tree = get_student_tree(request.user)
     return render(request, 'activities/creative_form.html', {
+        'sub_menu': sub_menu,
         'student_tree': student_tree,
         'action': '생성'
     })

@@ -7,14 +7,15 @@ class Activity(models.Model):
     # 1. 활동 유형 분류 (7가지 메뉴 대응)
     CATEGORY_CHOICES = [
         ('ESSAY', '교과 논술형 평가'),
-        ('SUBJECT', '교과 수업활동'),
-        ('EVENT', '교내 행사활동'),
+        ('SUBJECT_ACTIVITY', '교과 수업활동 평가'),
+        ('SCHOOL_EVENT', '교내 행사활동'),
         ('CREATIVE', '자율활동'),
+        ('CLUB', '동아리활동'),
         ('CAREER', '진로활동'),
-        ('CLASS', '학급활동'),
-        ('CUSTOM', '교사 맞춤형 분석'),
+        ('SCHOOL_LIFE', '기타 학교생활'),
     ]
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='ESSAY', verbose_name="활동 유형")
+    sub_category = models.CharField(max_length=50, blank=True, null=True, verbose_name="소메뉴명")
     result = models.TextField(blank=True, verbose_name="평가 결과", help_text="학생에게 보여줄 피드백") # 결과 텍스트
 
     # 응시 환경 설정 (OPEN: 개방형, CLOSED: 폐쇄형)

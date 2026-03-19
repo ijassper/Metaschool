@@ -48,55 +48,59 @@ def dashboard(request):
         seen_categories = []
 
         for act in my_activities:
-            if act.category not in seen_categories:
-                if len(seen_categories) < 5: # 최대 5개 블록 제한
-                    seen_categories.append(act.category)
-                    # 해당 카테고리에 속한 활동들만 따로 필터링해서 묶음
-                    category_blocks.append({
-                        'name': act.get_category_display(), # 카테고리 한글명
-                        'items': my_activities.filter(category=act.category)
-                    })
+            # act.category의 앞뒤 공백을 제거한 순수 코드값 추출
+            clean_cat = act.category.strip()
+            if clean_cat not in seen_categories:
+                seen_categories.append(clean_cat)
+                category_blocks.append({
+                    'name': act.get_category_display(), # 한글 카테고리명
+                    'items': my_activities.filter(category__icontains=clean_cat)
+                })
 
-        context = {
-            'category_blocks': category_blocks,
-            'student_count': Student.objects.filter(teacher__school=user.school).count() if user.school else 0,
-        }
+        context['category_blocks'] = category_blocks
         return render(request, 'dashboard.html', context)
 
     # 2. 학생(STUDENT) 로직
     if user.role == 'STUDENT':
         student_profile = Student.objects.filter(email=user.email).first()
         
-        if student_profile:
-            base_query = Activity.objects.filter(target_students=student_profile, is_active=True)
-            # category__icontains로 공백 문제 방어
-            essay_activities = base_query.filter(category__icontains='ESSAY').order_by('-created_at')
-            creative_activities = base_query.filter(category__icontains='CREATIVE').order_by('-created_at')
-            
-            # 각 활동 객체에 제출 여부 플래그(has_submitted)를 동적으로 달아줌
-            for activity in essay_activities:
-                # Answer -> Question -> Activity 경로로 역추적하여 필터링
-                activity.has_submitted = Answer.objects.filter(
-                    student=student_profile, 
-                    question__activity=activity,
-                    submitted_at__isnull=False # 제출 시간이 기록된 것만 체크
-                ).exists()
-
-            for activity in creative_activities:
-                activity.has_submitted = Answer.objects.filter(
-                    student=student_profile, 
-                    question__activity=activity,
-                    submitted_at__isnull=False # 제출 시간이 기록된 것만 체크
-                ).exists()
-        else:
-            essay_activities = []
-            creative_activities = []
-            context['error_msg'] = "학생 명부에서 정보를 찾을 수 없습니다."
-
-        # 학생용 데이터 context에 추가
-        context['essay_activities'] = essay_activities
-        context['creative_activities'] = creative_activities
+        # 7개 카테고리 정의 (모델의 CATEGORY_CHOICES와 일치)
+        categories = {
+            'essay': 'ESSAY',
+            'subject': 'SUBJECT_ACTIVITY',
+            'event': 'SCHOOL_EVENT',
+            'creative': 'CREATIVE',
+            'club': 'CLUB',
+            'career': 'CAREER',
+            'life': 'SCHOOL_LIFE'
+        }
         
+        if student_profile:
+            # 나에게 배정된 모든 활성화된 평가 (전체 리스트용)
+            base_query = Activity.objects.filter(target_students=student_profile, is_active=True).order_by('-created_at')
+            
+            # 전체 리스트에 대해서도 제출 여부 체크
+            for activity in base_query:
+                activity.has_submitted = Answer.objects.filter(
+                    student=student_profile, 
+                    question__activity=activity,
+                    submitted_at__isnull=False
+                ).exists()
+                
+            # 기존의 7개 카테고리별 분류 로직
+            for key, code in categories.items():
+                act_list = base_query.filter(category__icontains=code)
+                context[f'{key}_activities'] = act_list
+            
+            # 템플릿의 {% for act in activities %} 그리드와 매칭되는 전체 활동 리스트도 전달 (카테고리 구분 없이)
+            context['activities'] = base_query
+
+        else:
+            context['activities'] = []
+            for key in categories.keys():
+                # 학생용 데이터 context에 추가 (학생 정보 없을 때 빈 리스트로 초기화)
+                context[f'{key}_activities'] = []
+
         # 학생 전용 템플릿 반환
         return render(request, 'activities/student_dashboard.html', context)
 
