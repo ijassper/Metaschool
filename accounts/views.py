@@ -31,35 +31,6 @@ def dashboard(request):
     user = request.user
     context = {}
     
-    # 1. 선생님/학교대표(LEADER) 로직
-    if user.role == 'LEADER' and user.school:
-        guest_teachers = CustomUser.objects.filter(school=user.school, role='GUEST')
-        school_students = Student.objects.filter(teacher__school=user.school)        
-        context['guest_teachers'] = guest_teachers
-        context['school_students'] = school_students
-        context['student_count'] = school_students.count()
-    
-        # 5개 블록 구성을 위한 로직
-        # 1. 선생님이 만든 모든 활동을 최신순으로 가져옴
-        my_activities = Activity.objects.filter(teacher=user).order_by('-created_at')
-
-        # 2. 활동이 존재하는 카테고리들을 순서대로 추출 (최대 5개)
-        category_blocks = []
-        seen_categories = []
-
-        for act in my_activities:
-            # act.category의 앞뒤 공백을 제거한 순수 코드값 추출
-            clean_cat = act.category.strip()
-            if clean_cat not in seen_categories:
-                seen_categories.append(clean_cat)
-                category_blocks.append({
-                    'name': act.get_category_display(), # 한글 카테고리명
-                    'items': my_activities.filter(category__icontains=clean_cat)
-                })
-
-        context['category_blocks'] = category_blocks
-        return render(request, 'dashboard.html', context)
-
     # 2. 학생(STUDENT) 로직
     if user.role == 'STUDENT':
         student_profile = Student.objects.filter(email=user.email).first()
@@ -103,9 +74,39 @@ def dashboard(request):
 
         # 학생 전용 템플릿 반환
         return render(request, 'activities/student_dashboard.html', context)
+    
+    # 1. 선생님/학교대표(LEADER) 로직
+    if user.role == 'LEADER' and user.school:
+        guest_teachers = CustomUser.objects.filter(school=user.school, role='GUEST')
+        school_students = Student.objects.filter(teacher__school=user.school)        
+        context['guest_teachers'] = guest_teachers
+        context['school_students'] = school_students
+        context['student_count'] = school_students.count()
 
-    # 3. 교사/관리자 등은 기존 대시보드 반환
-    return render(request, 'dashboard.html', context)
+        if user.role in ['LEADER', 'TEACHER']: # 교사 권한 확인
+    
+            # 5개 블록 구성을 위한 로직
+            # 1. 선생님이 만든 모든 활동을 최신순으로 가져옴
+            my_activities = Activity.objects.filter(teacher=user).order_by('-created_at')
+
+            # 2. 활동이 존재하는 카테고리들을 순서대로 추출 (최대 5개)
+            category_blocks = []
+            seen_categories = []
+
+            for act in my_activities:
+                # act.category의 앞뒤 공백을 제거한 순수 코드값 추출
+                clean_cat = act.category.strip()
+                if clean_cat not in seen_categories:
+                    seen_categories.append(clean_cat)
+                    category_blocks.append({
+                        'name': act.get_category_display(), # 한글 카테고리명
+                        'items': my_activities.filter(category__icontains=clean_cat)
+                    })
+
+            context['category_blocks'] = category_blocks
+
+        # 3. 교사/관리자 등은 기존 대시보드 반환
+        return render(request, 'dashboard.html', context)
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
 class SignUpView(generic.CreateView):
