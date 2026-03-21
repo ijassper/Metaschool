@@ -922,3 +922,249 @@ def creative_delete(request, pk):
         activity.delete()
         return redirect('creative_list')
     return redirect('creative_detail', pk=pk)
+
+# 통합 목록 페이지 (카테고리 선택 가능)
+@login_required
+def unified_list(request):
+    # 1. URL 파라미터에서 카테고리 코드를 가져옴 (예: ?category=CLUB)
+    cat_code = request.GET.get('category', 'ESSAY')
+    sub_name = request.GET.get('sub') # 추가된 소메뉴 파라미터
+    
+    activities = Activity.objects.filter(teacher=request.user, category=cat_code)
+
+    # 소메뉴(sub) 정보가 있다면 한 번 더 필터링
+    if sub_name:
+        activities = activities.filter(sub_category=sub_name)
+
+    # 2. 카테고리 한글명 매핑 (딕셔너리 활용)
+    category_map = dict(Activity.CATEGORY_CHOICES)
+
+    # 제목 결정: 소메뉴가 있으면 소메뉴명을, 없으면 대분류명을 제목으로 사용
+    display_name = sub_name if sub_name else category_map.get(cat_code, "평가/활동")
+    
+    return render(request, 'activities/unified_list.html', {
+        'activities': activities.order_by('-created_at'),
+        'category_name': display_name,
+        'cat_code': cat_code,
+        'sub_menu': sub_name
+    })
+
+# 통합 생성/수정 페이지 (카테고리와 소메뉴에 따라 유동적으로 필드 라벨과 저장 로직 변경)
+def get_form_config(sub_menu):
+    """소메뉴별 필드 라벨 설정 데이터베이스 역할"""
+    configs = {
+        # --- 1. 교과 논술형 평가 ---
+        '과목별 수행평가': {
+            'section_label': '과목명',
+            'title_label': '평가 주제',
+            'content_label': '평가 문항 내용',
+            'date_label': '평가 일시'
+        },
+
+        # --- 2. 교과 수업활동 평가 ---
+        '발표활동 보고서': {
+            'section_label': '과목명',
+            'title_label': '발표 주제',
+            'content_label': '발표 활동 및 교사 평가',
+            'date_label': '수업 일시'
+        },
+        '모둠활동 보고서': {
+            'section_label': '과목명',
+            'title_label': '모둠 활동 주제',
+            'content_label': '모둠 협동 내용 및 기여도',
+            'date_label': '수업 일시'
+        },
+        '창작활동 보고서': {
+            'section_label': '과목명',
+            'title_label': '작품/창작 주제',
+            'content_label': '작품 설명 및 제작 과정',
+            'date_label': '수업 일시'
+        },
+        '실기활동 보고서': {
+            'section_label': '과목명',
+            'title_label': '실기 종목/주제',
+            'content_label': '실기 수행 내용 및 성과',
+            'date_label': '수업 일시'
+        },
+
+        # --- 3. 교내 행사활동 ---
+        '행사활동 기록/분석': {
+            'section_label': '연관 과목/부서',
+            'title_label': '행사 주제',
+            'content_label': '행사 참여 활동 및 성과',
+            'date_label': '행사 일시'
+        },
+
+        # --- 4. 자율활동 ---
+        '범교과교육': {
+            'section_label': '교육 영역',
+            'title_label': '교육 주제',
+            'content_label': '교육 활동 내용 및 소감',
+            'date_label': '교육 일시'
+        },
+        '학교주도활동': {
+            'section_label': '과정명(학교자율과정)',
+            'title_label': '활동 주제',
+            'content_label': '주요 활동 내용 및 결과',
+            'date_label': '활동 일시'
+        },
+        '현장체험학습': {
+            'section_label': '체험 장소',
+            'title_label': '체험 학습 주제',
+            'content_label': '체험 활동 내용 및 보고서',
+            'date_label': '체험 일시'
+        },
+        '학생자치회활동': {
+            'section_label': '직책/부서',
+            'title_label': '자치 활동 주제',
+            'content_label': '회의 안건 및 활동 성과',
+            'date_label': '활동 일시'
+        },
+
+        # --- 5. 동아리활동 ---
+        '동아리활동 일지': {
+            'section_label': '동아리명',
+            'title_label': '활동 주제',
+            'content_label': '활동 내용 및 결과',
+            'date_label': '활동 일시'
+        },
+        '동아리활동 보고서': {
+            'section_label': '학생 역할(회장/부원)',
+            'title_label': '학기별 주요 성과',
+            'content_label': '활동 소감 및 성장 포인트',
+            'date_label': '보고서 작성일'
+        },
+
+        # --- 6. 진로활동 ---
+        '진로수업 일지': {
+            'section_label': '수업명',
+            'title_label': '진로 수업 주제',
+            'content_label': '수업 활동 내용 및 소감',
+            'date_label': '수업 일시'
+        },
+        '진로수업 학기말 보고서': {
+            'section_label': '수업 학기(1학기/2학기)',
+            'title_label': '주요 진로 탐색 활동',
+            'content_label': '진로 성장 및 비전 기록',
+            'date_label': '보고서 작성일'
+        },
+
+        # --- 7. 기타 학교생활 ---
+        '아침 등교 생활': {
+            'section_label': '기록 구분',
+            'title_label': '관찰 주제',
+            'content_label': '등교 생활 특이사항 기록',
+            'date_label': '관찰 일시'
+        },
+        '교복 생활': {
+            'section_label': '학급/구분',
+            'title_label': '지도 주제',
+            'content_label': '복장 규정 준수 및 지도 내용',
+            'date_label': '지도 일시'
+        },
+        '청소 생활': {
+            'section_label': '청소 구역',
+            'title_label': '청소 활동 주제',
+            'content_label': '실천 태도 및 성실도 기록',
+            'date_label': '청소 일시'
+        },
+        '학급 생활': {
+            'section_label': '역할/부서',
+            'title_label': '학급 활동 주제',
+            'content_label': '학급 기여 및 봉사 내용',
+            'date_label': '활동 일시'
+        },
+        '학생 상담': {
+            'section_label': '상담 구분(개인/집단)',
+            'title_label': '상담 주제',
+            'content_label': '상담 요약 및 지도 결과',
+            'date_label': '상담 일시'
+        },
+    }
+
+    # 기본값 설정 (매칭되는 sub_menu가 없을 경우 대비)
+    default_config = {
+        'section_label': '영역/활동명',
+        'title_label': '주제',
+        'content_label': '상세 내용/문항',
+        'date_label': '일시'
+    }
+
+    return configs.get(sub_menu, default_config)
+
+# 통합 생성 페이지 (카테고리와 소메뉴에 따라 유동적으로 필드 라벨과 저장 로직 변경)
+@login_required
+def unified_create(request):
+    # 1. URL 파라미터에서 정보 가져오기
+    cat_code = request.GET.get('category', 'ESSAY')
+    sub_menu = request.GET.get('sub', '일반')
+    
+    # 메뉴별 라벨 설정을 가져옴 (이전에 만든 함수 활용)
+    config = get_form_config(sub_menu)
+    category_name = dict(Activity.CATEGORY_CHOICES).get(cat_code, "평가/활동")
+
+    if request.method == 'POST':
+        # 2. POST 데이터 받기
+        section = request.POST.get('section')
+        title = request.POST.get('title')
+        question_content = request.POST.get('question')
+        reference_material = request.POST.get('reference_material', '')
+        conditions = request.POST.get('conditions', '')
+        deadline_str = request.POST.get('deadline')
+        char_limit = int(request.POST.get('char_limit', 0))
+        exam_mode = request.POST.get('exam_mode', 'CLOSED')
+        attachment = request.FILES.get('attachment')
+
+        # 날짜 처리 (오전/오후 한글 변환 포함)
+        deadline = None
+        if deadline_str:
+            try:
+                temp_str = deadline_str.replace('오후', 'PM').replace('오전', 'AM')
+                deadline = datetime.strptime(temp_str, "%Y. %m. %d. %p %I:%M")
+            except:
+                deadline = timezone.now()
+
+        # 3. Activity 객체 생성
+        activity = Activity.objects.create(
+            teacher=request.user,
+            category=cat_code,
+            sub_category=sub_menu, # 어떤 소메뉴인지 저장
+            subject_name=request.user.subject.name if request.user.subject else "공통",
+            title=title,
+            section=section,
+            question=question_content, # Activity 모델에도 백업용 저장
+            conditions=conditions,
+            reference_material=reference_material,
+            deadline=deadline,
+            attachment=attachment,
+            char_limit=char_limit,
+            exam_mode=exam_mode,
+            is_active=True
+        )
+
+        # 4. [핵심] Question 객체 자동 생성 (통합 로직)
+        # 모든 답변(Answer)은 Question과 연결되므로 무조건 생성합니다.
+        from .models import Question
+        Question.objects.create(
+            activity=activity,
+            content=question_content,
+            conditions=conditions,
+            reference_material=reference_material
+        )
+
+        # 5. 대상 학생 등록
+        target_ids = request.POST.getlist('target_students')
+        if target_ids:
+            activity.target_students.set(target_ids)
+
+        # 생성 완료 후, 방금 만든 카테고리의 통합 목록으로 이동
+        return redirect(f'/activities/list/?category={cat_code}')
+
+    # 6. GET 요청 시 입력폼 렌더링
+    return render(request, 'activities/unified_form.html', {
+        'cat_code': cat_code,
+        'sub_menu': sub_menu,
+        'category_name': category_name,
+        'config': config,
+        'student_tree': get_student_tree(request.user)
+    })

@@ -180,101 +180,127 @@
                         </div>
                         <div class="collapse {% if '/activities/list/' in request.path or '/activities/detail/' in request.path %}show{% endif %}" id="essayMenu">
                             <div class="sub-menu-list">
-                                <a href="{% url 'activity_list' %}" class="sub-menu-item {% if request.resolver_match.url_name == 'activity_list' %}active{% endif %}">과목별 수행평가</a>
+                                <a href="{% url 'unified_list' %}?category=ESSAY" 
+                                class="sub-menu-item {% if request.GET.category == 'ESSAY' or not request.GET.category and request.resolver_match.url_name == 'unified_list' %}active{% endif %}">
+                                과목별 수행평가
+                                </a>
                             </div>
                         </div>
                     </div>
 
                     <!-- 4. 교과 수업활동 평가 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#subjectMenu" role="button">
+                        <!-- 현재 페이지가 SUBJECT_ACTIVITY 계열이면 collapsed 클래스를 제거하여 화살표 방향 유지 -->
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category != 'SUBJECT_ACTIVITY' %}collapsed{% endif %}" 
+                            data-bs-toggle="collapse" href="#subjectMenu" role="button"
+                            aria-expanded="{% if request.GET.category == 'SUBJECT_ACTIVITY' %}true{% else %}false{% endif %}">
                             <span><i class="bi bi-journal-check me-2"></i> 교과 수업활동 평가</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse" id="subjectMenu">
+                        
+                        <!-- 현재 카테고리가 SUBJECT_ACTIVITY면 자동으로 펼쳐짐(show) -->
+                        <div class="collapse {% if request.GET.category == 'SUBJECT_ACTIVITY' %}show{% endif %}" id="subjectMenu">
                             <div class="sub-menu-list">
-                                <a href="#" class="sub-menu-item">발표활동 보고서</a>
-                                <a href="#" class="sub-menu-item">모둠활동 보고서</a>
-                                <a href="#" class="sub-menu-item">창작활동 보고서</a>
-                                <a href="#" class="sub-menu-item">실기활동 보고서</a>
+                                <!-- 각 메뉴별로 category와 sub 값을 다르게 전달 -->
+                                <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=발표활동 보고서" 
+                                class="sub-menu-item {% if request.GET.sub == '발표활동 보고서' %}active{% endif %}">발표활동 보고서</a>
+                                
+                                <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=모둠활동 보고서" 
+                                class="sub-menu-item {% if request.GET.sub == '모둠활동 보고서' %}active{% endif %}">모둠활동 보고서</a>
+                                
+                                <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=창작활동 보고서" 
+                                class="sub-menu-item {% if request.GET.sub == '창작활동 보고서' %}active{% endif %}">창작활동 보고서</a>
+                                
+                                <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=실기활동 보고서" 
+                                class="sub-menu-item {% if request.GET.sub == '실기활동 보고서' %}active{% endif %}">실기활동 보고서</a>
                             </div>
                         </div>
                     </div>
 
                     <!-- 5. 교내 행사활동 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#eventMenu" role="button">
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category != 'SCHOOL_EVENT' %}collapsed{% endif %}" 
+                            data-bs-toggle="collapse" href="#eventMenu" role="button"
+                            aria-expanded="{% if request.GET.category == 'SCHOOL_EVENT' %}true{% else %}false{% endif %}">
                             <span><i class="bi bi-calendar-event me-2"></i> 교내 행사활동</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse" id="eventMenu">
+                        <div class="collapse {% if request.GET.category == 'SCHOOL_EVENT' %}show{% endif %}" id="eventMenu">
                             <div class="sub-menu-list">
-                                <a href="#" class="sub-menu-item">행사활동 기록/분석</a>
+                                <a href="{% url 'unified_list' %}?category=SCHOOL_EVENT&sub=행사활동 기록/분석" 
+                                class="sub-menu-item {% if request.GET.sub == '행사활동 기록/분석' %}active{% endif %}">행사활동 기록/분석</a>
                             </div>
                         </div>
                     </div>
 
                     <!-- 6. 자율활동 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between {% if '/activities/creative/' not in request.path %}collapsed{% endif %}" 
-                            data-bs-toggle="collapse" href="#creativeSubMenu" role="button">
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category != 'CREATIVE' %}collapsed{% endif %}" 
+                            data-bs-toggle="collapse" href="#creativeSubMenu" role="button"
+                            aria-expanded="{% if request.GET.category == 'CREATIVE' %}true{% else %}false{% endif %}">
                             <span><i class="bi bi-stars me-2"></i> 자율활동</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse {% if '/activities/creative/' in request.path %}show{% endif %}" id="creativeSubMenu">
+                        <div class="collapse {% if request.GET.category == 'CREATIVE' %}show{% endif %}" id="creativeSubMenu">
                             <div class="sub-menu-list">
-                                <a href="{% url 'creative_create' %}?sub=범교과교육" class="sub-menu-item {% if request.resolver_match.url_name == 'creative_list' %}active{% endif %}">범교과교육</a>
-                                <a href="{% url 'creative_create' %}?sub=학교주도활동" class="sub-menu-item">학교주도활동</a>
-                                <a href="{% url 'creative_create' %}?sub=현장체험학습" class="sub-menu-item">현장체험학습</a>
-                                <a href="{% url 'creative_create' %}?sub=학생자치회활동" class="sub-menu-item">학생자치회활동</a>
+                                <a href="{% url 'unified_list' %}?category=CREATIVE&sub=범교과교육" class="sub-menu-item {% if request.GET.sub == '범교과교육' %}active{% endif %}">범교과교육</a>
+                                <a href="{% url 'unified_list' %}?category=CREATIVE&sub=학교주도활동" class="sub-menu-item {% if request.GET.sub == '학교주도활동' %}active{% endif %}">학교주도활동</a>
+                                <a href="{% url 'unified_list' %}?category=CREATIVE&sub=현장체험학습" class="sub-menu-item {% if request.GET.sub == '현장체험학습' %}active{% endif %}">현장체험학습</a>
+                                <a href="{% url 'unified_list' %}?category=CREATIVE&sub=학생자치회활동" class="sub-menu-item {% if request.GET.sub == '학생자치회활동' %}active{% endif %}">학생자치회활동</a>
                             </div>
                         </div>
                     </div>
 
                     <!-- 7. 동아리활동 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#clubMenu" role="button">
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category != 'CLUB' %}collapsed{% endif %}" 
+                            data-bs-toggle="collapse" href="#clubMenu" role="button"
+                            aria-expanded="{% if request.GET.category == 'CLUB' %}true{% else %}false{% endif %}">
                             <span><i class="bi bi-puzzle me-2"></i> 동아리활동</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse" id="clubMenu">
+                        <div class="collapse {% if request.GET.category == 'CLUB' %}show{% endif %}" id="clubMenu">
                             <div class="sub-menu-list">
-                                <a href="#" class="sub-menu-item">동아리활동 일지</a>
-                                <a href="#" class="sub-menu-item">동아리활동 보고서</a>
+                                <a href="{% url 'unified_list' %}?category=CLUB&sub=동아리활동 일지" class="sub-menu-item {% if request.GET.sub == '동아리활동 일지' %}active{% endif %}">동아리활동 일지</a>
+                                <a href="{% url 'unified_list' %}?category=CLUB&sub=동아리활동 보고서" class="sub-menu-item {% if request.GET.sub == '동아리활동 보고서' %}active{% endif %}">동아리활동 보고서</a>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 8. 진로활동 (확장형) -->
+                    <!-- 8. 진로활동 (확장형 - 메뉴 분리 반영) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#careerMenu" role="button">
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category != 'CAREER' %}collapsed{% endif %}" 
+                            data-bs-toggle="collapse" href="#careerMenu" role="button"
+                            aria-expanded="{% if request.GET.category == 'CAREER' %}true{% else %}false{% endif %}">
                             <span><i class="bi bi-compass me-2"></i> 진로활동</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse" id="careerMenu">
+                        <div class="collapse {% if request.GET.category == 'CAREER' %}show{% endif %}" id="careerMenu">
                             <div class="sub-menu-list">
-                                <a href="#" class="sub-menu-item">진로활동 기록/분석</a>
+                                <a href="{% url 'unified_list' %}?category=CAREER&sub=진로수업 일지" class="sub-menu-item {% if request.GET.sub == '진로수업 일지' %}active{% endif %}">진로수업 일지</a>
+                                <a href="{% url 'unified_list' %}?category=CAREER&sub=진로수업 학기말 보고서" class="sub-menu-item {% if request.GET.sub == '진로수업 학기말 보고서' %}active{% endif %}">진로수업 학기말 보고서</a>
                             </div>
                         </div>
                     </div>
 
                     <!-- 9. 기타 학교생활 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between collapsed" data-bs-toggle="collapse" href="#schoolLifeSubMenu" role="button">
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category != 'SCHOOL_LIFE' %}collapsed{% endif %}" 
+                            data-bs-toggle="collapse" href="#schoolLifeSubMenu" role="button"
+                            aria-expanded="{% if request.GET.category == 'SCHOOL_LIFE' %}true{% else %}false{% endif %}">
                             <span><i class="bi bi-house-gear me-2"></i> 기타 학교생활</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse" id="schoolLifeSubMenu">
+                        <div class="collapse {% if request.GET.category == 'SCHOOL_LIFE' %}show{% endif %}" id="schoolLifeSubMenu">
                             <div class="sub-menu-list">
-                                <a href="#" class="sub-menu-item">아침 등교 생활</a>
-                                <a href="#" class="sub-menu-item">교복 생활</a>
-                                <a href="#" class="sub-menu-item">청소 생활</a>
-                                <a href="#" class="sub-menu-item">학급 생활</a>
-                                <a href="#" class="sub-menu-item">학생 상담</a>
+                                <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=아침 등교 생활" class="sub-menu-item {% if request.GET.sub == '아침 등교 생활' %}active{% endif %}">아침 등교 생활</a>
+                                <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=교복 생활" class="sub-menu-item {% if request.GET.sub == '교복 생활' %}active{% endif %}">교복 생활</a>
+                                <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=청소 생활" class="sub-menu-item {% if request.GET.sub == '청소 생활' %}active{% endif %}">청소 생활</a>
+                                <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=학급 생활" class="sub-menu-item {% if request.GET.sub == '학급 생활' %}active{% endif %}">학급 생활</a>
+                                <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=학생 상담" class="sub-menu-item {% if request.GET.sub == '학생 상담' %}active{% endif %}">학생 상담</a>
                             </div>
                         </div>
                     </div>
-                </div>
 
                 <!-- 하단 프로필 영역 -->
                 <div class="sidebar-footer">

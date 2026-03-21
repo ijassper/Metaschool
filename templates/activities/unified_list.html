@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- 1. 상단 헤더 섹션 (동적 제목 및 버튼) -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1">
+                <i class="bi bi-list-stars text-primary me-2"></i> 
+                {{ category_name }} 목록
+            </h3>
+            <p class="text-muted small mb-0">총 {{ activities|length }}건의 활동이 등록되어 있습니다.</p>
+        </div>
+        
+        <!-- [핵심] 현재 카테고리에 맞는 생성 페이지로 연결 (Query String 유지) -->
+        <a href="{% url 'unified_create' %}?category={{ cat_code }}" 
+           class="btn btn-primary px-4 py-2 rounded-pill fw-bold shadow-sm"
+           style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none;">
+            <i class="bi bi-plus-lg me-1"></i> 새 {{ category_name }} 만들기
+        </a>
+    </div>
+
+    <!-- 2. 목록 테이블 카드 -->
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="min-width: 1000px;">
+                    <thead class="table-light border-bottom">
+                        <tr class="text-center text-muted small text-uppercase">
+                            <th style="width: 70px;">번호</th>
+                            <th class="text-start" style="width: 150px;">분류</th>
+                            <th class="text-start">주제 및 활동명</th>
+                            <th style="width: 120px;">상태</th>
+                            <th style="width: 120px;">생성일</th>
+                            <th style="width: 300px;">관리 도구</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for act in activities %}
+                        <tr class="text-center">
+                            <td class="text-secondary small">{{ forloop.revcounter }}</td>
+                            <td class="text-start">
+                                <span class="badge bg-light text-dark border fw-medium px-2 py-1">
+                                    {{ act.sub_category|default:act.get_category_display }}
+                                </span>
+                            </td>
+                            <td class="text-start">
+                                <div class="fw-bold text-dark mb-1">{{ act.title }}</div>
+                                <div class="text-muted x-small text-truncate" style="max-width: 400px;">{{ act.section }}</div>
+                            </td>
+                            <td>
+                                <!-- 상태 토글 버튼 (기존 로직 유지) -->
+                                <a href="{% url 'toggle_activity_status' act.id %}" class="text-decoration-none">
+                                    {% if act.is_active %}
+                                        <span class="badge bg-success-subtle text-success rounded-pill px-3">진행중</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3">대기중</span>
+                                    {% endif %}
+                                </a>
+                            </td>
+                            <td class="text-secondary small">{{ act.created_at|date:"Y-m-d" }}</td>
+                            <td>
+                                <div class="d-flex justify-content-center gap-2">
+                                    <!-- 제출 현황 -->
+                                    <a href="{% url 'activity_result' act.id %}" class="btn btn-sm btn-outline-primary px-3 rounded-3">
+                                        제출 현황
+                                    </a>
+                                    <!-- AI 분석 -->
+                                    <a href="{% url 'activity_analysis' act.id %}" class="btn btn-sm btn-outline-success px-3 rounded-3">
+                                        <i class="bi bi-robot"></i> AI 분석
+                                    </a>
+                                    <!-- 수정/삭제 드롭다운 -->
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-light border" data-bs-toggle="dropdown">
+                                            <i class="bi bi-three-dots"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                            <li><a class="dropdown-item" href="#"><i class="bi bi-pencil me-2"></i>수정</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><a class="dropdown-item text-danger" href="#"><i class="bi bi-trash me-2"></i>삭제</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="py-5 text-center">
+                                <div class="text-muted">
+                                    <i class="bi bi-folder-x fs-1 opacity-25"></i>
+                                    <p class="mt-3">등록된 {{ category_name }} 활동이 없습니다.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .x-small { font-size: 0.75rem; }
+    .table thead th { padding: 15px; font-weight: 700; background-color: #fcfcfd; }
+    .table tbody td { padding: 18px 15px; }
+    /* 행 호버 시 배경색 인그리드 톤으로 */
+    .table-hover tbody tr:hover { background-color: #f8f9ff; }
+</style>
+{% endblock %}
