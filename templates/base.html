@@ -180,7 +180,7 @@
                         </div>
                         <div class="collapse {% if '/activities/list/' in request.path or '/activities/detail/' in request.path %}show{% endif %}" id="essayMenu">
                             <div class="sub-menu-list">
-                                <a href="{% url 'unified_list' %}?category=ESSAY" 
+                                <a href="{% url 'unified_list' %}?category=ESSAY&sub=과목별 수행평가" 
                                 class="sub-menu-item {% if request.GET.category == 'ESSAY' or not request.GET.category and request.resolver_match.url_name == 'unified_list' %}active{% endif %}">
                                 과목별 수행평가
                                 </a>

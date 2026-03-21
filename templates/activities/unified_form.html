@@ -20,7 +20,7 @@
 
         <!-- 2. 입력 폼 영역 -->
         <div class="card-body p-4 bg-light-subtle">
-            <form method="post" enctype="multipart/form-data" id="unifiedForm">
+            <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 
                 <!-- [공통] 평가 대상 학생 선택 컴포넌트 -->
@@ -28,56 +28,44 @@
                     {% include 'components/student_selector.html' %}
                 </div>
 
-                <!-- [동적] 활동 정보 섹션 -->
-                <div class="bg-white p-4 rounded-4 shadow-sm mb-4">
-                    <h5 class="fw-bold mb-4"><i class="bi bi-info-circle me-2"></i> 기본 정보</h5>
-                    
-                    <!-- 활동명/과목명 라벨 동적 변경 -->
+                <!-- 1. 동적 입력 필드 그룹 (Input / Select / Date) -->
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
+                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-info-circle"></i> 기본 정보</h5>
+                    {% for field in config.inputs %}
                     <div class="row mb-3 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.section_label|default:"활동명" }} *</div>
+                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ field.label }} *</div>
                         <div class="col-md-9 px-4">
-                            <input type="text" name="section" class="form-control border-0 bg-light p-3 rounded-3" 
-                                   placeholder="{{ config.section_label }}을 입력하세요" required>
+                            {% if field.type == 'select' %}
+                                <select name="{{ field.name }}" class="form-select border-0 bg-light p-3 rounded-3">
+                                    {% for opt in field.options %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}
+                                </select>
+                            {% elif field.type == 'date' %}
+                                <input type="text" name="{{ field.name }}" class="form-control border-0 bg-light p-3 flatpickr-date" placeholder="날짜를 선택하세요">
+                            {% else %}
+                                <input type="text" name="{{ field.name }}" class="form-control border-0 bg-light p-3 rounded-3" placeholder="{{ field.label }} 입력">
+                            {% endif %}
                         </div>
                     </div>
+                    {% endfor %}
+                </div>
 
-                    <!-- 주제 라벨 동적 변경 -->
-                    <div class="row mb-3 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.title_label|default:"주제" }} *</div>
+                <!-- 2. 동적 서술형 필드 그룹 (Textareas) -->
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
+                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-file-earmark-text"></i> 세부 내용 작성</h5>
+                    {% for area in config.textareas %}
+                    <div class="row mb-4">
+                        <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">{{ area.label }} *</div>
                         <div class="col-md-9 px-4">
-                            <input type="text" name="title" class="form-control border-0 bg-light p-3 rounded-3" 
-                                   placeholder="{{ config.title_label }}를 입력하세요" required>
+                            <textarea name="{{ area.name }}" class="form-control border-0 bg-light p-3 rounded-3" rows="5" placeholder="{{ area.label }} 내용을 상세히 입력하세요" required></textarea>
                         </div>
                     </div>
-
-                    <!-- 일시 라벨 동적 변경 -->
-                    <div class="row mb-3 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.date_label|default:"활동 일시" }} *</div>
-                        <div class="col-md-9 px-4">
-                            <div class="input-group" style="max-width: 300px;">
-                                <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-event"></i></span>
-                                <input type="text" id="activity_date" name="activity_date" class="form-control border-0 bg-light p-3" 
-                                       placeholder="날짜 및 시간 선택" required>
-                            </div>
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
 
                 <!-- [동적] 활동 내용 및 문항 섹션 -->
                 <div class="bg-white p-4 rounded-4 shadow-sm mb-4">
                     <h5 class="fw-bold mb-4"><i class="bi bi-file-earmark-text me-2"></i> 활동 상세 내용</h5>
-                    
-                    <!-- 메인 활동 내용 (기존 question 필드 공유) -->
-                    <div class="row mb-4">
-                        <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">
-                            {{ config.content_label|default:"활동/문항 내용" }} *
-                        </div>
-                        <div class="col-md-9 px-4">
-                            <textarea name="question" class="form-control border-0 bg-light p-3 rounded-3" rows="6" 
-                                      placeholder="학생이 작성해야 할 가이드라인이나 문항을 상세히 적어주세요" required></textarea>
-                        </div>
-                    </div>
-
+                                        
                     <!-- 참고자료 및 파일 업로드 -->
                     <div class="row mb-4">
                         <div class="col-md-3 pt-2 text-center fw-bold text-secondary border-end">참고 자료</div>
@@ -182,7 +170,8 @@
         minDate: "today",
     };
 
-    flatpickr("#activity_date", dateConfig);
+    // 모든 날짜 필드에 flatpickr 적용
+    flatpickr(".flatpickr-date", { locale: "ko", dateFormat: "Y. m. d." });
     flatpickr("#deadline_picker", {
         ...dateConfig,
         defaultDate: new Date().setHours(23, 59)
