@@ -51,6 +51,9 @@ def dashboard(request):
             # 나에게 배정된 모든 활성화된 평가 (전체 리스트용)
             base_query = Activity.objects.filter(target_students=student_profile, is_active=True).order_by('-created_at')
             
+            # 완료된 개수를 세기 위한 변수 초기화
+            completed_count = 0 
+
             # 전체 리스트에 대해서도 제출 여부 체크
             for activity in base_query:
                 activity.has_submitted = Answer.objects.filter(
@@ -58,11 +61,18 @@ def dashboard(request):
                     question__activity=activity,
                     submitted_at__isnull=False
                 ).exists()
+
+                # 제출 완료된 경우 카운트 증가
+                if activity.has_submitted:
+                    completed_count += 1
                 
             # 기존의 7개 카테고리별 분류 로직
             for key, code in categories.items():
                 act_list = base_query.filter(category__icontains=code)
                 context[f'{key}_activities'] = act_list
+
+            # 완료된 활동 개수를 context에 추가
+            context['completed_count'] = completed_count
             
             # 템플릿의 {% for act in activities %} 그리드와 매칭되는 전체 활동 리스트도 전달 (카테고리 구분 없이)
             context['activities'] = base_query

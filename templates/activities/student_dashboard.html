@@ -103,7 +103,7 @@
             </div>
             <div class="stat-box">
                 <span class="num">
-                    {% with count=0 %}{% for a in activities %}{% if a.has_submitted %}{% add count 1 %}{% endif %}{% endfor %}{{ count }}{% endwith %}
+                    {{ completed_count }}
                 </span>
                 <span class="lab">완료</span>
             </div>
