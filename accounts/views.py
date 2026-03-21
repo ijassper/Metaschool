@@ -30,9 +30,10 @@ def dashboard(request):
     # 로그인한 사용자 정보 가져오기
     user = request.user
     context = {}
-    print(f"DEBUG: {user.name}의 역할은 {user.role}")
+    print(f"--- DASHBOARD 진입: {user.name} (Role: {user.role}) ---", flush=True)
     # 2. 학생(STUDENT) 로직
     if user.role == 'STUDENT':
+        print(f"DEBUG: {user.name}님은 학생 로직으로 진입합니다.", flush=True)
         student_profile = Student.objects.filter(email=user.email).first()
         
         # 7개 카테고리 정의 (모델의 CATEGORY_CHOICES와 일치)
@@ -78,7 +79,8 @@ def dashboard(request):
     # 2. 교사/대표 공통 로직 시작 (TEACHER와 LEADER 모두 진입)
     if user.role in ['LEADER', 'TEACHER']:
 
-         # [2-1] 학교 대표(LEADER) 전용 데이터만 처리
+        print(f"DEBUG: {user.name}님은 교사 로직으로 진입합니다.", flush=True)
+        # [2-1] 학교 대표(LEADER) 전용 데이터만 처리
         if user.role == 'LEADER' and user.school:
             guest_teachers = CustomUser.objects.filter(school=user.school, role='GUEST')
             school_students = Student.objects.filter(teacher__school=user.school)        
@@ -105,7 +107,10 @@ def dashboard(request):
                     })
         context['category_blocks'] = category_blocks
 
+        return render(request, 'dashboard.html', context)
+
     # 3. 교사/관리자 등은 기존 대시보드 반환
+    print(f"DEBUG: {user.name}님은 예외 상황입니다. Role: {user.role}", flush=True)
     return render(request, 'dashboard.html', context)
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
