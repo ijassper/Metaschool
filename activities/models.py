@@ -4,7 +4,7 @@ from accounts.models import Student
 from django.utils import timezone
 
 class Activity(models.Model):
-    # 1. 활동 유형 분류 (7가지 메뉴 대응)
+    # --- [1. 분류 및 유형] ---
     CATEGORY_CHOICES = [
         ('ESSAY', '교과 논술형 평가'),
         ('SUBJECT_ACTIVITY', '교과 수업활동 평가'),
@@ -16,45 +16,41 @@ class Activity(models.Model):
     ]
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='ESSAY', verbose_name="활동 유형")
     sub_category = models.CharField(max_length=50, blank=True, null=True, verbose_name="소메뉴명")
-    result = models.TextField(blank=True, verbose_name="평가 결과", help_text="학생에게 보여줄 피드백") # 결과 텍스트
-
-    # 응시 환경 설정 (OPEN: 개방형, CLOSED: 폐쇄형)
-    EXAM_MODE_CHOICES = [
-        ('OPEN', '개방형 (참고자료 확인 가능, 멀티태스킹 허용)'),
-        ('CLOSED', '폐쇄형 (브라우저 이탈 방지, 키보드 보안 적용)'),
-    ]
-    exam_mode = models.CharField(
-        max_length=10, 
-        choices=EXAM_MODE_CHOICES, 
-        default='CLOSED', 
-        verbose_name="응시 환경 유형"
-    )
-
-    attachment = models.FileField(
-        upload_to='activity_files/%Y/%m/%d/', 
-        null=True, 
-        blank=True, 
-        verbose_name="첨부파일"
-    )
-
-    # 2. 기본 정보
-    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    
+    # --- [2. 소속 및 담당] ---
+    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="담당 교사")
     subject_name = models.CharField(max_length=50, verbose_name="과목명/활동분류") 
     section = models.CharField(max_length=100, verbose_name="평가영역/활동명") 
     title = models.CharField(max_length=200, verbose_name="주제")
 
-    # 3. 상세 내용 (신규 추가)
+    # --- [3. 활동 상세 내용] ---
+    # 여러 textarea를 합쳐서 저장하거나 단일 문항을 저장하는 필드
     question = models.TextField(verbose_name="평가/활동 문항", blank=True)
     reference_material = models.TextField(null=True, blank=True, verbose_name="참고 자료")
     conditions = models.TextField(null=True, blank=True, verbose_name="작성 조건")
+    attachment = models.FileField(upload_to='activity_files/%Y/%m/%d/', null=True, blank=True, verbose_name="첨부파일")
     
-    # 4. 제한 및 기한 (신규 추가)
-    deadline = models.DateTimeField(null=True, blank=True, verbose_name="제출 기한")
+    # --- [4. 응시 및 제한 설정] ---
+    EXAM_MODE_CHOICES = [
+        ('OPEN', '개방형 (자료참고 허용)'),
+        ('CLOSED', '폐쇄형 (보안모드 적용)'),
+    ]
+    exam_mode = models.CharField(max_length=10, choices=EXAM_MODE_CHOICES, default='CLOSED', verbose_name="응시 환경")
     char_limit = models.IntegerField(default=0, verbose_name="분량 제한(자)") # 0은 무제한
+    result = models.TextField(blank=True, verbose_name="평가 결과/피드백", help_text="학생에게 보여줄 피드백")
 
-    # 5. 대상 및 상태
+    # --- [5. 시간 관리 (핵심)] ---
+    # 평가 생성일: 교사가 저장 버튼을 누른 시점 (자동 저장)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="평가 생성일")
+    # 수업 일시: 실제 활동이 일어나는 시간 (직접 입력)
+    activity_date = models.DateTimeField(null=True, blank=True, verbose_name="수업/활동 일시")
+    # 제출 기한: 학생 응시 마감 시간 (직접 입력)
+    deadline = models.DateTimeField(null=True, blank=True, verbose_name="제출 기한")
+    # AI 분석 완료 시간 (시스템 기록)
+    ai_updated_at = models.DateTimeField(null=True, blank=True, verbose_name="AI 분석 일시")
+
+    # --- [6. 대상 및 상태] ---
     target_students = models.ManyToManyField('accounts.Student', blank=True, related_name='activities', verbose_name="대상 학생")
-    created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=False, verbose_name="활성화 여부")
 
     class Meta:
@@ -65,7 +61,7 @@ class Activity(models.Model):
     def __str__(self):
         return f"[{self.get_category_display()}] {self.title}"
 
-    # 상태를 동적으로 판단하는 프로퍼티
+    # 상태를 실시간으로 판단하는 프로퍼티
     @property
     def status_text(self):
         now = timezone.now()

@@ -187,5 +187,17 @@
         }
         return true;
     };
+
+    // 3. 제출 기한 선택 시 수업 일시보다 이전 날짜 선택 방지
+    const startPicker = flatpickr("#activity_date", { ... });
+    const endPicker = flatpickr("#deadline_picker", {
+        onOpen: function(selectedDates, dateStr, instance) {
+            // 수업 일시가 선택되어 있다면, 제출 기한의 최소 날짜를 수업 일시로 고정
+            const startDate = document.getElementById('activity_date').value;
+            if(startDate) {
+                instance.set('minDate', startDate);
+            }
+        }
+    });
 </script>
 {% endblock %}

@@ -1130,55 +1130,91 @@ def get_form_config(sub_menu):
 # 통합 생성 페이지 (카테고리와 소메뉴에 따라 유동적으로 필드 라벨과 저장 로직 변경)
 @login_required
 def unified_create(request):
+    # 1. URL 파라미터에서 정보 가져오기
     cat_code = request.GET.get('category', 'ESSAY')
     sub_menu = request.GET.get('sub', '과목별 수행평가')
+    
+    # 메뉴별 설정(라벨 등) 가져오기
     config = get_form_config(sub_menu)
+    # 카테고리 한글명 (템플릿 표시용)
+    category_name = dict(Activity.CATEGORY_CHOICES).get(cat_code, "평가/활동")
 
     if request.method == 'POST':
-        # 1. 여러 텍스트 에어리어 합치기 로직
+        # --- [날짜 파싱 내부 함수] ---
+        def parse_dt(dt_str):
+            if not dt_str: return None
+            try:
+                # Flatpickr의 한글 '오후/오전'을 'PM/AM'으로 교체 후 변환
+                clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
+                return datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
+            except:
+                return None
+
+        # 2. 여러 서술형(Textarea) 내용 합치기
         merged_content = ""
         for area in config['textareas']:
-            val = request.POST.get(area['name'], '')
+            val = request.POST.get(area['name'], '').strip()
             if val:
                 merged_content += f"[{area['label']}]\n{val}\n\n"
 
-        # 2. 기타 데이터 조합 (SelectBox나 Input에서 넘어온 추가 정보)
-        # 예: place, dept, role 등을 title이나 section에 병합하여 가독성 증대
+        # 3. 추가 입력 필드(Input/Select) 정보를 제목에 반영
         extra_info = []
         for inp in config['inputs']:
+            # 기본 필드가 아닌 특수 필드(장소, 역할 등)만 수집
             if inp['name'] not in ['section', 'title', 'activity_date']:
                 val = request.POST.get(inp['name'])
                 if val: extra_info.append(f"{inp['label']}: {val}")
         
         extra_str = f" ({', '.join(extra_info)})" if extra_info else ""
 
-        # 3. Activity 생성
+        # 4. 숫자 및 파일 데이터 처리
+        try:
+            char_limit = int(request.POST.get('char_limit', 0))
+        except ValueError:
+            char_limit = 0
+            
+        attachment = request.FILES.get('attachment') # 파일 객체 확보
+
+        # 5. Activity 객체 최종 생성
         activity = Activity.objects.create(
             teacher=request.user,
             category=cat_code,
             sub_category=sub_menu,
+            # section_label에 해당하는 값을 가져오거나 기본 sub_menu명 사용
             section=request.POST.get('section', sub_menu),
             title=request.POST.get('title', '') + extra_str,
-            question=merged_content, # 모든 textarea 합본 저장
+            question=merged_content, 
             reference_material=request.POST.get('reference_material', ''),
             conditions=request.POST.get('conditions', ''),
-            char_limit=int(request.POST.get('char_limit', 0)),
+            attachment=attachment,
+            char_limit=char_limit,
             exam_mode=request.POST.get('exam_mode', 'CLOSED'),
+            # 시간 데이터 저장
+            activity_date=parse_dt(request.POST.get('activity_date')),
+            deadline=parse_dt(request.POST.get('deadline')),
             is_active=True
         )
 
-        # 4. Question 객체 생성 (Answer 모델 참조용)
-        from .models import Question
-        Question.objects.create(activity=activity, content=merged_content)
+        # 6. Question 객체 생성 (학생 답안 모델과의 연결 고리)
+        Question.objects.create(
+            activity=activity, 
+            content=merged_content,
+            conditions=activity.conditions,
+            reference_material=activity.reference_material
+        )
 
-        # 5. 학생 매칭
+        # 7. 대상 학생 등록
         target_ids = request.POST.getlist('target_students')
-        if target_ids: activity.target_students.set(target_ids)
+        if target_ids:
+            activity.target_students.set(target_ids)
 
         return redirect(f'/activities/list/?category={cat_code}&sub={sub_menu}')
 
+    # GET 요청 시 렌cer
     return render(request, 'activities/unified_form.html', {
+        'cat_code': cat_code,
         'sub_menu': sub_menu,
+        'category_name': category_name,
         'config': config,
         'student_tree': get_student_tree(request.user)
     })
