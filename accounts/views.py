@@ -107,9 +107,10 @@ def dashboard(request):
                     })
         context['category_blocks'] = category_blocks
 
+        # 교사 전용 대시보드 반환
         return render(request, 'dashboard.html', context)
 
-    # 3. 교사/관리자 등은 기존 대시보드 반환
+    # 3. 그 외 권한 (관리자 등)
     print(f"DEBUG: {user.name}님은 예외 상황입니다. Role: {user.role}", flush=True)
     return render(request, 'dashboard.html', context)
 
