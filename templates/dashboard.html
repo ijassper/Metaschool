@@ -128,22 +128,41 @@
                 <div class="scroll-area">
                     {% for act in block.items %}
                     <div class="eval-item-card" onclick="location.href='{% url 'activity_result' act.id %}'">
-                        <!-- 1행: 카테고리명 | 과목명 (라벨 제거) -->
+                        <!-- [1행] 소메뉴명 | 과목(또는 영역) -->
                         <div class="card-row-top">
-                            <!-- 소메뉴가 있다면 출력, 없으면 기본 카테고리 출력 -->
-                            <span>{{ act.sub_category|default:act.get_category_display }}</span>
-                            <span class="subject-tag">{{ act.subject_name }}</span>
+                            <!-- 소메뉴명 노출 (값이 없으면 대분류명 노출) -->
+                            <span class="fw-medium">
+                                {{ act.sub_category|default:act.get_category_display }}
+                            </span>
+
+                            <!-- 우측 상단 강조 텍스트: 자율활동은 '영역', 교과는 '과목' -->
+                            <span class="subject-tag">
+                                {% if act.category == 'CREATIVE' %}
+                                    {{ act.section }} <!-- 자율활동은 평가영역(section)을 과목 자리에 표시 -->
+                                {% else %}
+                                    {{ act.subject_name }} <!-- 교과는 기존대로 과목명 표시 -->
+                                {% endif %}
+                            </span>
                         </div>
                         
-                        <!-- 메인 타이틀 -->
-                        <!-- <div class="item-title">{{ act.title }}</div> -->
+                        <!-- [중앙] 메인 타이틀 -->
+                        <div class="item-title">{{ act.title }}</div>
 
-                        <!-- 2행: 영역명 | 상태 | 생성일 (라벨 제거) -->
+                        <!-- [2행] 하단 정보 영역 -->
                         <div class="card-row-bottom pt-2">
-                            <span class="section-text text-dark fw-bold">{{ act.section }}</span>
+                            <!-- 자율활동일 때는 영역이 위로 올라갔으므로 하단에는 '자율활동' 텍스트 고정 또는 생략 가능 -->
+                            <span class="section-text text-dark fw-bold">
+                                {% if act.category == 'CREATIVE' %}
+                                    활동 기록
+                                {% else %}
+                                    {{ act.section }} <!-- 교과는 하단에 상세 영역명 표시 -->
+                                {% endif %}
+                            </span>
+                            
                             <span class="status-badge {% if act.status_text == '진행중' %}status-active{% else %}status-waiting{% endif %}">
                                 {{ act.status_text }}
                             </span>
+                            
                             <span>{{ act.created_at|date:"Y-m-d" }}</span>
                         </div>
                     </div>
