@@ -111,7 +111,7 @@
             <h2 class="fw-bold" style="color: var(--ingrid-primary); letter-spacing: -1px;">Dashboard</h2>
             <p class="text-muted small mb-0">안녕하세요, {{ user.name }} 선생님! 오늘의 평가 현황입니다.</p>
         </div>
-        <a href="{% url 'create_test' %}" class="btn btn-ingrid-main" style="background: var(--ingrid-gradient); color:white; border-radius: 12px; padding: 10px 20px; border:none; font-weight:700;">+ 새 평가 생성</a>
+        <a href="{% url 'unified_create' %}?category=ESSAY&sub=과목별 수행평가" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">+ 새 평가 생성</a>
     </div>
 
     <!-- 4열 대시보드 그리드 -->
