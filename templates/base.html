@@ -173,15 +173,16 @@
 
                     <!-- 3. 교과 논술형 평가 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between {% if '/activities/list/' not in request.path and '/activities/detail/' not in request.path %}collapsed{% endif %}" 
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category != 'ESSAY' %}collapsed{% endif %}" 
                             data-bs-toggle="collapse" href="#essayMenu" role="button">
-                            <span><i class="bi bi-pencil-square me-2"></i> 교과 논술형 평가</span>
+                            <span><i class="bi bi-pencil-square me-2"></i>교과 논술형 평가</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse {% if '/activities/list/' in request.path or '/activities/detail/' in request.path %}show{% endif %}" id="essayMenu">
+                        <div class="collapse {% if request.GET.category == 'ESSAY' %}show{% endif %}" id="essayMenu">
                             <div class="sub-menu-list">
+                                <!-- request.GET.sub 값을 비교하여 '과목별 수행평가'에 불이 들어오게 함 -->
                                 <a href="{% url 'unified_list' %}?category=ESSAY&sub=과목별 수행평가" 
-                                class="sub-menu-item {% if request.GET.category == 'ESSAY' or not request.GET.category and request.resolver_match.url_name == 'unified_list' %}active{% endif %}">
+                                class="sub-menu-item {% if request.GET.sub == '과목별 수행평가' %}active{% endif %}">
                                 과목별 수행평가
                                 </a>
                             </div>
