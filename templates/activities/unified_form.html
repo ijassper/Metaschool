@@ -161,43 +161,74 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
 
 <script>
-    // 1. 날짜 선택기 초기화
-    const dateConfig = {
-        enableTime: true,
-        dateFormat: "Y. m. d. K h:i",
-        locale: "ko",
-        time_24hr: false,
-        minDate: "today",
-    };
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. 공통 날짜/시간 설정
+        const commonConfig = {
+            enableTime: true,
+            dateFormat: "Y. m. d. K h:i",
+            locale: "ko",
+            time_24hr: false,
+            minDate: "today",
+            disableMobile: "true"
+        };
 
-    // 모든 날짜 필드에 flatpickr 적용
-    flatpickr(".flatpickr-date", { locale: "ko", dateFormat: "Y. m. d." });
-    flatpickr("#deadline_picker", {
-        ...dateConfig,
-        defaultDate: new Date().setHours(23, 59)
-    });
-
-    // 2. 폼 유효성 검사 (필수 필드 및 학생 선택 여부)
-    document.getElementById('unifiedForm').onsubmit = function(e) {
-        const selectedStudents = document.querySelectorAll('input[name="target_students"]:checked');
-        if (selectedStudents.length === 0) {
-            alert("평가 대상 학생을 최소 한 명 이상 선택해주세요.");
-            e.preventDefault();
-            return false;
-        }
-        return true;
-    };
-
-    // 3. 제출 기한 선택 시 수업 일시보다 이전 날짜 선택 방지
-    const startPicker = flatpickr("#activity_date", { ... });
-    const endPicker = flatpickr("#deadline_picker", {
-        onOpen: function(selectedDates, dateStr, instance) {
-            // 수업 일시가 선택되어 있다면, 제출 기한의 최소 날짜를 수업 일시로 고정
-            const startDate = document.getElementById('activity_date').value;
-            if(startDate) {
-                instance.set('minDate', startDate);
+        // 2. 수업 일시 선택기 초기화
+        const startPicker = flatpickr("#activity_date", {
+            ...commonConfig,
+            onChange: function(selectedDates, dateStr) {
+                // 수업 일시가 선택되면, 제출 기한(endPicker)의 최소 날짜를 해당 날짜로 강제 제한
+                endPicker.set('minDate', dateStr);
             }
+        });
+
+        // 3. 제출 기한 선택기 초기화
+        const endPicker = flatpickr("#deadline_picker", {
+            ...commonConfig,
+            defaultDate: new Date().setHours(23, 59),
+            onOpen: function(selectedDates, dateStr, instance) {
+                // 제출 기한을 열 때, 수업 일시가 이미 선택되어 있다면 그 날짜를 minDate로 재확인
+                const startDate = document.getElementById('activity_date').value;
+                if(startDate) {
+                    instance.set('minDate', startDate);
+                }
+            }
+        });
+
+        // 4. 일반 날짜 전용 필드 (시간 제외, 필요한 경우 사용)
+        flatpickr(".flatpickr-date", {
+            locale: "ko",
+            dateFormat: "Y. m. d.",
+            minDate: "today"
+        });
+
+        // 5. 폼 유효성 검사 (전송 시 체크)
+        const form = document.getElementById('unifiedForm');
+        if (form) {
+            form.onsubmit = function(e) {
+                // (1) 학생 선택 여부 확인
+                const selectedStudents = document.querySelectorAll('input[name="target_students"]:checked');
+                if (selectedStudents.length === 0) {
+                    alert("평가 대상 학생을 최소 한 명 이상 선택해주세요.");
+                    // 드롭다운이 닫혀있을 수 있으므로 버튼으로 포커스 이동
+                    document.getElementById('targetDropdown')?.focus();
+                    e.preventDefault();
+                    return false;
+                }
+
+                // (2) 날짜 선후 관계 최종 체크
+                const startDate = startPicker.selectedDates[0];
+                const endDate = endPicker.selectedDates[0];
+                if (startDate && endDate && startDate > endDate) {
+                    alert("제출 기한은 수업 일시보다 이후여야 합니다.");
+                    e.preventDefault();
+                    return false;
+                }
+
+                return true;
+            };
         }
+        
+        console.log("Ingrid 통합 시스템: 날짜 및 유효성 검사 로드 완료");
     });
 </script>
 {% endblock %}

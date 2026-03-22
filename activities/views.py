@@ -1140,77 +1140,74 @@ def unified_create(request):
     category_name = dict(Activity.CATEGORY_CHOICES).get(cat_code, "평가/활동")
 
     if request.method == 'POST':
-        # --- [날짜 파싱 내부 함수] ---
-        def parse_dt(dt_str):
-            if not dt_str: return None
-            try:
-                # Flatpickr의 한글 '오후/오전'을 'PM/AM'으로 교체 후 변환
-                clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
-                return datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
-            except:
-                return None
-
-        # 2. 여러 서술형(Textarea) 내용 합치기
+        # --- [안전한 데이터 수집] ---
+        # 1. 여러 텍스트 에어리어 내용 합치기
         merged_content = ""
         for area in config['textareas']:
+            # 각 textarea의 name 속성으로 값을 가져옴 (중요)
             val = request.POST.get(area['name'], '').strip()
             if val:
                 merged_content += f"[{area['label']}]\n{val}\n\n"
+        
+        # 만약 내용이 아예 없다면 기본 텍스트라도 넣어 500에러 방지
+        if not merged_content:
+            merged_content = f"{sub_menu} 내용 없음"
 
-        # 3. 추가 입력 필드(Input/Select) 정보를 제목에 반영
+        # 2. 날짜 파싱 함수
+        def parse_dt(dt_str):
+            if not dt_str: return None
+            try:
+                clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
+                return datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
+            except:
+                return timezone.now()
+
+        # 3. 추가 입력 정보(Select, Input) 처리
         extra_info = []
         for inp in config['inputs']:
-            # 기본 필드가 아닌 특수 필드(장소, 역할 등)만 수집
             if inp['name'] not in ['section', 'title', 'activity_date']:
                 val = request.POST.get(inp['name'])
                 if val: extra_info.append(f"{inp['label']}: {val}")
-        
         extra_str = f" ({', '.join(extra_info)})" if extra_info else ""
 
-        # 4. 숫자 및 파일 데이터 처리
         try:
-            char_limit = int(request.POST.get('char_limit', 0))
-        except ValueError:
-            char_limit = 0
-            
-        attachment = request.FILES.get('attachment') # 파일 객체 확보
+            # 4. Activity 객체 생성
+            activity = Activity.objects.create(
+                teacher=request.user,
+                category=cat_code,
+                sub_category=sub_menu,
+                section=request.POST.get('section', sub_menu),
+                title=request.POST.get('title', '제목 없음') + extra_str,
+                question=merged_content,  # 합쳐진 텍스트 저장
+                reference_material=request.POST.get('reference_material', ''),
+                conditions=request.POST.get('conditions', ''),
+                char_limit=int(request.POST.get('char_limit', 0)) if request.POST.get('char_limit') else 0,
+                exam_mode=request.POST.get('exam_mode', 'CLOSED'),
+                activity_date=parse_dt(request.POST.get('activity_date')),
+                deadline=parse_dt(request.POST.get('deadline')),
+                is_active=True
+            )
 
-        # 5. Activity 객체 최종 생성
-        activity = Activity.objects.create(
-            teacher=request.user,
-            category=cat_code,
-            sub_category=sub_menu,
-            # section_label에 해당하는 값을 가져오거나 기본 sub_menu명 사용
-            section=request.POST.get('section', sub_menu),
-            title=request.POST.get('title', '') + extra_str,
-            question=merged_content, 
-            reference_material=request.POST.get('reference_material', ''),
-            conditions=request.POST.get('conditions', ''),
-            attachment=attachment,
-            char_limit=char_limit,
-            exam_mode=request.POST.get('exam_mode', 'CLOSED'),
-            # 시간 데이터 저장
-            activity_date=parse_dt(request.POST.get('activity_date')),
-            deadline=parse_dt(request.POST.get('deadline')),
-            is_active=True
-        )
+            # 5. Question 객체 생성 (Answer 모델 연동용)
+            from .models import Question
+            Question.objects.create(
+                activity=activity, 
+                content=merged_content,
+                conditions=activity.conditions
+            )
 
-        # 6. Question 객체 생성 (학생 답안 모델과의 연결 고리)
-        Question.objects.create(
-            activity=activity, 
-            content=merged_content,
-            conditions=activity.conditions,
-            reference_material=activity.reference_material
-        )
+            # 6. 대상 학생 등록
+            target_ids = request.POST.getlist('target_students')
+            if target_ids:
+                activity.target_students.set(target_ids)
 
-        # 7. 대상 학생 등록
-        target_ids = request.POST.getlist('target_students')
-        if target_ids:
-            activity.target_students.set(target_ids)
+            return redirect(f'/activities/list/?category={cat_code}&sub={sub_menu}')
 
-        return redirect(f'/activities/list/?category={cat_code}&sub={sub_menu}')
+        except Exception as e:
+            # 에러 발생 시 로그를 남기고 어떤 필드가 문제인지 터미널에 출력
+            print(f"--- [ERROR] 생성 실패: {str(e)} ---", flush=True)
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-    # GET 요청 시 렌cer
     return render(request, 'activities/unified_form.html', {
         'cat_code': cat_code,
         'sub_menu': sub_menu,
