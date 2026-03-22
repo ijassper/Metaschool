@@ -14,7 +14,7 @@
         </div>
         
         <!-- [핵심] 현재 카테고리에 맞는 생성 페이지로 연결 (Query String 유지) -->
-        <a href="{% url 'unified_create' %}?category={{ cat_code }}" 
+        <a href="{% url 'unified_create' %}?category={{ cat_code }}&sub={{ sub_menu }}" 
            class="btn btn-primary px-4 py-2 rounded-pill fw-bold shadow-sm"
            style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none;">
             <i class="bi bi-plus-lg me-1"></i> 새 {{ category_name }} 만들기
