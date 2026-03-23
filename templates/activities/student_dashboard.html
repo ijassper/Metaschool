@@ -61,6 +61,28 @@
     .item-title { font-weight: 800; font-size: 1rem; color: #212529; margin: 10px 0; min-height: 2.8rem; }
     .card-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: #868e96; }
     
+    /* 통계 박스: 배경을 흰색으로 고정하고 글자색 부여 */
+    .stat-box {
+        background: white !important; /* 배경을 흰색으로 */
+        padding: 15px;
+        width: 110px;
+        border-radius: 20px;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        color: #512DA8 !important; /* 보라색 글씨 */
+    }
+    .stat-box .num { 
+        display: block; 
+        font-size: 1.8rem; 
+        font-weight: 800; 
+        color: #512DA8; /* 숫자 강조 */
+    }
+    .stat-box .lab { 
+        font-size: 0.8rem; 
+        font-weight: 700; 
+        color: #868e96; /* 라벨은 회색 */
+    }
+
     /* 상태 배지 */
     .status-badge { font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
     .status-ready { background: #E7F5FF; color: #0D6EFD; }
@@ -78,19 +100,19 @@
     <div class="student-hero">
         <div class="profile-info">
             <h2>안녕하세요, {{ user.name }} 학생 👋</h2>
-            <p>{{ user.school.name }} | {{ user.student.grade }}학년 {{ user.student.class_no }}반</p>
-            <div class="mt-4">
-                <a href="{% url 'password_change' %}" class="btn btn-sm bg-white text-dark rounded-pill px-4 shadow-sm">비밀번호 변경</a>
-            </div>
-        </div>
-        <div class="d-none d-md-flex gap-3">
-            <div class="text-center bg-white bg-opacity-20 p-3 rounded-4" style="min-width: 100px;">
-                <span class="d-block fs-2 fw-bold">{{ activities|length }}</span>
-                <span class="small opacity-80">진행 중</span>
-            </div>
-            <div class="text-center bg-white bg-opacity-20 p-3 rounded-4" style="min-width: 100px;">
-                <span class="d-block fs-2 fw-bold">{{ completed_count }}</span>
-                <span class="small opacity-80">완료</span>
+            <!-- student_profile 정보를 student 변수로 받아서 출력 -->
+            <p>{{ user.school.name }} | {{ student.grade }}학년 {{ student.class_no }}반</p>
+            
+            <div class="mt-4 d-flex gap-2">
+                <a href="{% url 'password_change' %}" class="btn btn-sm btn-light rounded-pill px-3 shadow-sm">비밀번호 변경</a>
+                
+                <!-- [추가] 로그아웃 버튼 -->
+                <form action="{% url 'logout' %}" method="post" class="m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-light rounded-pill px-3" style="background: rgba(255,255,255,0.2);">
+                        로그아웃
+                    </button>
+                </form>
             </div>
         </div>
     </div>

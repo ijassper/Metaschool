@@ -68,6 +68,7 @@ def dashboard(request):
                     })
 
             context.update({
+                'student': student_profile,  # student 라는 이름으로 객체 전달
                 'category_blocks': category_blocks, # 묶인 데이터
                 'activities': base_query,           # 전체 카운트용
                 'completed_count': completed_count
