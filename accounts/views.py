@@ -35,18 +35,7 @@ def dashboard(request):
     if user.role == 'STUDENT':
         print(f"DEBUG: {user.name}님은 학생 로직으로 진입합니다.", flush=True)
         student_profile = Student.objects.filter(email=user.email).first()
-        
-        # 7개 카테고리 정의 (모델의 CATEGORY_CHOICES와 일치)
-        categories = {
-            'essay': 'ESSAY',
-            'subject': 'SUBJECT_ACTIVITY',
-            'event': 'SCHOOL_EVENT',
-            'creative': 'CREATIVE',
-            'club': 'CLUB',
-            'career': 'CAREER',
-            'life': 'SCHOOL_LIFE'
-        }
-        
+                
         if student_profile:
             # 나에게 배정된 모든 활성화된 평가 (전체 리스트용)
             base_query = Activity.objects.filter(target_students=student_profile, is_active=True).order_by('-created_at')
@@ -66,22 +55,23 @@ def dashboard(request):
                 if activity.has_submitted:
                     completed_count += 1
                 
-            # 기존의 7개 카테고리별 분류 로직
-            for key, code in categories.items():
-                act_list = base_query.filter(category__icontains=code)
-                context[f'{key}_activities'] = act_list
+            # 교사용과 동일하게 카테고리별로 묶기
+            category_blocks = []
+            seen_categories = []
+            for act in base_query:
+                clean_cat = act.category.strip()
+                if clean_cat not in seen_categories:
+                    seen_categories.append(clean_cat)
+                    category_blocks.append({
+                        'name': act.get_category_display(),
+                        'items': [a for a in base_query if a.category.strip() == clean_cat]
+                    })
 
-            # 완료된 활동 개수를 context에 추가
-            context['completed_count'] = completed_count
-            
-            # 템플릿의 {% for act in activities %} 그리드와 매칭되는 전체 활동 리스트도 전달 (카테고리 구분 없이)
-            context['activities'] = base_query
-
-        else:
-            context['activities'] = []
-            for key in categories.keys():
-                # 학생용 데이터 context에 추가 (학생 정보 없을 때 빈 리스트로 초기화)
-                context[f'{key}_activities'] = []
+            context.update({
+                'category_blocks': category_blocks, # 묶인 데이터
+                'activities': base_query,           # 전체 카운트용
+                'completed_count': completed_count
+            })
 
         # 학생 전용 템플릿 반환
         return render(request, 'activities/student_dashboard.html', context)

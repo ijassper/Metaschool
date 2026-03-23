@@ -3,146 +3,125 @@
 
 {% block content %}
 <style>
-    /* 1. 학생 대시보드 전용 배경 및 폰트 */
     body { background-color: #F8F9FA !important; }
-    
-    /* 2. 상단 프로필 히어로 섹션 */
+
+    /* 1. 상단 히어로 배너 */
     .student-hero {
         background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);
-        border-radius: 24px;
-        padding: 40px;
-        color: white;
-        margin-bottom: 40px;
+        border-radius: 24px; padding: 40px; color: white; margin-bottom: 40px;
         box-shadow: 0 10px 20px rgba(142, 68, 173, 0.15);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        display: flex; justify-content: space-between; align-items: center;
     }
 
-    .profile-info h2 { font-weight: 800; margin-bottom: 8px; }
-    .profile-info p { opacity: 0.9; margin-bottom: 0; font-size: 1.1rem; }
-    
-    .quick-stats { display: flex; gap: 20px; }
-    .stat-box { background: rgba(255, 255, 255, 0.15); padding: 15px 25px; border-radius: 16px; backdrop-filter: blur(10px); text-align: center; }
-    .stat-box .num { display: block; font-size: 1.5rem; font-weight: 800; }
-    .stat-box .lab { font-size: 0.8rem; opacity: 0.8; }
-
-    /* 3. 그리드 레이아웃 */
-    .evaluation-grid {
+    /* 2. 4열 그리드 레이아웃 */
+    .dashboard-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 25px;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
     }
 
-    /* 4. 노션/포스트잇 스타일 카드 */
-    .student-eval-card {
-        background: white;
-        border-radius: 20px;
-        padding: 25px;
-        border: 1px solid #eee;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        height: 240px;
+    /* 3. 카테고리 블록 (교사용과 동일한 색감) */
+    .category-block {
+        border-radius: 24px; padding: 20px; height: 600px;
+        display: flex; flex-direction: column; border: none;
     }
 
-    .student-eval-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 15px 30px rgba(0,0,0,0.08);
-        border-color: #8E44AD;
+    /* 톤다운 파스텔 컬러 (교사용과 동일) */
+    .pastel-purple { background-color: #E9E2FF !important; }
+    .pastel-blue   { background-color: #DDEBFF !important; }
+    .pastel-green  { background-color: #D3F9E8 !important; }
+    .pastel-yellow { background-color: #FFF3BF !important; }
+    .pastel-orange { background-color: #FFE8CC !important; }
+    .pastel-red    { background-color: #FFE3E3 !important; }
+    .pastel-pink   { background-color: #FFDEEB !important; }
+
+    .block-title { font-weight: 800; color: #495057; font-size: 1rem; margin-bottom: 15px; }
+
+    /* 4. 학생용 평가 카드 */
+    .eval-item-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px); border-radius: 18px;
+        padding: 16px; margin-bottom: 15px; border: 2px solid transparent;
+        transition: 0.2s; cursor: pointer;
     }
-
-    .cat-tag { font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 8px; margin-bottom: 15px; display: inline-block; }
-    .tag-essay { background: #FFF0F6; color: #D63384; }
-    .tag-creative { background: #F3F0FF; color: #6F42C1; }
-    .tag-default { background: #E7F5FF; color: #0D6EFD; }
-
-    .eval-title { font-size: 1.2rem; font-weight: 800; color: #212529; line-height: 1.4; margin-bottom: 10px; }
-    .teacher-name { font-size: 0.85rem; color: #868e96; }
-
-    .card-footer-info {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 20px;
-        padding-top: 15px;
-        border-top: 1px dashed #eee;
+    .eval-item-card:hover {
+        background: #ffffff; transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.05);
     }
+    
+    /* 블록별 호버 색상 */
+    .pastel-purple .eval-item-card:hover { border-color: #B292FF !important; }
+    .pastel-blue .eval-item-card:hover   { border-color: #74C0FC !important; }
+    .pastel-green .eval-item-card:hover  { border-color: #63E6BE !important; }
+    .pastel-yellow .eval-item-card:hover { border-color: #FFD43B !important; }
+    .pastel-orange .eval-item-card:hover { border-color: #FF922B !important; }
+    .pastel-red .eval-item-card:hover    { border-color: #FF8787 !important; }
+    .pastel-pink .eval-item-card:hover   { border-color: #FAA2C1 !important; }
 
-    .status-badge { font-size: 0.8rem; font-weight: 700; padding: 5px 12px; border-radius: 20px; }
+    .item-title { font-weight: 800; font-size: 1rem; color: #212529; margin: 10px 0; min-height: 2.8rem; }
+    .card-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: #868e96; }
+    
+    /* 상태 배지 */
+    .status-badge { font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
     .status-ready { background: #E7F5FF; color: #0D6EFD; }
     .status-done { background: #EBFBEE; color: #2F9E44; }
 
-    /* 로그아웃 버튼 스타일 */
-    .btn-logout-soft { background: rgba(255, 255, 255, 0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 12px; }
+    .scroll-area { flex-grow: 1; overflow-y: auto; padding: 5px; }
+    .scroll-area::-webkit-scrollbar { width: 4px; }
+    .scroll-area::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+
+    @media (max-width: 1400px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
 
-<div class="container py-5">
-    <!-- 1. 프로필 히어로 배너 (사이드바 정보의 새로운 위치) -->
+<div class="container-fluid px-4 py-4">
+    <!-- 상단 배너 -->
     <div class="student-hero">
         <div class="profile-info">
-            <p class="mb-1 small">Welcome back!</p>
             <h2>안녕하세요, {{ user.name }} 학생 👋</h2>
             <p>{{ user.school.name }} | {{ user.student.grade }}학년 {{ user.student.class_no }}반</p>
+            <div class="mt-4">
+                <a href="{% url 'password_change' %}" class="btn btn-sm bg-white text-dark rounded-pill px-4 shadow-sm">비밀번호 변경</a>
+            </div>
+        </div>
+        <div class="d-none d-md-flex gap-3">
+            <div class="text-center bg-white bg-opacity-20 p-3 rounded-4" style="min-width: 100px;">
+                <span class="d-block fs-2 fw-bold">{{ activities|length }}</span>
+                <span class="small opacity-80">진행 중</span>
+            </div>
+            <div class="text-center bg-white bg-opacity-20 p-3 rounded-4" style="min-width: 100px;">
+                <span class="d-block fs-2 fw-bold">{{ completed_count }}</span>
+                <span class="small opacity-80">완료</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4열 카테고리 그리드 -->
+    <div class="dashboard-grid">
+        {% for block in category_blocks %}
+        <div class="category-block shadow-sm {% cycle 'pastel-purple' 'pastel-blue' 'pastel-green' 'pastel-yellow' 'pastel-orange' 'pastel-red' 'pastel-pink' %}">
+            <div class="block-title">{{ block.name }}</div>
             
-            <div class="mt-4 d-flex gap-2">
-                <a href="{% url 'password_change' %}" class="btn btn-sm btn-white bg-white text-dark rounded-pill px-3 shadow-sm">비밀번호 변경</a>
-                <form action="{% url 'logout' %}" method="post" class="d-inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-logout-soft px-3">로그아웃</button>
-                </form>
-            </div>
-        </div>
-        
-        <div class="quick-stats d-none d-md-flex">
-            <div class="stat-box">
-                <span class="num">{{ activities|length }}</span>
-                <span class="lab">진행 중 평가</span>
-            </div>
-            <div class="stat-box">
-                <span class="num">{{ completed_count }}</span>
-                <span class="lab">완료</span>
-            </div>
-        </div>
-    </div>
+            <div class="scroll-area">
+                {% for act in block.items %}
+                <div class="eval-item-card" onclick="location.href='{% url 'take_test' act.id %}'">
+                    <div class="card-info">
+                        <span class="fw-bold text-primary">{{ act.sub_category|default:act.get_category_display }}</span>
+                        <span><i class="bi bi-person"></i> {{ act.teacher.name }} 선생님</span>
+                    </div>
 
-    <!-- 2. 평가 그리드 타이틀 -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold m-0">참여 가능한 평가 목록</h4>
-        <div class="text-muted small">총 {{ activities|length }}개의 항목이 있습니다.</div>
-    </div>
+                    <div class="item-title">{{ act.title }}</div>
 
-    <!-- 3. 그리드 리스트 -->
-    <div class="evaluation-grid">
-        {% for act in activities %}
-        <div class="student-eval-card shadow-sm" onclick="location.href='{% url 'take_test' act.id %}'">
-            <div>
-                <!-- 카테고리에 따른 태그 분기 -->
-                <span class="cat-tag {% if act.category == 'ESSAY' %}tag-essay{% elif act.category == 'CREATIVE' %}tag-creative{% else %}tag-default{% endif %}">
-                    {{ act.get_category_display }}
-                </span>
-                <h3 class="eval-title">{{ act.title }}</h3>
-                <div class="teacher-name"><i class="bi bi-person-circle me-1"></i> {{ act.teacher.name }} 선생님</div>
-            </div>
-
-            <div class="card-footer-info">
-                <div class="small text-muted">
-                    <i class="bi bi-calendar-event me-1"></i> {{ act.deadline|date:"m/d H:i"|default:"기한 없음" }}
+                    <div class="card-info mt-3 pt-2 border-top">
+                        <span><i class="bi bi-clock"></i> {{ act.deadline|date:"m/d H:i"|default:"기한 없음" }}</span>
+                        {% if act.has_submitted %}
+                            <span class="status-badge status-done">제출 완료</span>
+                        {% else %}
+                            <span class="status-badge status-ready">응시 가능</span>
+                        {% endif %}
+                    </div>
                 </div>
-                
-                {% if act.has_submitted %}
-                    <span class="status-badge status-done">제출 완료 <i class="bi bi-check-all"></i></span>
-                {% else %}
-                    <span class="status-badge status-ready">응시 가능 <i class="bi bi-arrow-right-short"></i></span>
-                {% endif %}
+                {% endfor %}
             </div>
-        </div>
-        {% empty %}
-        <div class="col-12 text-center py-5">
-            <i class="bi bi-journal-x fs-1 text-muted"></i>
-            <p class="mt-3 text-muted">현재 진행 중인 평가가 없습니다.</p>
         </div>
         {% endfor %}
     </div>
