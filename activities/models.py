@@ -49,9 +49,23 @@ class Activity(models.Model):
     # AI 분석 완료 시간 (시스템 기록)
     ai_updated_at = models.DateTimeField(null=True, blank=True, verbose_name="AI 분석 일시")
 
+    # [기타 중요 정보 (AI 분석용)]
+    achievement_standard = models.TextField(blank=True, null=True, verbose_name="성취 기준")
+    evaluation_elements = models.TextField(blank=True, null=True, verbose_name="평가 요소")
+
+    # [학생 답안지 문항 제목 커스텀]
+    # 교사가 "활동 내용", "성과" 등을 직접 입력하여 저장
+    q1_title = models.CharField(max_length=100, default="항목 1", verbose_name="문항 1 제목")
+    q2_title = models.CharField(max_length=100, default="항목 2", verbose_name="문항 2 제목")
+    q3_title = models.CharField(max_length=100, default="항목 3", verbose_name="문항 3 제목")
+
     # --- [6. 대상 및 상태] ---
     target_students = models.ManyToManyField('accounts.Student', blank=True, related_name='activities', verbose_name="대상 학생")
     is_active = models.BooleanField(default=False, verbose_name="활성화 여부")
+
+    # --- [기타 중요 정보 (AI 분석용)] ---
+    achievement_standard = models.TextField(blank=True, null=True, verbose_name="성취 기준")
+    evaluation_elements = models.TextField(blank=True, null=True, verbose_name="평가 요소")
 
     class Meta:
         verbose_name = "활동 및 평가"

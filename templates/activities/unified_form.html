@@ -20,7 +20,7 @@
 
         <!-- 2. 입력 폼 영역 -->
         <div class="card-body p-4 bg-light-subtle">
-            <form method="post" enctype="multipart/form-data">
+            <form method="post" enctype="multipart/form-data" id="unifiedForm">
                 {% csrf_token %}
                 
                 <!-- [공통] 평가 대상 학생 선택 컴포넌트 -->
@@ -28,98 +28,23 @@
                     {% include 'components/student_selector.html' %}
                 </div>
 
-                <!-- 1. 동적 입력 필드 그룹 (Input / Select / Date) -->
+                <!-- [섹션 1] 기본 정보: 목록 및 시험지 왼편 출력 -->
                 <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
-                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-info-circle"></i> 기본 정보</h5>
-                    {% for field in config.inputs %}
+                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-info-circle-fill me-2"></i>1. 기본 정보</h5>
+                    
+                    <!-- 과목명 / 활동명 -->
                     <div class="row mb-3 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ field.label }} *</div>
+                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.basic.section }} *</div>
                         <div class="col-md-9 px-4">
-                            {% if field.type == 'select' %}
-                                <select name="{{ field.name }}" class="form-select border-0 bg-light p-3 rounded-3">
-                                    {% for opt in field.options %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}
-                                </select>
-                            {% elif field.type == 'date' %}
-                                <input type="text" 
-                                    name="{{ field.name }}" 
-                                    id="activity_date" 
-                                    class="form-control border-0 bg-light p-3 datetime-picker" 
-                                    placeholder="날짜와 시간을 선택하세요" 
-                                    style="cursor: pointer;" readonly required>
-                            {% else %}
-                                <input type="text" name="{{ field.name }}" class="form-control border-0 bg-light p-3 rounded-3" placeholder="{{ field.label }} 입력">
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <!-- 2. 동적 서술형 필드 그룹 (Textareas) -->
-                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
-                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-file-earmark-text"></i> 세부 내용 작성</h5>
-                    {% for area in config.textareas %}
-                    <div class="row mb-4">
-                        <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">{{ area.label }} *</div>
-                        <div class="col-md-9 px-4">
-                            <textarea name="{{ area.name }}" class="form-control border-0 bg-light p-3 rounded-3" rows="5" placeholder="{{ area.label }} 내용을 상세히 입력하세요" required></textarea>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <!-- [동적] 활동 내용 및 문항 섹션 -->
-                <div class="bg-white p-4 rounded-4 shadow-sm mb-4">
-                    <h5 class="fw-bold mb-4"><i class="bi bi-file-earmark-text me-2"></i> 활동 상세 내용</h5>
-                                        
-                    <!-- 참고자료 및 파일 업로드 -->
-                    <div class="row mb-4">
-                        <div class="col-md-3 pt-2 text-center fw-bold text-secondary border-end">참고 자료</div>
-                        <div class="col-md-9 px-4">
-                            <textarea name="reference_material" class="form-control border-0 bg-light p-3 rounded-3 mb-3" rows="3" placeholder="참고할 텍스트 정보를 입력하세요"></textarea>
-                            <div class="input-group shadow-sm rounded-3 overflow-hidden">
-                                <label class="input-group-text bg-white border-end-0" for="attachment"><i class="bi bi-paperclip me-1"></i> 파일 첨부</label>
-                                <input type="file" name="attachment" class="form-control border-start-0" id="attachment">
-                            </div>
-                            <small class="text-muted mt-2 d-block">※ PDF, HWP, 이미지 파일 지원 (최대 10MB)</small>
+                            <input type="text" name="section" class="form-control border-0 bg-light p-3" placeholder="{{ config.basic.section }} 입력" required>
                         </div>
                     </div>
 
-                    <!-- 작성 조건 -->
-                    <div class="row mb-3">
-                        <div class="col-md-3 pt-2 text-center fw-bold text-secondary border-end">작성 조건</div>
+                    <!-- 주제 -->
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.basic.title }} *</div>
                         <div class="col-md-9 px-4">
-                            <textarea name="conditions" class="form-control border-0 bg-light p-3 rounded-3" rows="2" placeholder="예: 3문단 구성, 특정 키워드 포함 등"></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- [공통] 설정 섹션 (제출기한, 분량, 보안) -->
-                <div class="bg-white p-4 rounded-4 shadow-sm mb-5">
-                    <h5 class="fw-bold mb-4"><i class="bi bi-gear-fill me-2"></i> 응시 환경 설정</h5>
-
-                    <!-- 제출 기한 -->
-                    <div class="row mb-4 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">제출 기한 *</div>
-                        <div class="col-md-9 px-4">
-                            <div class="input-group" style="max-width: 300px;">
-                                <span class="input-group-text bg-light border-0"><i class="bi bi-alarm"></i></span>
-                                <input type="text" 
-                                    name="deadline" 
-                                    id="deadline_picker" 
-                                    class="form-control border-0 bg-light p-3 datetime-picker" 
-                                    placeholder="마감 기한을 선택하세요" 
-                                    style="cursor: pointer;" readonly required>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 작성 분량 (자 이상 로직) -->
-                    <div class="row mb-4 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">작성 분량</div>
-                        <div class="col-md-9 px-4 d-flex align-items-center gap-2">
-                            <input type="number" name="char_limit" class="form-control border-0 bg-light p-3 text-center" style="width: 120px; border-radius: 12px;" value="0">
-                            <span class="fw-bold">자 이상</span>
-                            <small class="text-muted ms-3">(0이면 무제한)</small>
+                            <input type="text" name="title" class="form-control border-0 bg-light p-3" placeholder="{{ config.basic.title }} 입력" required>
                         </div>
                     </div>
 
@@ -132,14 +57,14 @@
                                     <input class="form-check-input" type="radio" name="exam_mode" id="mode_closed" value="CLOSED" checked>
                                     <label class="form-check-label" for="mode_closed">
                                         <span class="badge bg-danger mb-1">폐쇄형</span><br>
-                                        <small class="text-muted">화면 이탈 감지/보안 적용</small>
+                                        <small class="text-muted">보안 모드 적용</small>
                                     </label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="radio" name="exam_mode" id="mode_open" value="OPEN">
                                     <label class="form-check-label" for="mode_open">
                                         <span class="badge bg-primary mb-1">개방형</span><br>
-                                        <small class="text-muted">자유로운 자료 참고 허용</small>
+                                        <small class="text-muted">자료 참고 허용</small>
                                     </label>
                                 </div>
                             </div>
@@ -147,17 +72,119 @@
                     </div>
                 </div>
 
-                <!-- 하단 버튼 영역 -->
-                <div class="text-center mt-5 mb-3">
+                <!-- [섹션 2] 세부 평가 내용: 시험지 왼편 출력 -->
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
+                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-file-earmark-text-fill me-2"></i>2. 세부 평가 내용</h5>
+                    
+                    <!-- 수업 일시 -->
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.detail.date }} *</div>
+                        <div class="col-md-9 px-4">
+                            <input type="text" name="activity_date" id="activity_date" class="form-control border-0 bg-light p-3 datetime-picker" placeholder="일시 선택" readonly required>
+                        </div>
+                    </div>
+
+                    <!-- 평가 문항 -->
+                    <div class="row mb-3">
+                        <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">{{ config.detail.content }} *</div>
+                        <div class="col-md-9 px-4">
+                            <textarea name="question" class="form-control border-0 bg-light p-3" rows="5" placeholder="문항 내용을 상세히 입력하세요" required></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 참고 자료 및 파일 -->
+                    <div class="row mb-3">
+                        <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">참고 자료</div>
+                        <div class="col-md-9 px-4">
+                            <textarea name="reference_material" class="form-control border-0 bg-light p-3 mb-2" rows="3" placeholder="참고 텍스트 입력"></textarea>
+                            <div class="input-group shadow-sm rounded-3 overflow-hidden">
+                                <label class="input-group-text bg-white border-end-0" for="attachment"><i class="bi bi-paperclip"></i></label>
+                                <input type="file" name="attachment" class="form-control border-start-0" id="attachment">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 작성 조건 / 분량 / 제출기한 -->
+                    <div class="row mb-3">
+                        <div class="col-md-3 pt-2 text-center fw-bold text-secondary border-end">작성 조건</div>
+                        <div class="col-md-9 px-4">
+                            <textarea name="conditions" class="form-control border-0 bg-light p-3" rows="2" placeholder="예: 3문단 구성 등"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-3 text-center fw-bold text-secondary border-end">작성 분량</div>
+                        <div class="col-md-9 px-4 d-flex align-items-center gap-2">
+                            <input type="number" name="char_limit" class="form-control border-0 bg-light p-2 text-center" style="width: 100px;" value="0">
+                            <span class="fw-bold small">자 이상</span>
+                        </div>
+                    </div>
+
+                    <div class="row mb-0 align-items-center">
+                        <div class="col-md-3 text-center fw-bold text-secondary border-end">제출 기한 *</div>
+                        <div class="col-md-9 px-4">
+                            <input type="text" name="deadline" id="deadline_picker" class="form-control border-0 bg-light p-3 datetime-picker" readonly required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- [섹션 3] 기타 중요 내용: AI 분석 전용 정보 (학생에게 비노출) -->
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
+                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-robot me-2"></i>3. 기타 중요 내용 (AI 분석용)</h5>
+                    
+                    <!-- 성취 기준 (설정된 경우에만 표시) -->
+                    {% if 'achievement_standard' in config.ai_info %}
+                    <div class="row mb-3">
+                        <div class="col-md-3 pt-2 text-center fw-bold text-secondary border-end">성취 기준</div>
+                        <div class="col-md-9 px-4">
+                            <textarea name="achievement_standard" class="form-control border-0 bg-light p-3" rows="2" placeholder="교과 성취 기준 입력"></textarea>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- 평가 요소 (설정된 경우에만 표시) -->
+                    {% if 'evaluation_elements' in config.ai_info %}
+                    <div class="row mb-3">
+                        <div class="col-md-3 pt-2 text-center fw-bold text-secondary border-end">평가 요소</div>
+                        <div class="col-md-9 px-4">
+                            <textarea name="evaluation_elements" class="form-control border-0 bg-light p-3" rows="2" placeholder="주요 평가 요소 입력"></textarea>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- 평가 대상 (학생 선택) -->
+                    <div class="mt-4">
+                        {% include 'components/student_selector.html' %}
+                    </div>
+                </div>
+
+                <!-- [섹션 4] 학생 답안지 구성: 시험지 오른편 문항 제목 -->
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-5 bg-white" style="border-left: 6px solid #FF80B5 !important;">
+                    <h5 class="fw-bold mb-2 text-danger"><i class="bi bi-layout-text-window-reverse me-2"></i>4. 학생 답안지 구성</h5>
+                    <p class="small text-muted mb-4">학생 응시 화면 우측 답안지에 표시될 문항의 제목을 직접 설정하세요.</p>
+                    
+                    {% for i in "123" %}
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-3 text-center fw-bold text-secondary border-end">항목 {{ i }} 제목</div>
+                        <div class="col-md-9 px-4">
+                            <!-- views.py에서 넘겨준 config.default_q의 순서대로 값을 채움 -->
+                            <input type="text" name="q{{ i }}_title" class="form-control border-0 bg-warning-subtle p-3" 
+                                value="{% if i == '1' %}{{ config.default_q.0 }}{% elif i == '2' %}{{ config.default_q.1 }}{% else %}{{ config.default_q.2 }}{% endif %}" required>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- 하단 저장 버튼 -->
+                <div class="text-center mt-5 mb-5">
                     <button type="button" class="btn btn-light px-5 py-3 rounded-pill me-2 fw-bold" onclick="history.back()">취소</button>
-                    <!-- Ingrid 시그니처 버튼 스타일 -->
                     <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow-lg" 
                             style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none;">
                         평가 시트 생성 완료
                     </button>
                 </div>
-                
-                <!-- 백엔드 전달용 카테고리 정보 -->
+
+                <!-- 데이터 전달용 Hidden Field -->
                 <input type="hidden" name="category" value="{{ cat_code }}">
                 <input type="hidden" name="sub_category" value="{{ sub_menu }}">
             </form>
@@ -174,38 +201,47 @@
     document.addEventListener('DOMContentLoaded', function() {
         // 1. 날짜+시간 통합 설정
         const dateTimeConfig = {
-            enableTime: true,            // [핵심] 시간 선택 활성화
-            dateFormat: "Y. m. d. K h:i", // 한국식 AM/PM 표시
-            locale: "ko",                // 한국어 설정
-            time_24hr: false,            // 12시간제 사용
-            minDate: "today",            // 오늘 이전 날짜 선택 불가
-            disableMobile: true,         // 모바일 브라우저 기본 달력 무시
-            minuteIncrement: 1,          // 분 단위 세밀하게 조정
+            enableTime: true,
+            dateFormat: "Y. m. d. K h:i",
+            locale: "ko",
+            time_24hr: false,
+            minDate: "today",
+            disableMobile: true,
+            minuteIncrement: 1,
         };
 
-        // 2. 수업 일시(activity_date) 초기화
-        // ID(#)와 이름(name) 두 가지 방식으로 모두 시도하여 확실하게 잡습니다.
-        const startInput = document.getElementById('activity_date') || document.querySelector('input[name="activity_date"]');
-        if (startInput) {
-            flatpickr(startInput, dateTimeConfig);
-            console.log("수업 일시 달력 로드 완료");
-        }
-
-        // 3. 제출 기한(deadline_picker) 초기화
-        const endInput = document.getElementById('deadline_picker') || document.querySelector('input[name="deadline"]');
-        if (endInput) {
-            flatpickr(endInput, {
-                ...dateTimeConfig,
-                defaultDate: new Date().setHours(23, 59), // 기본값을 오늘 밤 11시 59분으로
-            });
-            console.log("제출 기한 달력 로드 완료");
-        }
-
-        // 4. 폼 제출 전 유효성 검사
+        // 2. 입력 요소 확보 (에러 방지를 위해 변수를 미리 선언)
+        const startInput = document.getElementById('activity_date');
+        const endInput = document.getElementById('deadline_picker');
         const form = document.getElementById('unifiedForm');
+
+        // 3. 수업 일시(activity_date) 초기화
+        let startPicker;
+        if (startInput) {
+            startPicker = flatpickr(startInput, {
+                ...dateTimeConfig,
+                onChange: function(selectedDates, dateStr) {
+                    // 수업 일시가 선택되면 제출 기한의 최소 날짜를 그 날짜로 제한
+                    if (endPickerInstance) {
+                        endPickerInstance.set('minDate', dateStr);
+                    }
+                }
+            });
+        }
+
+        // 4. 제출 기한(deadline_picker) 초기화
+        let endPickerInstance;
+        if (endInput) {
+            endPickerInstance = flatpickr(endInput, {
+                ...dateTimeConfig,
+                defaultDate: endInput.value ? endInput.value : new Date().setHours(23, 59),
+            });
+        }
+
+        // 5. 폼 제출 전 유효성 검사
         if (form) {
             form.onsubmit = function(e) {
-                // 학생 선택 여부 체크
+                // (1) 학생 선택 여부 체크 (섹션 3 하단 컴포넌트)
                 const selectedStudents = document.querySelectorAll('input[name="target_students"]:checked');
                 if (selectedStudents.length === 0) {
                     alert("평가 대상 학생을 최소 한 명 이상 선택해주세요.");
@@ -215,16 +251,28 @@
                     return false;
                 }
                 
-                // 필수 날짜 값 체크
+                // (2) 필수 날짜 입력값 체크
                 if (!startInput.value || !endInput.value) {
                     alert("수업 일시와 제출 기한을 모두 입력해주세요.");
                     e.preventDefault();
                     return false;
                 }
+
+                // (3) 섹션 4: 문항 제목 커스텀 체크 (HTML required가 있지만 한번 더 체크)
+                const qTitles = document.querySelectorAll('input[name^="q"][name$="_title"]');
+                for (let input of qTitles) {
+                    if (!input.value.trim()) {
+                        alert("학생 답안지 구성의 항목 제목을 입력해주세요.");
+                        input.focus();
+                        e.preventDefault();
+                        return false;
+                    }
+                }
                 
                 return true;
             };
         }
+        console.log("Ingrid 4대 섹션 생성 폼 로드 완료");
     });
 </script>
 {% endblock %}

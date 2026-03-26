@@ -952,180 +952,95 @@ def unified_list(request):
 # 통합 생성/수정 페이지 (카테고리와 소메뉴에 따라 유동적으로 필드 라벨과 저장 로직 변경)
 def get_form_config(sub_menu):
     """
-    모든 소메뉴별 맞춤형 필드 구성 (라벨 및 데이터 매핑)
+    모든 소메뉴의 4대 섹션별 라벨 및 필드 구성 정의
     """
     configs = {
-        # --- 1. 교과 논술형 평가 ---
         '과목별 수행평가': {
-            'inputs': [
-                {'name': 'section', 'label': '평가 영역', 'type': 'text'},
-                {'name': 'title', 'label': '평가 주제', 'type': 'text'},
-                {'name': 'standard', 'label': '성취 기준', 'type': 'text'},
-                {'name': 'factor', 'label': '평가 요소', 'type': 'text'},
-            ],
-            'textareas': [{'name': 'q1', 'label': '평가 문항'}]
+            'basic': {'section': '과목명', 'title': '평가 영역'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': ['achievement_standard', 'evaluation_elements'], # 성취기준, 평가요소 노출
+            'default_q': ['문항 1', '문항 2', '문항 3']
         },
-
-        # --- 2. 교과 수업활동 평가 ---
         '발표활동 보고서': {
-            'inputs': [
-                {'name': 'section', 'label': '과목명', 'type': 'text'},
-                {'name': 'activity_date', 'label': '수업 일시', 'type': 'date'},
-                {'name': 'title', 'label': '발표 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '발표 활동'},
-                {'name': 'q2', 'label': '발표 소감'}
-            ]
+            'basic': {'section': '과목명', 'title': '발표 주제'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['발표 내용', '발표 성과', '발표 소감']
         },
         '모둠활동 보고서': {
-            'inputs': [
-                {'name': 'section', 'label': '과목명', 'type': 'text'},
-                {'name': 'activity_date', 'label': '수업 일시', 'type': 'date'},
-                {'name': 'title', 'label': '수업 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '활동 내용'},
-                {'name': 'q2', 'label': '활동 소감'}
-            ]
+            'basic': {'section': '과목명', 'title': '수업 주제'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['활동 내용', '모둠 기여도', '활동 소감']
         },
         '창작활동 보고서': {
-            'inputs': [
-                {'name': 'section', 'label': '과목명', 'type': 'text'},
-                {'name': 'activity_date', 'label': '수업 일시', 'type': 'date'},
-                {'name': 'title', 'label': '창작물 명칭', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '창작 과정'},
-                {'name': 'q2', 'label': '창작 성과'},
-                {'name': 'q3', 'label': '창작 소감'}
-            ]
+            'basic': {'section': '과목명', 'title': '창작 주제'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': ['achievement_standard'],
+            'default_q': ['창작 과정', '창작물 설명', '창작 소감']
         },
         '실기활동 보고서': {
-            'inputs': [
-                {'name': 'section', 'label': '과목명', 'type': 'text'},
-                {'name': 'activity_date', 'label': '수업 일시', 'type': 'date'},
-                {'name': 'title', 'label': '실기활동 명칭', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '실기활동 과정'},
-                {'name': 'q2', 'label': '실기활동 성과'},
-                {'name': 'q3', 'label': '활동 소감'}
-            ]
+            'basic': {'section': '과목명', 'title': '실기 주제'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': ['achievement_standard'],
+            'default_q': ['실기 과정', '실기 성과', '활동 소감']
         },
-
-        # --- 3. 교내 행사활동 ---
         '행사활동 기록/분석': {
-            'inputs': [
-                {'name': 'section', 'label': '연관 과목', 'type': 'text'},
-                {'name': 'activity_date', 'label': '수업 일시', 'type': 'date'},
-                {'name': 'title', 'label': '행사 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '행사 활동'},
-                {'name': 'q2', 'label': '행사 성과'}
-            ]
+            'basic': {'section': '과목명', 'title': '행사 주제'},
+            'detail': {'date': '행사 일시', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['참여 활동', '행사 성과', '활동 소감']
         },
-
-        # --- 4. 자율활동 ---
         '범교과교육': {
-            'inputs': [
-                {'name': 'section', 'label': '연관 과목', 'type': 'text'},
-                {'name': 'activity_date', 'label': '수업 일시', 'type': 'date'},
-                {'name': 'title', 'label': '행사 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '행사 활동'},
-                {'name': 'q2', 'label': '행사 성과'}
-            ]
+            'basic': {'section': '범교과교육명', 'title': '세부 주제'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['교육 내용', '주요 활동', '교육 소감']
         },
         '학교주도활동': {
-            'inputs': [
-                {'name': 'activity_date', 'label': '수업 일시', 'type': 'date'},
-                {'name': 'title', 'label': '활동 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '활동 목표'},
-                {'name': 'q2', 'label': '활동 내용'}
-            ]
+            'basic': {'section': '학교주도활동명', 'title': '세부 주제'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['활동 목표', '활동 내용', '활동 성과']
         },
         '현장체험학습': {
-            'inputs': [
-                {'name': 'activity_date', 'label': '수업 일시', 'type': 'date'},
-                {'name': 'title', 'label': '활동 주제', 'type': 'text'},
-                {'name': 'place', 'label': '활동 장소', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '활동 내용'},
-                {'name': 'q2', 'label': '활동 소감'}
-            ]
+            'basic': {'section': '현장체험학습명', 'title': '세부 주제'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['체험 활동', '활동 장소', '활동 소감']
         },
         '학생자치회활동': {
-            'inputs': [
-                {'name': 'section', 'label': '수업 학기', 'type': 'select', 'options': ['1학기', '2학기']},
-                {'name': 'dept', 'label': '소속 부서', 'type': 'text'},
-                {'name': 'role', 'label': '직책/역할', 'type': 'text'},
-                {'name': 'title', 'label': '자치 활동 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '활동 내용'},
-                {'name': 'q2', 'label': '활동 성과'},
-                {'name': 'q3', 'label': '활동 소감'}
-            ]
+            'basic': {'section': '학생자치회 부서', 'title': '세부 주제'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['자치 활동', '수행 역할', '활동 결과']
         },
-
-        # --- 5. 동아리활동 ---
         '동아리활동 일지': {
-            'inputs': [
-                {'name': 'activity_date', 'label': '활동 일시', 'type': 'date'},
-                {'name': 'section', 'label': '동아리명', 'type': 'text'},
-                {'name': 'title', 'label': '활동 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '활동 내용'},
-                {'name': 'q2', 'label': '활동 성과'}
-            ]
+            'basic': {'section': '동아리명', 'title': '세부 주제'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['활동 내용', '활동 성과', '기타 특이사항']
         },
         '동아리활동 보고서': {
-            'inputs': [
-                {'name': 'section', 'label': '동아리명', 'type': 'text'},
-                {'name': 'role', 'label': '역할', 'type': 'select', 'options': ['회장', '부회장', '부원']},
-                {'name': 'title', 'label': '보고서 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '활동 내용'},
-                {'name': 'q2', 'label': '활동 성과'},
-                {'name': 'q3', 'label': '활동 소감'}
-            ]
+            'basic': {'section': '동아리명', 'title': '세부 주제'},
+            'detail': {'date': '수업 학기', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['주요 활동', '활동 성과', '성장 포인트']
         },
-
-        # --- 6. 진로활동 ---
         '진로수업 일지': {
-            'inputs': [
-                {'name': 'activity_date', 'label': '수업 일시', 'type': 'date'},
-                {'name': 'title', 'label': '수업 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '수업 활동'},
-                {'name': 'q2', 'label': '수업 소감'}
-            ]
+            'basic': {'section': '진로활동명', 'title': '세부 주제'},
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['수업 활동', '수업 주제', '수업 소감']
         },
         '진로수업 학기말 보고서': {
-            'inputs': [
-                {'name': 'section', 'label': '수업 학기', 'type': 'select', 'options': ['1학기', '2학기']},
-                {'name': 'title', 'label': '주요 수업 활동', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '수업 성장 내용'}
-            ]
+            'basic': {'section': '진로활동명', 'title': '세부 주제'},
+            'detail': {'date': '수업 학기', 'content': '평가 문항'},
+            'ai_info': [],
+            'default_q': ['주요 수업 활동', '수업 성장 내용', '진로 계획']
         },
     }
-
-    default_config = {
-        'inputs': [{'name': 'section', 'label': '활동명', 'type': 'text'}, {'name': 'title', 'label': '주제', 'type': 'text'}],
-        'textareas': [{'name': 'q1', 'label': '활동 내용'}]
-    }
-    return configs.get(sub_menu, default_config)
+    return configs.get(sub_menu, configs['과목별 수행평가'])
 
 # 통합 생성 페이지 (카테고리와 소메뉴에 따라 유동적으로 필드 라벨과 저장 로직 변경)
 @login_required
@@ -1134,35 +1049,33 @@ def unified_create(request):
     cat_code = request.GET.get('category', 'ESSAY')
     sub_menu = request.GET.get('sub', '과목별 수행평가')
     
-    # 메뉴별 설정(라벨 등) 가져오기
+    # 메뉴별 설정(라벨 및 4대 섹션 구성) 가져오기
     config = get_form_config(sub_menu)
-    # 카테고리 한글명 (템플릿 표시용)
     category_name = dict(Activity.CATEGORY_CHOICES).get(cat_code, "평가/활동")
 
     if request.method == 'POST':
-        # --- [안전한 데이터 수집] ---
-        # 1. 여러 텍스트 에어리어 내용 합치기
-        merged_content = ""
-        for area in config['textareas']:
-            # 각 textarea의 name 속성으로 값을 가져옴 (중요)
-            val = request.POST.get(area['name'], '').strip()
-            if val:
-                merged_content += f"[{area['label']}]\n{val}\n\n"
+        # --- [데이터 수집 및 전처리] ---
         
-        # 만약 내용이 아예 없다면 기본 텍스트라도 넣어 500에러 방지
-        if not merged_content:
-            merged_content = f"{sub_menu} 내용 없음"
-
-        # 2. 날짜 파싱 함수
+        # (1) 날짜 파싱 내부 함수 (한글 오전/오후 대응)
         def parse_dt(dt_str):
             if not dt_str: return None
             try:
                 clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
                 return datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
             except:
-                return timezone.now()
+                return None
 
-        # 3. 추가 입력 정보(Select, Input) 처리
+        # (2) 섹션 2: 여러 서술형 입력창 내용 합치기 (question 필드용)
+        merged_content = ""
+        for area in config['textareas']:
+            val = request.POST.get(area['name'], '').strip()
+            if val:
+                merged_content += f"[{area['label']}]\n{val}\n\n"
+        
+        if not merged_content:
+            merged_content = f"{sub_menu} 내용 없음"
+
+        # (3) 추가 입력 정보(Input/Select) 제목용으로 조합
         extra_info = []
         for inp in config['inputs']:
             if inp['name'] not in ['section', 'title', 'activity_date']:
@@ -1171,43 +1084,63 @@ def unified_create(request):
         extra_str = f" ({', '.join(extra_info)})" if extra_info else ""
 
         try:
-            # 4. Activity 객체 생성
+            # --- [Activity 객체 생성 - 모든 필드 포함] ---
             activity = Activity.objects.create(
                 teacher=request.user,
                 category=cat_code,
                 sub_category=sub_menu,
+                
+                # [섹션 1: 기본 정보]
                 section=request.POST.get('section', sub_menu),
                 title=request.POST.get('title', '제목 없음') + extra_str,
-                question=merged_content,  # 합쳐진 텍스트 저장
+                exam_mode=request.POST.get('exam_mode', 'CLOSED'),
+                
+                # [섹션 2: 세부 평가 내용]
+                activity_date=parse_dt(request.POST.get('activity_date')),
+                question=merged_content,  
                 reference_material=request.POST.get('reference_material', ''),
                 conditions=request.POST.get('conditions', ''),
                 char_limit=int(request.POST.get('char_limit', 0)) if request.POST.get('char_limit') else 0,
-                exam_mode=request.POST.get('exam_mode', 'CLOSED'),
-                activity_date=parse_dt(request.POST.get('activity_date')),
                 deadline=parse_dt(request.POST.get('deadline')),
+                attachment=request.FILES.get('attachment'),
+                
+                # [섹션 3: 기타 중요 내용 (AI 분석용)]
+                achievement_standard=request.POST.get('achievement_standard', ''),
+                evaluation_elements=request.POST.get('evaluation_elements', ''),
+                
+                # [섹션 4: 학생 답안지 구성 (문항 제목 커스텀)]
+                q1_title=request.POST.get('q1_title', config['default_q'][0]),
+                q2_title=request.POST.get('q2_title', config['default_q'][1]),
+                q3_title=request.POST.get('q3_title', config['default_q'][2]),
+                
                 is_active=True
             )
 
-            # 5. Question 객체 생성 (Answer 모델 연동용)
+            # --- [후속 처리] ---
+            
+            # 1. Question 객체 생성 (Answer 모델 참조용 껍데기)
             from .models import Question
             Question.objects.create(
                 activity=activity, 
                 content=merged_content,
-                conditions=activity.conditions
+                conditions=activity.conditions,
+                reference_material=activity.reference_material
             )
 
-            # 6. 대상 학생 등록
+            # 2. 대상 학생 등록 (ManyToMany)
             target_ids = request.POST.getlist('target_students')
             if target_ids:
                 activity.target_students.set(target_ids)
 
+            messages.success(request, f"'{sub_menu}' 시트가 성공적으로 생성되었습니다.")
             return redirect(f'/activities/list/?category={cat_code}&sub={sub_menu}')
 
         except Exception as e:
-            # 에러 발생 시 로그를 남기고 어떤 필드가 문제인지 터미널에 출력
             print(f"--- [ERROR] 생성 실패: {str(e)} ---", flush=True)
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-
+            messages.error(request, f"저장 중 오류가 발생했습니다: {str(e)}")
+            # 에러 발생 시 입력하던 폼으로 다시 돌아감
+    
+    # 7. GET 요청 시 페이지 렌더링
     return render(request, 'activities/unified_form.html', {
         'cat_code': cat_code,
         'sub_menu': sub_menu,
