@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from accounts.decorators import teacher_required
 from django.contrib import messages
 from django.utils import timezone # 날짜 표시용
+from django.utils.timezone import make_aware    # 시간대 인식 datetime 변환
 from datetime import datetime   # 날짜 비교용
 from django.db.models import Q  # 복합 필터링
 import json
@@ -1227,8 +1228,9 @@ def unified_create(request):
         def parse_dt(dt_str):
             if not dt_str: return None
             try:
-                c = dt_str.replace('오후', 'PM').replace('오전', 'AM')
-                return datetime.strptime(c, "%Y. %m. %d. %p %I:%M")
+                clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
+                naive_dt = datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
+                return make_aware(naive_dt) # 서울 시간대 정보를 입혀서 반환
             except: return None
 
         # 3. 추가 입력 정보 처리 (안전한 get 방식)
@@ -1280,8 +1282,7 @@ def unified_create(request):
             Question.objects.create(
                 activity=activity, 
                 content=merged_content,
-                conditions=activity.conditions,
-                reference_material=activity.reference_material
+                conditions=activity.conditions
             )
 
             # 2. 대상 학생 등록 (ManyToMany)
