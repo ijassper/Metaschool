@@ -3,94 +3,105 @@
 
 {% block content %}
 <div class="container-fluid px-4 py-4">
-    <!-- 1. 상단 헤더 섹션 (동적 제목 및 버튼) -->
+    <!-- 1. 상단 헤더: 동적 제목 및 생성 버튼 -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold text-dark mb-1">
-                <i class="bi bi-list-stars text-primary me-2"></i> 
-                {{ category_name }} 목록
+                <i class="bi bi-collection-play text-primary me-2"></i> 
+                {{ category_name }} 관리
             </h3>
-            <p class="text-muted small mb-0">총 {{ activities|length }}건의 활동이 등록되어 있습니다.</p>
+            <p class="text-muted small mb-0">선택하신 영역의 평가 및 활동 목록입니다. 주제를 클릭하면 상세 수정이 가능합니다.</p>
         </div>
         
-        <!-- [핵심] 현재 카테고리에 맞는 생성 페이지로 연결 (Query String 유지) -->
         <a href="{% url 'unified_create' %}?category={{ cat_code }}&sub={{ sub_menu }}" 
            class="btn btn-primary px-4 py-2 rounded-pill fw-bold shadow-sm"
-           style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none;">
-            <i class="bi bi-plus-lg me-1"></i> 새 {{ category_name }} 만들기
+           style="background: var(--ingrid-gradient); border: none;">
+            <i class="bi bi-plus-lg me-1"></i> 새 {{ sub_menu|default:category_name }} 만들기
         </a>
     </div>
 
-    <!-- 2. 목록 테이블 카드 -->
+    <!-- 2. 범용 목록 테이블 -->
     <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0" style="min-width: 1000px;">
+                <table class="table table-hover align-middle mb-0" style="min-width: 1100px;">
                     <thead class="table-light border-bottom">
-                        <tr class="text-center text-muted small text-uppercase">
-                            <th style="width: 70px;">번호</th>
-                            <th class="text-start" style="width: 150px;">분류</th>
-                            <th class="text-start">주제 및 활동명</th>
-                            <th style="width: 120px;">상태</th>
-                            <th style="width: 120px;">생성일</th>
-                            <th style="width: 300px;">관리 도구</th>
+                        <tr class="text-center text-muted small">
+                            <th style="width: 60px;">번호</th>
+                            <th class="text-start" style="width: 160px;">분류</th>
+                            <th class="text-start">주제 및 상세 (클릭 시 상세/수정)</th>
+                            <th style="width: 120px;">상태(On/Off)</th>
+                            <th style="width: 160px;">일정</th>
+                            <th style="width: 100px;">제출현황</th>
+                            <th style="width: 320px;">관리 도구</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for act in activities %}
                         <tr class="text-center">
+                            <!-- 번호 -->
                             <td class="text-secondary small">{{ forloop.revcounter }}</td>
+                            
+                            <!-- 분류 -->
                             <td class="text-start">
-                                <span class="badge bg-light text-dark border fw-medium px-2 py-1">
-                                    {{ act.sub_category|default:act.get_category_display }}
-                                </span>
+                                <span class="badge bg-purple-subtle text-purple mb-1" style="font-size: 0.7rem;">
+                                    {{ act.get_category_display }}
+                                </span><br>
+                                <small class="text-muted fw-bold">{{ act.sub_category }}</small>
                             </td>
+                            
+                            <!-- 주제 및 상세 (상세페이지 연결) -->
                             <td class="text-start">
-                                <div class="fw-bold text-dark mb-1">{{ act.title }}</div>
-                                <div class="text-muted x-small text-truncate" style="max-width: 400px;">{{ act.section }}</div>
+                                <a href="{% url 'activity_detail' act.id %}" class="text-decoration-none d-block">
+                                    <div class="fw-bold text-dark hover-title mb-1">{{ act.title }}</div>
+                                    <div class="text-muted x-small"><i class="bi bi-tag me-1"></i>{{ act.section }}</div>
+                                </a>
                             </td>
+
+                            <!-- 상태 토글 -->
                             <td>
-                                <!-- 상태 토글 버튼 (기존 로직 유지) -->
                                 <a href="{% url 'toggle_activity_status' act.id %}" class="text-decoration-none">
                                     {% if act.is_active %}
-                                        <span class="badge bg-success-subtle text-success rounded-pill px-3">진행중</span>
+                                        <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">진행중</span>
                                     {% else %}
-                                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3">대기중</span>
+                                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-2">대기중</span>
                                     {% endif %}
                                 </a>
                             </td>
-                            <td class="text-secondary small">{{ act.created_at|date:"Y-m-d" }}</td>
+
+                            <!-- 일정 -->
+                            <td class="text-start small">
+                                <div class="mb-1"><span class="badge bg-light text-dark p-1 me-1">수업</span>{{ act.activity_date|date:"m/d H:i" }}</div>
+                                <div><span class="badge bg-light text-danger p-1 me-1">기한</span>{{ act.deadline|date:"m/d H:i" }}</div>
+                            </td>
+
+                            <!-- 제출 숫자 -->
+                            <td>
+                                <div class="fw-bold text-primary" style="font-size: 1.1rem;">
+                                    {{ act.answer_set.count }}<small class="text-muted" style="font-size: 0.7rem;"> / {{ act.target_students.count }}명</small>
+                                </div>
+                            </td>
+
+                            <!-- [핵심] 관리 도구 3종 세트 -->
                             <td>
                                 <div class="d-flex justify-content-center gap-2">
-                                    <!-- 제출 현황 -->
-                                    <a href="{% url 'activity_result' act.id %}" class="btn btn-sm btn-outline-primary px-3 rounded-3">
-                                        제출 현황
+                                    <a href="{% url 'activity_result' act.id %}" class="btn btn-sm btn-outline-primary px-2 rounded-3">
+                                        <i class="bi bi-people-fill me-1"></i> 제출 현황
                                     </a>
-                                    <!-- AI 분석 -->
-                                    <a href="{% url 'activity_analysis' act.id %}" class="btn btn-sm btn-outline-success px-3 rounded-3">
-                                        <i class="bi bi-robot"></i> AI 분석
+                                    <a href="{% url 'activity_analysis_work' act.id %}" class="btn btn-sm btn-outline-success px-2 rounded-3">
+                                        <i class="bi bi-robot me-1"></i> AI 분석
                                     </a>
-                                    <!-- 수정/삭제 드롭다운 -->
-                                    <div class="dropdown">
-                                        <button class="btn btn-sm btn-light border" data-bs-toggle="dropdown">
-                                            <i class="bi bi-three-dots"></i>
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                                            <li><a class="dropdown-item" href="#"><i class="bi bi-pencil me-2"></i>수정</a></li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item text-danger" href="#"><i class="bi bi-trash me-2"></i>삭제</a></li>
-                                        </ul>
-                                    </div>
+                                    <a href="{% url 'activity_analysis' act.id %}" class="btn btn-sm btn-info text-white px-2 rounded-3">
+                                        <i class="bi bi-check-circle-fill me-1"></i> 결과 확인
+                                    </a>
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="py-5 text-center">
-                                <div class="text-muted">
-                                    <i class="bi bi-folder-x fs-1 opacity-25"></i>
-                                    <p class="mt-3">등록된 {{ category_name }} 활동이 없습니다.</p>
-                                </div>
+                            <td colspan="7" class="py-5 text-center text-muted">
+                                <i class="bi bi-folder-x fs-1 opacity-25"></i>
+                                <p class="mt-3">해당 영역에 등록된 활동이 없습니다.</p>
                             </td>
                         </tr>
                         {% endfor %}
@@ -102,10 +113,13 @@
 </div>
 
 <style>
+    :root { --ingrid-primary: #8E44AD; }
+    .text-purple { color: #8E44AD; }
+    .bg-purple-subtle { background-color: #F3F0FF; color: #8E44AD; }
     .x-small { font-size: 0.75rem; }
+    .hover-title:hover { color: #8E44AD !important; text-decoration: underline; }
     .table thead th { padding: 15px; font-weight: 700; background-color: #fcfcfd; }
-    .table tbody td { padding: 18px 15px; }
-    /* 행 호버 시 배경색 인그리드 톤으로 */
-    .table-hover tbody tr:hover { background-color: #f8f9ff; }
+    .table tbody td { padding: 18px 10px; }
+    .btn-sm { font-size: 0.8rem; font-weight: 600; }
 </style>
 {% endblock %}
