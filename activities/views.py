@@ -171,7 +171,7 @@ def update_test(request, activity_id):
             q_form.save()
             
             messages.success(request, "평가 정보가 수정되었습니다.")
-            return redirect('activity_list')
+            return redirect(f'/activities/list/?category={activity.category}&sub={activity.sub_category}')
     else:
         a_form = ActivityForm(instance=activity)
         q_form = QuestionForm(instance=question)
@@ -179,7 +179,7 @@ def update_test(request, activity_id):
     student_tree = get_student_tree(request.user)
     current_targets = list(activity.target_students.values_list('id', flat=True))
 
-    return render(request, 'activities/create_test.html', {
+    return render(request, 'activities/unified_form.html', {
         'a_form': a_form, 'q_form': q_form, 'action': '수정',
         'student_tree': student_tree,
         'current_targets': current_targets,
@@ -193,7 +193,7 @@ def delete_test(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     activity.delete()
     messages.success(request, "평가가 삭제되었습니다.")
-    return redirect('activity_list')
+    return redirect('unified_list')
 
 # 5. 평가 상태 토글 (시작 <-> 마감)
 @login_required
@@ -209,10 +209,7 @@ def toggle_activity_status(request, activity_id):
     messages.success(request, status_msg)
 
     # 활동의 카테고리에 따라 원래 목록 페이지로 리다이렉트
-    if activity.category == 'CREATIVE':
-        return redirect('creative_list') # 창체 목록으로 이동
-    else:
-        return redirect('activity_list') # 교과 평가 목록으로 이동
+    return redirect(f'/activities/list/?category={activity.category}&sub={activity.sub_category}')
 
 # 6. 평가 상세 페이지 (여기서 수정/삭제 가능)
 @login_required

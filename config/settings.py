@@ -26,8 +26,12 @@ SECRET_KEY = 'django-insecure-sgx0u5i0exmwpx6r1)9^0=ml!jxh1b4nz#1c)(q(o$5nq4@nj2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['jacknov.gabia.io', '211.47.75.58', 'localhost']
-
+ALLOWED_HOSTS = [
+    'schoolingrid.com', 
+    'www.schoolingrid.com', 
+    'jacknov.gabia.io', 
+    '127.0.0.1'
+]
 
 # Application definition
 
@@ -157,8 +161,9 @@ SECURE_HSTS_PRELOAD = True
 
 # [보안 설정] 403 에러 해결을 위해 도메인 허용
 CSRF_TRUSTED_ORIGINS = [
+    'https://schoolingrid.com',
+    'https://www.schoolingrid.com',
     'https://jacknov.gabia.io',
-    'http://jacknov.gabia.io',
 ]
 
 # [이동 경로 설정] 로그인 또는 회원가입 성공 시 이동할 URL
