@@ -38,7 +38,7 @@
 
             <!-- 관리 버튼들 (수정/삭제) -->
             <div class="d-flex justify-content-center gap-2">
-                <a href="{% url 'activity_list' %}" class="btn btn-secondary px-4">목록으로</a>
+                <a href="{% url 'unified_list' %}?category={{ activity.category }}&sub={{ activity.sub_category }}" class="btn btn-secondary px-4 me-2">목록으로</a>
                 <a href="{% url 'update_test' activity.id %}" class="btn btn-primary px-4">수정하기</a>
                 <a href="{% url 'delete_test' activity.id %}" class="btn btn-danger px-4" onclick="return confirm('정말 삭제하시겠습니까?');">삭제하기</a>
             </div>
