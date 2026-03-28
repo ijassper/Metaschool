@@ -955,92 +955,178 @@ def get_form_config(sub_menu):
     모든 소메뉴의 4대 섹션별 라벨 및 필드 구성 정의
     """
     configs = {
+        # --- 1. 교과 논술형 평가 ---
         '과목별 수행평가': {
             'basic': {'section': '과목명', 'title': '평가 영역'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
-            'ai_info': ['achievement_standard', 'evaluation_elements'], # 성취기준, 평가요소 노출
+            'ai_info': ['achievement_standard', 'evaluation_elements'],
+            'textareas': [
+                {'name': 'q1', 'label': '평가 문항'}
+            ],
             'default_q': ['문항 1', '문항 2', '문항 3']
         },
+
+        # --- 2. 교과 수업활동 평가 ---
         '발표활동 보고서': {
             'basic': {'section': '과목명', 'title': '발표 주제'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '발표 활동'},
+                {'name': 'q2', 'label': '발표 소감'}
+            ],
             'default_q': ['발표 내용', '발표 성과', '발표 소감']
         },
         '모둠활동 보고서': {
             'basic': {'section': '과목명', 'title': '수업 주제'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '활동 내용'},
+                {'name': 'q2', 'label': '활동 소감'}
+            ],
             'default_q': ['활동 내용', '모둠 기여도', '활동 소감']
         },
         '창작활동 보고서': {
             'basic': {'section': '과목명', 'title': '창작 주제'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
             'ai_info': ['achievement_standard'],
+            'textareas': [
+                {'name': 'q1', 'label': '창작 과정'},
+                {'name': 'q2', 'label': '창작 성과'},
+                {'name': 'q3', 'label': '창작 소감'}
+            ],
             'default_q': ['창작 과정', '창작물 설명', '창작 소감']
         },
         '실기활동 보고서': {
             'basic': {'section': '과목명', 'title': '실기 주제'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
             'ai_info': ['achievement_standard'],
+            'textareas': [
+                {'name': 'q1', 'label': '실기활동 과정'},
+                {'name': 'q2', 'label': '실기활동 성과'},
+                {'name': 'q3', 'label': '활동 소감'}
+            ],
             'default_q': ['실기 과정', '실기 성과', '활동 소감']
         },
+
+        # --- 3. 교내 행사활동 ---
         '행사활동 기록/분석': {
             'basic': {'section': '과목명', 'title': '행사 주제'},
             'detail': {'date': '행사 일시', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '행사 참여 활동'},
+                {'name': 'q2', 'label': '행사 성과'}
+            ],
             'default_q': ['참여 활동', '행사 성과', '활동 소감']
         },
+
+        # --- 4. 자율활동 ---
         '범교과교육': {
             'basic': {'section': '범교과교육명', 'title': '세부 주제'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '교육 내용'},
+                {'name': 'q2', 'label': '주요 활동'},
+                {'name': 'q3', 'label': '교육 소감'}
+            ],
             'default_q': ['교육 내용', '주요 활동', '교육 소감']
         },
         '학교주도활동': {
             'basic': {'section': '학교주도활동명', 'title': '세부 주제'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '활동 목표'},
+                {'name': 'q2', 'label': '활동 내용'},
+                {'name': 'q3', 'label': '활동 성과'}
+            ],
             'default_q': ['활동 목표', '활동 내용', '활동 성과']
         },
         '현장체험학습': {
             'basic': {'section': '현장체험학습명', 'title': '세부 주제'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '체험 활동'},
+                {'name': 'q2', 'label': '활동 장소'},
+                {'name': 'q3', 'label': '활동 소감'}
+            ],
             'default_q': ['체험 활동', '활동 장소', '활동 소감']
         },
         '학생자치회활동': {
             'basic': {'section': '학생자치회 부서', 'title': '세부 주제'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '자치 활동'},
+                {'name': 'q2', 'label': '수행 역할'},
+                {'name': 'q3', 'label': '활동 결과'}
+            ],
             'default_q': ['자치 활동', '수행 역할', '활동 결과']
         },
+
+        # --- 5. 동아리활동 ---
         '동아리활동 일지': {
             'basic': {'section': '동아리명', 'title': '세부 주제'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '활동 내용'},
+                {'name': 'q2', 'label': '활동 성과'},
+                {'name': 'q3', 'label': '기타 특이사항'}
+            ],
             'default_q': ['활동 내용', '활동 성과', '기타 특이사항']
         },
         '동아리활동 보고서': {
             'basic': {'section': '동아리명', 'title': '세부 주제'},
             'detail': {'date': '수업 학기', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '주요 활동'},
+                {'name': 'q2', 'label': '활동 성과'},
+                {'name': 'q3', 'label': '성장 포인트'}
+            ],
             'default_q': ['주요 활동', '활동 성과', '성장 포인트']
         },
+
+        # --- 6. 진로활동 ---
         '진로수업 일지': {
             'basic': {'section': '진로활동명', 'title': '세부 주제'},
             'detail': {'date': '수업 일시', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '수업 활동'},
+                {'name': 'q2', 'label': '수업 주제'},
+                {'name': 'q3', 'label': '수업 소감'}
+            ],
             'default_q': ['수업 활동', '수업 주제', '수업 소감']
         },
         '진로수업 학기말 보고서': {
             'basic': {'section': '진로활동명', 'title': '세부 주제'},
             'detail': {'date': '수업 학기', 'content': '평가 문항'},
             'ai_info': [],
+            'textareas': [
+                {'name': 'q1', 'label': '주요 수업 활동'},
+                {'name': 'q2', 'label': '수업 성장 내용'},
+                {'name': 'q3', 'label': '진로 계획'}
+            ],
             'default_q': ['주요 수업 활동', '수업 성장 내용', '진로 계획']
         },
     }
-    return configs.get(sub_menu, configs['과목별 수행평가'])
+    
+    # 기본값 설정 (매칭되지 않을 때)
+    default_config = {
+        'basic': {'section': '활동명', 'title': '주제'},
+        'detail': {'date': '일시', 'content': '내용'},
+        'ai_info': [],
+        'textareas': [{'name': 'q1', 'label': '활동 상세 내용'}],
+        'default_q': ['문항 1', '문항 2', '문항 3']
+    }
+    
+    return configs.get(sub_menu, default_config)
 
 # 통합 생성 페이지 (카테고리와 소메뉴에 따라 유동적으로 필드 라벨과 저장 로직 변경)
 @login_required
@@ -1067,7 +1153,7 @@ def unified_create(request):
 
         # (2) 섹션 2: 여러 서술형 입력창 내용 합치기 (question 필드용)
         merged_content = ""
-        for area in config['textareas']:
+        for area in config.get('textareas', []): 
             val = request.POST.get(area['name'], '').strip()
             if val:
                 merged_content += f"[{area['label']}]\n{val}\n\n"
