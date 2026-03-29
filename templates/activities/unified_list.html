@@ -10,7 +10,7 @@
                 <i class="bi bi-collection-play text-primary me-2"></i> 
                 {{ category_name }} 관리
             </h3>
-            <p class="text-muted small mb-0">선택하신 영역의 평가 및 활동 목록입니다. 주제를 클릭하면 상세 수정이 가능합니다.</p>
+            <p class="text-muted small mb-0">주제를 클릭하면 상세 내용 확인 및 수정이 가능합니다.</p>
         </div>
         
         <a href="{% url 'unified_create' %}?category={{ cat_code }}&sub={{ sub_menu }}" 
@@ -28,10 +28,12 @@
                     <thead class="table-light border-bottom">
                         <tr class="text-center text-muted small">
                             <th style="width: 60px;">번호</th>
-                            <th class="text-start" style="width: 160px;">분류</th>
-                            <th class="text-start">주제 및 상세 (클릭 시 상세/수정)</th>
+                            <!-- 생성 페이지의 기본정보 라벨을 그대로 가져옴 -->
+                            <th style="width: 180px;">{{ config.basic.section }}</th>
+                            <th class="text-start">{{ config.basic.title }} (클릭 시 수정)</th>
+                            
                             <th style="width: 120px;">상태(On/Off)</th>
-                            <th style="width: 160px;">일정</th>
+                            <th style="width: 150px;">제출 기한</th>
                             <th style="width: 100px;">제출현황</th>
                             <th style="width: 320px;">관리 도구</th>
                         </tr>
@@ -42,19 +44,15 @@
                             <!-- 번호 -->
                             <td class="text-secondary small">{{ forloop.revcounter }}</td>
                             
-                            <!-- 분류 -->
-                            <td class="text-start">
-                                <span class="badge bg-purple-subtle text-purple mb-1" style="font-size: 0.7rem;">
-                                    {{ act.get_category_display }}
-                                </span><br>
-                                <small class="text-muted fw-bold">{{ act.sub_category }}</small>
+                            <!-- [변경] 섹션 정보 (과목명, 동아리명 등) -->
+                            <td>
+                                <span class="fw-bold text-dark">{{ act.section }}</span>
                             </td>
                             
-                            <!-- 주제 및 상세 (상세페이지 연결) -->
+                            <!-- [변경] 타이틀 정보 (평가영역, 활동주제 등) -->
                             <td class="text-start">
                                 <a href="{% url 'activity_detail' act.id %}" class="text-decoration-none d-block">
-                                    <div class="fw-bold text-dark hover-title mb-1">{{ act.title }}</div>
-                                    <div class="text-muted x-small"><i class="bi bi-tag me-1"></i>{{ act.section }}</div>
+                                    <div class="fw-bold text-dark hover-title">{{ act.title }}</div>
                                 </a>
                             </td>
 
@@ -69,10 +67,10 @@
                                 </a>
                             </td>
 
-                            <!-- 일정 -->
-                            <td class="text-start small">
-                                <div class="mb-1"><span class="badge bg-light text-dark p-1 me-1">수업</span>{{ act.activity_date|date:"m/d H:i" }}</div>
-                                <div><span class="badge bg-light text-danger p-1 me-1">기한</span>{{ act.deadline|date:"m/d H:i" }}</div>
+                            <!-- 제출 기한 -->
+                            <td class="text-secondary small">
+                                <i class="bi bi-clock-history me-1"></i>
+                                {{ act.deadline|date:"Y-m-d H:i"|default:"기한 없음" }}
                             </td>
 
                             <!-- 제출 숫자 -->

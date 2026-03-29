@@ -926,8 +926,11 @@ def creative_delete(request, pk):
 def unified_list(request):
     # 1. URL 파라미터에서 카테고리 코드를 가져옴 (예: ?category=CLUB)
     cat_code = request.GET.get('category', 'ESSAY')
-    sub_name = request.GET.get('sub') # URL에서 sub 값을 가져옴
+    sub_name = request.GET.get('sub', '과목별 수행평가') # 기본값 설정
     
+    # 현재 메뉴에 맞는 라벨 설정 가져오기
+    config = get_form_config(sub_name)
+
     activities = Activity.objects.filter(teacher=request.user, category=cat_code)
 
     # 소메뉴(sub) 정보가 있다면 한 번 더 필터링
@@ -945,6 +948,7 @@ def unified_list(request):
         'category_name': display_name,
         'cat_code': cat_code,
         'sub_menu': sub_name    # 템플릿의 버튼 링크 생성용
+        'config': config  # 템플릿에서 머리글로 사용하기 위해 전달
     })
 
 # 통합 생성/수정 페이지 (카테고리와 소메뉴에 따라 유동적으로 필드 라벨과 저장 로직 변경)
