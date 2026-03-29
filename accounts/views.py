@@ -12,6 +12,7 @@ from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from django.db import transaction   # 트랜잭션 처리를 위해 필요
 import requests
 import random
+from activities.views import get_form_config
 import openai
 import pandas as pd
 import io
@@ -31,7 +32,7 @@ def dashboard(request):
     user = request.user
     context = {}
     print(f"--- DASHBOARD 진입: {user.name} (Role: {user.role}) ---", flush=True)
-    # 2. 학생(STUDENT) 로직
+    # ---- 학생(STUDENT) 로직 ----
     if user.role == 'STUDENT':
         print(f"DEBUG: {user.name}님은 학생 로직으로 진입합니다.", flush=True)
         student_profile = Student.objects.filter(email=user.email).first()
@@ -45,6 +46,7 @@ def dashboard(request):
 
             # 전체 리스트에 대해서도 제출 여부 체크
             for activity in base_query:
+                activity.form_config = get_form_config(activity.sub_category)
                 activity.has_submitted = Answer.objects.filter(
                     student=student_profile, 
                     question__activity=activity,
@@ -54,7 +56,7 @@ def dashboard(request):
                 # 제출 완료된 경우 카운트 증가
                 if activity.has_submitted:
                     completed_count += 1
-                
+            
             # 교사용과 동일하게 카테고리별로 묶기
             category_blocks = []
             seen_categories = []
@@ -102,9 +104,14 @@ def dashboard(request):
             if clean_cat not in seen_categories:
                 if len(seen_categories) < 7: # 7개로 확장 권장
                     seen_categories.append(clean_cat)
+                    # 해당 카테고리의 아이템들을 가져온 후, 각각 config를 심어줍니다.
+                    items = my_activities.filter(category__icontains=clean_cat)
+                    for item in items:
+                        item.form_config = get_form_config(item.sub_category)
+                    
                     category_blocks.append({
                         'name': act.get_category_display(),
-                        'items': my_activities.filter(category__icontains=clean_cat)
+                        'items': items # config가 포함된 items를 넣습니다.
                     })
         context['category_blocks'] = category_blocks
 
