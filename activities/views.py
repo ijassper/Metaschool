@@ -947,7 +947,7 @@ def unified_list(request):
         'activities': activities.order_by('-created_at'),
         'category_name': display_name,
         'cat_code': cat_code,
-        'sub_menu': sub_name    # 템플릿의 버튼 링크 생성용
+        'sub_menu': sub_name,    # 템플릿의 버튼 링크 생성용
         'config': config  # 템플릿에서 머리글로 사용하기 위해 전달
     })
 
