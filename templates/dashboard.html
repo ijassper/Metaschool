@@ -97,13 +97,10 @@
 
     .card-row-bottom { 
         display: flex; 
-        justify-content: space-between; 
         align-items: center; 
-        font-size: 0.7rem; 
-        color: #adb5bd; 
-        margin-top: 6px; 
-        padding-top: 6px; 
-        border-top: 1px solid rgba(0,0,0,0.03); 
+        margin-top: 0 !important;   /* 위쪽 간격 제거 */
+        padding-top: 0 !important;  /* 위쪽 패딩 제거 */
+        border: none !important;    /* 구분선 제거 */
     }
     
     /* 우측 상단 강조 텍스트 스타일 */
@@ -112,21 +109,21 @@
         color: #8E44AD;
         font-size: 0.75rem;
     }
-    
+
     .item-title { 
         font-weight: 800; 
         font-size: 0.95rem; 
         color: #212529; 
         line-height: 1.3; 
-        margin-top: 4px;
-        margin-bottom: 5px;    /* [수정] 15px -> 5px로 대폭 축소 */
-        min-height: 1.2rem;    /* [수정] 2.8rem -> 2.2rem으로 줄여서 공백 제거 */
+        margin-top: 2px;        /* 상단 여백 축소 */
+        margin-bottom: 2px;    /* 하단 여백 축소 */
+        min-height: 1.2rem;    /* 높이 최소화 */
     }
     .section-text { flex-grow: 1; overflow: hidden; text-truncate: ellipsis; white-space: nowrap; }
 
     /* 상태 배지 */
     .status-badge {
-        padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
+        padding: 2px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700;
     }
     .status-active { background-color: #EBFBEE; color: #2F9E44; }
     .status-waiting { background-color: #F1F3F5; color: #868E96; }
@@ -171,8 +168,8 @@
 
                             <!-- 우측 상단 강조 텍스트 (자율활동은 영역, 교과는 과목) -->
                             <span class="subject-tag">
-                                {% if act.category == 'ESSAY' or act.category == 'SUBJECT_ACTIVITY' %}
-                                    {{ act.subject_name }}
+                                {% if 'ESSAY' in act.category or 'SUBJECT_ACTIVITY' in act.category %}
+                                    {{ act.subject_name|default:"과목 미지정" }}
                                 {% else %}
                                     {{ act.section }}
                                 {% endif %}
@@ -180,17 +177,17 @@
                         </div>
                         
                         <!-- 중앙: 활동 제목 -->
-                        <div class="item-title">{{ act.title }}</div>
+                        <div class="item-title mb-1">{{ act.title }}</div>
 
                         <!-- 2행: 설정된 라벨(평가영역/활동주제 등) | 상태 | 날짜 -->
-                        <div class="card-row-bottom pt-2">
-                            <span class="section-text text-dark fw-bold small">
+                        <div class="card-row-bottom border-0 pt-0 mt-0">
+                            <div class="ms-auto d-flex align-items-center gap-2">
                                 {{ act.form_config.basic.title }}: {{ act.title|truncatechars:10 }}
                             </span>
                             <span class="status-badge {% if act.status_text == '진행중' %}status-active{% else %}status-waiting{% endif %}">
                                 {{ act.status_text }}
                             </span>
-                            <span class="small">{{ act.created_at|date:"m-d" }}</span>
+                            <span class="text-muted" style="font-size: 0.65rem;">{{ act.created_at|date:"m-d" }}</span>
                         </div>
                     </div>
                     {% endfor %}
