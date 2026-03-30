@@ -2,30 +2,24 @@
 
 {% block content %}
 <style>
-    /* 1. 상단 헤더 여백 축소 */
-    .dashboard-header {
-        margin-bottom: 1.5rem !important; /* mb-5를 mb-3 정도로 축소하는 효과 */
-    }
-
-    /* 대시보드 그리드 레이아웃 (최대 5개 블록 배치) */
+    /* 1. 대시보드 전체 레이아웃 (4열 고정) */
     .dashboard-grid {
         display: grid;
-        /* 화면 크기에 따라 1개~3개씩 배치 (최대 5개 블록 대응) 
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));*/
-        grid-template-columns: repeat(4, 1fr); /* 무조건 4열 */
-        gap: 15px;
+        /* 화면이 넓을 때 무조건 4열 배치 */
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
         align-items: start;
+        width: 100%;
     }
 
-    /* 2. 카테고리 블록 디자인 (높이 고정) */
+    /* 2. 카테고리 블록 (파스텔 박스) */
     .category-block {
-        border-radius: 20px;
-        padding: 15px;
-        height: 580px; /* 블록 전체 높이 고정 */
+        border-radius: 24px;
+        padding: 15px; /* 패딩 축소 */
+        height: 600px; /* 블록 높이 유지 */
         display: flex;
         flex-direction: column;
         border: none;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.02);
     }
 
     /* 파스텔 배경색 적용 */
@@ -71,20 +65,18 @@
 
     /* 3. 개별 평가 카드 내부 레이아웃 */
     .eval-item-card {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.8);
         border-radius: 16px;
-        padding: 12px 15px; /* 카드 내부 패ding 축소 */
-        margin-bottom: 10px; /* 카드 간 간격 축소 */
-        border: 2px solid transparent; /* 테두리 두께를 2px로 해서 효과를 더 명확히 함 */
-        transition: all 0.2s ease;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        border: 2px solid transparent;
+        transition: 0.2s;
         cursor: pointer;
     }
     .eval-item-card:hover {
         background: #ffffff;
-        border-color: var(--ingrid-primary);
         transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(0,0,0,0.05);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
     }
 
     /* 라벨 없이 텍스트만 깔끔하게 배치 */
@@ -92,15 +84,18 @@
         display: flex; 
         justify-content: space-between; 
         align-items: center;
-        margin-bottom: 4px; 
+        margin-bottom: 2px; 
     }
+    .sub-cat-text { font-size: 0.7rem; font-weight: 700; color: #8E44AD; }
+    .subject-tag { font-size: 0.75rem; font-weight: 800; color: #8E44AD; }
+
 
     .card-row-bottom { 
         display: flex; 
+        justify-content: flex-end; /* 오른쪽으로 밀기 */
         align-items: center; 
-        margin-top: 0 !important;   /* 위쪽 간격 제거 */
-        padding-top: 0 !important;  /* 위쪽 패딩 제거 */
-        border: none !important;    /* 구분선 제거 */
+        gap: 8px;
+        margin-top: 0;
     }
     
     /* 우측 상단 강조 텍스트 스타일 */
@@ -131,8 +126,7 @@
     /* 브랜드 컬러 클래스 추가 (설정 아이콘용) */
     .text-ingrid { color: #8E44AD !important; }
 
-    @media (max-width: 1600px) { .dashboard-grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 1200px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 1400px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
 
 <div class="container-fluid px-4 py-2">
@@ -149,10 +143,10 @@
     <div class="dashboard-grid">
         {% for block in category_blocks %}
             <!-- 파스텔 색상을 순서대로 적용 (Django cycle 태그 활용) -->
-            <div class="category-block {% cycle 'pastel-purple' 'pastel-blue' 'pastel-green' 'pastel-yellow' 'pastel-orange' 'pastel-red' 'pastel-pink' %} shadow-sm">
-                <div class="block-header">
-                    <span class="block-title">{{ block.name }}</span>
-                    <span class="badge rounded-pill bg-white text-dark shadow-sm px-2">{{ block.items|length }}건</span>
+            <div class="category-block shadow-sm {% cycle 'pastel-purple' 'pastel-blue' 'pastel-green' 'pastel-yellow' 'pastel-orange' 'pastel-red' 'pastel-pink' %}">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="fw-bold" style="font-size: 1rem; color:#495057;">{{ block.name }}</span>
+                    <span class="badge bg-white text-dark shadow-sm">{{ block.items|length }}</span>
                 </div>
                 
                 <!-- 평가 리스트 영역: 3개 이상일 때 작동 -->
@@ -162,14 +156,12 @@
                         <!-- 1행: 설정된 라벨(과목명/동아리명 등) | 실제 데이터 -->
                         <div class="card-row-top">
                             <!-- '소메뉴 이름' 출력 -->
-                            <span class="text-primary fw-bold" style="font-size: 0.75rem;">
-                                {{ act.sub_category|default:act.get_category_display }}
-                            </span>
+                            <span class="sub-cat-text">{{ act.sub_category|default:act.get_category_display }}</span>
 
                             <!-- 우측 상단 강조 텍스트 (자율활동은 영역, 교과는 과목) -->
                             <span class="subject-tag">
-                                {% if 'ESSAY' in act.category or 'SUBJECT_ACTIVITY' in act.category %}
-                                    {{ act.subject_name|default:"과목 미지정" }}
+                                {% if 'ESSAY' in act.category or 'SUBJECT' in act.category %}
+                                    {{ act.subject_name|default:"-" }}
                                 {% else %}
                                     {{ act.section }}
                                 {% endif %}
@@ -177,13 +169,10 @@
                         </div>
                         
                         <!-- 중앙: 활동 제목 -->
-                        <div class="item-title mb-1">{{ act.title }}</div>
+                        <div class="item-title">{{ act.title }}</div>
 
                         <!-- 2행: 설정된 라벨(평가영역/활동주제 등) | 상태 | 날짜 -->
-                        <div class="card-row-bottom border-0 pt-0 mt-0">
-                            <div class="ms-auto d-flex align-items-center gap-2">
-                                {{ act.form_config.basic.title }}: {{ act.title|truncatechars:10 }}
-                            </span>
+                        <div class="card-row-bottom">
                             <span class="status-badge {% if act.status_text == '진행중' %}status-active{% else %}status-waiting{% endif %}">
                                 {{ act.status_text }}
                             </span>
