@@ -75,7 +75,7 @@
     /* 카드 텍스트 정렬 */
     .card-row-top { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 8px; }
     .sub-cat-label { color: #8E44AD; font-weight: 800; }
-    .teacher-label { color: #adb5bd; }
+    .teacher-label { color: #4a4e52; }
 
     .item-title { font-weight: 800; font-size: 1rem; color: #212529; line-height: 1.4; min-height: 2.2rem; margin-bottom: 10px; }
 
@@ -133,7 +133,7 @@
                     <!-- 1행: 소메뉴 | 담당선생님 -->
                     <div class="card-row-top">
                         <span class="sub-cat-label">{{ act.sub_category|default:act.get_category_display }}</span>
-                        <span class="teacher-label"><i class="bi bi-person-circle"></i> {{ act.teacher.name }}</span>
+                        <span class="teacher-label"><i class="bi bi-person-circle"></i> {{ act.teacher.name }} 선생님</span>
                     </div>
 
                     <!-- 중앙: 주제 (텍스트만 굵게) -->
@@ -141,7 +141,7 @@
 
                     <!-- 2행: 기한 | 상태 -->
                     <div class="card-row-bottom">
-                        <span><i class="bi bi-clock"></i> {{ act.deadline|date:"m/d H:i"|default:"기한없음" }}</span>
+                        <span class="teacher-label"><i class="bi bi-clock"></i> {{ act.deadline|date:"m/d H:i"|default:"기한없음" }}</span>
                         {% if act.has_submitted %}
                             <span class="status-badge status-done">제출 완료</span>
                         {% else %}
