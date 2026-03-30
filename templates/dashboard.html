@@ -84,10 +84,27 @@
 
     /* 라벨 없이 텍스트만 깔끔하게 배치 */
     .card-row-top { display: flex; justify-content: space-between; font-size: 0.75rem; color: #868e96; margin-bottom: 8px; }
-    .card-row-bottom { display: flex; align-items: center; gap: 10px; font-size: 0.75rem; color: #adb5bd; margin-top: 12px; border-top: 1px solid rgba(0,0,0,0.03); pt-2; }
+    .card-row-bottom { 
+        display: flex; 
+        align-items: center; 
+        gap: 10px; 
+        font-size: 0.75rem; 
+        color: #adb5bd; 
+        margin-top: 5px;       /* [수정] 상단 여백 축소 */
+        padding-top: 8px;      /* 선과의 간격 살짝 조정 */
+        border-top: 1px solid rgba(0,0,0,0.03); 
+    }
     
     .subject-tag { color: var(--ingrid-primary); font-weight: 700; }
-    .item-title { font-weight: 800; font-size: 0.95rem; color: #212529; line-height: 1.4; min-height: 2.8rem; }
+    .item-title { 
+        font-weight: 800; 
+        font-size: 0.95rem; 
+        color: #212529; 
+        line-height: 1.3; 
+        margin-top: 5px;
+        margin-bottom: 5px;    /* [수정] 15px -> 5px로 대폭 축소 */
+        min-height: 2.2rem;    /* [수정] 2.8rem -> 2.2rem으로 줄여서 공백 제거 */
+    }
     .section-text { flex-grow: 1; overflow: hidden; text-truncate: ellipsis; white-space: nowrap; }
 
     /* 상태 배지 */
@@ -130,8 +147,15 @@
                     <div class="eval-item-card" onclick="location.href='{% url 'activity_result' act.id %}'">
                         <!-- 1행: 설정된 라벨(과목명/동아리명 등) | 실제 데이터 -->
                         <div class="card-row-top">
-                            <span class="text-muted small">{{ act.form_config.basic.section }}</span>
-                            <span class="subject-tag">{{ act.section }}</span> <!-- 실제 DB에 저장된 값 -->
+                            <!-- '소메뉴 이름' 출력 -->
+                            <span class="text-primary fw-bold" style="font-size: 0.75rem;">
+                                {{ act.sub_category|default:act.get_category_display }}
+                            </span>
+
+                            <!-- 우측 상단 강조 텍스트 (자율활동은 영역, 교과는 과목) -->
+                            <span class="subject-tag">
+                                {% if act.category == 'CREATIVE' %}{{ act.section }}{% else %}{{ act.subject_name }}{% endif %}
+                            </span>
                         </div>
                         
                         <!-- 중앙: 활동 제목 -->
