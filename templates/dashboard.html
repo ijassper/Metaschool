@@ -161,14 +161,14 @@
                         
                         <!-- 중앙: 주제 및 상세 영역 (위계 분리) -->
                         <div class="item-title">
-                            <span class="main-title-text">{{ act.section|default:"일반 활동" }}</span>
-                            <span class="section-sub-text">
-                                <i class="bi bi-tag-fill small me-1">{{ act.title }}</i>
-                            </span>
+                            {{ act.section|default:"일반 활동" }}
                         </div>
 
                         <!-- 2행: 설정된 라벨(평가영역/활동주제 등) | 상태 | 날짜 -->
                         <div class="card-row-bottom">
+                            <span class="section-sub-text">
+                                <i class="bi bi-tag-fill small me-1">{{ act.title }}</i>
+                            </span>
                             <span class="status-badge {% if act.status_text == '진행중' %}status-active{% else %}status-waiting{% endif %}">
                                 {{ act.status_text }}
                             </span>
