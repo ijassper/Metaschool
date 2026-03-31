@@ -106,37 +106,46 @@
         color: #6c757d; /* 과목명/영역명은 보조 색상으로 */
     }
 
-    /* 3. 하단 메타 정보 영역 */
+    /* 하단 메타 정보 영역 - 3분할 그리드 적용 */
     .card-row-bottom {
-        display: flex;
-        flex-wrap: wrap; /* 모바일 대응 */
+        display: grid;
+        grid-template-columns: 1fr auto 1fr; /* 좌(1):중(auto):우(1) 비율로 정중앙 보장 */
         align-items: center;
-        gap: 12px;
         margin-top: 15px;
         padding-top: 12px;
-        border-top: 1px dashed #eee; /* 구분선을 점선으로 하여 가벼운 느낌 부여 */
+        border-top: 1px dashed #eee;
     }
 
-    .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
+    /* 기한 (왼쪽 정렬) */
+    .meta-deadline {
         font-size: 0.75rem;
         color: #868e96;
+        text-align: left;
     }
-    .meta-item i {
-        color: #adb5bd;
+
+    /* 선생님 성함 (중앙 강조) */
+    .meta-teacher-center {
         font-size: 0.85rem;
+        font-weight: 800; /* 아주 진하게 */
+        color: #24282c;   /* 깊은 검정색 */
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background-color: #f8f9ff; /* 살짝 배경을 주어 돋보이게 함 */
+        padding: 2px 10px;
+        border-radius: 8px;
+    }
+    .meta-teacher-center i {
+        color: #8E44AD; /* 아이콘은 브랜드 컬러 */
     }
     
-    /* 4. 상태 배지 고도화 */
+    /* 상태 배지 (오른쪽 정렬) */
     .status-badge {
-        margin-left: auto; /* 상태 배지를 오른쪽 끝으로 밀기 */
+        justify-self: end; /* 그리드 내 우측 정렬 */
         font-size: 0.7rem;
         font-weight: 800;
         padding: 5px 12px;
         border-radius: 20px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     .status-ready { background-color: #E7F5FF; color: #0D6EFD; }
     .status-done { background-color: #EBFBEE; color: #2F9E44; }
@@ -192,23 +201,23 @@
 
                     <!-- 중앙: 주제 및 상세 영역 (위계 분리) -->
                     <div class="item-title">
-                        <span class="main-title-text">{{ act.title }}</span>
+                        <span class="main-title-text">{{ act.section|default:"일반 활동" }}</span>
                         <span class="section-sub-text">
-                            <i class="bi bi-tag-fill small me-1"></i>{{ act.section|default:"일반 활동" }}
+                            <i class="bi bi-tag-fill small me-1">{{ act.title }}</i>
                         </span>
                     </div>
 
                     <!-- 2행: 기한 | 선생님 | 상태 -->
                     <div class="card-row-bottom">
                         <!-- 기한 정보 -->
-                        <div class="meta-item">
-                            <i class="bi bi-clock"></i>
-                            <span>{{ act.deadline|date:"m/d H:i"|default:"기한없음" }}</span>
+                        <div class="meta-deadline">
+                            <i class="bi bi-clock me-1"></i>
+                            {{ act.deadline|date:"m/d H:i"|default:"기한없음" }}
                         </div>
 
                         <!-- 선생님 정보 -->
-                        <div class="meta-item">
-                            <i class="bi bi-person-circle"></i>
+                        <div class="meta-teacher-center">
+                            <i class="bi bi-person-fill"></i>
                             <span>{{ act.teacher.name }} 선생님</span>
                         </div>
 
