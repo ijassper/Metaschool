@@ -144,46 +144,73 @@ def create_test(request):
 # 3. 평가 수정
 @login_required
 @teacher_required
-def update_test(request, activity_id):
+def unified_update(request, activity_id):
+    # 1. 기존 데이터 불러오기
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
-    question = activity.questions.first() 
+    
+    # 2. 저장된 소메뉴명을 바탕으로 설정(라벨 등) 가져오기
+    sub_menu = activity.sub_category if activity.sub_category else "과목별 수행평가"
+    config = get_form_config(sub_menu)
+    category_name = dict(Activity.CATEGORY_CHOICES).get(activity.category, "평가/활동")
 
     if request.method == 'POST':
-        a_form = ActivityForm(request.POST, instance=activity)
-        q_form = QuestionForm(request.POST, instance=question)
-        selected_student_ids = request.POST.getlist('target_students')
+        # [데이터 파싱 함수]
+        def parse_dt(dt_str):
+            if not dt_str: return None
+            try:
+                clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
+                return make_aware(datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M"))
+            except: return None
 
-        if a_form.is_valid() and q_form.is_valid():
-            # [중요] 수정 시에도 수동 필드 업데이트 필요
-            activity = a_form.save(commit=False)
-            
-            # 작성 분량 처리
-            char_limit_raw = request.POST.get('char_limit', '').strip()
-            activity.char_limit = int(char_limit_raw) if char_limit_raw else 0
-            
-            # 응시 환경 유형 처리
-            activity.exam_mode = request.POST.get('exam_mode', 'CLOSED')
-            
-            activity.save() # 변경사항 반영
-            
-            # 학생 대상 업데이트
-            activity.target_students.set(selected_student_ids)
-            q_form.save()
-            
-            messages.success(request, "평가 정보가 수정되었습니다.")
-            return redirect(f'/activities/list/?category={activity.category}&sub={activity.sub_category}')
-    else:
-        a_form = ActivityForm(instance=activity)
-        q_form = QuestionForm(instance=question)
+        # [섹션 2: 여러 서술형 내용 합치기]
+        merged_content = ""
+        for area in config.get('textareas', []):
+            val = request.POST.get(area['name'], '').strip()
+            if val:
+                merged_content += f"[{area['label']}]\n{val}\n\n"
 
-    student_tree = get_student_tree(request.user)
+        # [데이터 업데이트]
+        activity.section = request.POST.get('section')
+        activity.title = request.POST.get('title')
+        activity.question = merged_content
+        activity.reference_material = request.POST.get('reference_material')
+        activity.conditions = request.POST.get('conditions')
+        activity.char_limit = int(request.POST.get('char_limit', 0))
+        activity.exam_mode = request.POST.get('exam_mode')
+        activity.achievement_standard = request.POST.get('achievement_standard', '')
+        activity.evaluation_elements = request.POST.get('evaluation_elements', '')
+        activity.q1_title = request.POST.get('q1_title')
+        activity.q2_title = request.POST.get('q2_title')
+        activity.q3_title = request.POST.get('q3_title')
+        
+        if request.POST.get('activity_date'):
+            activity.activity_date = parse_dt(request.POST.get('activity_date'))
+        if request.POST.get('deadline'):
+            activity.deadline = parse_dt(request.POST.get('deadline'))
+            
+        if request.FILES.get('attachment'):
+            activity.attachment = request.FILES.get('attachment')
+
+        activity.save()
+
+        # [학생 매칭 업데이트]
+        target_ids = request.POST.getlist('target_students')
+        activity.target_students.set(target_ids)
+
+        messages.success(request, "수정이 완료되었습니다.")
+        return redirect(f'/activities/list/?category={activity.category}&sub={sub_menu}')
+
+    # 3. GET 요청 시: 기존 선택된 학생 ID 리스트 준비
     current_targets = list(activity.target_students.values_list('id', flat=True))
 
     return render(request, 'activities/unified_form.html', {
-        'a_form': a_form, 'q_form': q_form, 'action': '수정',
-        'student_tree': student_tree,
-        'current_targets': current_targets,
-        'activity': activity # 템플릿에서 activity.exam_mode 등을 참조하기 위해 추가
+        'activity': activity, # 기존 데이터 전달
+        'sub_menu': sub_menu,
+        'config': config,
+        'category_name': category_name,
+        'current_targets': current_targets, # 체크된 학생들
+        'student_tree': get_student_tree(request.user),
+        'action': '수정' # 생성/수정 구분자
     })
 
 # 4. 평가 삭제
