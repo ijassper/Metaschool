@@ -216,11 +216,23 @@ def unified_update(request, activity_id):
 # 4. 평가 삭제
 @login_required
 @teacher_required
-def delete_test(request, activity_id):
+def unified_delete(request, activity_id):
+    # 1. 삭제할 활동 데이터 불러오기
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+
+    # 2. [핵심] 삭제 전 리다이렉트에 필요한 카테고리 정보를 미리 변수에 담아둡니다.
+    cat_code = activity.category
+    sub_menu = activity.sub_category
+
+    # 3. 실제 삭제 수행
     activity.delete()
-    messages.success(request, "평가가 삭제되었습니다.")
-    return redirect('unified_list')
+    
+    # 4. 안내 메시지 처리
+    messages.success(request, "평가활동이 성공적으로 삭제되었습니다.")
+
+    # 5. [중요] 삭제 전 보관했던 파라미터를 붙여서 '원래 보던 목록'으로 보내줍니다.
+    # 이렇게 해야 동아리 삭제 후 다시 동아리 목록이 나옵니다.
+    return redirect(f'/activities/list/?category={cat_code}&sub={sub_menu}')
 
 # 5. 평가 상태 토글 (시작 <-> 마감)
 @login_required

@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    unified_create, unified_list, create_test, activity_list, unified_update, delete_test, 
+    unified_create, unified_list, create_test, activity_list, unified_update, unified_delete, 
     toggle_activity_status, activity_detail, activity_result, take_test,
     answer_detail, answer_delete, save_note, update_absence, log_activity,
     activity_analysis, integrated_analysis, activity_analysis_work, api_process_db_row,
@@ -14,7 +14,7 @@ urlpatterns = [
     path('list/', unified_list, name='unified_list'), # 통합 목록
     path('create/', unified_create, name='unified_create'), # 통합 생성
     path('update/<int:activity_id>/', unified_update, name='activity_update'), # 수정
-    path('delete/<int:activity_id>/', delete_test, name='delete_test'), # 삭제
+    path('delete/<int:activity_id>/', unified_delete, name='unified_delete'), # 삭제
     path('toggle/<int:activity_id>/', toggle_activity_status, name='toggle_activity_status'),   # 상태
     path('detail/<int:activity_id>/', activity_detail, name='activity_detail'), # 상세페이지
     path('result/<int:activity_id>/', activity_result, name='activity_result'), # 결과
