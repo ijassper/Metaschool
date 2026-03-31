@@ -157,19 +157,15 @@
                         <div class="card-row-top">
                             <!-- '소메뉴 이름' 출력 -->
                             <span class="sub-cat-text">{{ act.sub_category|default:act.get_category_display }}</span>
-
-                            <!-- 우측 상단 강조 텍스트 (자율활동은 영역, 교과는 과목) -->
-                            <span class="subject-tag">
-                                {% if 'ESSAY' in act.category or 'SUBJECT' in act.category %}
-                                    {{ act.subject_name|default:"-" }}
-                                {% else %}
-                                    {{ act.section }}
-                                {% endif %}
-                            </span>
                         </div>
                         
-                        <!-- 중앙: 활동 제목 -->
-                        <div class="item-title">{{ act.title }}</div>
+                        <!-- 중앙: 주제 및 상세 영역 (위계 분리) -->
+                        <div class="item-title">
+                            <span class="main-title-text">{{ act.section|default:"일반 활동" }}</span>
+                            <span class="section-sub-text">
+                                <i class="bi bi-tag-fill small me-1">{{ act.title }}</i>
+                            </span>
+                        </div>
 
                         <!-- 2행: 설정된 라벨(평가영역/활동주제 등) | 상태 | 날짜 -->
                         <div class="card-row-bottom">
