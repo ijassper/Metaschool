@@ -89,13 +89,28 @@
     .sub-cat-text { font-size: 0.7rem; font-weight: 700; color: #8E44AD; }
     .subject-tag { font-size: 0.75rem; font-weight: 800; color: #8E44AD; }
 
+    .card-row-bottom {
+        display: flex;
+        justify-content: space-between; /* 양끝 정렬의 핵심 */
+        align-items: center;
+        margin-top: 4px;  /* 타이틀과의 간격 최소화 */
+        padding-top: 6px;
+        border-top: 1px solid rgba(0,0,0,0.03);
+    }
 
-    .card-row-bottom { 
-        display: flex; 
-        justify-content: flex-end; /* 오른쪽으로 밀기 */
-        align-items: center; 
-        gap: 8px;
-        margin-top: 0;
+    .section-sub-text {
+        font-size: 0.75rem;
+        color: #6c757d;
+        font-style: italic;
+        /* 글자가 너무 길어지면 오른쪽 요소를 침범하지 않도록 말줄임 처리 */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* 오른쪽 그룹 내 간격 */
+    .gap-2 {
+        gap: 0.5rem !important;
     }
     
     /* 우측 상단 강조 텍스트 스타일 */
@@ -164,15 +179,22 @@
                             {{ act.section|default:"일반 활동" }}
                         </div>
 
-                        <!-- 2행: 설정된 라벨(평가영역/활동주제 등) | 상태 | 날짜 -->
-                        <div class="card-row-bottom">
-                            <span class="section-sub-text">
-                                <i class="bi bi-tag-fill small me-1">{{ act.title }}</i>
+                        <!-- 2행: [왼쪽] 타이틀 | [오른쪽] 상태 및 날짜 -->
+                        <div class="card-row-bottom d-flex justify-content-between align-items-center">
+                            
+                            <!-- [왼쪽 정렬] 타이틀 변수 -->
+                            <span class="section-sub-text text-truncate" style="max-width: 140px;">
+                                <i class="bi bi-tag-fill small me-1"></i>{{ act.title }}
                             </span>
-                            <span class="status-badge {% if act.status_text == '진행중' %}status-active{% else %}status-waiting{% endif %}">
-                                {{ act.status_text }}
-                            </span>
-                            <span class="text-muted" style="font-size: 0.65rem;">{{ act.created_at|date:"m-d" }}</span>
+
+                            <!-- [오른쪽 정렬] 상태 및 날짜 그룹 -->
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="status-badge {% if act.status_text == '진행중' %}status-active{% else %}status-waiting{% endif %}">
+                                    {{ act.status_text }}
+                                </span>
+                                <span class="text-muted" style="font-size: 0.65rem;">{{ act.created_at|date:"m-d" }}</span>
+                            </div>
+
                         </div>
                     </div>
                     {% endfor %}
