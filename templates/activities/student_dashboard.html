@@ -55,7 +55,7 @@
     .eval-item-card {
         background: rgba(255, 255, 255, 0.75);
         backdrop-filter: blur(10px); border-radius: 18px;
-        padding: 16px; margin-bottom: 10px; border: 2px solid transparent;
+        padding: 10px; margin-bottom: 10px; border: 2px solid transparent;
         transition: 0.2s ease; cursor: pointer;
     }
     .eval-item-card:hover {
@@ -133,9 +133,9 @@
                     <!-- 1행: 소메뉴 | 담당선생님 -->
                     <div class="card-row-top">
                         <span class="sub-cat-label">{{ act.sub_category|default:act.get_category_display }}</span>
-                        {% if 'ESSAY' in act.category or 'SUBJECT' in act.category %}
-                            <span class="ms-1 text-secondary" style="font-weight: 400;">| {{ act.subject_name }}</span>
-                        {% endif %}
+                        
+                            <span class="ms-1 text-secondary" style="font-weight: 400;">{{ act.section|default:"-" }}</span>
+                        
                         <span class="teacher-label"><i class="bi bi-person-circle"></i> {{ act.teacher.name }} 선생님</span>
                     </div>
 
