@@ -79,12 +79,9 @@
         box-shadow: 0 5px 15px rgba(0,0,0,0.05);
     }
 
-    /* 라벨 없이 텍스트만 깔끔하게 배치 */
-    .card-row-top { 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center;
-        margin-bottom: 2px; 
+    /* 1. 상단 행 간격 조정 */
+    .card-row-top {
+        margin-bottom: 6px !important;
     }
     .sub-cat-text { font-size: 0.7rem; font-weight: 700; color: #8E44AD; }
     .subject-tag { font-size: 0.75rem; font-weight: 800; color: #8E44AD; }
@@ -120,20 +117,30 @@
         font-size: 0.75rem;
     }
 
-    .item-title { 
-        font-weight: 800; 
-        font-size: 0.95rem; 
-        color: #212529; 
-        line-height: 1.3; 
-        margin-top: 2px;        /* 상단 여백 축소 */
-        margin-bottom: 2px;    /* 하단 여백 축소 */
-        min-height: 1.2rem;    /* 높이 최소화 */
+    /* 2. 메인 타이틀 글씨 크기 및 강조 */
+    .item-title {
+        font-size: 1.0rem;
+        font-weight: 800;
+        color: #111;
+        letter-spacing: -0.5px;
+        margin: 0 !important;
     }
     .section-text { flex-grow: 1; overflow: hidden; text-truncate: ellipsis; white-space: nowrap; }
 
+     /* 3. 하단 상세 텍스트 (줄바꿈 허용으로 변경) */
+    .section-sub-text {
+        font-size: 0.8rem;
+        line-height: 1.4;
+        display: block;
+        word-break: keep-all; /* 단어 단위로 줄바꿈되어 깔끔함 */
+        /* text-truncate 관련 속성이 있다면 제거하거나 아래처럼 무력화하세요 */
+        white-space: normal !important; 
+        overflow: visible !important;
+    }
+
     /* 상태 배지 */
     .status-badge {
-        padding: 2px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700;
+        padding: 2px 6px; border-radius: 5px; font-size: 0.6rem; font-weight: 700;
     }
     .status-active { background-color: #EBFBEE; color: #2F9E44; }
     .status-waiting { background-color: #F1F3F5; color: #868E96; }
@@ -168,33 +175,32 @@
                 <div class="scroll-area">
                     {% for act in block.items %}
                     <div class="eval-item-card" onclick="location.href='{% url 'activity_result' act.id %}'">
-                        <!-- 1행: 설정된 라벨(과목명/동아리명 등) | 실제 데이터 -->
-                        <div class="card-row-top">
-                            <!-- '소메뉴 이름' 출력 -->
-                            <span class="sub-cat-text">{{ act.sub_category|default:act.get_category_display }}</span>
-                        </div>
-                        
-                        <!-- 중앙: 주제 및 상세 영역 (위계 분리) -->
-                        <div class="item-title">
-                            {{ act.section|default:"일반 활동" }}
-                        </div>
-
-                        <!-- 2행: [왼쪽] 타이틀 | [오른쪽] 상태 및 날짜 -->
-                        <div class="card-row-bottom d-flex justify-content-between align-items-center">
-                            
-                            <!-- [왼쪽 정렬] 타이틀 변수 -->
-                            <span class="section-sub-text text-truncate" style="max-width: 140px;">
-                                <i class="bi bi-tag-fill small me-1"></i>{{ act.title }}
+                        <!-- [1행] 소메뉴(좌) | 상태+날짜(우) -->
+                        <div class="card-row-top d-flex justify-content-between align-items-center mb-2">
+                            <!-- 왼쪽: 소메뉴명 -->
+                            <span class="sub-cat-text" style="font-size: 0.7rem; font-weight: 700; color: #8E44AD;">
+                                {{ act.sub_category|default:act.get_category_display }}
                             </span>
 
-                            <!-- [오른쪽 정렬] 상태 및 날짜 그룹 -->
+                            <!-- 오른쪽: 상태 배지 및 날짜 (이 부분이 위로 올라왔습니다) -->
                             <div class="d-flex align-items-center gap-2">
                                 <span class="status-badge {% if act.status_text == '진행중' %}status-active{% else %}status-waiting{% endif %}">
                                     {{ act.status_text }}
                                 </span>
                                 <span class="text-muted" style="font-size: 0.65rem;">{{ act.created_at|date:"m-d" }}</span>
                             </div>
+                        </div>
+                        
+                        <!-- [2행] 메인 타이틀 (과목명 혹은 영역명 - 아주 진하게) -->
+                        <div class="item-title mb-1" style="min-height: auto;">
+                            {{ act.section|default:"일반 활동" }}
+                        </div>
 
+                         <!-- [3행] 세부 상세 주제 (태그 아이콘과 함께 - 가로 전체 활용) -->
+                        <div class="card-row-bottom border-0 pt-1 mt-1">
+                            <span class="section-sub-text" style="white-space: normal; overflow: visible; font-style: normal; color: #495057;">
+                                <i class="bi bi-tag-fill small me-1 text-secondary"></i>{{ act.title }}
+                            </span>
                         </div>
                     </div>
                     {% endfor %}
