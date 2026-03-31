@@ -74,17 +74,70 @@
 
     /* 카드 텍스트 정렬 */
     .card-row-top { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 8px; }
-    .sub-cat-label { color: #8E44AD; font-weight: 800; }
+    
+    /* 1. 상단 소메뉴 태그 스타일 */
+    .sub-cat-label {
+        font-size: 0.75rem;
+        font-weight: 800;
+        color: #8E44AD; /* 인그리드 퍼플 */
+        background-color: rgba(142, 68, 173, 0.1);
+        padding: 2px 8px;
+        border-radius: 6px;
+        letter-spacing: -0.5px;
+    }
+
     .teacher-label { color: #4a4e52; }
 
-    .item-title { font-weight: 800; font-size: 1rem; color: #212529; line-height: 1.2; margin-bottom: 2px; }
+    /* 2. 중앙 타이틀 영역 */
+    .item-title {
+        margin: 12px 0;
+        line-height: 1.4;
+    }
+    .main-title-text {
+        display: block; /* 줄바꿈 처리로 가독성 확보 */
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #212529;
+        margin-bottom: 4px;
+    }
+    .section-sub-text {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #6c757d; /* 과목명/영역명은 보조 색상으로 */
+    }
 
-    .card-row-bottom { 
-        display: flex; justify-content: space-between; align-items: center; 
-        font-size: 0.75rem; color: #adb5bd; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.03); 
+    /* 3. 하단 메타 정보 영역 */
+    .card-row-bottom {
+        display: flex;
+        flex-wrap: wrap; /* 모바일 대응 */
+        align-items: center;
+        gap: 12px;
+        margin-top: 15px;
+        padding-top: 12px;
+        border-top: 1px dashed #eee; /* 구분선을 점선으로 하여 가벼운 느낌 부여 */
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75rem;
+        color: #868e96;
+    }
+    .meta-item i {
+        color: #adb5bd;
+        font-size: 0.85rem;
     }
     
-    .status-badge { font-size: 0.7rem; font-weight: 800; padding: 4px 10px; border-radius: 10px; }
+    /* 4. 상태 배지 고도화 */
+    .status-badge {
+        margin-left: auto; /* 상태 배지를 오른쪽 끝으로 밀기 */
+        font-size: 0.7rem;
+        font-weight: 800;
+        padding: 5px 12px;
+        border-radius: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
     .status-ready { background-color: #E7F5FF; color: #0D6EFD; }
     .status-done { background-color: #EBFBEE; color: #2F9E44; }
 
@@ -130,25 +183,40 @@
             <div class="scroll-area">
                 {% for act in block.items %}
                 <div class="eval-item-card" onclick="location.href='{% url 'take_test' act.id %}'">
-                    <!-- 1행: 소메뉴 | 담당선생님 -->
+                    <!-- 1행: 소메뉴 (태그 형태) -->
                     <div class="card-row-top">
-                        <span class="sub-cat-label">{{ act.sub_category|default:act.get_category_display }}</span>
-                        
-                            <span class="ms-1 text-secondary" style="font-weight: 400;">{{ act.section|default:"-" }}</span>
-                        
-                        <span class="teacher-label"><i class="bi bi-person-circle"></i> {{ act.teacher.name }} 선생님</span>
+                        <span class="sub-cat-label">
+                            {{ act.sub_category|default:act.get_category_display }}
+                        </span>
                     </div>
 
-                    <!-- 중앙: 주제 (텍스트만 굵게) -->
-                    <div class="item-title">{{ act.title }}</div>
+                    <!-- 중앙: 주제 및 상세 영역 (위계 분리) -->
+                    <div class="item-title">
+                        <span class="main-title-text">{{ act.title }}</span>
+                        <span class="section-sub-text">
+                            <i class="bi bi-tag-fill small me-1"></i>{{ act.section|default:"일반 활동" }}
+                        </span>
+                    </div>
 
-                    <!-- 2행: 기한 | 상태 -->
+                    <!-- 2행: 기한 | 선생님 | 상태 -->
                     <div class="card-row-bottom">
-                        <span class="teacher-label"><i class="bi bi-clock"></i> {{ act.deadline|date:"m/d H:i"|default:"기한없음" }}</span>
+                        <!-- 기한 정보 -->
+                        <div class="meta-item">
+                            <i class="bi bi-clock"></i>
+                            <span>{{ act.deadline|date:"m/d H:i"|default:"기한없음" }}</span>
+                        </div>
+
+                        <!-- 선생님 정보 -->
+                        <div class="meta-item">
+                            <i class="bi bi-person-circle"></i>
+                            <span>{{ act.teacher.name }} 선생님</span>
+                        </div>
+
+                        <!-- 상태 표시 (오른쪽 정렬됨) -->
                         {% if act.has_submitted %}
-                            <span class="status-badge status-done">제출 완료</span>
+                            <span class="status-badge status-done">제출 완료 <i class="bi bi-check-all"></i></span>
                         {% else %}
-                            <span class="status-badge status-ready">응시 가능</span>
+                            <span class="status-badge status-ready">응시 가능 <i class="bi bi-arrow-right-short"></i></span>
                         {% endif %}
                     </div>
                 </div>
