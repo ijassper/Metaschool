@@ -1,136 +1,170 @@
 {% extends 'base.html' %}
-{% load static %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- 상단 액션바: 목록 가기 및 수정/삭제 -->
+<style>
+    /* 대시보드 스타일 계승 */
+    .detail-wrapper {
+        border-radius: 30px;
+        padding: 40px;
+        min-height: 85vh;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    /* 카테고리별 파스텔 배경색 (모델 category 필드와 매칭) */
+    .bg-ESSAY { background-color: #FFE3E3 !important; } /* 레드/핑크 */
+    .bg-SUBJECT_ACTIVITY { background-color: #DDEBFF !important; } /* 블루 */
+    .bg-SCHOOL_EVENT { background-color: #FFF3BF !important; } /* 옐로우 */
+    .bg-CREATIVE { background-color: #D3F9E8 !important; } /* 그린 */
+    .bg-CLUB { background-color: #E9E2FF !important; } /* 퍼플 */
+    .bg-CAREER { background-color: #FFE8CC !important; } /* 오렌지 */
+
+    /* 글래스모피즘 카드 */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+    }
+
+    .info-label { font-size: 0.85rem; color: #666; font-weight: 600; width: 100px; display: inline-block; }
+    .info-value { font-size: 0.9rem; color: #111; font-weight: 700; }
+    
+    .content-box {
+        background: #ffffff;
+        border-radius: 15px;
+        padding: 20px;
+        min-height: 200px;
+        border: 1px solid #eee;
+        white-space: pre-wrap; /* 줄바꿈 유지 */
+    }
+
+    .badge-custom {
+        padding: 5px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;
+    }
+
+    /* AI 섹션 특화 (노란색 강조) */
+    .ai-info-card {
+        background: rgba(255, 249, 219, 0.8);
+        border: 1px solid #FFEC99;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- 상단 액션 바 -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <a href="{% url 'unified_list' %}?category={{ activity.category }}&sub={{ activity.sub_category }}" class="btn btn-outline-secondary rounded-pill px-3">
+        <a href="javascript:history.back()" class="btn btn-light rounded-pill px-3 shadow-sm">
             <i class="bi bi-arrow-left me-1"></i> 목록으로
         </a>
         <div class="d-flex gap-2">
-            <a href="{% url 'unified_update' activity.id %}" class="btn btn-primary rounded-pill px-4 shadow-sm" style="background: var(--ingrid-gradient); border:none;">
+            <a href="{% url 'unified_update' activity.id %}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
                 <i class="bi bi-pencil-square me-1"></i> 수정하기
             </a>
-            <form action="{% url 'unified_delete' activity.id %}" method="post" class="m-0" onsubmit="return confirm('정말로 이 활동을 삭제하시겠습니까? 관련 데이터가 모두 사라집니다.');">
+            <form action="{% url 'unified_delete' activity.id %}" method="POST" onsubmit="return confirm('정말 삭제하시겠습니까?');">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-outline-danger rounded-pill px-4">
-                    <i class="bi bi-trash3 me-1"></i> 삭제하기
+                <button type="submit" class="btn btn-outline-danger rounded-pill px-4 shadow-sm fw-bold">
+                    <i class="bi bi-trash me-1"></i> 삭제하기
                 </button>
             </form>
         </div>
     </div>
 
-    <div class="row g-4">
-        <!-- [왼쪽 메인 정보 카드] -->
-        <div class="col-lg-8">
-            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <span class="badge bg-purple-subtle text-purple px-3 py-2 rounded-pill">
-                        {{ activity.get_category_display }} > {{ activity.sub_category }}
-                    </span>
-                    <div class="d-flex gap-2">
-                        <span class="badge {% if activity.status_text == '진행중' %}bg-success{% else %}bg-secondary{% endif %} rounded-pill px-3 py-2">
+    <!-- 메인 컨텐츠 영역 (파스텔 배경) -->
+    <div class="detail-wrapper bg-{{ activity.category }}">
+        <div class="row">
+            <!-- [왼쪽: 문항 내용] -->
+            <div class="col-lg-8">
+                <div class="mb-4">
+                    <span class="badge bg-white text-primary mb-2 shadow-sm">{{ activity.get_category_display }} > {{ activity.sub_category }}</span>
+                    <h1 class="fw-extrabold mb-1" style="letter-spacing: -1.5px; color: #2D3436;">{{ activity.title }}</h1>
+                    <p class="text-secondary fw-bold">{{ activity.section }}</p>
+                    
+                    <div class="d-flex gap-2 mt-3">
+                        <span class="badge-custom {% if activity.status_text == '진행중' %}bg-success text-white{% else %}bg-secondary text-white{% endif %}">
                             {{ activity.status_text }}
                         </span>
-                        <span class="badge {% if activity.exam_mode == 'CLOSED' %}bg-danger{% else %}bg-primary{% endif %} rounded-pill px-3 py-2">
+                        <span class="badge-custom bg-danger text-white">
                             {{ activity.get_exam_mode_display }}
                         </span>
                     </div>
                 </div>
-                
-                <h2 class="fw-bold mb-1">{{ activity.title }}</h2>
-                <p class="text-muted fs-5 mb-4">{{ activity.section }}</p>
 
-                <hr class="opacity-25 mb-4">
-
-                <!-- 활동 문항 -->
-                <div class="mb-5">
-                    <h5 class="fw-bold text-dark mb-3"><i class="bi bi-chat-left-text-fill text-primary me-2"></i>활동 및 평가 문항</h5>
-                    <div class="p-4 bg-light rounded-4 border-0 fs-6 shadow-sm" style="white-space: pre-wrap; line-height: 1.8; color: #333;">
-                        {{ activity.question|default:"등록된 문항 내용이 없습니다." }}
+                <div class="glass-card mt-5">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-chat-left-text-fill me-2 text-primary"></i> 활동 및 평가 문항</h5>
+                    <div class="content-box">
+                        {% if activity.question %}{{ activity.question }}{% else %}등록된 문항 내용이 없습니다.{% endif %}
                     </div>
                 </div>
 
-                <!-- 참고 자료 & 첨부 파일 -->
-                <div class="row g-4">
+                <div class="row">
                     <div class="col-md-6">
-                        <h6 class="fw-bold mb-3"><i class="bi bi-info-circle-fill text-primary me-2"></i>참고 자료</h6>
-                        <div class="small text-secondary bg-light p-3 rounded-3" style="min-height: 100px;">
-                            {{ activity.reference_material|linebreaks|default:"텍스트 참고자료 없음" }}
+                        <div class="glass-card">
+                            <h6 class="fw-bold"><i class="bi bi-info-circle-fill me-2 text-info"></i> 참고 자료</h6>
+                            <div class="small text-muted mt-2">{{ activity.reference_material|default:"내용 없음" }}</div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="fw-bold mb-3"><i class="bi bi-paperclip text-primary me-2"></i>첨부 파일</h6>
-                        <div class="p-3 border rounded-3 text-center">
+                        <div class="glass-card">
+                            <h6 class="fw-bold"><i class="bi bi-paperclip me-2 text-primary"></i> 첨부 파일</h6>
                             {% if activity.attachment %}
-                                <p class="small text-truncate mb-2">{{ activity.attachment.name }}</p>
-                                <a href="{{ activity.attachment.url }}" class="btn btn-sm btn-dark w-100 rounded-pill" download>
-                                    다운로드
-                                </a>
+                                <a href="{{ activity.attachment.url }}" class="btn btn-dark btn-sm w-100 mt-2 rounded-3">다운로드</a>
                             {% else %}
-                                <span class="text-muted small">첨부된 파일이 없습니다.</span>
+                                <div class="small text-muted mt-2">첨부된 파일이 없습니다.</div>
                             {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- [오른쪽 요약 및 AI 정보 카드] -->
-        <div class="col-lg-4">
-            <!-- 요약 지표 카드 -->
-            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
-                <h5 class="fw-bold mb-4">활동 요약</h5>
-                <div class="d-flex flex-column gap-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted small"><i class="bi bi-calendar-check me-2"></i>수업 일시</span>
-                        <span class="fw-bold small">{{ activity.activity_date|date:"Y-m-d H:i"|default:"-" }}</span>
+            <!-- [오른쪽: 요약 및 설정] -->
+            <div class="col-lg-4">
+                <!-- 활동 요약 -->
+                <div class="glass-card">
+                    <h5 class="fw-bold mb-4">활동 요약</h5>
+                    <div class="mb-3">
+                        <span class="info-label"><i class="bi bi-calendar-check me-2"></i> 수업 일시</span>
+                        <span class="info-value">{{ activity.activity_date|date:"Y-m-d H:i"|default:"-" }}</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted small"><i class="bi bi-alarm me-2"></i>제출 기한</span>
-                        <span class="fw-bold text-danger small">{{ activity.deadline|date:"Y-m-d H:i"|default:"-" }}</span>
+                    <div class="mb-3">
+                        <span class="info-label"><i class="bi bi-clock-history me-2"></i> 제출 기한</span>
+                        <span class="info-value text-danger">{{ activity.deadline|date:"Y-m-d H:i"|default:"-" }}</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted small"><i class="bi bi-type me-2"></i>권장 분량</span>
-                        <span class="fw-bold small">{{ activity.char_limit }}자 이상</span>
+                    <div class="mb-3">
+                        <span class="info-label"><i class="bi bi-type me-2"></i> 권장 분량</span>
+                        <span class="info-value">{{ activity.char_limit }}자 이상</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted small"><i class="bi bi-people me-2"></i>응시 대상</span>
-                        <span class="fw-bold small">{{ activity.target_students.count }}명</span>
+                    <div class="mb-0">
+                        <span class="info-label"><i class="bi bi-people-fill me-2"></i> 응시 대상</span>
+                        <span class="info-value">{{ activity.target_students.count }}명</span>
                     </div>
                 </div>
-            </div>
 
-            <!-- AI 분석 전용 정보 (교사용) -->
-            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-warning-subtle" style="border-left: 5px solid #FFC107 !important;">
-                <h5 class="fw-bold mb-3"><i class="bi bi-robot me-2"></i>AI 분석 보조 정보</h5>
-                <div class="mb-3">
-                    <label class="small fw-bold text-muted mb-1">성취 기준</label>
-                    <div class="small" style="white-space: pre-wrap;">{{ activity.achievement_standard|default:"미입력" }}</div>
+                <!-- AI 분석 정보 (노란색 강조 카드) -->
+                <div class="glass-card ai-info-card">
+                    <h5 class="fw-bold mb-3">🤖 AI 분석 보조 정보</h5>
+                    <div class="mb-3">
+                        <label class="d-block small fw-bold text-muted mb-1">성취 기준</label>
+                        <div class="small fw-bold">{{ activity.achievement_standard|default:"미입력" }}</div>
+                    </div>
+                    <div>
+                        <label class="d-block small fw-bold text-muted mb-1">평가 요소</label>
+                        <div class="small fw-bold">{{ activity.evaluation_elements|default:"미입력" }}</div>
+                    </div>
                 </div>
-                <div>
-                    <label class="small fw-bold text-muted mb-1">평가 요소</label>
-                    <div class="small" style="white-space: pre-wrap;">{{ activity.evaluation_elements|default:"미입력" }}</div>
-                </div>
-            </div>
 
-            <!-- 학생 답안지 구성 확인 -->
-            <div class="card shadow-sm border-0 rounded-4 p-4 bg-white" style="border-left: 5px solid #FF80B5 !important;">
-                <h5 class="fw-bold mb-3" style="color: #FF80B5;"><i class="bi bi-layout-text-window-reverse me-2"></i>답안지 구성</h5>
-                <ul class="list-unstyled mb-0 small">
-                    <li class="mb-2"><strong>항목 1:</strong> {{ activity.q1_title }}</li>
-                    <li class="mb-2"><strong>항목 2:</strong> {{ activity.q2_title }}</li>
-                    <li><strong>항목 3:</strong> {{ activity.q3_title }}</li>
-                </ul>
+                <!-- 답안지 구성 -->
+                <div class="glass-card">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-list-check me-2"></i> 답안지 구성</h5>
+                    <ul class="list-unstyled mb-0">
+                        <li class="pb-2 border-bottom mb-2 small"><b class="text-primary">항목 1:</b> {{ activity.q1_title }}</li>
+                        <li class="pb-2 border-bottom mb-2 small"><b class="text-primary">항목 2:</b> {{ activity.q2_title }}</li>
+                        <li class="small"><b class="text-primary">항목 3:</b> {{ activity.q3_title }}</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    :root { --ingrid-gradient: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); }
-    .text-purple { color: #8E44AD; }
-    .bg-purple-subtle { background-color: #F3F0FF; color: #8E44AD; }
-</style>
 {% endblock %}
