@@ -74,7 +74,7 @@
     <!-- 메인 컨텐츠 영역 (파스텔 배경) -->
     <div class="detail-wrapper bg-{{ activity.category }}">
         <div class="row">
-            <!-- [왼쪽: 문항 내용] -->
+            <!-- [왼쪽: 문항 및 참고자료 내용] -->
             <div class="col-lg-8">
                 <div class="mb-4">
                     <span class="badge bg-white text-primary mb-2 shadow-sm">{{ activity.get_category_display }} > {{ activity.sub_category }}</span>
@@ -91,6 +91,7 @@
                     </div>
                 </div>
 
+                <!-- 1. 활동 및 평가 문항 -->
                 <div class="glass-card mt-5">
                     <h5 class="fw-bold mb-3"><i class="bi bi-chat-left-text-fill me-2 text-primary"></i> 활동 및 평가 문항</h5>
                     <div class="content-box">
@@ -98,24 +99,28 @@
                     </div>
                 </div>
 
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="glass-card">
-                            <h6 class="fw-bold"><i class="bi bi-info-circle-fill me-2 text-info"></i> 참고 자료</h6>
-                            <div class="small text-muted mt-2">{{ activity.reference_material|default:"내용 없음" }}</div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="glass-card">
-                            <h6 class="fw-bold"><i class="bi bi-paperclip me-2 text-primary"></i> 첨부 파일</h6>
-                            {% if activity.attachment %}
-                                <a href="{{ activity.attachment.url }}" class="btn btn-dark btn-sm w-100 mt-2 rounded-3">다운로드</a>
-                            {% else %}
-                                <div class="small text-muted mt-2">첨부된 파일이 없습니다.</div>
-                            {% endif %}
-                        </div>
+                <!-- 2. 참고 자료 (문항 디자인과 동일하게 확장) -->
+                <div class="glass-card">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-info-circle-fill me-2 text-info"></i> 참고 자료</h5>
+                    <div class="content-box">
+                        {% if activity.reference_material %}{{ activity.reference_material }}{% else %}등록된 참고 자료가 없습니다.{% endif %}
                     </div>
                 </div>
+
+                <!-- 3. 첨부 파일 (참고 자료 하단 배치) -->
+                {% if activity.attachment %}
+                <div class="glass-card">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-paperclip me-2 text-primary"></i> 첨부 파일</h6>
+                    <div class="d-flex align-items-center justify-content-between p-3 bg-white rounded-3 border">
+                        <span class="small text-truncate me-3 text-muted">
+                            <i class="bi bi-file-earmark-text me-1"></i> {{ activity.attachment.name }}
+                        </span>
+                        <a href="{{ activity.attachment.url }}" class="btn btn-dark btn-sm px-4 rounded-pill flex-shrink-0">
+                            <i class="bi bi-download me-1"></i> 다운로드
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- [오른쪽: 요약 및 설정] -->
