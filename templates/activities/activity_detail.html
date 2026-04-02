@@ -1,48 +1,136 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="card shadow-lg border-0">
-        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-            <h3 class="fw-bold text-primary mb-0">📄 평가 상세 정보</h3>
-            <span class="badge bg-secondary fs-6">{{ activity.subject_name }}</span>
+<div class="container py-4">
+    <!-- 상단 액션바: 목록 가기 및 수정/삭제 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="{% url 'unified_list' %}?category={{ activity.category }}&sub={{ activity.sub_category }}" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left me-1"></i> 목록으로
+        </a>
+        <div class="d-flex gap-2">
+            <a href="{% url 'unified_update' activity.id %}" class="btn btn-primary rounded-pill px-4 shadow-sm" style="background: var(--ingrid-gradient); border:none;">
+                <i class="bi bi-pencil-square me-1"></i> 수정하기
+            </a>
+            <form action="{% url 'unified_delete' activity.id %}" method="post" class="m-0" onsubmit="return confirm('정말로 이 활동을 삭제하시겠습니까? 관련 데이터가 모두 사라집니다.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger rounded-pill px-4">
+                    <i class="bi bi-trash3 me-1"></i> 삭제하기
+                </button>
+            </form>
         </div>
-        
-        <div class="card-body p-5">
-            <!-- 평가 정보 -->
-            <h4 class="fw-bold mb-3">[{{ activity.section }}] {{ activity.title }}</h4>
-            <div class="alert alert-light border">
-                <ul class="mb-0 text-muted small">
-                    <li>생성일: {{ activity.created_at|date:"Y-m-d H:i" }}</li>
-                    <li>상태: {{ activity.is_active|yesno:"진행중,대기중" }}</li>
-                </ul>
-            </div>
+    </div>
 
-            <!-- 문항 미리보기 -->
-            <h5 class="mt-4 border-bottom pb-2">문항 미리보기</h5>
-            {% for q in questions %}
-                <div class="mb-4">
-                    <p class="fw-bold mb-1">Q{{ q.question_number }}. {{ q.content }}</p>
-                    {% if q.reference %}
-                    <div class="bg-light p-3 rounded text-muted small mb-2">
-                        <strong>[참고]</strong><br>{{ q.reference|linebreaksbr }}
-                    </div>
-                    {% endif %}
-                    <div class="text-end small text-secondary">
-                        작성 조건: {{ q.conditions|default:"없음" }} / 제한: {{ q.max_length|default:"무제한" }}자
+    <div class="row g-4">
+        <!-- [왼쪽 메인 정보 카드] -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <span class="badge bg-purple-subtle text-purple px-3 py-2 rounded-pill">
+                        {{ activity.get_category_display }} > {{ activity.sub_category }}
+                    </span>
+                    <div class="d-flex gap-2">
+                        <span class="badge {% if activity.status_text == '진행중' %}bg-success{% else %}bg-secondary{% endif %} rounded-pill px-3 py-2">
+                            {{ activity.status_text }}
+                        </span>
+                        <span class="badge {% if activity.exam_mode == 'CLOSED' %}bg-danger{% else %}bg-primary{% endif %} rounded-pill px-3 py-2">
+                            {{ activity.get_exam_mode_display }}
+                        </span>
                     </div>
                 </div>
-            {% endfor %}
+                
+                <h2 class="fw-bold mb-1">{{ activity.title }}</h2>
+                <p class="text-muted fs-5 mb-4">{{ activity.section }}</p>
 
-            <hr class="my-5">
+                <hr class="opacity-25 mb-4">
 
-            <!-- 관리 버튼들 (수정/삭제) -->
-            <div class="d-flex justify-content-center gap-2">
-                <a href="{% url 'unified_list' %}?category={{ activity.category }}&sub={{ activity.sub_category }}" class="btn btn-secondary px-4 me-2">목록으로</a>
-                <a href="{% url 'unified_update' activity.id %}" class="btn btn-primary px-4">수정하기</a>
-                <a href="{% url 'unified_delete' activity.id %}" class="btn btn-danger px-4" onclick="return confirm('정말로 삭제하시겠습니까? 관련 데이터가 모두 삭제됩니다.');">삭제하기</a>
+                <!-- 활동 문항 -->
+                <div class="mb-5">
+                    <h5 class="fw-bold text-dark mb-3"><i class="bi bi-chat-left-text-fill text-primary me-2"></i>활동 및 평가 문항</h5>
+                    <div class="p-4 bg-light rounded-4 border-0 fs-6 shadow-sm" style="white-space: pre-wrap; line-height: 1.8; color: #333;">
+                        {{ activity.question|default:"등록된 문항 내용이 없습니다." }}
+                    </div>
+                </div>
+
+                <!-- 참고 자료 & 첨부 파일 -->
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-info-circle-fill text-primary me-2"></i>참고 자료</h6>
+                        <div class="small text-secondary bg-light p-3 rounded-3" style="min-height: 100px;">
+                            {{ activity.reference_material|linebreaks|default:"텍스트 참고자료 없음" }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-paperclip text-primary me-2"></i>첨부 파일</h6>
+                        <div class="p-3 border rounded-3 text-center">
+                            {% if activity.attachment %}
+                                <p class="small text-truncate mb-2">{{ activity.attachment.name }}</p>
+                                <a href="{{ activity.attachment.url }}" class="btn btn-sm btn-dark w-100 rounded-pill" download>
+                                    다운로드
+                                </a>
+                            {% else %}
+                                <span class="text-muted small">첨부된 파일이 없습니다.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- [오른쪽 요약 및 AI 정보 카드] -->
+        <div class="col-lg-4">
+            <!-- 요약 지표 카드 -->
+            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
+                <h5 class="fw-bold mb-4">활동 요약</h5>
+                <div class="d-flex flex-column gap-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small"><i class="bi bi-calendar-check me-2"></i>수업 일시</span>
+                        <span class="fw-bold small">{{ activity.activity_date|date:"Y-m-d H:i"|default:"-" }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small"><i class="bi bi-alarm me-2"></i>제출 기한</span>
+                        <span class="fw-bold text-danger small">{{ activity.deadline|date:"Y-m-d H:i"|default:"-" }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small"><i class="bi bi-type me-2"></i>권장 분량</span>
+                        <span class="fw-bold small">{{ activity.char_limit }}자 이상</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small"><i class="bi bi-people me-2"></i>응시 대상</span>
+                        <span class="fw-bold small">{{ activity.target_students.count }}명</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI 분석 전용 정보 (교사용) -->
+            <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-warning-subtle" style="border-left: 5px solid #FFC107 !important;">
+                <h5 class="fw-bold mb-3"><i class="bi bi-robot me-2"></i>AI 분석 보조 정보</h5>
+                <div class="mb-3">
+                    <label class="small fw-bold text-muted mb-1">성취 기준</label>
+                    <div class="small" style="white-space: pre-wrap;">{{ activity.achievement_standard|default:"미입력" }}</div>
+                </div>
+                <div>
+                    <label class="small fw-bold text-muted mb-1">평가 요소</label>
+                    <div class="small" style="white-space: pre-wrap;">{{ activity.evaluation_elements|default:"미입력" }}</div>
+                </div>
+            </div>
+
+            <!-- 학생 답안지 구성 확인 -->
+            <div class="card shadow-sm border-0 rounded-4 p-4 bg-white" style="border-left: 5px solid #FF80B5 !important;">
+                <h5 class="fw-bold mb-3" style="color: #FF80B5;"><i class="bi bi-layout-text-window-reverse me-2"></i>답안지 구성</h5>
+                <ul class="list-unstyled mb-0 small">
+                    <li class="mb-2"><strong>항목 1:</strong> {{ activity.q1_title }}</li>
+                    <li class="mb-2"><strong>항목 2:</strong> {{ activity.q2_title }}</li>
+                    <li><strong>항목 3:</strong> {{ activity.q3_title }}</li>
+                </ul>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    :root { --ingrid-gradient: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); }
+    .text-purple { color: #8E44AD; }
+    .bg-purple-subtle { background-color: #F3F0FF; color: #8E44AD; }
+</style>
 {% endblock %}
