@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from accounts.models import Student
 from django.utils import timezone
+import os # 파일 경로 처리
 
 class Activity(models.Model):
     # --- [1. 분류 및 유형] ---
@@ -84,6 +85,14 @@ class Activity(models.Model):
         if self.deadline and now > self.deadline:
             return "마감됨"
         return "진행중"
+
+    # 파일명만 추출하는 프로퍼티
+    @property
+    def filename(self):
+        if self.attachment:
+            # 파일 경로에서 마지막 이름만 추출 (예: 'abc.pdf')
+            return os.path.basename(self.attachment.name)
+        return ""
 
 class Question(models.Model):
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name='questions')
