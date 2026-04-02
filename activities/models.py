@@ -1,8 +1,9 @@
+import os # 파일 경로 처리
 from django.db import models
 from django.conf import settings
 from accounts.models import Student
 from django.utils import timezone
-import os # 파일 경로 처리
+
 
 class Activity(models.Model):
     # --- [1. 분류 및 유형] ---
@@ -134,3 +135,21 @@ class Answer(models.Model):
     )
     # 선생님 특이사항 메모 (비공개)
     note = models.TextField(blank=True, verbose_name="특이사항(교사 메모)")
+
+# 다중 파일을 저장하기 위한 모델 (ActivityFile)
+class ActivityFile(models.Model):
+    # 어떤 활동에 속한 파일인지 연결 (ForeignKey)
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name='files')
+    file = models.FileField(upload_to='activity_files/%Y/%m/%d/', verbose_name="첨부파일")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # 파일명만 추출하는 프로퍼티 (기존 Activity에 있던 로직을 여기로 이동)
+    @property
+    def filename(self):
+        if self.file:
+            return os.path.basename(self.file.name)
+        return ""
+
+    class Meta:
+        verbose_name = "평가/활동 첨부파일"
+        verbose_name_plural = "평가/활동 첨부파일 목록"

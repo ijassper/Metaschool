@@ -14,7 +14,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 # 모델과 폼 가져오기
-from .models import Activity, Question, Answer
+from .models import Activity, ActivityFile, Question, Answer
 from .forms import ActivityForm, QuestionForm, AnswerForm
 from accounts.models import Student, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption
 import logging
@@ -1301,7 +1301,7 @@ def unified_create(request):
                 conditions=request.POST.get('conditions', ''),
                 char_limit=int(request.POST.get('char_limit', 0)) if request.POST.get('char_limit') else 0,
                 deadline=parse_dt(request.POST.get('deadline')),
-                attachment=request.FILES.get('attachment'),
+                attachment=None, # 파일은 나중에 처리 (첨부파일은 별도의 모델로 저장)
                 
                 # [섹션 3: 기타 중요 내용 (AI 분석용)]
                 achievement_standard=request.POST.get('achievement_standard', ''),
@@ -1314,6 +1314,11 @@ def unified_create(request):
                 
                 is_active=True
             )
+
+            # 다중 파일 저장 로직
+            files = request.FILES.getlist('attachments') # HTML input의 name과 일치해야 함
+            for f in files:
+                ActivityFile.objects.create(activity=activity, file=f)
 
             # --- [후속 처리] ---
             

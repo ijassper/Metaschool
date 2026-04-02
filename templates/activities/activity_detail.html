@@ -107,24 +107,21 @@
                     </div>
                 </div>
 
-                <!-- 3. 첨부 파일 -->
-                {% if activity.attachment %}
+                <!-- 3. 첨부 파일 (다중 리스트 출력) -->
+                {% if activity.files.all %}
                 <div class="glass-card">
-                    <h6 class="fw-bold mb-3"><i class="bi bi-paperclip me-2 text-primary"></i> 첨부 파일</h6>
-                    <div class="d-flex align-items-center justify-content-between p-3 bg-white rounded-3 border">
-                        <!-- 파일명을 누르면 새 탭에서 즉시 보기 (PDF 등) -->
-                        <a href="{{ activity.attachment.url }}" target="_blank" class="small text-truncate me-3 text-dark fw-bold text-decoration-none" title="바로보기">
-                            <i class="bi bi-file-earmark-pdf me-1 text-danger"></i> {{ activity.filename }} 
-                            <i class="bi bi-box-arrow-up-right ms-1 text-muted" style="font-size: 0.7rem;"></i>
-                        </a>
-                        
-                        <!-- 다운로드 버튼: download 속성을 추가하여 강제 다운로드 수행 -->
-                        <a href="{{ activity.attachment.url }}" download="{{ activity.filename }}" class="btn btn-dark btn-sm px-4 rounded-pill flex-shrink-0 shadow-sm">
-                            <i class="bi bi-download me-1"></i> 다운로드
-                        </a>
-                    </div>
-                    <div class="mt-2 px-1">
-                        <small class="text-muted" style="font-size: 0.7rem;">* 파일명을 클릭하면 브라우저에서 바로 확인(PDF, 이미지 등)이 가능합니다.</small>
+                    <h6 class="fw-bold mb-3"><i class="bi bi-paperclip me-2 text-primary"></i> 첨부 파일 ({{ activity.files.count }})</h6>
+                    <div class="d-flex flex-column gap-2">
+                        {% for file_obj in activity.files.all %}
+                        <div class="d-flex align-items-center justify-content-between p-3 bg-white rounded-3 border shadow-sm">
+                            <a href="{{ file_obj.file.url }}" target="_blank" class="small text-truncate me-3 text-dark fw-bold text-decoration-none">
+                                <i class="bi bi-file-earmark-pdf me-1 text-danger"></i> {{ file_obj.filename }}
+                            </a>
+                            <a href="{{ file_obj.file.url }}" download="{{ file_obj.filename }}" class="btn btn-outline-dark btn-sm px-3 rounded-pill">
+                                다운로드
+                            </a>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
                 {% endif %}

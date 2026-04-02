@@ -3,212 +3,186 @@
 
 {% block content %}
 <style>
-    /* 섹션 제목 컬러를 인그리드 퍼플로 변경 */
-    .card-body h5.text-primary {
-        color: #8E44AD !important;
+    /* 카테고리별 파스텔 배경색 정의 */
+    .bg-ESSAY { background-color: #FFE3E3 !important; }
+    .bg-SUBJECT_ACTIVITY { background-color: #DDEBFF !important; }
+    .bg-SCHOOL_EVENT { background-color: #FFF3BF !important; }
+    .bg-CREATIVE { background-color: #D3F9E8 !important; }
+    .bg-CLUB { background-color: #E9E2FF !important; }
+    .bg-CAREER { background-color: #FFE8CC !important; }
+    .bg-SCHOOL_LIFE { background-color: #F8F9FA !important; }
+
+    /* 섹션 카드 공통 스타일 */
+    .form-section-card {
+        border: 1px solid rgba(0,0,0,0.05);
+        border-radius: 24px !important;
+        transition: 0.3s;
     }
 
-    /* 모든 아이콘 컬러 변경 */
-    .card-body h5 i, .card-header h4 i {
-        color: #8E44AD !important;
-    }
-
-    /* 입력창 포커스 시 테두리 컬러 인그리드 퍼플로 */
+    /* 입력창 포커스 스타일 */
     .form-control:focus {
         border-color: #8E44AD !important;
         box-shadow: 0 0 0 0.25rem rgba(142, 68, 173, 0.1) !important;
     }
+
+    .file-guide-badge {
+        font-size: 0.7rem; padding: 3px 8px; border-radius: 5px; font-weight: 700;
+    }
 </style>
+
 <div class="container py-4">
-    <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-        <!-- 1. 헤더 영역 (동적 제목) -->
-        <div class="card-header bg-white py-4 border-bottom px-4">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <h3 class="fw-bold text-dark mb-1">
-                        <i class="bi bi-pencil-square text-primary me-2"></i> 
-                        {{ sub_menu }} {% if activity %}수정{% else %}생성{% endif %}
-                    </h3>
-                    <p class="text-muted small mb-0">{{ category_name }} > {{ sub_menu }} 영역의 활동 시트를 {% if activity %}수정{% else %}생성{% endif %}합니다.</p>
+    <!-- 상단 헤더 영역 -->
+    <div class="d-flex align-items-center justify-content-between mb-4 px-2">
+        <div>
+            <h2 class="fw-bold" style="color: var(--ingrid-primary); letter-spacing: -1.5px;">
+                <i class="bi bi-pencil-square me-2"></i>{{ sub_menu }} {% if activity %}수정{% else %}생성{% endif %}
+            </h2>
+            <p class="text-muted mb-0">{{ category_name }} 영역의 활동 시트를 구성합니다.</p>
+        </div>
+        <button type="button" class="btn btn-outline-secondary rounded-pill" onclick="history.back()">닫기</button>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="unifiedForm">
+        {% csrf_token %}
+
+        <!-- [섹션 1] 기본 정보 -->
+        <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
+            <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-info-circle-fill me-2 text-primary"></i> 1. 기본 정보</h5>
+            
+            <div class="row mb-3 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary">{{ config.basic.section }} *</div>
+                <div class="col-md-9">
+                    <input type="text" name="section" value="{{ activity.section|default:'' }}" class="form-control border-0 shadow-sm p-3 rounded-3" placeholder="{{ config.basic.section }} 입력" required>
                 </div>
-                <button type="button" class="btn-close" onclick="history.back()"></button>
+            </div>
+
+            <div class="row mb-3 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary">{{ config.basic.title }} *</div>
+                <div class="col-md-9">
+                    <input type="text" name="title" value="{{ activity.title|default:'' }}" class="form-control border-0 shadow-sm p-3 rounded-3" placeholder="{{ config.basic.title }} 입력" required>
+                </div>
+            </div>
+
+            <div class="row mb-0 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary">응시 환경 유형</div>
+                <div class="col-md-9">
+                    <div class="d-flex gap-4 p-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="exam_mode" id="mode_closed" value="CLOSED" {% if activity.exam_mode == 'CLOSED' or not activity %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="mode_closed"><span class="text-danger">폐쇄형</span> (보안 모드)</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="exam_mode" id="mode_open" value="OPEN" {% if activity.exam_mode == 'OPEN' %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="mode_open"><span class="text-primary">개방형</span> (자료 허용)</label>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- 2. 입력 폼 영역 -->
-        <div class="card-body p-4 bg-light-subtle">
-            <form method="post" enctype="multipart/form-data" id="unifiedForm">
-                {% csrf_token %}
+        <!-- [섹션 2] 세부 평가 내용 (수정 버전) -->
+        <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
+            <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-file-earmark-text-fill me-2 text-primary"></i> 2. 세부 평가 내용</h5>
+            
+            <!-- 1. 수업 일시 -->
+            <div class="row mb-3 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.detail.date }} *</div>
+                <div class="col-md-9 px-4">
+                    <input type="text" name="activity_date" id="activity_date" value="{{ activity.activity_date|date:'Y. m. d. A h:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker" placeholder="일시 선택" readonly required>
+                </div>
+            </div>
 
-                <!-- [섹션 1] 기본 정보: 목록 및 시험지 왼편 출력 -->
-                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
-                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-info-circle-fill me-2"></i> 1. 기본 정보</h5>
+            <!-- 2. 평가 문항 -->
+            <div class="row mb-3">
+                <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">{{ config.detail.content }} *</div>
+                <div class="col-md-9 px-4">
+                    <textarea name="question" class="form-control border-0 shadow-sm p-3" rows="5" placeholder="문항 내용을 상세히 입력하세요" required>{{ activity.question }}</textarea>
+                </div>
+            </div>
+
+            <!-- 3. 참고 자료 및 다중 파일 업로드 (핵심 변경 부분) -->
+            <div class="row mb-3">
+                <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">참고 자료 및 파일</div>
+                <div class="col-md-9 px-4">
+                    <textarea name="reference_material" class="form-control border-0 shadow-sm p-3 mb-4" rows="3" placeholder="참고 텍스트 입력">{{ activity.reference_material }}</textarea>
                     
-                    <!-- 과목명 / 활동명 -->
-                    <div class="row mb-3 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.basic.section }} *</div>
-                        <div class="col-md-9 px-4">
-                            <input type="text" name="section" value="{{ activity.section|default:'' }}" class="form-control border-0 bg-light p-3" placeholder="{{ config.basic.section }} 입력" required>
-                        </div>
+                    <!-- [드롭존] 드래그 앤 드롭 영역 -->
+                    <div id="drop-zone" class="border-dashed d-flex flex-column align-items-center justify-content-center p-5 bg-white rounded-4 shadow-sm mb-3" 
+                        style="cursor: pointer; border: 2px dashed #8E44AD; transition: 0.3s;">
+                        <i class="bi bi-cloud-arrow-up fs-1 text-primary mb-2"></i>
+                        <p class="fw-bold mb-1">파일을 이 곳에 끌어다 놓거나 클릭하여 선택하세요.</p>
+                        <p class="text-muted small mb-0">PDF, HWPX, 이미지 등 최대 10개 업로드 가능</p>
+                        <!-- 실제 파일이 담길 숨겨진 input (name="attachments" 확인!) -->
+                        <input type="file" id="file-input" name="attachments" multiple class="d-none">
                     </div>
 
-                    <!-- 주제 -->
-                    <div class="row mb-3 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.basic.title }} *</div>
-                        <div class="col-md-9 px-4">
-                            <input type="text" name="title" value="{{ activity.title|default:'' }}" class="form-control border-0 bg-light p-3" placeholder="{{ config.basic.title }} 입력" required>
-                        </div>
-                    </div>
-
-                    <!-- 응시 환경 유형 -->
-                    <div class="row mb-0 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">응시 환경 유형</div>
-                        <div class="col-md-9 px-4">
-                            <div class="d-flex gap-4">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="exam_mode" id="mode_closed" value="CLOSED" {% if activity.exam_mode == 'CLOSED' or not activity %}checked{% endif %}>
-                                    <label class="form-check-label" for="mode_closed">
-                                        <span class="badge bg-danger mb-1">폐쇄형</span><br>
-                                        <small class="text-muted">보안 모드 적용</small>
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="exam_mode" id="mode_open" value="OPEN" {% if activity.exam_mode == 'OPEN' %}checked{% endif %}>
-                                    <label class="form-check-label" for="mode_open">
-                                        <span class="badge bg-primary mb-1">개방형</span><br>
-                                        <small class="text-muted">자료 참고 허용</small>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- [파일 리스트] 선택된 파일들이 나열될 곳 -->
+                    <div id="file-list" class="list-group shadow-sm rounded-3">
+                        <!-- 자바스크립트로 파일 항목이 여기에 추가됩니다 -->
                     </div>
                 </div>
+            </div>
 
-                <!-- [섹션 2] 세부 평가 내용: 시험지 왼편 출력 -->
-                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
-                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-file-earmark-text-fill me-2"></i> 2. 세부 평가 내용</h5>
-                    
-                    <!-- 수업 일시 -->
-                    <div class="row mb-3 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.detail.date }} *</div>
-                        <div class="col-md-9 px-4">
-                            <input type="text" name="activity_date" id="activity_date" value="{{ activity.activity_date|date:'Y. m. d. A h:i' }}" class="form-control border-0 bg-light p-3 datetime-picker" placeholder="일시 선택" readonly required>
-                        </div>
-                    </div>
-
-                    <!-- 평가 문항 -->
-                    <div class="row mb-3">
-                        <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">{{ config.detail.content }} *</div>
-                        <div class="col-md-9 px-4">
-                            <textarea name="question" class="form-control border-0 bg-light p-3" rows="5" placeholder="문항 내용을 상세히 입력하세요" required></textarea>
-                        </div>
-                    </div>
-
-                    <!-- 참고 자료 및 파일 -->
-                    <div class="row mb-3">
-                        <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">참고 자료</div>
-                        <div class="col-md-9 px-4">
-                            <textarea name="reference_material" class="form-control border-0 bg-light p-3 mb-2" rows="3" placeholder="참고 텍스트 입력"></textarea>
-                            <div class="input-group shadow-sm rounded-3 overflow-hidden">
-                                <label class="input-group-text bg-white border-end-0" for="attachment"><i class="bi bi-paperclip"></i></label>
-                                <input type="file" name="attachment" class="form-control border-start-0" id="attachment">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 작성 조건 / 분량 / 제출기한 -->
-                    <div class="row mb-3">
-                        <div class="col-md-3 pt-2 text-center fw-bold text-secondary border-end">작성 조건</div>
-                        <div class="col-md-9 px-4">
-                            <textarea name="conditions" class="form-control border-0 bg-light p-3" rows="2" placeholder="예: 3문단 구성 등"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">작성 분량</div>
-                        <div class="col-md-9 px-4 d-flex align-items-center gap-2">
-                            <input type="number" name="char_limit" class="form-control border-0 bg-light p-2 text-center" style="width: 100px;" value="0">
-                            <span class="fw-bold small">자 이상</span>
-                        </div>
-                    </div>
-
-                    <div class="row mb-0 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">제출 기한 *</div>
-                        <div class="col-md-9 px-4">
-                            <input type="text" name="deadline" id="deadline_picker" value="{{ activity.deadline|date:'Y. m. d. A h:i' }}" class="form-control border-0 bg-light p-3 datetime-picker" readonly required>
-                        </div>
-                    </div>
+            <!-- 4. 제출 기한 -->
+            <div class="row mb-0 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">제출 기한 *</div>
+                <div class="col-md-9 px-4">
+                    <input type="text" name="deadline" id="deadline_picker" value="{{ activity.deadline|date:'Y. m. d. A h:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker" readonly required>
                 </div>
-
-                <!-- [섹션 3] 기타 중요 내용: AI 분석 전용 정보 (학생에게 비노출) -->
-                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-white">
-                    <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-robot me-2"></i> 3. 기타 중요 내용 (AI 분석용)</h5>
-                    
-                    <!-- 성취 기준 (설정된 경우에만 표시) -->
-                    {% if 'achievement_standard' in config.ai_info %}
-                    <div class="row mb-3">
-                        <div class="col-md-3 pt-2 text-center fw-bold text-secondary border-end">성취 기준</div>
-                        <div class="col-md-9 px-4">
-                            <textarea name="achievement_standard" class="form-control border-0 bg-light p-3" rows="2" placeholder="교과 성취 기준 입력"></textarea>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <!-- 평가 요소 (설정된 경우에만 표시) -->
-                    {% if 'evaluation_elements' in config.ai_info %}
-                    <div class="row mb-3">
-                        <div class="col-md-3 pt-2 text-center fw-bold text-secondary border-end">평가 요소</div>
-                        <div class="col-md-9 px-4">
-                            <textarea name="evaluation_elements" class="form-control border-0 bg-light p-3" rows="2" placeholder="주요 평가 요소 입력"></textarea>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <!-- 평가 대상 (학생 선택) -->
-                    <div class="mt-4">
-                        {% include 'components/student_selector.html' %}
-                    </div>
-                </div>
-
-                <!-- [섹션 4] 학생 답안지 구성: 시험지 오른편 문항 제목 -->
-                <div class="card shadow-sm border-0 rounded-4 p-4 mb-5 bg-white" style="border-left: 6px solid #FF80B5 !important;">
-                    <h5 class="fw-bold mb-4 text-danger"><i class="bi bi-layout-text-window-reverse me-2"></i> 4. 학생 답안지 구성</h5>
-                    <p class="small text-muted mb-4">학생 응시 화면 우측 답안지에 표시될 문항의 제목을 직접 설정하세요.</p>
-                    
-                    {% for i in "123" %}
-                    <div class="row mb-3 align-items-center">
-                        <div class="col-md-3 text-center fw-bold text-secondary border-end">항목 {{ i }} 제목</div>
-                        <div class="col-md-9 px-4">
-                            <!-- views.py에서 넘겨준 config.default_q의 순서대로 값을 채움 -->
-                            <input type="text" name="q{{ i }}_title" class="form-control border-0 bg-warning-subtle p-3" 
-                                value="{% if i == '1' %}{{ config.default_q.0 }}{% elif i == '2' %}{{ config.default_q.1 }}{% else %}{{ config.default_q.2 }}{% endif %}" required>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <!-- 하단 저장 버튼 -->
-                <div class="text-center mt-5 mb-5">
-                    <button type="button" class="btn btn-light px-5 py-3 rounded-pill me-2 fw-bold" onclick="history.back()">취소</button>
-                    <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow-lg" 
-                            style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none;">
-                        평가 시트 {% if activity %}수정{% else %}생성{% endif %} 완료
-                    </button>
-                </div>
-
-                <!-- 데이터 전달용 Hidden Field -->
-                <input type="hidden" name="category" value="{{ cat_code }}">
-                <input type="hidden" name="sub_category" value="{{ sub_menu }}">
-            </form>
+            </div>
         </div>
-    </div>
+
+        <!-- [섹션 3] AI 분석용 및 대상 설정 -->
+        <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
+            <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-robot me-2 text-primary"></i> 3. 기타 중요 내용 (AI 분석용)</h5>
+            
+            {% if 'achievement_standard' in config.ai_info %}
+            <div class="row mb-3">
+                <div class="col-md-3 pt-2 text-center fw-bold text-secondary">성취 기준</div>
+                <div class="col-md-9 px-4">
+                    <textarea name="achievement_standard" class="form-control border-0 shadow-sm p-3" rows="2" placeholder="교과 성취 기준 입력">{{ activity.achievement_standard }}</textarea>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="mt-4 bg-white p-3 rounded-4 shadow-sm">
+                {% include 'components/student_selector.html' %}
+            </div>
+        </div>
+
+        <!-- [섹션 4] 학생 답안지 구성 -->
+        <div class="card form-section-card p-4 mb-5 bg-{{ cat_code }}" style="border-left: 8px solid #FF80B5 !important;">
+            <h5 class="fw-bold mb-2 text-danger"><i class="bi bi-layout-text-window-reverse me-2"></i> 4. 학생 답안지 구성</h5>
+            <p class="small text-muted mb-4">학생 응시 화면 우측 답안지에 표시될 문항 제목을 설정하세요.</p>
+            
+            {% for i in "123" %}
+            <div class="row mb-3 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary">항목 {{ i }} 제목</div>
+                <div class="col-md-9 px-4">
+                    <input type="text" name="q{{ i }}_title" class="form-control border-0 shadow-sm p-3 bg-white" 
+                        value="{% if i == '1' %}{{ activity.q1_title|default:config.default_q.0 }}{% elif i == '2' %}{{ activity.q2_title|default:config.default_q.1 }}{% else %}{{ activity.q3_title|default:config.default_q.2 }}{% endif %}" required>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- 저장 버튼 -->
+        <div class="text-center pb-5">
+            <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow-lg" 
+                    style="background: var(--ingrid-gradient); border: none; font-size: 1.1rem;">
+                평가 시트 {% if activity %}수정{% else %}생성{% endif %} 완료
+            </button>
+        </div>
+
+        <input type="hidden" name="category" value="{{ cat_code }}">
+        <input type="hidden" name="sub_category" value="{{ sub_menu }}">
+    </form>
 </div>
 
 <!-- 날짜 선택기 (Flatpickr) 및 유효성 검사 스크립트 -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
-
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // 1. 날짜+시간 통합 설정
@@ -284,6 +258,94 @@
                 return true;
             };
         }
+
+        // --- [현대적 다중 파일 업로드 로직] ---
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileList = document.getElementById('file-list');
+        
+        // 서버로 전송될 파일들을 관리할 DataTransfer 객체
+        let dataTransfer = new DataTransfer();
+
+        // 1. 드롭존 클릭 시 파일 선택창 열기
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        // 2. 파일 선택 시 처리
+        fileInput.addEventListener('change', () => {
+            addFiles(fileInput.files);
+        });
+
+        // 3. 드래그 앤 드롭 이벤트 처리
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.backgroundColor = 'rgba(142, 68, 173, 0.1)';
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.backgroundColor = '#fff';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.backgroundColor = '#fff';
+            addFiles(e.dataTransfer.files);
+        });
+
+        // 4. 파일 추가 및 리스트 업데이트 함수
+        function addFiles(files) {
+            for (let file of files) {
+                // 최대 10개 제한 (선택 사항)
+                if (dataTransfer.items.length >= 10) {
+                    alert("파일은 최대 10개까지만 업로드 가능합니다.");
+                    break;
+                }
+                dataTransfer.items.add(file);
+            }
+            fileInput.files = dataTransfer.files; // 실제 input에 동기화
+            renderFileList();
+        }
+
+        // 5. 파일 리스트 화면에 그리기
+        function renderFileList() {
+            fileList.innerHTML = ''; // 초기화
+            
+            Array.from(dataTransfer.files).forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item d-flex justify-content-between align-items-center p-3 border-0 border-bottom bg-white';
+                
+                // 파일 아이콘 결정 (확장자별)
+                let iconClass = 'bi-file-earmark-text';
+                if (file.name.endsWith('.pdf')) iconClass = 'bi-file-earmark-pdf text-danger';
+                if (file.name.endsWith('.hwpx') || file.name.endsWith('.hwp')) iconClass = 'bi-file-earmark-word text-primary';
+                if (file.type.startsWith('image/')) iconClass = 'bi-file-earmark-image text-success';
+
+                item.innerHTML = `
+                    <div class="d-flex align-items-center overflow-hidden">
+                        <i class="bi ${iconClass} fs-5 me-3"></i>
+                        <span class="small text-truncate fw-bold">${file.name}</span>
+                        <span class="ms-2 text-muted small">(${(file.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                    <button type="button" class="btn btn-link text-danger p-0 ms-2" onclick="removeFile(${index})">
+                        <i class="bi bi-x-circle-fill fs-5"></i>
+                    </button>
+                `;
+                fileList.appendChild(item);
+            });
+        }
+
+        // 6. 파일 삭제 함수 (전역 스코프로 설정)
+        window.removeFile = function(index) {
+            const newDataTransfer = new DataTransfer();
+            const files = dataTransfer.files;
+            
+            for (let i = 0; i < files.length; i++) {
+                if (i !== index) newDataTransfer.items.add(files[i]);
+            }
+            
+            dataTransfer = newDataTransfer;
+            fileInput.files = dataTransfer.files; // input 동기화
+            renderFileList();
+        };
         console.log("Ingrid 4대 섹션 생성 폼 로드 완료");
     });
 </script>
