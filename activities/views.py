@@ -168,6 +168,15 @@ def unified_update(request, activity_id):
             val = request.POST.get(area['name'], '').strip()
             if val:
                 merged_content += f"[{area['label']}]\n{val}\n\n"
+        
+        # 1. 파일 삭제 처리 (체크된 파일들)
+        delete_file_ids = request.POST.getlist('delete_files')
+        ActivityFile.objects.filter(id__in=delete_file_ids, activity=activity).delete()
+
+        # 2. 새 파일 추가 저장
+        new_files = request.FILES.getlist('attachments')
+        for f in new_files:
+            ActivityFile.objects.create(activity=activity, file=f)
 
         # [데이터 업데이트]
         activity.section = request.POST.get('section')

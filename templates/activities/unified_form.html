@@ -25,6 +25,13 @@
         box-shadow: 0 0 0 0.25rem rgba(142, 68, 173, 0.1) !important;
     }
 
+    /* 섹션 4 전용 스타일: AI 분석 카드와 유사한 옐로우/오렌지 톤 */
+    .section-student-answer {
+        background-color: #FFF9DB !important; /* 상세페이지 AI 카드와 유사한 색상 */
+        border: 1px solid #FFE082 !important;
+        border-radius: 24px !important;
+    }
+
     .file-guide-badge {
         font-size: 0.7rem; padding: 3px 8px; border-radius: 5px; font-weight: 700;
     }
@@ -106,6 +113,24 @@
                 <div class="col-md-9 px-4">
                     <textarea name="reference_material" class="form-control border-0 shadow-sm p-3 mb-4" rows="3" placeholder="참고 텍스트 입력">{{ activity.reference_material }}</textarea>
                     
+                    <!-- 현재 서버에 저장된 파일 -->
+                    {% if activity and activity.files.all %}
+                    <div class="mb-3 px-2">
+                        <label class="fw-bold small text-muted mb-2"><i class="bi bi-hdd-fill me-1"></i> 현재 서버에 저장된 파일 (삭제 시 체크)</label>
+                        <div class="list-group shadow-sm">
+                            {% for f in activity.files.all %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center bg-white-50">
+                                <span class="small text-truncate"><i class="bi bi-file-earmark-check me-1"></i>{{ f.filename }}</span>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="delete_files" value="{{ f.id }}" id="del_file_{{ f.id }}">
+                                    <label class="form-check-label text-danger small" for="del_file_{{ f.id }}">삭제</label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <!-- [드롭존] 드래그 앤 드롭 영역 -->
                     <div id="drop-zone" class="border-dashed d-flex flex-column align-items-center justify-content-center p-5 bg-white rounded-4 shadow-sm mb-3" 
                         style="cursor: pointer; border: 2px dashed #8E44AD; transition: 0.3s;">
@@ -151,9 +176,9 @@
         </div>
 
         <!-- [섹션 4] 학생 답안지 구성 -->
-        <div class="card form-section-card p-4 mb-5 bg-{{ cat_code }}" style="border-left: 8px solid #FF80B5 !important;">
-            <h5 class="fw-bold mb-2 text-danger"><i class="bi bi-layout-text-window-reverse me-2"></i> 4. 학생 답안지 구성</h5>
-            <p class="small text-muted mb-4">학생 응시 화면 우측 답안지에 표시될 문항 제목을 설정하세요.</p>
+        <div class="card form-section-card p-4 mb-5 section-student-answer shadow-sm">
+            <h5 class="fw-bold mb-2" style="color: #F59F00;"><i class="bi bi-layout-text-window-reverse me-2"></i> 4. 학생 답안지 구성</h5>
+            <p class="small text-muted mb-4 fw-bold">학생 응시 화면 우측 답안지에 표시될 문항 제목을 설정하세요.</p>
             
             {% for i in "123" %}
             <div class="row mb-3 align-items-center">
