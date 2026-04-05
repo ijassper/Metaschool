@@ -141,85 +141,110 @@ def create_test(request):
         'student_tree': student_tree
     })
 
-# 3. 평가 수정
+# 3. 평가/활동 수정
 @login_required
 @teacher_required
 def unified_update(request, activity_id):
     # 1. 기존 데이터 불러오기
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 2. 저장된 소메뉴명을 바탕으로 설정(라벨 등) 가져오기
+    # 2. 설정 정보 가져오기
     sub_menu = activity.sub_category if activity.sub_category else "과목별 수행평가"
     config = get_form_config(sub_menu)
     category_name = dict(Activity.CATEGORY_CHOICES).get(activity.category, "평가/활동")
 
     if request.method == 'POST':
-        # [데이터 파싱 함수]
+        # [내부 함수] 날짜 파싱
         def parse_dt(dt_str):
             if not dt_str: return None
             try:
+                # 한국어 오전/오후를 영어 AM/PM으로 변환하여 인식
                 clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
-                return make_aware(datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M"))
+                naive_dt = datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
+                return make_aware(naive_dt)
             except: return None
 
-        # [섹션 2: 여러 서술형 내용 합치기]
+        # [문항 내용 처리]
+        # 1. 만약 HTML에서 단일 'question' 필드로 보냈다면 우선적으로 받음
+        # 2. 만약 여러 개(q1, q2...)로 나뉘어 왔다면 합쳐서 저장
         merged_content = ""
+        has_merged_data = False
+        
         for area in config.get('textareas', []):
             val = request.POST.get(area['name'], '').strip()
             if val:
-                merged_content += f"[{area['label']}]\n{val}\n\n"
-        
-        # 1. 파일 삭제 처리 (체크된 파일들)
-        delete_file_ids = request.POST.getlist('delete_files')
-        ActivityFile.objects.filter(id__in=delete_file_ids, activity=activity).delete()
+                # 수정 시 라벨이 중복되지 않도록 방어 로직 (선택 사항)
+                if f"[{area['label']}]" in val:
+                    merged_content += f"{val}\n\n"
+                else:
+                    merged_content += f"[{area['label']}]\n{val}\n\n"
+                has_merged_data = True
 
-        # 2. 새 파일 추가 저장
-        new_files = request.FILES.getlist('attachments')
-        for f in new_files:
-            ActivityFile.objects.create(activity=activity, file=f)
+        # 만약 루프에서 받은 게 없다면, 단일 'question' 필드에서 가져옴
+        if not has_merged_data:
+            merged_content = request.POST.get('question', activity.question)
 
-        # [데이터 업데이트]
-        activity.section = request.POST.get('section')
-        activity.title = request.POST.get('title')
+        # ------------------------------------------------
+        # 3. 데이터 업데이트 (실제 DB 반영)
+        # ------------------------------------------------
+        activity.section = request.POST.get('section', activity.section)
+        activity.title = request.POST.get('title', activity.title)
         activity.question = merged_content
-        activity.reference_material = request.POST.get('reference_material')
-        activity.conditions = request.POST.get('conditions')
+        activity.reference_material = request.POST.get('reference_material', '')
+        activity.conditions = request.POST.get('conditions', '')
         activity.char_limit = int(request.POST.get('char_limit', 0))
-        activity.exam_mode = request.POST.get('exam_mode')
+        activity.exam_mode = request.POST.get('exam_mode', 'CLOSED')
+        
+        # AI 분석 보조 정보
         activity.achievement_standard = request.POST.get('achievement_standard', '')
         activity.evaluation_elements = request.POST.get('evaluation_elements', '')
-        activity.q1_title = request.POST.get('q1_title')
-        activity.q2_title = request.POST.get('q2_title')
-        activity.q3_title = request.POST.get('q3_title')
         
+        # 답안지 구성 제목
+        activity.q1_title = request.POST.get('q1_title', activity.q1_title)
+        activity.q2_title = request.POST.get('q2_title', activity.q2_title)
+        activity.q3_title = request.POST.get('q3_title', activity.q3_title)
+        
+        # 날짜 업데이트
         if request.POST.get('activity_date'):
             activity.activity_date = parse_dt(request.POST.get('activity_date'))
         if request.POST.get('deadline'):
             activity.deadline = parse_dt(request.POST.get('deadline'))
-            
-        if request.FILES.get('attachment'):
-            activity.attachment = request.FILES.get('attachment')
 
+        # 4. 다중 파일 관리 로직
+        # (1) 삭제 체크된 파일 처리
+        delete_file_ids = request.POST.getlist('delete_files')
+        if delete_file_ids:
+            ActivityFile.objects.filter(id__in=delete_file_ids, activity=activity).delete()
+
+        # (2) 새로 추가된 파일 저장
+        new_files = request.FILES.getlist('attachments')
+        for f in new_files:
+            ActivityFile.objects.create(activity=activity, file=f)
+
+        # 5. 최종 저장
         activity.save()
 
-        # [학생 매칭 업데이트]
+        # 6. 학생 매칭 업데이트
         target_ids = request.POST.getlist('target_students')
-        activity.target_students.set(target_ids)
+        if target_ids:
+            activity.target_students.set(target_ids)
 
-        messages.success(request, "수정이 완료되었습니다.")
+        messages.success(request, f"'{activity.title}' 수정이 완료되었습니다.")
+        # 원래 보던 목록 페이지로 정확한 파라미터와 함께 이동
         return redirect(f'/activities/list/?category={activity.category}&sub={sub_menu}')
 
-    # 3. GET 요청 시: 기존 선택된 학생 ID 리스트 준비
+    # 7. GET 요청 시: 기존 데이터 렌더링 준비
     current_targets = list(activity.target_students.values_list('id', flat=True))
 
     return render(request, 'activities/unified_form.html', {
-        'activity': activity, # 기존 데이터 전달
+        'activity': activity,
+        'cat_code': activity.category, # 템플릿의 배경색 결정을 위해 필요
         'sub_menu': sub_menu,
         'config': config,
         'category_name': category_name,
-        'current_targets': current_targets, # 체크된 학생들
+        'current_targets': current_targets,
         'student_tree': get_student_tree(request.user),
-        'action': '수정' # 생성/수정 구분자
+        'action': '수정'
     })
 
 # 4. 평가 삭제

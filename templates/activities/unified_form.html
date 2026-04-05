@@ -100,12 +100,15 @@
             </div>
 
             <!-- 2. 평가 문항 -->
+            {% for area in config.textareas %}
             <div class="row mb-3">
-                <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">{{ config.detail.content }} *</div>
+                <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">{{ area.label }} *</div>
                 <div class="col-md-9 px-4">
-                    <textarea name="question" class="form-control border-0 shadow-sm p-3" rows="5" placeholder="문항 내용을 상세히 입력하세요" required>{{ activity.question }}</textarea>
+                    <!-- 중요: name을 area.name(q1, q2 등)으로 설정해야 views.py가 인식합니다 -->
+                    <textarea name="{{ area.name }}" class="form-control border-0 shadow-sm p-3" rows="5" placeholder="{{ area.label }} 내용을 입력하세요" required>{{ activity.question }}</textarea>
                 </div>
             </div>
+            {% endfor %}
 
             <!-- 3. 참고 자료 및 다중 파일 업로드 (핵심 변경 부분) -->
             <div class="row mb-3">
@@ -130,7 +133,7 @@
                         </div>
                     </div>
                     {% endif %}
-                    
+
                     <!-- [드롭존] 드래그 앤 드롭 영역 -->
                     <div id="drop-zone" class="border-dashed d-flex flex-column align-items-center justify-content-center p-5 bg-white rounded-4 shadow-sm mb-3" 
                         style="cursor: pointer; border: 2px dashed #8E44AD; transition: 0.3s;">
