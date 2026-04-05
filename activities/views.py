@@ -940,6 +940,11 @@ def creative_update(request, pk):
         # 이후 객체 저장 시 이 char_limit 값을 사용합니다.
         activity.char_limit = char_limit
         
+        # 만약 예전 파일(attachment)이 남아있다면, 새 테이블로 옮겨주고 기존 필드는 비우기
+        if activity.attachment:
+            ActivityFile.objects.create(activity=activity, file=activity.attachment)
+            activity.attachment = None # 이전 필드 비우기
+
         # 파일 업로드 처리 (새 파일이 있을 때만 교체)
         if request.FILES.get('attachment'):
             activity.attachment = request.FILES.get('attachment')

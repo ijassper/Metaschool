@@ -111,30 +111,45 @@
                     </div>
                 </div>
 
-                <!-- 3. 첨부 파일 (다중 리스트 출력) -->
-                {% if activity.files.all %}
+                <!-- 3. 첨부 파일 (기존 단일 파일과 다중 파일 모두 표시) -->
+                {% if activity.attachment or activity.files.all %}
                 <div class="glass-card">
                     <h6 class="fw-bold mb-3"><i class="bi bi-paperclip me-2 text-primary"></i> 첨부 파일</h6>
                     <div class="d-flex flex-column gap-2">
-                        <!-- 1. 기존 방식(단일 파일) 데이터가 있는 경우 -->
+                        
+                        <!-- 1. 기존 단일 업로드 방식의 파일이 있다면 출력 -->
                         {% if activity.attachment %}
                         <div class="d-flex align-items-center justify-content-between p-3 bg-white rounded-3 border shadow-sm">
-                            <a href="{{ activity.attachment.url }}" target="_blank" class="small text-truncate me-3 text-dark fw-bold text-decoration-none">
-                                <i class="bi bi-file-earmark-check text-warning me-1"></i> {{ activity.filename }} (기존)
+                            <div class="d-flex align-items-center overflow-hidden">
+                                <i class="bi bi-file-earmark-check text-warning me-3 fs-5"></i>
+                                <!-- models.py에 정의한 filename 프로퍼티 사용 -->
+                                <a href="{{ activity.attachment.url }}" target="_blank" class="small text-truncate me-3 text-dark fw-bold text-decoration-none">
+                                    {{ activity.filename }} <span class="badge bg-light text-muted fw-normal ms-1">기존</span>
+                                </a>
+                            </div>
+                            <a href="{{ activity.attachment.url }}" download="{{ activity.filename }}" class="btn btn-outline-dark btn-sm px-3 rounded-pill flex-shrink-0">
+                                다운로드
                             </a>
-                            <a href="{{ activity.attachment.url }}" download class="btn btn-outline-dark btn-sm px-3 rounded-pill">다운로드</a>
                         </div>
                         {% endif %}
 
-                        <!-- 2. 새로운 방식(다중 파일) 데이터가 있는 경우 -->
+                        <!-- 2. 새로운 다중 업로드 방식의 파일들이 있다면 반복문으로 출력 -->
                         {% for file_obj in activity.files.all %}
                         <div class="d-flex align-items-center justify-content-between p-3 bg-white rounded-3 border shadow-sm">
-                            <a href="{{ file_obj.file.url }}" target="_blank" class="small text-truncate me-3 text-dark fw-bold text-decoration-none">
-                                <i class="bi bi-file-earmark-pdf text-danger me-1"></i> {{ file_obj.filename }}
+                            <div class="d-flex align-items-center overflow-hidden">
+                                <!-- 확장자별 아이콘 처리 (선택사항) -->
+                                <i class="bi {% if '.pdf' in file_obj.filename %}bi-file-earmark-pdf text-danger{% elif '.hwp' in file_obj.filename %}bi-file-earmark-word text-primary{% else %}bi-file-earmark-image text-success{% endif %} me-3 fs-5"></i>
+                                
+                                <a href="{{ file_obj.file.url }}" target="_blank" class="small text-truncate me-3 text-dark fw-bold text-decoration-none">
+                                    {{ file_obj.filename }}
+                                </a>
+                            </div>
+                            <a href="{{ file_obj.file.url }}" download="{{ file_obj.filename }}" class="btn btn-outline-dark btn-sm px-3 rounded-pill flex-shrink-0">
+                                다운로드
                             </a>
-                            <a href="{{ file_obj.file.url }}" download class="btn btn-outline-dark btn-sm px-3 rounded-pill">다운로드</a>
                         </div>
                         {% endfor %}
+
                     </div>
                 </div>
                 {% endif %}
