@@ -159,7 +159,22 @@
                     </div>
                 </div>
             </div>
+            <!-- 4. 작성 조건 -->
+            <div class="row mb-3">
+                <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">작성 조건</div>
+                <div class="col-md-9 px-4">
+                    <textarea name="conditions" class="form-control border-0 shadow-sm p-3" rows="2" placeholder="예: 3문단 구성, 핵심 키워드 포함 등">{{ activity.conditions }}</textarea>
+                </div>
+            </div>
 
+            <!-- 5. 작성 분량 -->
+            <div class="row mb-0 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">작성 분량</div>
+                <div class="col-md-9 px-4 d-flex align-items-center gap-2">
+                    <input type="number" name="char_limit" class="form-control border-0 shadow-sm p-2 text-center" style="width: 100px;" value="{{ activity.char_limit|default:0 }}">
+                    <span class="fw-bold small">자 이상 (0은 무제한)</span>
+                </div>
+            </div>
         </div>
 
         <!-- [섹션 3] AI 분석용 및 대상 설정 -->
