@@ -1052,60 +1052,30 @@ def get_form_config(sub_menu):
         # ==========================================
         '발표활동 보고서': {
             'basic': {'section': '과목명', 'title': '발표 주제'},
-            'detail': {'date': '수업 일시', 'content': '발표 활동'},
-            'inputs': [
-                {'name': 'section', 'label': '과목명', 'type': 'text'},
-                {'name': 'title', 'label': '발표 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '발표 활동'},
-                {'name': 'q2', 'label': '발표 소감'}
-            ],
-            'ai_info': [],
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}], # 설계도 준수: 단일 문항
+            'ai_info': [], # 기타 중요 내용: 평가 대상(기본) 외 없음
             'default_q': ['발표 내용', '발표 성과', '발표 소감']
         },
         '모둠활동 보고서': {
             'basic': {'section': '과목명', 'title': '수업 주제'},
-            'detail': {'date': '수업 일시', 'content': '활동 내용'},
-            'inputs': [
-                {'name': 'section', 'label': '과목명', 'type': 'text'},
-                {'name': 'title', 'label': '수업 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '활동 내용'},
-                {'name': 'q2', 'label': '활동 소감'}
-            ],
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
             'ai_info': [],
             'default_q': ['협동 과정', '나의 역할', '모둠 성과']
         },
         '창작활동 보고서': {
             'basic': {'section': '과목명', 'title': '창작 주제'},
-            'detail': {'date': '수업 일시', 'content': '창작 과정'},
-            'inputs': [
-                {'name': 'section', 'label': '과목명', 'type': 'text'},
-                {'name': 'title', 'label': '창작 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '창작 과정'},
-                {'name': 'q2', 'label': '창작 성과'},
-                {'name': 'q3', 'label': '창작 소감'}
-            ],
-            'ai_info': ['achievement_standard'],
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
+            'ai_info': ['achievement_standard'], # 설계도 준수: 성취 기준 포함
             'default_q': ['창작 기획', '제작 과정', '최종 완성본 설명']
         },
         '실기활동 보고서': {
             'basic': {'section': '과목명', 'title': '실기 주제'},
-            'detail': {'date': '수업 일시', 'content': '실기 과정'},
-            'inputs': [
-                {'name': 'section', 'label': '과목명', 'type': 'text'},
-                {'name': 'title', 'label': '실기 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '실기 과정'},
-                {'name': 'q2', 'label': '실기 성과'},
-                {'name': 'q3', 'label': '실기 소감'}
-            ],
-            'ai_info': ['achievement_standard'],
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
+            'ai_info': ['achievement_standard'], # 설계도 준수: 성취 기준 포함
             'default_q': ['수행 기술', '연습 과정', '최종 성과']
         },
 
@@ -1113,17 +1083,21 @@ def get_form_config(sub_menu):
         # 3. 교내 행사활동
         # ==========================================
         '행사활동 기록/분석': {
-            'basic': {'section': '연관 과목/부서', 'title': '행사 주제'},
-            'detail': {'date': '행사 일시', 'content': '행사 활동'},
-            'inputs': [
-                {'name': 'section', 'label': '연관 과목', 'type': 'text'},
-                {'name': 'title', 'label': '행사 주제', 'type': 'text'},
-            ],
+            'basic': {
+                'section': '연관 과목/부서', # 설계도: 과목명/부서 반영
+                'title': '행사 주제'        # 설계도: 행사 주제 반영
+            },
+            'detail': {
+                'date': '행사 일시',         # 설계도: 행사 일시 반영
+                'content': '평가 문항'       # 설계도: 평가 문항으로 통일
+            },
+            # 섹션 2: 가변 문항 (설계도에 따라 단일 문항으로 통합)
             'textareas': [
-                {'name': 'q1', 'label': '행사 활동'},
-                {'name': 'q2', 'label': '행사 성과'}
+                {'name': 'question', 'label': '평가 문항'}
             ],
+            # 섹션 3: 기타 중요 내용 (평가 대상은 공통이므로 리스트 비움)
             'ai_info': [],
+            # 섹션 4: 학생 답안지 기본 항목 제목
             'default_q': ['참여 동기', '활동 내용', '배우고 느낀 점']
         },
 
@@ -1132,62 +1106,29 @@ def get_form_config(sub_menu):
         # ==========================================
         '범교과교육': {
             'basic': {'section': '범교과교육명', 'title': '세부 주제'},
-            'detail': {'date': '수업 일시', 'content': '교육 내용'},
-            'inputs': [
-                {'name': 'section', 'label': '범교과교육명', 'type': 'text'},
-                {'name': 'title', 'label': '세부 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '교육 내용'},
-                {'name': 'q2', 'label': '주요 활동'},
-                {'name': 'q3', 'label': '교육 소감'}
-            ],
-            'ai_info': [],
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
+            'ai_info': [], # 설계도 준수: 평가 대상 외 없음
             'default_q': ['핵심 가치 이해', '실천 사례', '나의 다짐']
         },
         '학교주도활동': {
             'basic': {'section': '학교주도활동명', 'title': '세부 주제'},
-            'detail': {'date': '수업 일시', 'content': '활동 내용'},
-            'inputs': [
-                {'name': 'section', 'label': '학교주도활동명', 'type': 'text'},
-                {'name': 'title', 'label': '세부 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '활동 목표'},
-                {'name': 'q2', 'label': '활동 내용'},
-                {'name': 'q3', 'label': '활동 성과'}
-            ],
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
             'ai_info': [],
             'default_q': ['활동 과정', '성과 분석', '향후 계획']
         },
         '현장체험학습': {
             'basic': {'section': '현장체험학습명', 'title': '세부 주제'},
-            'detail': {'date': '수업 일시', 'content': '체험 내용'},
-            'inputs': [
-                {'name': 'section', 'label': '현장체험학습명', 'type': 'text'},
-                {'name': 'title', 'label': '세부 주제', 'type': 'text'},
-                {'name': 'place', 'label': '체험 장소', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '체험 활동'},
-                {'name': 'q2', 'label': '활동 장소 상세'},
-                {'name': 'q3', 'label': '활동 소감'}
-            ],
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
             'ai_info': [],
             'default_q': ['사전 준비', '현장 활동', '사후 소감']
         },
         '학생자치회활동': {
             'basic': {'section': '학생자치회 부서', 'title': '세부 주제'},
-            'detail': {'date': '수업 일시', 'content': '자치 활동'},
-            'inputs': [
-                {'name': 'section', 'label': '학생자치회 부서', 'type': 'text'},
-                {'name': 'title', 'label': '세부 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '자치 활동'},
-                {'name': 'q2', 'label': '수행 역할'},
-                {'name': 'q3', 'label': '활동 결과'}
-            ],
+            'detail': {'date': '수업 일시', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
             'ai_info': [],
             'default_q': ['회의 안건', '나의 의견', '최종 결정 사항']
         },
@@ -1197,34 +1138,23 @@ def get_form_config(sub_menu):
         # ==========================================
         '동아리활동 일지': {
             'basic': {'section': '동아리명', 'title': '세부 주제'},
-            'detail': {'date': '수업 일시', 'content': '활동 내용'},
-            'inputs': [
-                {'name': 'section', 'label': '동아리명', 'type': 'text'},
-                {'name': 'title', 'label': '세부 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '활동 내용'},
-                {'name': 'q2', 'label': '활동 성과'},
-                {'name': 'q3', 'label': '기타 특이사항'}
-            ],
+            'detail': {
+                'date': '수업 일시',         # 설계도: 수업 일시
+                'content': '평가 문항'
+            },
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
             'ai_info': [],
-            'default_q': ['활동 일지', '기술적 성과', '협동 내용']
+            'default_q': ['활동 내용', '배운 점', '향후 계획']
         },
         '동아리활동 보고서': {
             'basic': {'section': '동아리명', 'title': '세부 주제'},
-            'detail': {'date': '수업 학기', 'content': '주요 활동'},
-            'inputs': [
-                {'name': 'section', 'label': '동아리명', 'type': 'text'},
-                {'name': 'semester', 'label': '수업 학기', 'type': 'select', 'options': ['1학기', '2학기']},
-                {'name': 'title', 'label': '세부 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '주요 활동'},
-                {'name': 'q2', 'label': '활동 성과'},
-                {'name': 'q3', 'label': '성장 포인트'}
-            ],
+            'detail': {
+                'date': '수업 학기',         # 설계도: 수업 학기
+                'content': '평가 문항'
+            },
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
             'ai_info': [],
-            'default_q': ['학기별 요약', '성과 지표', '자기 평가']
+            'default_q': ['학기 활동 요약', '주요 성과', '성장 포인트']
         },
 
         # ==========================================
@@ -1232,34 +1162,23 @@ def get_form_config(sub_menu):
         # ==========================================
         '진로수업 일지': {
             'basic': {'section': '진로활동명', 'title': '세부 주제'},
-            'detail': {'date': '수업 일시', 'content': '수업 활동'},
-            'inputs': [
-                {'name': 'section', 'label': '진로활동명', 'type': 'text'},
-                {'name': 'title', 'label': '세부 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '수업 활동'},
-                {'name': 'q2', 'label': '수업 주제'},
-                {'name': 'q3', 'label': '수업 소감'}
-            ],
+            'detail': {
+                'date': '수업 일시',         # 설계도: 수업 일시
+                'content': '평가 문항'
+            },
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
             'ai_info': [],
-            'default_q': ['관심 분야', '탐구 내용', '진로 연결성']
+            'default_q': ['관심 분야 탐구', '주요 활동', '진로 연결성']
         },
         '진로수업 학기말 보고서': {
             'basic': {'section': '진로활동명', 'title': '세부 주제'},
-            'detail': {'date': '수업 학기', 'content': '주요 수업 활동'},
-            'inputs': [
-                {'name': 'section', 'label': '진로활동명', 'type': 'text'},
-                {'name': 'semester', 'label': '수업 학기', 'type': 'select', 'options': ['1학기', '2학기']},
-                {'name': 'title', 'label': '세부 주제', 'type': 'text'},
-            ],
-            'textareas': [
-                {'name': 'q1', 'label': '주요 수업 활동'},
-                {'name': 'q2', 'label': '수업 성장 내용'},
-                {'name': 'q3', 'label': '진로 계획'}
-            ],
+            'detail': {
+                'date': '수업 학기',         # 설계도: 수업 학기
+                'content': '평가 문항'
+            },
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
             'ai_info': [],
-            'default_q': ['성장 기록', '진로 변화', '향후 로드맵']
+            'default_q': ['학기 성장 기록', '진로 변화 과정', '향후 진로 계획']
         },
     }
 
