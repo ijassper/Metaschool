@@ -96,7 +96,7 @@
             </div>
         </div>
 
-        <!-- [섹션 2] 세부 평가 내용 -->
+        <!-- [섹션 2] 세부 평가 내용 (표준 공통 레이아웃) -->
         <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
             <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-file-earmark-text-fill me-2 text-primary"></i> 2. 세부 평가 내용</h5>
             
@@ -123,7 +123,7 @@
             <div class="row mb-3">
                 <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">참고 자료 및 파일</div>
                 <div class="col-md-9 px-4">
-                    <textarea name="reference_material" class="form-control border-0 shadow-sm p-3 mb-4" rows="3" placeholder="참고 텍스트 입력">{{ activity.reference_material }}</textarea>
+                    <textarea name="reference_material" class="form-control border-0 shadow-sm p-3 mb-4" rows="10" placeholder="참고 텍스트 입력">{{ activity.reference_material }}</textarea>
                     
                     <!-- 현재 서버에 저장된 파일 -->
                     {% if activity and activity.files.all %}
@@ -172,7 +172,7 @@
                 <div class="col-md-3 text-center fw-bold text-secondary border-end">작성 분량</div>
                 <div class="col-md-9 px-4 d-flex align-items-center gap-2">
                     <input type="number" name="char_limit" class="form-control border-0 shadow-sm p-2 text-center" style="width: 100px;" value="{{ activity.char_limit|default:0 }}">
-                    <span class="fw-bold small">자 이상 (0은 무제한)</span>
+                    <span class="fw-bold small">자 이내 (0은 무제한)</span>
                 </div>
             </div>
         </div>

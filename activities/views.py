@@ -1041,20 +1041,10 @@ def get_form_config(sub_menu):
         # ==========================================
         '과목별 수행평가': {
             'basic': {'section': '과목명', 'title': '평가 영역'},
-            'detail': {'date': '수업 일시', 'content': '평가 문항'},
-            'inputs': [
-                {'name': 'section', 'label': '과목명', 'type': 'text'},
-                {'name': 'title', 'label': '평가 영역', 'type': 'text'},
-            ],
-            # 섹션 2에 나타날 텍스트 영역들
-            'textareas': [
-                {'name': 'question', 'label': '평가 문항'},
-                {'name': 'reference_material', 'label': '참고 자료'},
-                {'name': 'conditions', 'label': '작성 조건'}, # 추가
-            ],
-            # 섹션 3 AI 분석용 필드들
-            'ai_info': ['achievement_standard', 'evaluation_elements'], # 평가 요소 추가
-            'default_q': ['문항 1', '', ''] # 기본적으로 1개만 활성화된 느낌을 주기 위함
+            'detail': {'date': '수업 일시', 'content': '평가 문항'}, # 라벨 정의
+            'textareas': [{'name': 'question', 'label': '평가 문항'}], # 가변 필드
+            'ai_info': ['achievement_standard', 'evaluation_elements'],
+            'default_q': ['문항 1', '', '']
         },
 
         # ==========================================
