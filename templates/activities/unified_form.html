@@ -181,6 +181,7 @@
         <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
             <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-robot me-2 text-primary"></i> 3. 기타 중요 내용 (AI 분석용)</h5>
             
+            <!-- 1. 성취 기준 -->
             {% if 'achievement_standard' in config.ai_info %}
             <div class="row mb-3">
                 <div class="col-md-3 pt-2 text-center fw-bold text-secondary">성취 기준</div>
@@ -190,6 +191,17 @@
             </div>
             {% endif %}
 
+            <!-- 2. 평가 요소 (새로 추가할 코드) -->
+            {% if 'evaluation_elements' in config.ai_info %}
+            <div class="row mb-3">
+                <div class="col-md-3 pt-2 text-center fw-bold text-secondary border-end">평가 요소</div>
+                <div class="col-md-9 px-4">
+                    <textarea name="evaluation_elements" class="form-control border-0 shadow-sm p-3" rows="2" placeholder="예: 주제의 명확성, 근거의 적절성, 문장 구성력 등">{{ activity.evaluation_elements }}</textarea>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 3. 평가 대상 -->
             <div class="mt-4 bg-white p-3 rounded-4 shadow-sm">
                 {% include 'components/student_selector.html' %}
             </div>
