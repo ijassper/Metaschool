@@ -1046,9 +1046,15 @@ def get_form_config(sub_menu):
                 {'name': 'section', 'label': '과목명', 'type': 'text'},
                 {'name': 'title', 'label': '평가 영역', 'type': 'text'},
             ],
-            'textareas': [{'name': 'q1', 'label': '평가 문항'}],
-            'ai_info': ['achievement_standard', 'evaluation_elements'],
-            'default_q': ['문항 1', '문항 2', '문항 3']
+            # 섹션 2에 나타날 텍스트 영역들
+            'textareas': [
+                {'name': 'question', 'label': '평가 문항'},
+                {'name': 'reference_material', 'label': '참고 자료'},
+                {'name': 'conditions', 'label': '작성 조건'}, # 추가
+            ],
+            # 섹션 3 AI 분석용 필드들
+            'ai_info': ['achievement_standard', 'evaluation_elements'], # 평가 요소 추가
+            'default_q': ['문항 1', '', ''] # 기본적으로 1개만 활성화된 느낌을 주기 위함
         },
 
         # ==========================================

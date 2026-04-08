@@ -95,10 +95,10 @@
                 <div class="glass-card mt-5">
                     <h5 class="fw-bold mb-3"><i class="bi bi-chat-left-text-fill me-2 text-primary"></i> 활동 및 평가 문항</h5>
                     <div class="content-box">
-                        {% if activity.question %}
-                            {{ activity.question|linebreaksbr }}
+                        {% if activity.question and activity.question.strip %}
+                            <div style="white-space: pre-wrap;">{{ activity.question }}</div>
                         {% else %}
-                            등록된 문항 내용이 없습니다.
+                            <div class="text-muted">등록된 문항 내용이 없습니다.</div>
                         {% endif %}
                     </div>
                 </div>

@@ -57,37 +57,46 @@
             <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-info-circle-fill me-2 text-primary"></i> 1. 기본 정보</h5>
             
             <div class="row mb-3 align-items-center">
-                <div class="col-md-3 text-center fw-bold text-secondary">{{ config.basic.section }} *</div>
-                <div class="col-md-9">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.basic.section }} *</div>
+                <div class="col-md-9 px-4">
                     <input type="text" name="section" value="{{ activity.section|default:'' }}" class="form-control border-0 shadow-sm p-3 rounded-3" placeholder="{{ config.basic.section }} 입력" required>
                 </div>
             </div>
 
             <div class="row mb-3 align-items-center">
-                <div class="col-md-3 text-center fw-bold text-secondary">{{ config.basic.title }} *</div>
-                <div class="col-md-9">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.basic.title }} *</div>
+                <div class="col-md-9 px-4">
                     <input type="text" name="title" value="{{ activity.title|default:'' }}" class="form-control border-0 shadow-sm p-3 rounded-3" placeholder="{{ config.basic.title }} 입력" required>
                 </div>
             </div>
 
-            <div class="row mb-0 align-items-center">
-                <div class="col-md-3 text-center fw-bold text-secondary">응시 환경 유형</div>
-                <div class="col-md-9">
-                    <div class="d-flex gap-4 p-2">
+            <!-- 응시 환경 유형 -->
+            <div class="row mb-3 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">응시 환경 유형</div>
+                <div class="col-md-9 px-4">
+                    <div class="d-flex gap-4">
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="exam_mode" id="mode_closed" value="CLOSED" {% if activity.exam_mode == 'CLOSED' or not activity %}checked{% endif %}>
-                            <label class="form-check-label fw-bold" for="mode_closed"><span class="text-danger">폐쇄형</span> (보안 모드)</label>
+                            <label class="form-check-label fw-bold" for="mode_closed"><span class="badge bg-danger mb-1">폐쇄형</span><br><small class="text-muted">보안 모드</small></label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="exam_mode" id="mode_open" value="OPEN" {% if activity.exam_mode == 'OPEN' %}checked{% endif %}>
-                            <label class="form-check-label fw-bold" for="mode_open"><span class="text-primary">개방형</span> (자료 허용)</label>
+                            <label class="form-check-label fw-bold" for="mode_open"><span class="badge bg-primary mb-1">개방형</span><br><small class="text-muted">자료 허용</small></label>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- 제출 기한 -->
+            <div class="row mb-0 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">제출 기한 *</div>
+                <div class="col-md-9 px-4">
+                    <input type="text" name="deadline" id="deadline_picker" value="{{ activity.deadline|date:'Y. m. d. A h:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" readonly required>
+                </div>
+            </div>
         </div>
 
-        <!-- [섹션 2] 세부 평가 내용 (수정 버전) -->
+        <!-- [섹션 2] 세부 평가 내용 -->
         <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
             <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-file-earmark-text-fill me-2 text-primary"></i> 2. 세부 평가 내용</h5>
             
@@ -151,13 +160,6 @@
                 </div>
             </div>
 
-            <!-- 4. 제출 기한 -->
-            <div class="row mb-0 align-items-center">
-                <div class="col-md-3 text-center fw-bold text-secondary border-end">제출 기한 *</div>
-                <div class="col-md-9 px-4">
-                    <input type="text" name="deadline" id="deadline_picker" value="{{ activity.deadline|date:'Y. m. d. A h:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker" readonly required>
-                </div>
-            </div>
         </div>
 
         <!-- [섹션 3] AI 분석용 및 대상 설정 -->
