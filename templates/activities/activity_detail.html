@@ -90,14 +90,8 @@
                     <h5 class="content-title"><i class="bi bi-info-circle-fill me-2 text-info"></i> 참고 자료</h5>
                     <div class="content-body-lg">{% if activity.reference_material %}{{ activity.reference_material }}{% else %}등록된 참고 자료가 없습니다.{% endif %}</div>
                 </div>
-
-                <!-- 3. 작성 조건 (row=10 적용) -->
-                <div class="glass-card">
-                    <h5 class="content-title"><i class="bi bi-check-all me-2 text-warning"></i> 작성 조건</h5>
-                    <div class="content-body-lg">{{ activity.conditions|default:"특별한 작성 조건이 없습니다." }}</div>
-                </div>
-
-                <!-- 4. 첨부 파일 -->
+                
+                <!-- 3. 첨부 파일 -->
                 {% if activity.attachment or activity.files.all %}
                 <div class="glass-card">
                     <h5 class="content-title"><i class="bi bi-paperclip me-2 text-secondary"></i> 첨부 파일</h5>
@@ -117,6 +111,12 @@
                     </div>
                 </div>
                 {% endif %}
+
+                <!-- 4. 작성 조건 (row=10 적용) -->
+                <div class="glass-card">
+                    <h5 class="content-title"><i class="bi bi-check-all me-2 text-warning"></i> 작성 조건</h5>
+                    <div class="content-body-lg">{{ activity.conditions|default:"특별한 작성 조건이 없습니다." }}</div>
+                </div>
             </div>
 
             <!-- [오른쪽 영역] 요약 및 기타 중요 내용 -->
@@ -143,17 +143,25 @@
                 </div>
 
                 <!-- 섹션 3: 기타 중요 내용 (AI 분석용) -->
+                {% if config.ai_info %}
                 <div class="glass-card highlight-card">
                     <h5 class="fw-bold mb-3"><i class="bi bi-robot me-2"></i> 기타 중요 내용</h5>
+                    
+                    {% if 'achievement_standard' in config.ai_info %}
                     <div class="mb-3">
                         <label class="d-block small fw-bold text-muted mb-1">성취 기준</label>
                         <div class="small fw-bold text-dark">{{ activity.achievement_standard|default:"미입력" }}</div>
                     </div>
+                    {% endif %}
+
+                    {% if 'evaluation_elements' in config.ai_info %}
                     <div>
                         <label class="d-block small fw-bold text-muted mb-1">평가 요소</label>
                         <div class="small fw-bold text-dark">{{ activity.evaluation_elements|default:"미입력" }}</div>
                     </div>
+                    {% endif %}
                 </div>
+                {% endif %}
 
                 <!-- 섹션 4: 답안지 구성 -->
                 <div class="glass-card shadow-sm" style="background: rgba(255, 255, 255, 0.9);">

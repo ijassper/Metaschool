@@ -51,7 +51,7 @@
                             
                             <!-- [변경] 타이틀 정보 (평가영역, 활동주제 등) -->
                             <td class="text-start">
-                                <a href="{% url 'activity_detail' act.id %}" class="text-decoration-none d-block">
+                                <a href="{% url 'activity_detail' act.id %}?category={{ cat_code }}&sub={{ sub_menu }}" class="text-decoration-none d-block">
                                     <div class="fw-bold text-dark hover-title">{{ act.title }}</div>
                                 </a>
                             </td>

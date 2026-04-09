@@ -289,8 +289,11 @@ def toggle_activity_status(request, activity_id):
 @teacher_required
 def activity_detail(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    # URL에서 받은 sub_menu 정보를 바탕으로 config 가져오기
+    sub_menu = request.GET.get('sub', activity.sub_category)
+    config = get_form_config(sub_menu) # 템플릿에서 조건부로 특정 영역 보이게 할 때 사용
     questions = activity.questions.all()
-    return render(request, 'activities/activity_detail.html', {'activity': activity, 'questions': questions})
+    return render(request, 'activities/activity_detail.html', {'activity': activity, 'questions': questions, 'config': config})
 
 # 7. 제출 현황(답안) 보기 페이지
 @login_required
