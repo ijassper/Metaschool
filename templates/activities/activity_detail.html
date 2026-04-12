@@ -103,8 +103,10 @@
                             <div class="d-flex align-items-center overflow-hidden">
                                 <i class="bi bi-file-earmark-check me-2 text-warning fs-5"></i>
                                 <!-- 파일명 클릭 시 새 탭에서 열기 -->
-                                <a href="{{ activity.attachment.url }}" target="_blank" class="small fw-bold text-truncate text-dark text-decoration-none" title="바로보기">
-                                    {{ activity.filename }} <i class="bi bi-box-arrow-up-right ms-1 text-muted" style="font-size: 0.7rem;"></i>
+                                <a href="javascript:void(0);" 
+                                onclick="previewFile('{{ f.file.url }}', '{{ f.filename }}')" 
+                                class="small fw-bold text-truncate text-dark text-decoration-none">
+                                    {{ f.filename }} <i class="bi bi-search ms-1 text-muted" style="font-size: 0.7rem;"></i>
                                 </a>
                             </div>
                             <a href="{{ activity.attachment.url }}" download="{{ activity.filename }}" class="btn btn-dark btn-sm px-4 rounded-pill flex-shrink-0">다운로드</a>
@@ -118,8 +120,10 @@
                                 <!-- 확장자별 아이콘 -->
                                 <i class="bi {% if '.pdf' in f.filename %}bi-file-earmark-pdf text-danger{% elif '.hwp' in f.filename %}bi-file-earmark-word text-primary{% else %}bi-file-earmark-image text-success{% endif %} me-2 fs-5"></i>
                                 <!-- 파일명 클릭 시 새 탭에서 열기 -->
-                                <a href="{{ f.file.url }}" target="_blank" class="small fw-bold text-truncate text-dark text-decoration-none" title="바로보기">
-                                    {{ f.filename }} <i class="bi bi-box-arrow-up-right ms-1 text-muted" style="font-size: 0.7rem;"></i>
+                                <a href="javascript:void(0);" 
+                                   onclick="previewFile('{{ f.file.url }}', '{{ f.filename }}')" 
+                                   class="small fw-bold text-truncate text-dark text-decoration-none" title="바로보기">
+                                    {{ f.filename }} <i class="bi bi-search ms-1 text-muted" style="font-size: 0.7rem;"></i>
                                 </a>
                             </div>
                             <a href="{{ f.file.url }}" download="{{ f.filename }}" class="btn btn-dark btn-sm px-4 rounded-pill flex-shrink-0">다운로드</a>
@@ -232,4 +236,74 @@
         </div>
     </div>
 </div>
+
+<!-- 파일 미리보기 모달 -->
+<div class="modal fade" id="filePreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered shadow-lg">
+        <div class="modal-content border-0" style="border-radius: 24px; height: 85vh;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold text-truncate" id="previewTitle">파일 미리보기</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 pt-2">
+                <!-- PDF/웹 문서를 위한 iframe -->
+                <iframe id="previewIframe" src="" style="width: 100%; height: 100%; border-radius: 12px; display: none;" frameborder="0"></iframe>
+                
+                <!-- 이미지를 위한 img 태그 -->
+                <div id="previewImageContainer" class="text-center h-100 w-100 d-flex align-items-center justify-content-center" style="display: none !important;">
+                    <img id="previewImg" src="" class="img-fluid rounded-3 shadow-sm" style="max-height: 100%;">
+                </div>
+
+                <!-- 미리보기 미지원 파일 안내 -->
+                <div id="previewError" class="h-100 w-100 d-flex flex-column align-items-center justify-content-center" style="display: none !important;">
+                    <i class="bi bi-file-earmark-x text-muted mb-3" style="font-size: 4rem;"></i>
+                    <h5 class="fw-bold">이 파일 형식은 미리보기를 지원하지 않습니다.</h5>
+                    <p class="text-muted">아래 다운로드 버튼을 눌러 확인해 주세요.</p>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3">
+                <a id="previewDownloadBtn" href="" download class="btn btn-dark rounded-pill px-5">파일 다운로드</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function previewFile(url, filename) {
+    const iframe = document.getElementById('previewIframe');
+    const imgContainer = document.getElementById('previewImageContainer');
+    const img = document.getElementById('previewImg');
+    const errorDiv = document.getElementById('previewError');
+    const downloadBtn = document.getElementById('previewDownloadBtn');
+    const title = document.getElementById('previewTitle');
+
+    // 초기화
+    title.innerText = filename;
+    downloadBtn.href = url;
+    iframe.style.display = 'none';
+    imgContainer.style.setProperty('display', 'none', 'important');
+    errorDiv.style.setProperty('display', 'none', 'important');
+
+    const ext = filename.split('.').pop().toLowerCase();
+
+    // 1. 이미지 파일 처리
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+        img.src = url;
+        imgContainer.style.setProperty('display', 'flex', 'important');
+    } 
+    // 2. PDF 및 웹 표준 파일 처리 (브라우저 내장 뷰어 활용)
+    else if (ext === 'pdf' || ext === 'txt') {
+        iframe.src = url;
+        iframe.style.display = 'block';
+    } 
+    // 3. 한글(HWP/HWPX) 등 미리보기 미지원 처리
+    else {
+        errorDiv.style.setProperty('display', 'flex', 'important');
+    }
+
+    // 모달 띄우기
+    const myModal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
+    myModal.show();
+}
+</script>
 {% endblock %}
