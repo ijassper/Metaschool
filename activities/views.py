@@ -158,48 +158,40 @@ def unified_update(request, activity_id):
         def parse_dt(dt_str):
             if not dt_str: return None
             try:
-                # 한국어 오전/오후를 영어 AM/PM으로 변환하여 인식
                 clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
                 naive_dt = datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
                 return make_aware(naive_dt)
             except: return None
 
-        # [문항 내용 처리]
-        # 1. 만약 HTML에서 단일 'question' 필드로 보냈다면 우선적으로 받음
-        # 2. 만약 여러 개(q1, q2...)로 나뉘어 왔다면 합쳐서 저장
-        merged_content = ""
-        has_merged_data = False
+        # ------------------------------------------------
+        # 3. [핵심 수정] 데이터 업데이트 (실제 DB 반영)
+        # ------------------------------------------------
         
-        for area in config.get('textareas', []):
-            val = request.POST.get(area['name'], '').strip()
-            if val:
-                # 수정 시 라벨이 중복되지 않도록 방어 로직 (선택 사항)
-                if f"[{area['label']}]" in val:
-                    merged_content += f"{val}\n\n"
-                else:
-                    merged_content += f"[{area['label']}]\n{val}\n\n"
-                has_merged_data = True
-
-        # 만약 루프에서 받은 게 없다면, 단일 'question' 필드에서 가져옴
-        if not has_merged_data:
-            merged_content = request.POST.get('question', activity.question)
-
-        # ------------------------------------------------
-        # 3. 데이터 업데이트 (실제 DB 반영)
-        # ------------------------------------------------
+        # [섹션 1: 기본 정보]
         activity.section = request.POST.get('section', activity.section)
         activity.title = request.POST.get('title', activity.title)
-        activity.question = merged_content
-        activity.reference_material = request.POST.get('reference_material', '')
-        activity.conditions = request.POST.get('conditions', '')
-        activity.char_limit = int(request.POST.get('char_limit', 0))
         activity.exam_mode = request.POST.get('exam_mode', 'CLOSED')
         
-        # AI 분석 보조 정보
+        # [섹션 2: 세부 평가 내용] - 루프 없이 직접 매핑하여 유실 차단
+        # HTML의 <textarea name="question"> 값을 직접 가져옴
+        new_question = request.POST.get('question', '').strip()
+        if new_question:
+            activity.question = new_question
+        
+        activity.reference_material = request.POST.get('reference_material', '')
+        activity.conditions = request.POST.get('conditions', '')
+        
+        # 작성 분량 (숫자 변환 예외처리)
+        try:
+            activity.char_limit = int(request.POST.get('char_limit', 0))
+        except (ValueError, TypeError):
+            activity.char_limit = 0
+
+        # [섹션 3: 기타 중요 내용 (AI 분석용)]
         activity.achievement_standard = request.POST.get('achievement_standard', '')
         activity.evaluation_elements = request.POST.get('evaluation_elements', '')
-        
-        # 답안지 구성 제목
+
+        # [섹션 4: 학생 답안지 구성 제목] - 교사가 설정한 제목들
         activity.q1_title = request.POST.get('q1_title', activity.q1_title)
         activity.q2_title = request.POST.get('q2_title', activity.q2_title)
         activity.q3_title = request.POST.get('q3_title', activity.q3_title)
@@ -210,7 +202,9 @@ def unified_update(request, activity_id):
         if request.POST.get('deadline'):
             activity.deadline = parse_dt(request.POST.get('deadline'))
 
+        # ------------------------------------------------
         # 4. 다중 파일 관리 로직
+        # ------------------------------------------------
         # (1) 삭제 체크된 파일 처리
         delete_file_ids = request.POST.getlist('delete_files')
         if delete_file_ids:
@@ -230,7 +224,6 @@ def unified_update(request, activity_id):
             activity.target_students.set(target_ids)
 
         messages.success(request, f"'{activity.title}' 수정이 완료되었습니다.")
-        # 원래 보던 목록 페이지로 정확한 파라미터와 함께 이동
         return redirect(f'/activities/list/?category={activity.category}&sub={sub_menu}')
 
     # 7. GET 요청 시: 기존 데이터 렌더링 준비
@@ -238,7 +231,7 @@ def unified_update(request, activity_id):
 
     return render(request, 'activities/unified_form.html', {
         'activity': activity,
-        'cat_code': activity.category, # 템플릿의 배경색 결정을 위해 필요
+        'cat_code': activity.category,
         'sub_menu': sub_menu,
         'config': config,
         'category_name': category_name,
@@ -1207,40 +1200,42 @@ def unified_create(request):
     cat_code = request.GET.get('category', 'ESSAY')
     sub_menu = request.GET.get('sub', '과목별 수행평가')
     
-    # 메뉴별 설정(라벨 및 4대 섹션 구성) 가져오기
+    # 메뉴별 설정 가져오기
     config = get_form_config(sub_menu)
     category_name = dict(Activity.CATEGORY_CHOICES).get(cat_code, "평가/활동")
 
     if request.method == 'POST':
-        # --- [데이터 수집 및 전처리] ---
-        
-        # 1. 여러 텍스트 에어리어 합치기 (안전한 get 방식)
-        merged_content = ""
-        for area in config.get('textareas', []): # KeyError 방지
-            val = request.POST.get(area['name'], '').strip()
-            if val:
-                merged_content += f"[{area['label']}]\n{val}\n\n"
-        
-        # 2. 날짜 파싱 함수
+        # [내부 함수] 날짜 파싱
         def parse_dt(dt_str):
             if not dt_str: return None
             try:
                 clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
                 naive_dt = datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
-                return make_aware(naive_dt) # 서울 시간대 정보를 입혀서 반환
+                return make_aware(naive_dt)
             except: return None
 
-        # 3. 추가 입력 정보 처리 (안전한 get 방식)
+        # [수정: 섹션 2 평가 문항 처리] 
+        # 루프 방식 대신 HTML의 name="question"에서 직접 가져와 유실을 방지합니다.
+        main_question = request.POST.get('question', '').strip()
+        
+        # 만약 루프 방식(q1, q2...)을 병행해야 한다면 아래 로직을 사용하지만, 
+        # 현재 설계도대로라면 위 코드가 가장 확실합니다.
+        if not main_question:
+            for area in config.get('textareas', []):
+                val = request.POST.get(area['name'], '').strip()
+                if val:
+                    main_question += f"[{area['label']}]\n{val}\n\n"
+
+        # 추가 정보 처리 (기존 로직 유지)
         extra_info = []
-        for inp in config.get('inputs', []): # KeyError 방지
+        for inp in config.get('inputs', []):
             if inp['name'] not in ['section', 'title', 'activity_date']:
                 val = request.POST.get(inp['name'])
                 if val: extra_info.append(f"{inp['label']}: {val}")
         extra_str = f" ({', '.join(extra_info)})" if extra_info else ""
 
-
         try:
-            # --- [Activity 객체 생성 - 모든 필드 포함] ---
+            # --- [Activity 객체 생성] ---
             activity = Activity.objects.create(
                 teacher=request.user,
                 category=cat_code,
@@ -1250,21 +1245,21 @@ def unified_create(request):
                 section=request.POST.get('section', sub_menu),
                 title=request.POST.get('title', '제목 없음') + extra_str,
                 exam_mode=request.POST.get('exam_mode', 'CLOSED'),
+                deadline=parse_dt(request.POST.get('deadline')), # 섹션 1 기한
                 
                 # [섹션 2: 세부 평가 내용]
                 activity_date=parse_dt(request.POST.get('activity_date')),
-                question=merged_content,  
+                question=main_question,  
                 reference_material=request.POST.get('reference_material', ''),
                 conditions=request.POST.get('conditions', ''),
                 char_limit=int(request.POST.get('char_limit', 0)) if request.POST.get('char_limit') else 0,
-                deadline=parse_dt(request.POST.get('deadline')),
-                attachment=None, # 파일은 나중에 처리 (첨부파일은 별도의 모델로 저장)
+                attachment=None, # 다중 파일 모델(ActivityFile) 사용
                 
                 # [섹션 3: 기타 중요 내용 (AI 분석용)]
                 achievement_standard=request.POST.get('achievement_standard', ''),
                 evaluation_elements=request.POST.get('evaluation_elements', ''),
                 
-                # [섹션 4: 학생 답안지 구성 (문항 제목 커스텀)]
+                # [섹션 4: 학생 답안지 구성 (문항 제목)]
                 q1_title=request.POST.get('q1_title', config.get('default_q', [''])[0]),
                 q2_title=request.POST.get('q2_title', config.get('default_q', ['',''])[1]),
                 q3_title=request.POST.get('q3_title', config.get('default_q', ['','',''])[2]),
@@ -1272,22 +1267,21 @@ def unified_create(request):
                 is_active=True
             )
 
-            # 다중 파일 저장 로직
-            files = request.FILES.getlist('attachments') # HTML input의 name과 일치해야 함
+            # --- [다중 파일 저장] ---
+            files = request.FILES.getlist('attachments')
             for f in files:
                 ActivityFile.objects.create(activity=activity, file=f)
 
             # --- [후속 처리] ---
-            
-            # 1. Question 객체 생성 (Answer 모델 참조용 껍데기)
+            # 1. Question 객체 생성 (Answer 모델과의 연결을 위해 필수)
             from .models import Question
             Question.objects.create(
                 activity=activity, 
-                content=merged_content,
+                content=main_question, # Activity와 동일한 내용 복사
                 conditions=activity.conditions
             )
 
-            # 2. 대상 학생 등록 (ManyToMany)
+            # 2. 대상 학생 등록
             target_ids = request.POST.getlist('target_students')
             if target_ids:
                 activity.target_students.set(target_ids)
@@ -1296,13 +1290,15 @@ def unified_create(request):
             return redirect(f'/activities/list/?category={cat_code}&sub={sub_menu}')
 
         except Exception as e:
-            print(f"--- [ERROR] 생성 실패: {str(e)} ---", flush=True)
+            logger.error(f"생성 에러: {str(e)}")
             messages.error(request, f"저장 중 오류가 발생했습니다: {str(e)}")
-            # 에러 발생 시 입력하던 폼으로 다시 돌아감
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-    
-    # 7. GET 요청 시 페이지 렌더링
+            return redirect(request.path + f"?category={cat_code}&sub={sub_menu}")
+
+    # 7. GET 요청 시
     return render(request, 'activities/unified_form.html', {
-        'cat_code': cat_code, 'sub_menu': sub_menu, 'config': config,
-        'student_tree': get_student_tree(request.user)
+        'cat_code': cat_code, 
+        'sub_menu': sub_menu, 
+        'config': config,
+        'student_tree': get_student_tree(request.user),
+        'action': '생성'
     })

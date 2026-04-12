@@ -109,15 +109,15 @@
             </div>
 
             <!-- 2. 평가 문항 -->
-            {% for area in config.textareas %}
             <div class="row mb-3">
-                <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">{{ area.label }} *</div>
+                <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">
+                    {{ config.detail.content|default:"평가 문항" }} *
+                </div>
                 <div class="col-md-9 px-4">
-                    <!-- 중요: name을 area.name(q1, q2 등)으로 설정해야 views.py가 인식합니다 -->
-                    <textarea name="{{ area.name }}" class="form-control border-0 shadow-sm p-3" rows="5" placeholder="{{ area.label }} 내용을 입력하세요" required>{{ activity.question }}</textarea>
+                    <!-- name="question"으로 고정하여 views.py와 연결 -->
+                    <textarea name="question" class="form-control border-0 shadow-sm p-3" rows="10" required>{{ activity.question }}</textarea>
                 </div>
             </div>
-            {% endfor %}
 
             <!-- 3. 참고 자료 및 다중 파일 업로드 (핵심 변경 부분) -->
             <div class="row mb-3">
