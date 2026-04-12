@@ -93,21 +93,39 @@
                 
                 <!-- 3. 첨부 파일 -->
                 {% if activity.attachment or activity.files.all %}
-                <div class="glass-card">
+                <div class="glass-card mt-n2">
                     <h5 class="content-title"><i class="bi bi-paperclip me-2 text-secondary"></i> 첨부 파일</h5>
                     <div class="d-flex flex-column gap-2">
+                        
+                        <!-- 1. 기존 단일 파일 (바로보기 포함) -->
                         {% if activity.attachment %}
                         <div class="d-flex align-items-center justify-content-between p-3 bg-white rounded-4 border shadow-sm">
-                            <span class="small fw-bold text-truncate"><i class="bi bi-file-earmark-check me-2 text-warning"></i>{{ activity.filename }}</span>
-                            <a href="{{ activity.attachment.url }}" download class="btn btn-dark btn-sm px-4 rounded-pill">다운로드</a>
+                            <div class="d-flex align-items-center overflow-hidden">
+                                <i class="bi bi-file-earmark-check me-2 text-warning fs-5"></i>
+                                <!-- 파일명 클릭 시 새 탭에서 열기 -->
+                                <a href="{{ activity.attachment.url }}" target="_blank" class="small fw-bold text-truncate text-dark text-decoration-none" title="바로보기">
+                                    {{ activity.filename }} <i class="bi bi-box-arrow-up-right ms-1 text-muted" style="font-size: 0.7rem;"></i>
+                                </a>
+                            </div>
+                            <a href="{{ activity.attachment.url }}" download="{{ activity.filename }}" class="btn btn-dark btn-sm px-4 rounded-pill flex-shrink-0">다운로드</a>
                         </div>
                         {% endif %}
+
+                        <!-- 2. 다중 파일 리스트 (바로보기 포함) -->
                         {% for f in activity.files.all %}
                         <div class="d-flex align-items-center justify-content-between p-3 bg-white rounded-4 border shadow-sm">
-                            <span class="small fw-bold text-truncate"><i class="bi bi-file-earmark-pdf me-2 text-danger"></i>{{ f.filename }}</span>
-                            <a href="{{ f.file.url }}" download class="btn btn-dark btn-sm px-4 rounded-pill">다운로드</a>
+                            <div class="d-flex align-items-center overflow-hidden">
+                                <!-- 확장자별 아이콘 -->
+                                <i class="bi {% if '.pdf' in f.filename %}bi-file-earmark-pdf text-danger{% elif '.hwp' in f.filename %}bi-file-earmark-word text-primary{% else %}bi-file-earmark-image text-success{% endif %} me-2 fs-5"></i>
+                                <!-- 파일명 클릭 시 새 탭에서 열기 -->
+                                <a href="{{ f.file.url }}" target="_blank" class="small fw-bold text-truncate text-dark text-decoration-none" title="바로보기">
+                                    {{ f.filename }} <i class="bi bi-box-arrow-up-right ms-1 text-muted" style="font-size: 0.7rem;"></i>
+                                </a>
+                            </div>
+                            <a href="{{ f.file.url }}" download="{{ f.filename }}" class="btn btn-dark btn-sm px-4 rounded-pill flex-shrink-0">다운로드</a>
                         </div>
                         {% endfor %}
+
                     </div>
                 </div>
                 {% endif %}
