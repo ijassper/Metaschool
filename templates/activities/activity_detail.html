@@ -136,17 +136,13 @@
                         <span class="info-label">권장 분량</span>
                         <span class="info-value">{{ activity.char_limit|default:0 }}자 이상</span>
                     </div>
-                    <div class="mb-0">
-                        <span class="info-label">응시 대상</span>
-                        <span class="info-value">{{ activity.target_students.count }}명</span>
-                    </div>
                 </div>
 
                 <!-- 섹션 3: 기타 중요 내용 (AI 분석용) -->
-                {% if config.ai_info %}
                 <div class="glass-card highlight-card">
                     <h5 class="fw-bold mb-3"><i class="bi bi-robot me-2"></i> 기타 중요 내용</h5>
                     
+                    <!-- 성취 기준 (설계도에 있을 때만 노출) -->
                     {% if 'achievement_standard' in config.ai_info %}
                     <div class="mb-3">
                         <label class="d-block small fw-bold text-muted mb-1">성취 기준</label>
@@ -154,14 +150,27 @@
                     </div>
                     {% endif %}
 
+                    <!-- 평가 요소 (설계도에 있을 때만 노출) -->
                     {% if 'evaluation_elements' in config.ai_info %}
-                    <div>
+                    <div class="mb-3 border-bottom pb-3">
                         <label class="d-block small fw-bold text-muted mb-1">평가 요소</label>
                         <div class="small fw-bold text-dark">{{ activity.evaluation_elements|default:"미입력" }}</div>
                     </div>
                     {% endif %}
+
+                    <!-- 평가 대상 (고정 노출 및 클릭 시 모달) -->
+                    <div class="mt-2">
+                        <label class="d-block small fw-bold text-muted mb-1">평가 대상</label>
+                        <div class="d-flex align-items-center justify-content-between bg-white p-2 px-3 rounded-pill border shadow-sm" 
+                            style="cursor: pointer; transition: 0.2s;" 
+                            data-bs-toggle="modal" data-bs-target="#studentListModal">
+                            <span class="fw-bold text-primary">
+                                <i class="bi bi-people-fill me-1"></i> {{ activity.target_students.count }}명
+                            </span>
+                            <span class="small text-muted">명단 보기 <i class="bi bi-chevron-right ms-1"></i></span>
+                        </div>
+                    </div>
                 </div>
-                {% endif %}
 
                 <!-- 섹션 4: 답안지 구성 -->
                 <div class="glass-card shadow-sm" style="background: rgba(255, 255, 255, 0.9);">
@@ -172,6 +181,35 @@
                         <li class="list-group-item bg-transparent px-0 py-3 border-0"><b class="text-primary me-2">항목 3:</b> {{ activity.q3_title|default:"(비활성)" }}</li>
                     </ul>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 학생 명단 팝업 모달 -->
+<div class="modal fade" id="studentListModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-people me-2"></i>평가 대상 학생 명단</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-2">
+                    {% for student in activity.target_students.all|dictsort:"grade"|dictsort:"class_no"|dictsort:"number" %}
+                    <div class="col-6">
+                        <div class="p-2 px-3 bg-light rounded-3 small d-flex justify-content-between">
+                            <span class="text-muted">{{ student.grade }}-{{ student.class_no }}-{{ student.number }}</span>
+                            <span class="fw-bold">{{ student.name }}</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12 text-center py-4 text-muted">등록된 학생이 없습니다.</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3">
+                <button type="button" class="btn btn-secondary rounded-pill px-4 w-100" data-bs-dismiss="modal">닫기</button>
             </div>
         </div>
     </div>
