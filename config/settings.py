@@ -185,3 +185,6 @@ AUTHENTICATION_BACKENDS = [
 # 미디어 파일 설정 (사용자 업로드 파일)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# 같은 도메인 내에서는 iframe(미리보기)을 허용하도록 설정
+X_FRAME_OPTIONS = 'SAMEORIGIN'

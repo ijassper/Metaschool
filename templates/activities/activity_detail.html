@@ -247,7 +247,9 @@
             </div>
             <div class="modal-body p-4 pt-2">
                 <!-- PDF/웹 문서를 위한 iframe -->
-                <iframe id="previewIframe" src="" style="width: 100%; height: 100%; border-radius: 12px; display: none;" frameborder="0"></iframe>
+                <div id="previewContainer" class="w-100 h-100" style="display: none;">
+                    <embed id="previewEmbed" src="" type="application/pdf" width="100%" height="100%" style="border-radius: 12px;">
+                </div>
                 
                 <!-- 이미지를 위한 img 태그 -->
                 <div id="previewImageContainer" class="text-center h-100 w-100 d-flex align-items-center justify-content-center" style="display: none !important;">
@@ -270,40 +272,42 @@
 
 <script>
     function previewFile(url, filename) {
-    const iframe = document.getElementById('previewIframe');
-    const imgContainer = document.getElementById('previewImageContainer');
-    const img = document.getElementById('previewImg');
-    const errorDiv = document.getElementById('previewError');
-    const downloadBtn = document.getElementById('previewDownloadBtn');
-    const title = document.getElementById('previewTitle');
+        const previewContainer = document.getElementById('previewContainer');
+        const embed = document.getElementById('previewEmbed');
+        const imgContainer = document.getElementById('previewImageContainer');
+        const img = document.getElementById('previewImg');
+        const errorDiv = document.getElementById('previewError');
+        const downloadBtn = document.getElementById('previewDownloadBtn');
+        const title = document.getElementById('previewTitle');
 
-    // 초기화
-    title.innerText = filename;
-    downloadBtn.href = url;
-    iframe.style.display = 'none';
-    imgContainer.style.setProperty('display', 'none', 'important');
-    errorDiv.style.setProperty('display', 'none', 'important');
 
-    const ext = filename.split('.').pop().toLowerCase();
+        // 초기화
+        title.innerText = filename;
+        downloadBtn.href = url;
+        previewContainer.style.display = 'none';
+        imgContainer.style.setProperty('display', 'none', 'important');
+        errorDiv.style.setProperty('display', 'none', 'important');
 
-    // 1. 이미지 파일 처리
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
-        img.src = url;
-        imgContainer.style.setProperty('display', 'flex', 'important');
-    } 
-    // 2. PDF 및 웹 표준 파일 처리 (브라우저 내장 뷰어 활용)
-    else if (ext === 'pdf' || ext === 'txt') {
-        iframe.src = url;
-        iframe.style.display = 'block';
-    } 
-    // 3. 한글(HWP/HWPX) 등 미리보기 미지원 처리
-    else {
-        errorDiv.style.setProperty('display', 'flex', 'important');
+        const ext = filename.split('.').pop().toLowerCase();
+
+        // 1. 이미지 파일 처리
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+            img.src = url;
+            imgContainer.style.setProperty('display', 'flex', 'important');
+        } 
+        // 2. PDF 및 웹 표준 파일 처리 (브라우저 내장 뷰어 활용)
+        else if (ext === 'pdf' || ext === 'txt') {
+            embed.setAttribute('src', url);
+            previewContainer.style.display = 'block';
+        } 
+        // 3. 한글(HWP/HWPX) 등 미리보기 미지원 처리
+        else {
+            errorDiv.style.setProperty('display', 'flex', 'important');
+        }
+
+        // 모달 띄우기
+        const myModal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
+        myModal.show();
     }
-
-    // 모달 띄우기
-    const myModal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
-    myModal.show();
-}
 </script>
 {% endblock %}
