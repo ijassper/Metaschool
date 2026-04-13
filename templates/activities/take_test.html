@@ -15,15 +15,18 @@
 
     /* 1. 이중 스크롤 방지 및 전체 화면 고정 */
     html, body { 
-        height: 100%; 
-        overflow: hidden !important; /* 바깥 스크롤 완벽 차단 */
+        height: 100% !important; 
+        margin: 0 !important; 
+        padding: 0 !important; 
+        overflow: hidden !important; 
     }
 
     /* 2. 메인 컨테이너 설정 */
     #testContainer {
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
+        height: 100vh !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
 
     .main-row {
@@ -31,29 +34,28 @@
         overflow: hidden; /* 내부에서만 스크롤 발생 */
     }
 
-    /* 3. 좌우 개별 스크롤 패널 */
+    /* 3. 좌우 패널 독립 스크롤 설정 */
     .scroll-panel {
-        height: 100%;
-        overflow-y: auto;
-        scrollbar-width: thin; /* 스크롤바 얇게 */
+        height: calc(100vh - 60px); /* 헤더 높이를 제외한 나머지 전체 */
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
     }
 
     /* 4. 답안지 텍스트박스 반응형 최적화 */
     textarea.answer-input {
         display: block !important;
-        width: 100% !important;
-        /* min-height 대신 height를 직접 주고, 높이를 500px로 더 키웠습니다. */
-        height: 500px !important; 
-        font-size: 1.2rem !important;
+        width: 100% !important; /* 넓이 100% 강제 */
+        height: 600px !important; /* 높이를 더 키웠습니다 */
+        font-size: 1.25rem !important;
         line-height: 1.8 !important;
-        padding: 30px !important;
+        padding: 40px !important;
         border: 1px solid #dee2e6 !important;
         border-radius: 20px !important;
         background-color: #ffffff !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important;
-        resize: none !important; /* 학생이 수동으로 조절 못하게 고정 */
-        margin-bottom: 30px;
-        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.03) !important;
+        resize: none !important;
+        margin-bottom: 40px;
+        box-sizing: border-box !important; /* 패딩이 넓이에 영향을 주지 않도록 설정 */
     }
 
     textarea.answer-input:focus {
@@ -139,15 +141,15 @@
         </div>
 
         <!-- [우측 영역: 답안지 - 동적 생성] -->
-        <div class="col-md-9 d-flex flex-column bg-white">
+        <div class="col-md-9 d-flex flex-column bg-white h-100">
             <form id="answerForm" method="post" class="h-100 d-flex flex-column">
                 {% csrf_token %}
                 <!-- 상단 헤더 고정 -->
-                <div class="p-3 d-flex justify-content-between align-items-center shadow-sm text-white" style="background: var(--ingrid-gradient); z-index: 10;">
-                    <h5 class="mb-0 fw-bold">답안 작성 ({{ user.name }})</h5>
+                 <div class="p-3 d-flex justify-content-between align-items-center shadow-sm text-white" 
+                    style="background: var(--ingrid-gradient); z-index: 10; height: 65px;">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i> 답안 작성 ({{ user.name }})</h5>
                     <div class="d-flex align-items-center gap-3">
-                        <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {{ activity.char_limit }}자 이상</span>
-                        <!-- onclick 함수 명칭 확인 -->
+                        <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {{ activity.char_limit }}자 이내</span>
                         <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="confirmExit()">나가기</button>
                         <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#submitModal">답안 제출</button>
                     </div>
@@ -155,7 +157,7 @@
 
                 <!-- 답안 영역만 별도 스크롤 -->
                 <div class="flex-grow-1 scroll-panel p-5 bg-light-subtle">
-                    <div class="mx-auto" style="max-width: 900px;">
+                    <div class="w-100">
                         <!-- 항목 1 답변창 -->
                         {% if activity.q1_title %}
                         <div class="mb-5">
