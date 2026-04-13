@@ -104,12 +104,12 @@
                                 <i class="bi bi-file-earmark-check me-2 text-warning fs-5"></i>
                                 <!-- 파일명 클릭 시 새 탭에서 열기 -->
                                 <a href="javascript:void(0);" 
-                                onclick="previewFile('{{ f.file.url }}', '{{ f.filename }}')" 
+                                onclick="previewFile('{{ activity.attachment.url }}', '{{ activity.filename }}')" 
                                 class="small fw-bold text-truncate text-dark text-decoration-none">
-                                    {{ f.filename }} <i class="bi bi-search ms-1 text-muted" style="font-size: 0.7rem;"></i>
+                                    {{ activity.filename }} <i class="bi bi-search ms-1 text-muted" style="font-size: 0.7rem;"></i>
                                 </a>
                             </div>
-                            <a href="{{ activity.attachment.url }}" download="{{ activity.filename }}" class="btn btn-dark btn-sm px-4 rounded-pill flex-shrink-0">다운로드</a>
+                             <a href="{{ activity.attachment.url }}" download="{{ activity.filename }}" class="btn btn-dark btn-sm px-4 rounded-pill flex-shrink-0">다운로드</a>
                         </div>
                         {% endif %}
 
@@ -118,11 +118,11 @@
                         <div class="d-flex align-items-center justify-content-between p-3 bg-white rounded-4 border shadow-sm">
                             <div class="d-flex align-items-center overflow-hidden">
                                 <!-- 확장자별 아이콘 -->
-                                <i class="bi {% if '.pdf' in f.filename %}bi-file-earmark-pdf text-danger{% elif '.hwp' in f.filename %}bi-file-earmark-word text-primary{% else %}bi-file-earmark-image text-success{% endif %} me-2 fs-5"></i>
+                                <i class="bi {% if '.pdf' in f.filename|lower %}bi-file-earmark-pdf text-danger{% elif '.hwp' in f.filename|lower %}bi-file-earmark-word text-primary{% else %}bi-file-earmark-image text-success{% endif %} me-2 fs-5"></i>
                                 <!-- 파일명 클릭 시 새 탭에서 열기 -->
                                 <a href="javascript:void(0);" 
-                                   onclick="previewFile('{{ f.file.url }}', '{{ f.filename }}')" 
-                                   class="small fw-bold text-truncate text-dark text-decoration-none" title="바로보기">
+                                onclick="previewFile('{{ f.file.url }}', '{{ f.filename }}')" 
+                                class="small fw-bold text-truncate text-dark text-decoration-none">
                                     {{ f.filename }} <i class="bi bi-search ms-1 text-muted" style="font-size: 0.7rem;"></i>
                                 </a>
                             </div>
@@ -272,6 +272,11 @@
 
 <script>
     function previewFile(url, filename) {
+        if (!url || url === '') {
+            alert("파일 경로를 찾을 수 없습니다.");
+            return;
+        }
+
         const previewContainer = document.getElementById('previewContainer');
         const embed = document.getElementById('previewEmbed');
         const imgContainer = document.getElementById('previewImageContainer');
@@ -284,6 +289,8 @@
         // 초기화
         title.innerText = filename;
         downloadBtn.href = url;
+        
+        // UI 숨김 처리
         previewContainer.style.display = 'none';
         imgContainer.style.setProperty('display', 'none', 'important');
         errorDiv.style.setProperty('display', 'none', 'important');
@@ -295,12 +302,13 @@
             img.src = url;
             imgContainer.style.setProperty('display', 'flex', 'important');
         } 
-        // 2. PDF 및 웹 표준 파일 처리 (브라우저 내장 뷰어 활용)
-        else if (ext === 'pdf' || ext === 'txt') {
+        // 2. PDF 처리
+        else if (ext === 'pdf') {
+            // 캐시 방지를 위해 URL 뒤에 타임스탬프 추가 (선택사항)
             embed.setAttribute('src', url);
             previewContainer.style.display = 'block';
         } 
-        // 3. 한글(HWP/HWPX) 등 미리보기 미지원 처리
+        // 3. 미지원 파일 (HWP, ZIP 등)
         else {
             errorDiv.style.setProperty('display', 'flex', 'important');
         }
