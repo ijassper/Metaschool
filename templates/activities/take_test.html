@@ -12,6 +12,44 @@
     
     /* 카드 높이 꽉 채우기 */
     .full-height-card { height: 95vh; }
+
+    /* 1. 이중 스크롤 방지 및 전체 화면 고정 */
+    html, body { 
+        height: 100%; 
+        overflow: hidden !important; /* 바깥 스크롤 완벽 차단 */
+    }
+
+    /* 2. 메인 컨테이너 설정 */
+    #testContainer {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .main-row {
+        flex: 1;
+        overflow: hidden; /* 내부에서만 스크롤 발생 */
+    }
+
+    /* 3. 좌우 개별 스크롤 패널 */
+    .scroll-panel {
+        height: 100%;
+        overflow-y: auto;
+        scrollbar-width: thin; /* 스크롤바 얇게 */
+    }
+
+    /* 4. 답안지 텍스트박스 반응형 최적화 */
+    .answer-input {
+        width: 100%;
+        min-height: 300px; /* 기본 높이 확보 */
+        border: 1px solid #dee2e6 !important;
+        background-color: #fff;
+        transition: border-color 0.2s;
+    }
+    .answer-input:focus {
+        border-color: #8E44AD !important;
+        background-color: #fcfaff;
+    }
 </style>
 <!-- 1. 시험 시작 전 가림막 (전체 화면 유도용) -->
 <div id="startOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-white d-flex flex-column justify-content-center align-items-center" style="z-index: 9999;">
@@ -38,7 +76,7 @@
     <div class="row h-100 g-0">
         
         <!-- [좌측 영역: 문제지 - 5대 섹션 반영] -->
-        <div class="col-md-3 h-100 border-end bg-light overflow-auto p-4">
+        <div class="col-md-3 border-end bg-light scroll-panel p-4">
             <h4 class="fw-bold mb-4 text-primary"><i class="bi bi-file-earmark-text"></i> 문제지</h4>
             
             <!-- 섹션 1: 기본 정보 -->
@@ -58,13 +96,15 @@
                 <div class="p-2 bg-light rounded-3 small mb-3">{{ activity.reference_material }}</div>
                 {% endif %}
 
+                <!-- 첨부파일 클릭 시 previewFile 함수 호출로 수정 -->
                 {% if activity.files.all %}
-                <label class="small text-muted fw-bold mb-2">첨부 파일</label>
-                {% for f in activity.files.all %}
-                <button type="button" class="btn btn-sm btn-outline-secondary w-100 mb-1 text-truncate" onclick="previewFile('{{ f.file.url }}', '{{ f.filename }}')">
-                    <i class="bi bi-paperclip"></i> {{ f.filename }}
-                </button>
-                {% endfor %}
+                    <label class="small text-muted fw-bold mb-2">첨부 파일</label>
+                    {% for f in activity.files.all %}
+                    <button type="button" class="btn btn-sm btn-white border w-100 mb-2 text-start text-truncate shadow-sm" 
+                            onclick="previewFile('{{ f.file.url }}', '{{ f.filename }}')">
+                        <i class="bi bi-file-earmark-pdf text-danger me-2"></i> {{ f.filename }}
+                    </button>
+                    {% endfor %}
                 {% endif %}
             </div>
 
@@ -79,11 +119,12 @@
         </div>
 
         <!-- [우측 영역: 답안지 - 동적 생성] -->
-        <div class="col-md-9 h-100 d-flex flex-column bg-white">
+        <div class="col-md-9 d-flex flex-column bg-white">
             <form id="answerForm" method="post" class="h-100 d-flex flex-column">
                 {% csrf_token %}
-                <div class="p-3 d-flex justify-content-between align-items-center border-bottom shadow-sm" style="background: var(--ingrid-gradient);">
-                    <h5 class="mb-0 fw-bold text-white"><i class="bi bi-pencil-square me-2"></i> 답안 작성 ({{ user.name }})</h5>
+                <!-- 상단 헤더 고정 -->
+                <div class="p-3 d-flex justify-content-between align-items-center shadow-sm text-white" style="background: var(--ingrid-gradient); z-index: 10;">
+                    <h5 class="mb-0 fw-bold">답안 작성 ({{ user.name }})</h5>
                     <div class="d-flex align-items-center gap-3">
                         <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {{ activity.char_limit }}자 이상</span>
                         <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="confirmExit()">나가기</button>
@@ -91,29 +132,30 @@
                     </div>
                 </div>
 
-                <div class="flex-grow-1 p-5 overflow-auto bg-light-subtle">
+                <!-- 답안 영역만 별도 스크롤 -->
+                <div class="flex-grow-1 scroll-panel p-5 bg-light-subtle">
                     <div class="mx-auto" style="max-width: 900px;">
                         <!-- 항목 1 답변창 -->
                         {% if activity.q1_title %}
                         <div class="mb-5">
-                            <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">Q1.</span>{{ activity.q1_title }}</h5>
-                            <textarea name="ans_q1" class="form-control border-0 shadow-sm p-4 rounded-4 answer-input" rows="8" placeholder="내용을 입력하세요.">{{ answer.ans_q1|default:'' }}</textarea>
+                            <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">답안 1.</span>{{ activity.q1_title }}</h5>
+                            <textarea name="ans_q1" class="form-control shadow-sm p-4 rounded-4 answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q1|default:'' }}</textarea>
                         </div>
                         {% endif %}
 
                         <!-- 항목 2 답변창 -->
                         {% if activity.q2_title %}
                         <div class="mb-5">
-                            <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">Q2.</span>{{ activity.q2_title }}</h5>
-                            <textarea name="ans_q2" class="form-control border-0 shadow-sm p-4 rounded-4 answer-input" rows="8" placeholder="내용을 입력하세요.">{{ answer.ans_q2|default:'' }}</textarea>
+                            <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">답안 2.</span>{{ activity.q2_title }}</h5>
+                            <textarea name="ans_q2" class="form-control shadow-sm p-4 rounded-4 answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q2|default:'' }}</textarea>
                         </div>
                         {% endif %}
 
                         <!-- 항목 3 답변창 -->
                         {% if activity.q3_title %}
                         <div class="mb-5">
-                            <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">Q3.</span>{{ activity.q3_title }}</h5>
-                            <textarea name="ans_q3" class="form-control border-0 shadow-sm p-4 rounded-4 answer-input" rows="8" placeholder="내용을 입력하세요.">{{ answer.ans_q3|default:'' }}</textarea>
+                            <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">답안 3.</span>{{ activity.q3_title }}</h5>
+                            <textarea name="ans_q3" class="form-control shadow-sm p-4 rounded-4 answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q3|default:'' }}</textarea>
                         </div>
                         {% endif %}
                     </div>
@@ -131,6 +173,39 @@
     </div>
     <button class="btn btn-primary btn-lg px-5 py-3 fw-bold" onclick="startTest()">응시 시작하기</button>
 </div> -->
+
+<!-- 참고자료 미리보기 모달 (활동 상세페이지와 동일) -->
+<div class="modal fade" id="filePreviewModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered shadow-lg">
+        <div class="modal-content border-0" style="border-radius: 24px; height: 85vh;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold text-truncate" id="previewTitle">파일 미리보기</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 pt-2">
+                <!-- 1. PDF/웹 문서를 위한 embed -->
+                <div id="previewContainer" class="w-100 h-100" style="display: none;">
+                    <embed id="previewEmbed" src="" type="application/pdf" width="100%" height="100%" style="border-radius: 12px;">
+                </div>
+                
+                <!-- 2. 이미지를 위한 컨테이너 -->
+                <div id="previewImageContainer" class="text-center h-100 w-100 d-flex align-items-center justify-content-center" style="display: none !important;">
+                    <img id="previewImg" src="" class="img-fluid rounded-3 shadow-sm" style="max-height: 100%;">
+                </div>
+
+                <!-- 3. 미리보기 미지원 안내 -->
+                <div id="previewError" class="h-100 w-100 d-flex flex-column align-items-center justify-content-center" style="display: none !important;">
+                    <i class="bi bi-file-earmark-x text-muted mb-3" style="font-size: 4rem;"></i>
+                    <h5 class="fw-bold">이 파일 형식은 미리보기를 지원하지 않습니다.</h5>
+                    <!-- <p class="text-muted">아래 다운로드 버튼을 눌러 확인해 주세요.</p> -->
+                </div>
+            </div>
+            <!-- <div class="modal-footer border-0 p-3">
+                <a id="previewDownloadBtn" href="" download class="btn btn-dark rounded-pill px-5">파일 다운로드</a>
+            </div> -->
+        </div>
+    </div>
+</div>
 
 <!-- 3. 제출 확인 모달 (중앙 정렬) -->
 <div class="modal fade" id="submitModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
@@ -425,6 +500,67 @@
             }
         });
     }
+
+    function previewFile(url, filename) {
+        const previewContainer = document.getElementById('previewContainer');
+        const embed = document.getElementById('previewEmbed');
+        const imgContainer = document.getElementById('previewImageContainer');
+        const img = document.getElementById('previewImg');
+        const errorDiv = document.getElementById('previewError');
+        const downloadBtn = document.getElementById('previewDownloadBtn');
+        const title = document.getElementById('previewTitle');
+
+        // 1. 모든 영역 초기화 (숨김)
+        title.innerText = filename;
+        downloadBtn.href = url;
+        previewContainer.style.display = 'none';
+        imgContainer.style.setProperty('display', 'none', 'important');
+        errorDiv.style.setProperty('display', 'none', 'important');
+
+        // 2. 확장자 판별
+        const ext = filename.split('.').pop().toLowerCase();
+
+        // 3. 이미지 처리
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+            img.src = url;
+            imgContainer.style.setProperty('display', 'flex', 'important');
+        } 
+        // 4. PDF 처리
+        else if (ext === 'pdf') {
+            embed.setAttribute('src', url);
+            previewContainer.style.display = 'block';
+        } 
+        // 5. 그 외 (HWP, ZIP 등)
+        else {
+            errorDiv.style.setProperty('display', 'flex', 'important');
+        }
+
+        // 6. 모달 실행
+        const myModal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
+        myModal.show();
+    }
+
+    /**
+     * 실시간 전체 글자 수 계산 로직 (답안 1~3 합산)
+     */
+    document.querySelectorAll('.answer-input').forEach(el => {
+        el.addEventListener('input', function() {
+            let totalCount = 0;
+            document.querySelectorAll('.answer-input').forEach(input => {
+                totalCount += input.value.length;
+            });
+            
+            const counter = document.getElementById('charCount');
+            if (counter) {
+                counter.innerText = `${totalCount}자 / ${charLimit}자 이상`;
+                if (charLimit > 0 && totalCount >= charLimit) {
+                    counter.className = 'badge bg-success px-3 py-2';
+                } else {
+                    counter.className = 'badge bg-white text-primary px-3 py-2';
+                }
+            }
+        });
+    });
 </script>
 
 <style>
