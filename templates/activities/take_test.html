@@ -98,9 +98,9 @@
 
                 <!-- 첨부파일 클릭 시 previewFile 함수 호출로 수정 -->
                 {% if activity.files.all %}
-                    <label class="small text-muted fw-bold mb-2">첨부 파일</label>
+                    <label class="small text-muted fw-bold mb-2">참고자료 파일 미리보기 </label>
                     {% for f in activity.files.all %}
-                    <button type="button" class="btn btn-sm btn-white border w-100 mb-2 text-start text-truncate shadow-sm" 
+                    <button type="button" class="btn btn-sm btn-white border w-100 mb-2 file-preview-btn shadow-sm" 
                             onclick="previewFile('{{ f.file.url }}', '{{ f.filename }}')">
                         <i class="bi bi-file-earmark-pdf text-danger me-2"></i> {{ f.filename }}
                     </button>
@@ -113,7 +113,7 @@
                 <label class="small text-muted fw-bold mb-1">작성 조건</label>
                 <div class="small mb-2">{{ activity.conditions|default:"특별한 조건 없음" }}</div>
                 {% if activity.char_limit > 0 %}
-                <div class="fw-bold text-danger small border-top pt-2">분량 제한: {{ activity.char_limit }}자 이상</div>
+                <div class="fw-bold text-danger small border-top pt-2">분량 제한: {{ activity.char_limit }}자 이내</div>
                 {% endif %}
             </div>
         </div>
@@ -127,6 +127,7 @@
                     <h5 class="mb-0 fw-bold">답안 작성 ({{ user.name }})</h5>
                     <div class="d-flex align-items-center gap-3">
                         <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {{ activity.char_limit }}자 이상</span>
+                        <!-- onclick 함수 명칭 확인 -->
                         <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="confirmExit()">나가기</button>
                         <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#submitModal">답안 제출</button>
                     </div>
@@ -501,41 +502,79 @@
         });
     }
 
+    /**
+     * 1. 나가기 및 자동(임시) 저장 로직
+     */
+    function confirmExit() {
+        const warningMsg = "다른 페이지로 나갈 경우 부정행위로 간주될 수 있습니다. 감독선생님께 문의하세요.\n\n정말 나가시겠습니까? (현재까지 작성한 내용은 저장됩니다.)";
+        
+        if (confirm(warningMsg)) {
+            isSubmitting = true; // 보안 경고창 방지
+            
+            // --- [핵심] 서버로 현재 답변 전송 (임시 저장) ---
+            const formData = new FormData(document.getElementById('answerForm'));
+            
+            // 로그 전송 (EXIT)
+            sendLog('EXIT');
+
+            // 임시 저장 API 호출 (현재 응시 페이지의 POST 로직 활용)
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(() => {
+                // 저장이 완료되면 대시보드로 이동
+                window.location.href = "{% url 'dashboard' %}";
+            }).catch(err => {
+                console.error("저장 중 오류 발생:", err);
+                window.location.href = "{% url 'dashboard' %}";
+            });
+        }
+    }
+
+    /**
+     * 2. 첨부파일 미리보기 (오류 수정 버전)
+     */
     function previewFile(url, filename) {
+        // 템플릿의 ID와 정확히 매칭 확인
         const previewContainer = document.getElementById('previewContainer');
         const embed = document.getElementById('previewEmbed');
         const imgContainer = document.getElementById('previewImageContainer');
         const img = document.getElementById('previewImg');
         const errorDiv = document.getElementById('previewError');
-        const downloadBtn = document.getElementById('previewDownloadBtn');
         const title = document.getElementById('previewTitle');
 
-        // 1. 모든 영역 초기화 (숨김)
+        if (!embed || !previewContainer) {
+            console.error("모달 요소를 찾을 수 없습니다.");
+            return;
+        }
+
+        // 초기화
         title.innerText = filename;
-        downloadBtn.href = url;
         previewContainer.style.display = 'none';
         imgContainer.style.setProperty('display', 'none', 'important');
         errorDiv.style.setProperty('display', 'none', 'important');
 
-        // 2. 확장자 판별
         const ext = filename.split('.').pop().toLowerCase();
 
-        // 3. 이미지 처리
+        // 이미지 처리
         if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
             img.src = url;
             imgContainer.style.setProperty('display', 'flex', 'important');
         } 
-        // 4. PDF 처리
+        // PDF 처리
         else if (ext === 'pdf') {
-            embed.setAttribute('src', url);
+            // [중요] embed 태그의 src를 변경하여 리로드 유도
+            embed.src = url; 
             previewContainer.style.display = 'block';
         } 
-        // 5. 그 외 (HWP, ZIP 등)
         else {
             errorDiv.style.setProperty('display', 'flex', 'important');
         }
 
-        // 6. 모달 실행
         const myModal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
         myModal.show();
     }
@@ -564,16 +603,35 @@
 </script>
 
 <style>
-    /* 답안지 텍스트 영역 꽉 채우기 */
-    #id_content {
-        height: 100% !important;
-        resize: none;
-        font-size: 1.3rem; /* 글씨 입력도 시원하게 키움 */
+    /* 답변창 텍스트박스 디자인 고도화 */
+    .answer-input {
+        width: 100%;
+        min-height: 450px; /* 기본 높이를 대폭 확대 */
+        max-height: 800px;
+        font-size: 1.2rem !important;
         line-height: 1.8;
-        padding: 30px;     /* 안쪽 여백 넉넉하게 */
-        border: none;      /* 테두리 없애서 깔끔하게 */
-        outline: none;     /* 클릭 시 파란 테두리 제거 */
-        border-radius: 0 0 5px 5px; /* 하단 둥근 모서리 */
+        padding: 30px !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
+        resize: none;
+        outline: none;
+        transition: all 0.2s;
+    }
+
+    .answer-input:focus {
+        border-color: #8E44AD !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 8px 20px rgba(142, 68, 173, 0.1) !important;
+    }
+
+    /* 문제지 내 첨부파일명 가독성 */
+    .file-preview-btn {
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 10px 15px;
     }
 </style>
 {% endblock %}
