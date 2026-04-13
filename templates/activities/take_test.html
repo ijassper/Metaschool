@@ -37,108 +37,86 @@
 <div id="testContainer" class="container-fluid vh-100 p-0 overflow-hidden" style="margin-top: -25px; filter: blur(15px); transition: filter 0.5s;">
     <div class="row h-100 g-0">
         
-        <!-- [좌측 영역: 문제지] -->
-        <div class="col-md-3 h-100 border-end bg-light shadow-sm overflow-auto p-3">
-            <div class="card border-0 bg-transparent">
-                <div class="card-header bg-dark text-white py-2 mb-3 rounded">
-                    <h6 class="mb-0 small"><i class="bi bi-file-earmark-text me-2"></i> 문제지</h6>
-                </div>
+        <!-- [좌측 영역: 문제지 - 5대 섹션 반영] -->
+        <div class="col-md-3 h-100 border-end bg-light overflow-auto p-4">
+            <h4 class="fw-bold mb-4 text-primary"><i class="bi bi-file-earmark-text"></i> 문제지</h4>
+            
+            <!-- 섹션 1: 기본 정보 -->
+            <div class="glass-card p-3 mb-3 bg-white shadow-sm rounded-4">
+                <label class="small text-muted fw-bold">활동 및 주제</label>
+                <div class="fw-bold text-dark">{{ activity.section }}</div>
+                <div class="text-primary small">{{ activity.title }}</div>
+            </div>
+
+            <!-- 섹션 2: 세부 평가 내용 -->
+            <div class="glass-card p-3 mb-3 bg-white shadow-sm rounded-4">
+                <label class="small text-muted fw-bold mb-2">평가 문항</label>
+                <div class="small text-dark mb-3" style="white-space: pre-wrap;">{{ activity.question }}</div>
                 
-                <!-- 1. 과목/영역/활동명 -->
-                <div class="mb-3">
-                    <label class="small text-muted fw-bold mb-1">
-                        {% if activity.category == 'CREATIVE' %}활동명{% else %}과목 / 영역{% endif %}
-                    </label>
-                    <div class="p-2 bg-white border rounded small shadow-sm">
-                        {% if activity.category == 'CREATIVE' %}
-                            {{ activity.section }}
-                        {% else %}
-                            {{ activity.subject_name }} / {{ activity.section }}
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- 2. 평가 주제 -->
-                <div class="mb-3">
-                    <label class="small text-muted fw-bold mb-1">평가 주제</label>
-                    <div class="p-2 border rounded fw-bold text-primary small bg-white shadow-sm">
-                        {{ activity.title }}
-                    </div>
-                </div>
-
-                <!-- 3. 평가 문항 (구조별 분기 처리) -->
-                <div class="mb-3 pt-2">
-                    <label class="small text-muted fw-bold mb-1"><i class="bi bi-question-circle-fill me-1"></i> 평가 문항</label>
-                    <div class="p-3 border rounded bg-white shadow-sm small">
-                        {% if activity.category == 'CREATIVE' %}
-                            {{ activity.question|linebreaks }}
-                        {% else %}
-                            <!-- 교과 논술형의 경우 연결된 첫 번째 문항을 가져옴 -->
-                            {{ activity.questions.first.content|linebreaks|default:"문항 내용이 없습니다." }}
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- 4. 참고 자료 -->
-                {% if activity.reference_material or activity.attachment or activity.questions.first.reference_material %}
-                <div class="mb-3 pt-2">
-                    <label class="small text-muted fw-bold mb-1"><i class="bi bi-info-circle-fill me-1"></i> 참고 자료</label>
-                    <div class="p-3 border rounded bg-white shadow-sm small">
-                        {% if activity.category == 'CREATIVE' %}
-                            {{ activity.reference_material|linebreaks }}
-                        {% else %}
-                            {{ activity.questions.first.reference_material|linebreaks|default:"참고 자료가 없습니다." }}
-                        {% endif %}
-                        
-                        {% if activity.attachment %}
-                        <div class="mt-3">
-                            <a href="{{ activity.attachment.url }}" class="btn btn-sm btn-outline-dark w-100" target="_blank">
-                                <i class="bi bi-download"></i> 첨부파일 보기
-                            </a>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
+                {% if activity.reference_material %}
+                <label class="small text-muted fw-bold mb-1">참고 자료</label>
+                <div class="p-2 bg-light rounded-3 small mb-3">{{ activity.reference_material }}</div>
                 {% endif %}
 
-                <!-- 5. 작성 조건 -->
-                <div class="mb-3 pt-2">
-                    <label class="small text-muted fw-bold mb-1"><i class="bi bi-exclamation-circle-fill me-1"></i> 작성 조건</label>
-                    <div class="p-3 border rounded small shadow-sm" style="background-color: #fff9e6;">
-                        {% if activity.category == 'CREATIVE' %}
-                            {{ activity.conditions|linebreaks|default:"특별한 조건이 없습니다." }}
-                        {% else %}
-                            {{ activity.questions.first.conditions|linebreaks|default:"특별한 조건이 없습니다." }}
-                        {% endif %}
-                        
-                        {% if activity.char_limit > 0 %}
-                        <div class="mt-2 fw-bold text-danger">(분량 제한: {{ activity.char_limit }}자 이상)</div>
-                        {% endif %}
-                    </div>
-                </div>
+                {% if activity.files.all %}
+                <label class="small text-muted fw-bold mb-2">첨부 파일</label>
+                {% for f in activity.files.all %}
+                <button type="button" class="btn btn-sm btn-outline-secondary w-100 mb-1 text-truncate" onclick="previewFile('{{ f.file.url }}', '{{ f.filename }}')">
+                    <i class="bi bi-paperclip"></i> {{ f.filename }}
+                </button>
+                {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- 작성 조건 및 분량 -->
+            <div class="glass-card p-3 mb-3 shadow-sm rounded-4" style="background-color: #FFF9DB;">
+                <label class="small text-muted fw-bold mb-1">작성 조건</label>
+                <div class="small mb-2">{{ activity.conditions|default:"특별한 조건 없음" }}</div>
+                {% if activity.char_limit > 0 %}
+                <div class="fw-bold text-danger small border-top pt-2">분량 제한: {{ activity.char_limit }}자 이상</div>
+                {% endif %}
             </div>
         </div>
 
-        <!-- [우측 영역: 답안지] -->
+        <!-- [우측 영역: 답안지 - 동적 생성] -->
         <div class="col-md-9 h-100 d-flex flex-column bg-white">
-            <!-- ★ 폼 시작: id와 method, action을 정확히 설정합니다 -->
-            <form id="answerForm" method="post" action="{% url 'take_test' activity.id %}" class="h-100 d-flex flex-column">
+            <form id="answerForm" method="post" class="h-100 d-flex flex-column">
                 {% csrf_token %}
-                <div class="bg-primary text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
-                    <h5 class="mb-0 fw-bold">
-                        <i class="bi bi-pencil-square me-2"></i> 답안 작성 ({{ user.name }})
-                    </h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {{ activity.char_limit|default:0 }}자 이상</span>
-                        <button type="button" class="btn btn-outline-light btn-sm px-3" onclick="location.href='{% url 'dashboard' %}'">나가기</button>
-                        <button type="button" class="btn btn-danger btn-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">답안제출</button>
+                <div class="p-3 d-flex justify-content-between align-items-center border-bottom shadow-sm" style="background: var(--ingrid-gradient);">
+                    <h5 class="mb-0 fw-bold text-white"><i class="bi bi-pencil-square me-2"></i> 답안 작성 ({{ user.name }})</h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {{ activity.char_limit }}자 이상</span>
+                        <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="confirmExit()">나가기</button>
+                        <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#submitModal">답안 제출</button>
                     </div>
                 </div>
 
-                <div class="flex-grow-1 p-4">
-                    <textarea id="id_content" name="content" class="form-control border-0 h-100 shadow-none" 
-                      style="resize: none; font-size: 1.1rem; outline: none;" 
-                      placeholder="여기에 답안을 작성하세요.">{{ existing_answer.content|default:'' }}</textarea>
+                <div class="flex-grow-1 p-5 overflow-auto bg-light-subtle">
+                    <div class="mx-auto" style="max-width: 900px;">
+                        <!-- 항목 1 답변창 -->
+                        {% if activity.q1_title %}
+                        <div class="mb-5">
+                            <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">Q1.</span>{{ activity.q1_title }}</h5>
+                            <textarea name="ans_q1" class="form-control border-0 shadow-sm p-4 rounded-4 answer-input" rows="8" placeholder="내용을 입력하세요.">{{ answer.ans_q1|default:'' }}</textarea>
+                        </div>
+                        {% endif %}
+
+                        <!-- 항목 2 답변창 -->
+                        {% if activity.q2_title %}
+                        <div class="mb-5">
+                            <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">Q2.</span>{{ activity.q2_title }}</h5>
+                            <textarea name="ans_q2" class="form-control border-0 shadow-sm p-4 rounded-4 answer-input" rows="8" placeholder="내용을 입력하세요.">{{ answer.ans_q2|default:'' }}</textarea>
+                        </div>
+                        {% endif %}
+
+                        <!-- 항목 3 답변창 -->
+                        {% if activity.q3_title %}
+                        <div class="mb-5">
+                            <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">Q3.</span>{{ activity.q3_title }}</h5>
+                            <textarea name="ans_q3" class="form-control border-0 shadow-sm p-4 rounded-4 answer-input" rows="8" placeholder="내용을 입력하세요.">{{ answer.ans_q3|default:'' }}</textarea>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
             </form>
         </div>

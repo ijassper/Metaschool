@@ -111,7 +111,11 @@ class Question(models.Model):
 class Answer(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    content = models.TextField(verbose_name="학생 답안")
+    # 기존 content는 유지(호환성)하되, 항목별 답변 필드 추가
+    ans_q1 = models.TextField(blank=True, null=True, verbose_name="항목 1 답변")
+    ans_q2 = models.TextField(blank=True, null=True, verbose_name="항목 2 답변")
+    ans_q3 = models.TextField(blank=True, null=True, verbose_name="항목 3 답변")
+    content = models.TextField(verbose_name="통합 답안", blank=True) # 전체 합본용
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name="제출/수정 시간")
     activity_log = models.TextField(blank=True, default="", verbose_name="활동 로그")
     ai_result = models.TextField(blank=True, null=True, verbose_name="AI 분석 결과")

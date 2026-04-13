@@ -432,25 +432,35 @@ def take_test(request, activity_id):
 
     if request.method == 'POST':
         # 6. 답안 제출 처리 (이미 생성된 객체에 내용만 업데이트)
-        content = request.POST.get('content', '').strip()
-        if not content:
-            messages.error(request, "내용을 입력해주세요.")
-        else:
-            answer.content = content
-            answer.submitted_at = timezone.now() # 제출 시간 기록
-            answer.save()
-            messages.success(request, "답안이 제출되었습니다!")
-            return redirect('dashboard')
+        # 6-1. 항목별 답변 가져오기
+        a1 = request.POST.get('ans_q1', '').strip()
+        a2 = request.POST.get('ans_q2', '').strip()
+        a3 = request.POST.get('ans_q3', '').strip()
+
+        # 6-2. 데이터 저장
+        answer.ans_q1 = a1
+        answer.ans_q2 = a2
+        answer.ans_q3 = a3
+
+        # 6-3. AI 분석 및 하이브리드 지원을 위해 하나로 병합하여 content에 저장
+        merged_content = ""
+        if a1: merged_content += f"[{activity.q1_title}]\n{a1}\n\n"
+        if a2: merged_content += f"[{activity.q2_title}]\n{a2}\n\n"
+        if a3: merged_content += f"[{activity.q3_title}]\n{a3}\n\n"
+        answer.content = merged_content
+        
+        answer.submitted_at = timezone.now()
+        answer.save()
+        
+        messages.success(request, "답안이 성공적으로 제출되었습니다.")
+        return redirect('student_dashboard')
 
     # 7. 화면에 데이터 전달
-    context = {
+    return render(request, 'activities/take_test.html', {
         'activity': activity,
-        'question': question,
-        'answer_id': answer.id,  # JS에서 로그 보낼 때 쓸 ID
-        'existing_content': answer.content, # 작성 중이던 내용 복구용
-        'today': timezone.now()
-    }
-    return render(request, 'activities/take_test.html', context)
+        'answer': answer, # 기존 답안 전달
+        'answer_id': answer.id,
+    })
 
 # 9. 결시 사유 업데이트 API (AJAX용)
 @login_required
