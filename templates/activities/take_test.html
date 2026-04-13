@@ -41,14 +41,32 @@
     /* 4. 답안지 텍스트박스 반응형 최적화 */
     .answer-input {
         width: 100%;
-        min-height: 300px; /* 기본 높이 확보 */
-        border: 1px solid #dee2e6 !important;
-        background-color: #fff;
-        transition: border-color 0.2s;
+        min-height: 450px; /* 기본 높이를 대폭 확대 */
+        max-height: 800px;
+        font-size: 1.2rem !important;
+        line-height: 1.8;
+        padding: 30px !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
+        resize: none;
+        outline: none;
+        transition: all 0.2s;
     }
+
     .answer-input:focus {
         border-color: #8E44AD !important;
-        background-color: #fcfaff;
+        background-color: #ffffff !important;
+        box-shadow: 0 8px 20px rgba(142, 68, 173, 0.1) !important;
+    }
+    
+    /* 문제지 내 첨부파일명 가독성 */
+    .file-preview-btn {
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 10px 15px;
     }
 </style>
 <!-- 1. 시험 시작 전 가림막 (전체 화면 유도용) -->
@@ -601,37 +619,4 @@
         });
     });
 </script>
-
-<style>
-    /* 답변창 텍스트박스 디자인 고도화 */
-    .answer-input {
-        width: 100%;
-        min-height: 450px; /* 기본 높이를 대폭 확대 */
-        max-height: 800px;
-        font-size: 1.2rem !important;
-        line-height: 1.8;
-        padding: 30px !important;
-        border: 1px solid #e0e0e0 !important;
-        border-radius: 16px !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
-        resize: none;
-        outline: none;
-        transition: all 0.2s;
-    }
-
-    .answer-input:focus {
-        border-color: #8E44AD !important;
-        background-color: #ffffff !important;
-        box-shadow: 0 8px 20px rgba(142, 68, 173, 0.1) !important;
-    }
-
-    /* 문제지 내 첨부파일명 가독성 */
-    .file-preview-btn {
-        text-align: left;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 10px 15px;
-    }
-</style>
 {% endblock %}
