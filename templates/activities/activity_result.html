@@ -5,9 +5,8 @@
 <div class="container mt-5 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="fw-bold text-primary"><i class="bi bi-card-checklist"></i> 제출 현황: {{ activity.title }}</h3>
-        <a href="{% if activity.category == 'CREATIVE' %}{% url 'creative_list' %}{% else %}{% url 'activity_list' %}{% endif %}" 
-        class="btn btn-secondary shadow-sm">
-            목록으로
+        <a href="{% url 'unified_list' %}?category={{ activity.category }}&sub={{ activity.sub_category }}" class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-list me-1"></i> 목록으로
         </a>
     </div>
 
