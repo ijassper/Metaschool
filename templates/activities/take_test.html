@@ -39,27 +39,29 @@
     }
 
     /* 4. 답안지 텍스트박스 반응형 최적화 */
-    .answer-input {
-        width: 100%;
-        min-height: 450px; /* 기본 높이를 대폭 확대 */
-        max-height: 800px;
+    textarea.answer-input {
+        display: block !important;
+        width: 100% !important;
+        /* min-height 대신 height를 직접 주고, 높이를 500px로 더 키웠습니다. */
+        height: 500px !important; 
         font-size: 1.2rem !important;
-        line-height: 1.8;
+        line-height: 1.8 !important;
         padding: 30px !important;
-        border: 1px solid #e0e0e0 !important;
-        border-radius: 16px !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
-        resize: none;
-        outline: none;
-        transition: all 0.2s;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 20px !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important;
+        resize: none !important; /* 학생이 수동으로 조절 못하게 고정 */
+        margin-bottom: 30px;
+        transition: all 0.3s ease;
     }
 
-    .answer-input:focus {
+    textarea.answer-input:focus {
         border-color: #8E44AD !important;
-        background-color: #ffffff !important;
-        box-shadow: 0 8px 20px rgba(142, 68, 173, 0.1) !important;
+        box-shadow: 0 10px 30px rgba(142, 68, 173, 0.15) !important;
+        background-color: #fff !important;
     }
-    
+
     /* 문제지 내 첨부파일명 가독성 */
     .file-preview-btn {
         text-align: left;
@@ -158,7 +160,7 @@
                         {% if activity.q1_title %}
                         <div class="mb-5">
                             <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">답안 1.</span>{{ activity.q1_title }}</h5>
-                            <textarea name="ans_q1" class="form-control shadow-sm p-4 rounded-4 answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q1|default:'' }}</textarea>
+                            <textarea name="ans_q1" rows="15" class="form-control shadow-sm answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q1|default:'' }}</textarea>
                         </div>
                         {% endif %}
 
@@ -166,7 +168,7 @@
                         {% if activity.q2_title %}
                         <div class="mb-5">
                             <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">답안 2.</span>{{ activity.q2_title }}</h5>
-                            <textarea name="ans_q2" class="form-control shadow-sm p-4 rounded-4 answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q2|default:'' }}</textarea>
+                            <textarea name="ans_q2" rows="15" class="form-control shadow-sm answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q2|default:'' }}</textarea>
                         </div>
                         {% endif %}
 
@@ -174,7 +176,7 @@
                         {% if activity.q3_title %}
                         <div class="mb-5">
                             <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">답안 3.</span>{{ activity.q3_title }}</h5>
-                            <textarea name="ans_q3" class="form-control shadow-sm p-4 rounded-4 answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q3|default:'' }}</textarea>
+                            <textarea name="ans_q3" rows="15" class="form-control shadow-sm answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q3|default:'' }}</textarea>
                         </div>
                         {% endif %}
                     </div>
