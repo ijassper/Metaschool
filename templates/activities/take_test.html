@@ -438,9 +438,9 @@
             headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
         }).then(() => {
             if (document.fullscreenElement) document.exitFullscreen();
-            window.location.href = "{% url 'student_dashboard' %}";
+            window.location.href = "{% url 'dashboard' %}";
         }).catch(() => {
-            window.location.href = "{% url 'student_dashboard' %}";
+            window.location.href = "{% url 'dashboard' %}";
         });
     }
 
