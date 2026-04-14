@@ -271,297 +271,181 @@
     </div>
 </div>
 
+<!-- 나가기 확인 모달 -->
+<div class="modal fade" id="exitConfirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i> 퇴장 확인</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <p class="fs-5 fw-bold mb-2">정말 나가시겠습니까?</p>
+                <p class="text-muted">
+                    다른 페이지로 나갈 경우 부정행위로 간주될 수 있습니다. 감독선생님께 문의하세요.<br>
+                    정말 나가시겠습니까?<br>
+                    현재까지 작성된 내용은 <strong>자동 저장</strong>됩니다.</p>
+            </div>
+            <div class="modal-footer border-0 p-3 gap-2">
+                <button type="button" class="btn btn-light rounded-pill px-4 flex-grow-1" data-bs-modal="dismiss">취소</button>
+                <!-- 실제 나가기 처리를 수행할 버튼 -->
+                <button type="button" class="btn btn-danger rounded-pill px-4 flex-grow-1 fw-bold" onclick="executeExit()">네, 저장하고 나갑니다</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ★ 통합 보안 및 응시 기능 스크립트 -->
 <script>
     /**
-     * 1. 초기 설정 및 환경 변수
+     * [Ingrid Student Exam System - 보안 및 응시 제어 스크립트]
      */
-    const EXAM_MODE = "{{ activity.exam_mode }}"; // 'OPEN' 또는 'CLOSED'
-    const textarea = document.getElementById('id_content');
-    const counter = document.getElementById('charCount');
+
+    /* 1. 환경 변수 및 초기 설정 */
+    const EXAM_MODE = "{{ activity.exam_mode }}"; 
     const charLimit = parseInt("{{ activity.char_limit|default:0 }}");
     const answerId = "{{ answer_id }}"; 
-    
-    let isSubmitting = false; // 제출/나가기 중 감시 중단 플래그
-    let testStarted = false;  // [신규] '응시 시작' 버튼을 눌렀는지 여부
+    const csrfToken = '{{ csrf_token }}';
 
-    /**
-     * 2. 공통 기능: 뒤로가기 방지 (History Trap)
-     * 어떤 모드에서든 작성 중인 데이터 유실을 막기 위해 유지합니다.
-     */
-    history.pushState(null, null, location.href);
-    window.onpopstate = function () {
-        // 뒤로가기 감지 시 즉시 현재 주소를 다시 밀어넣어 스택을 복구
-        history.pushState(null, null, location.href);
-        alert("평가 중에는 뒤로 갈 수 없습니다. 제출 또는 나가기 버튼을 이용해주세요.");
-    };
+    let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
+    let testStarted = false;  // 응시 시작 버튼 클릭 여부
 
-    /**
-     * 3. 공통 기능: 실시간 글자 수 세기 (디자인 반영)
-     */
-    if (textarea && counter) {
-        textarea.addEventListener('input', function() {
-            const currentLength = this.value.length;
-            if (charLimit > 0) {
-                // "n자 이상" 목표 도달 여부에 따른 디자인 변경
-                counter.innerText = `${currentLength}자 / 최소 ${charLimit}자`;
-                counter.className = currentLength >= charLimit ? 'badge bg-success px-3 py-2' : 'badge bg-light text-primary px-3 py-2';
-            } else {
-                counter.innerText = `${currentLength}자`;
-            }
-        });
-    }
-
-    /**
-     * 4. 응시 시작 로직 (가림막 제거 및 전체화면 요청)
-     */
+    /* 2. 응시 시작 로직 (가림막 제거 및 전체화면) */
     function startTest() {
         const elem = document.documentElement;
-        
         if (EXAM_MODE === 'CLOSED') {
-            // [폐쇄형] 전체 화면 요청 후 시작
             if (elem.requestFullscreen) {
                 elem.requestFullscreen().then(() => completeStart()).catch(err => {
-                    alert("전체 화면 모드를 허용해야 시험을 볼 수 있습니다.");
+                    alert("전체 화면 모드를 허용해야 응시가 가능합니다.");
                 });
             } else if (elem.webkitRequestFullscreen) { /* Safari */
                 elem.webkitRequestFullscreen(); completeStart();
-            } else if (elem.msRequestFullscreen) { /* IE11 */
-                elem.msRequestFullscreen(); completeStart();
             }
         } else {
-            // [개방형] 바로 시작
             completeStart();
         }
     }
 
     function completeStart() {
-        testStarted = true; // 이제부터 모든 보안 감시 가동
+        testStarted = true;
         document.getElementById('startOverlay').classList.add('d-none');
-        // 문제지가 흐릿하게 보였다면 해제 (있을 경우)
-        const testContainer = document.getElementById('testContainer');
-        if(testContainer) testContainer.style.filter = "none";
-    }
-
-    /**
-     * 5. [폐쇄형 전용] 보안 및 모니터링 상세 로직
-     */
-    if (EXAM_MODE === 'CLOSED') {
-        
-        // --- (1) 전체 화면 상태 실시간 감지 ---
-        const handleFullscreenChange = () => {
-            if (!testStarted || isSubmitting) return; 
-
-            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement) {
-                // 전체 화면이 풀렸을 때만 가림막을 다시 내리고 경고합니다.
-                document.getElementById('startOverlay').classList.remove('d-none');
-                const btn = document.querySelector('#startOverlay button');
-                if(btn) {
-                    btn.innerText = "⚠️ 보안 위험: 전체 화면으로 복귀하세요";
-                    btn.classList.replace('btn-primary', 'btn-danger');
-                }
-                // 화면 블러 처리 (선택 사항)
-                const testContainer = document.getElementById('testContainer');
-                if(testContainer) testContainer.style.filter = "blur(15px)";
-            }
-        };
-
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-
-        // --- (2) 부정행위 방지 (키보드 및 마우스 제한) ---
-        document.addEventListener('keydown', function(e) {
-            if (!testStarted) return;
-
-            // F11(전체화면 해제) 및 단축키 차단
-            if (e.key === 'F11') {
-                e.preventDefault();
-                alert("보안상 전체화면을 해제할 수 없습니다.");
-            }
-            if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v'].includes(e.key.toLowerCase())) {
-                e.preventDefault();
-                alert("폐쇄형 모드에서는 복사/붙여넣기를 사용할 수 없습니다.");
-            }
-        });
-
-        // 우클릭 차단
-        document.addEventListener('contextmenu', function(e) {
-            if (EXAM_MODE === 'CLOSED') {
-                e.preventDefault();
-                sendLog('RIGHT_CLICK'); // "우클릭 시도" 로그 전송
-                alert("우클릭은 금지되어 있습니다.");
-            }
-        });
-
-        // --- (3) 화면 이탈 감지 (Alt+Tab 등) 및 로그 전송 ---
-        document.addEventListener("visibilitychange", () => {
-            if (!testStarted || isSubmitting) return;
-
-            if (document.hidden) {
-                sendLog('OUT'); // "화면 이탈" 로그 전송
-                alert("⚠️ 경고: 화면을 이탈하지 마세요! 부정행위로 간주되어 로그에 기록됩니다.");
-            } else {
-                sendLog('IN'); // "화면 복귀" 로그 전송
-            }
-        });
-
-        // 복사(Copy) 감지
-        document.addEventListener('copy', function(e) {
-            if (EXAM_MODE === 'CLOSED') {
-                e.preventDefault();
-                sendLog('COPY'); // "복사 시도" 로그 전송
-                alert("내용을 복사할 수 없습니다.");
-            }
-        });
-
-        // 붙여넣기(Paste) 감지
-        document.addEventListener('paste', function(e) {
-            if (EXAM_MODE === 'CLOSED') {
-                e.preventDefault();
-                sendLog('PASTE'); // "붙여넣기 시도" 로그 전송
-                alert("외부 내용을 붙여넣을 수 없습니다.");
-            }
-        });
-
-    } else {
-        // [개방형] 자유로운 환경 안내
-        console.log("개방형 응시 모드: 참고자료 확인 및 화면 전환이 허용됩니다.");
-    }
-
-    /**
-     * 뒤로가기 감옥 (History Trap) + 로그 기록
-     */
-    history.pushState(null, null, location.href);
-
-    window.onpopstate = function () {
-        // 1. 즉시 히스토리를 다시 밀어넣어 페이지 이탈 방지
-        history.pushState(null, null, location.href);
-        
-        // 2. [핵심] 뒤로가기 시도 로그를 서버로 전송
-        // 'BACK_BUTTON' 이라는 타입을 정의하여 보냅니다.
-        sendLog('BACK_BUTTON'); 
-
-        // 3. 커스텀 모달 팝업 띄우기
-        const backModal = new bootstrap.Modal(document.getElementById('backButtonModal'));
-        backModal.show();
-
-        // 4. [시각 효과] 배경을 두 번째 스크린샷처럼 흐리게 처리 (선택 사항)
         const container = document.getElementById('testContainer');
-        if(container) container.style.filter = "blur(10px)";
+        if (container) container.style.filter = "none";
+    }
+
+    /* 3. 보안 제어: 화면 잠금(가림막) 함수 (Native Alert 대체) */
+    const lockScreen = (message) => {
+        if (isSubmitting || !testStarted) return;
+        
+        const overlay = document.getElementById('startOverlay');
+        const btn = overlay.querySelector('button');
+        const title = overlay.querySelector('h1');
+        const alertBox = overlay.querySelector('.alert');
+        
+        title.innerHTML = '<i class="bi bi-shield-lock-fill text-danger"></i> 보안 경고';
+        btn.innerText = "전체 화면으로 복귀하여 응시 계속하기";
+        btn.classList.replace('btn-primary', 'btn-danger');
+        
+        alertBox.innerHTML = `
+            <h5 class="fw-bold mb-2">⚠️ 보안 정책 위반 감지</h5>
+            <p class="mb-0">${message}</p>
+            <small class="text-muted mt-2 d-block">해당 이탈 기록은 감독 선생님께 실시간으로 전송되었습니다.</small>
+        `;
+        
+        overlay.classList.remove('d-none');
+        document.getElementById('testContainer').style.filter = "blur(20px)";
     };
 
-    // 모달이 닫힐 때 배경 흐림 제거
-    document.getElementById('backButtonModal').addEventListener('hidden.bs.modal', function () {
-        const container = document.getElementById('testContainer');
-        if(container) container.style.filter = "none";
-    });
+    /* 4. 폐쇄형 모드 전용 보안 로직 */
+    if (EXAM_MODE === 'CLOSED') {
+        // (1) 전체화면 및 창 전환 감시
+        const checkSecurity = () => {
+            if (!testStarted || isSubmitting) return;
+            const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+            const isTabActive = !document.hidden;
 
-    /**
-     * 6. 서버 로그 전송 함수 (AJAX)
-     */
-    function sendLog(type) {
-        // answerId가 비어있는지 확인 (비어있으면 서버에서 로그를 저장할 곳이 없음)
-        if (!answerId || answerId === "None" || answerId === "") {
-            console.error("로그 기록 실패: answerId가 없습니다.");
-            return;
-        }
-
-        const logData = {
-            'answer_id': answerId,
-            'type': type,
-            'timestamp': new Date().toLocaleString() // 정확한 시간 추가
+            if (!isFullscreen) {
+                sendLog('OUT');
+                lockScreen("전체 화면 모드가 해제되었습니다. 다시 복귀해 주세요.");
+            } else if (!isTabActive) {
+                sendLog('OUT');
+                lockScreen("브라우저 탭을 이탈하였습니다. 시험지 보안을 위해 화면을 차단합니다.");
+            }
         };
 
-        fetch('/activities/api/log/', {  // URL 경로가 urls.py와 일치하는지 확인
+        document.addEventListener('fullscreenchange', checkSecurity);
+        document.addEventListener('visibilitychange', checkSecurity);
+        window.addEventListener('blur', () => {
+            if (!testStarted || isSubmitting) return;
+            sendLog('OUT');
+            lockScreen("브라우저 포커스가 이탈되었습니다. 다른 프로그램을 사용하지 마세요.");
+        });
+
+        // (2) 키보드/마우스 조작 차단
+        document.addEventListener('keydown', (e) => {
+            if (!testStarted) return;
+            if (e.key === 'F11') { e.preventDefault(); lockScreen("전체화면 해제(F11)는 금지되어 있습니다."); }
+            if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v'].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+                sendLog(e.key.toUpperCase() === 'C' ? 'COPY' : 'PASTE');
+            }
+        });
+
+        document.addEventListener('contextmenu', (e) => { e.preventDefault(); sendLog('RIGHT_CLICK'); });
+        document.addEventListener('selectstart', (e) => { e.preventDefault(); });
+    }
+
+    /* 5. 뒤로가기 방지 (History Trap) */
+    history.pushState(null, null, location.href);
+    window.onpopstate = function () {
+        history.pushState(null, null, location.href);
+        sendLog('BACK_BUTTON');
+        const backModal = new bootstrap.Modal(document.getElementById('backButtonModal'));
+        backModal.show();
+    };
+
+    /* 6. 실시간 글자 수 합산 계산기 */
+    function updateCharCount() {
+        const allInputs = document.querySelectorAll('.answer-input');
+        let totalLength = 0;
+        allInputs.forEach(input => { totalLength += input.value.length; });
+
+        const counter = document.getElementById('charCount');
+        if (counter) {
+            counter.innerText = `${totalLength}자 / ${charLimit > 0 ? charLimit + '자 이상' : ''}`;
+            if (charLimit > 0) {
+                counter.className = totalLength >= charLimit ? 'badge bg-success px-3 py-2' : 'badge bg-white text-primary px-3 py-2';
+            }
+        }
+    }
+    document.querySelectorAll('.answer-input').forEach(el => el.addEventListener('input', updateCharCount));
+    updateCharCount(); // 초기 실행
+
+    /* 7. 퇴장 및 임시 저장 로직 */
+    function confirmExit() {
+        const exitModal = new bootstrap.Modal(document.getElementById('exitConfirmModal'));
+        exitModal.show();
+    }
+
+    function executeExit() {
+        isSubmitting = true; // 감시 중단
+        sendLog('EXIT');
+
+        const formData = new FormData(document.getElementById('answerForm'));
+        fetch(window.location.href, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}', // 장고 보안 토큰
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify(logData)
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.status === 'success') {
-                console.log(`Security Log [${type}] 저장 완료`);
-            }
-        })
-        .catch(err => console.error("Log API Error:", err));
-    }
-    /**
-     * 7. 상태 제어: 제출/나가기 시 감시 일시 해제
-     */
-    // (1) 제출 버튼 클릭 및 모달 제어
-    const submitBtn = document.querySelector('[data-bs-target="#submitModal"]');
-    if(submitBtn) {
-        submitBtn.addEventListener('click', () => isSubmitting = true);
-    }
-
-    const submitModal = document.getElementById('submitModal');
-    if(submitModal) {
-        // 모달을 닫으면 다시 감시 시작 (실수로 눌렀을 경우 대비)
-        submitModal.addEventListener('hidden.bs.modal', () => isSubmitting = false);
-    }
-
-    // (2) 나가기 버튼 클릭 시
-    const exitBtn = document.getElementById('exitBtn');
-        if (exitBtn) {
-        exitBtn.addEventListener('click', function(e) {
-            if (confirm('정말 나가시겠습니까? 작성 중인 내용은 저장되지 않습니다.')) {
-                isSubmitting = true; // 경고창 방지
-                
-                // [추가] 나가기 버튼 클릭 로그 전송
-                sendLog('EXIT'); 
-                
-                // 로그 전송 시간을 벌기 위해 아주 잠깐의 지연 후 이동
-                setTimeout(() => {
-                    location.href = "{% url 'dashboard' %}";
-                }, 200);
-            }
+            body: formData,
+            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(() => {
+            if (document.fullscreenElement) document.exitFullscreen();
+            window.location.href = "{% url 'student_dashboard' %}";
+        }).catch(() => {
+            window.location.href = "{% url 'student_dashboard' %}";
         });
     }
 
-    /**
-     * 1. 나가기 및 자동(임시) 저장 로직
-     */
-    function confirmExit() {
-        const warningMsg = "다른 페이지로 나갈 경우 부정행위로 간주될 수 있습니다. 감독선생님께 문의하세요.\n\n정말 나가시겠습니까? (현재까지 작성한 내용은 저장됩니다.)";
-        
-        if (confirm(warningMsg)) {
-            isSubmitting = true; // 보안 경고창 방지
-            
-            // --- [핵심] 서버로 현재 답변 전송 (임시 저장) ---
-            const formData = new FormData(document.getElementById('answerForm'));
-            
-            // 로그 전송 (EXIT)
-            sendLog('EXIT');
-
-            // 임시 저장 API 호출 (현재 응시 페이지의 POST 로직 활용)
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            }).then(() => {
-                // 저장이 완료되면 대시보드로 이동
-                window.location.href = "{% url 'dashboard' %}";
-            }).catch(err => {
-                console.error("저장 중 오류 발생:", err);
-                window.location.href = "{% url 'dashboard' %}";
-            });
-        }
-    }
-
-    /**
-     * 2. 첨부파일 미리보기 (오류 수정 버전)
-     */
+    /* 8. 첨부파일 미리보기 통합 함수 */
     function previewFile(url, filename) {
-        // 템플릿의 ID와 정확히 매칭 확인
         const previewContainer = document.getElementById('previewContainer');
         const embed = document.getElementById('previewEmbed');
         const imgContainer = document.getElementById('previewImageContainer');
@@ -569,31 +453,19 @@
         const errorDiv = document.getElementById('previewError');
         const title = document.getElementById('previewTitle');
 
-        if (!embed || !previewContainer) {
-            console.error("모달 요소를 찾을 수 없습니다.");
-            return;
-        }
-
-        // 초기화
         title.innerText = filename;
         previewContainer.style.display = 'none';
         imgContainer.style.setProperty('display', 'none', 'important');
         errorDiv.style.setProperty('display', 'none', 'important');
 
         const ext = filename.split('.').pop().toLowerCase();
-
-        // 이미지 처리
         if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
             img.src = url;
             imgContainer.style.setProperty('display', 'flex', 'important');
-        } 
-        // PDF 처리
-        else if (ext === 'pdf') {
-            // [중요] embed 태그의 src를 변경하여 리로드 유도
-            embed.src = url; 
+        } else if (ext === 'pdf') {
+            embed.setAttribute('src', url);
             previewContainer.style.display = 'block';
-        } 
-        else {
+        } else {
             errorDiv.style.setProperty('display', 'flex', 'important');
         }
 
@@ -601,26 +473,14 @@
         myModal.show();
     }
 
-    /**
-     * 실시간 전체 글자 수 계산 로직 (답안 1~3 합산)
-     */
-    document.querySelectorAll('.answer-input').forEach(el => {
-        el.addEventListener('input', function() {
-            let totalCount = 0;
-            document.querySelectorAll('.answer-input').forEach(input => {
-                totalCount += input.value.length;
-            });
-            
-            const counter = document.getElementById('charCount');
-            if (counter) {
-                counter.innerText = `${totalCount}자 / ${charLimit}자 이상`;
-                if (charLimit > 0 && totalCount >= charLimit) {
-                    counter.className = 'badge bg-success px-3 py-2';
-                } else {
-                    counter.className = 'badge bg-white text-primary px-3 py-2';
-                }
-            }
+    /* 9. 서버 로그 전송 (AJAX) */
+    function sendLog(type) {
+        if (!answerId || answerId === "None" || answerId === "") return;
+        fetch('/activities/api/log/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ 'answer_id': answerId, 'type': type })
         });
-    });
+    }
 </script>
 {% endblock %}
