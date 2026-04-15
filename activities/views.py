@@ -513,10 +513,20 @@ def answer_detail(request, answer_id):
 @teacher_required
 def answer_delete(request, answer_id):
     answer = get_object_or_404(Answer, id=answer_id)
-    activity_id = answer.question.activity.id
+    activity = answer.question.activity
+    
+    # 리다이렉트 시 필요한 정보 미리 보관
+    activity_id = activity.id
+    cat = request.GET.get('category', activity.category)
+    sub = request.GET.get('sub', activity.sub_category)
+    
+    # 답안 삭제
     answer.delete()
+    
     messages.success(request, "답안을 삭제(반려)했습니다.")
-    return redirect('activity_result', activity_id=activity_id)
+    
+    # 제출 현황으로 돌아갈 때 파라미터를 함께 전달하여 메뉴 활성화 유지
+    return redirect(f'/activities/result/{activity_id}/?category={cat}&sub={sub}')
 
 @login_required
 @teacher_required

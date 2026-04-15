@@ -190,7 +190,9 @@
                         <!--  폐기 버튼 (제출 완료일 때만 보임) -->
                         <td class="text-center">
                             {% if item.answer_id %}
-                                <button class="btn btn-sm btn-outline-danger px-2" onclick="discardAnswer('{{ item.answer_id }}', '{{ item.student.name }}')">
+                                <button class="btn btn-sm btn-outline-danger px-2" 
+                                        onclick="discardAnswer('{{ item.answer_id }}', '{{ item.student.name }}')"
+                                        data-url="{% url 'answer_delete' item.answer_id %}?category={{ activity.category }}&sub={{ activity.sub_category }}">
                                     <i class="bi bi-trash3"></i> 폐기
                                 </button>
                             {% else %}
@@ -331,10 +333,15 @@
     }
 
     // 폐기 확인 함수
-    function discardAnswer(answerId, studentName) {
+        function discardAnswer(answerId, studentName) {
+        // 1. 클릭된 버튼 요소를 찾습니다.
+        const btn = event.currentTarget;
+        // 2. 버튼에 심어둔 정확한 URL을 가져옵니다.
+        const targetUrl = btn.getAttribute('data-url');
+
         if (confirm(`[${studentName}] 학생의 답안을 정말로 폐기하시겠습니까?\n폐기된 답안은 복구할 수 없으며 학생은 재응시해야 합니다.`)) {
-            // 실제 폐기 처리 API 호출 로직 (기존 코드 유지)
-            location.href = `/activities/answer/${answerId}/delete/`; 
+            // 3. 404 걱정 없는 정확한 주소로 이동합니다.
+            location.href = targetUrl;
         }
     }
 </script>
