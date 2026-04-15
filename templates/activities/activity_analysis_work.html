@@ -143,53 +143,60 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_scripts %}
 <script>
-    // 1. 데이터가 정상적으로 넘어오는지 확인하기 위한 로그
-    console.log("스크립트 로딩 시작");
+    // 1. 초기 데이터 설정
+    const ACTIVITY_ID = "{{ activity.id }}";
+    const STORAGE_KEY = `ingrid_prompt_${ACTIVITY_ID}`;
+    
+    let answerList = [];
+    try {
+        const rawJson = '{{ answer_list_json|escapejs }}';
+        answerList = rawJson ? JSON.parse(rawJson) : [];
+        console.log("분석 대상 명단:", answerList);
+    } catch (e) {
+        console.error("데이터 파싱 에러:", e);
+    }
 
-    // 템플릿 데이터 매핑 (따옴표 구조를 더 안전하게 변경)
-    const templates = {
-        {% for t in prompt_templates %}
-        "{{ t.id }}": {
-            "context": "{{ t.context|escapejs }}",
-            "task": "{{ t.task|escapejs }}",
-            "example": "{{ t.output_example|escapejs }}",
-            "length": "{% if t.length_option %}{{ t.length_option.value|escapejs }}{% endif %}"
-        },
-        {% endfor %}
-    };
+    // 2. [신규] 로컬 스토리지 임시 저장 로직
+    function saveToLocal() {
+        const data = {
+            context: document.getElementById('p_context').value,
+            task: document.getElementById('p_task').value,
+            example: document.getElementById('p_example').value,
+            length: document.getElementById('p_length').value,
+            temp: document.getElementById('temperature').value
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
 
-    function applyTemplate() {
-        const id = document.getElementById('templateSelect').value;
-        if (id && templates[id]) {
-            const t = templates[id];
-            document.getElementById('p_context').value = t.context;
-            document.getElementById('p_task').value = t.task;
-            document.getElementById('p_example').value = t.example;
-            document.getElementById('p_length').value = t.length;
+    function loadFromLocal() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const data = JSON.parse(saved);
+            document.getElementById('p_context').value = data.context || "";
+            document.getElementById('p_task').value = data.task || "";
+            document.getElementById('p_example').value = data.example || "";
+            document.getElementById('p_length').value = data.length || "";
+            document.getElementById('temperature').value = data.temp || "0.7";
+            document.getElementById('tempVal').innerText = data.temp || "0.7";
+            console.log("임시 저장된 프롬프트를 불러왔습니다.");
         }
     }
 
-    // 학생 명단 데이터 (에러 방지를 위해 변수 존재 확인)
-    let answerList = [];
-    const rawJson = '{{ answer_list_json|escapejs }}';
+    // 페이지 로드 시 실행
+    document.addEventListener('DOMContentLoaded', function() {
+        loadFromLocal(); // 저장된 데이터 불러오기
 
-    try {
-        // 만약 데이터가 진짜 비어있으면(null/undefined) 빈 배열로 초기화
-        answerList = rawJson ? JSON.parse(rawJson) : [];
-        console.log("분석 대상 명단 로드 성공:", answerList);
-    } catch (e) {
-        console.error("데이터 파싱 에러:", e);
-        answerList = []; // 에러 나면 빈 배열로 강제 설정
-    }
+        // 모든 입력창에 변경 시 자동 저장 이벤트 등록
+        const inputs = ['p_context', 'p_task', 'p_example', 'p_length', 'temperature'];
+        inputs.forEach(id => {
+            document.getElementById(id).addEventListener('input', saveToLocal);
+        });
+    });
 
-    // ★ 드디어 본체 함수
+    // 3. AI 분석 실행 함수
     async function runDBAnalysis() {
-        console.log("분석 시작 버튼 클릭됨");
-        
         if (!answerList || answerList.length === 0) {
             alert("분석할 학생 답안이 없습니다.");
             return;
@@ -201,14 +208,21 @@
         const p_length = document.getElementById('p_length').value;
         const temperature = document.getElementById('temperature').value;
         
-        const full_instruction = "[맥락]: " + p_context + "\n[작업]: " + p_task + "\n[예시]: " + p_example + "\n[분량]: " + p_length;
+        if (!p_task.trim()) {
+            alert("메인 지시사항을 입력해주세요.");
+            return;
+        }
 
-        if (!confirm(answerList.length + "건의 분석을 시작할까요?")) return;
+        const full_instruction = `[맥락]: ${p_context}\n[작업]: ${p_task}\n[예시]: ${p_example}\n[분량]: ${p_length}`;
+
+        if (!confirm(`${answerList.length}명의 분석을 시작하시겠습니까?\n완료될 때까지 브라우저 창을 닫지 마세요.`)) return;
 
         document.getElementById('loadingOverlay').classList.remove('d-none');
 
         for (let i = 0; i < answerList.length; i++) {
             const current = answerList[i];
+            
+            // UI 업데이트
             document.getElementById('currentName').innerText = current.name;
             document.getElementById('currentCount').innerText = i + 1;
             const percent = Math.round(((i + 1) / answerList.length) * 100);
@@ -229,17 +243,22 @@
                         'ai_model': 'gemini-2.0-flash' 
                     })
                 });
-                await new Promise(r => setTimeout(r, 1200)); 
+                
+                if (!response.ok) throw new Error("서버 응답 에러");
+                
+                // 가비아 서버 부하 방지를 위한 미세한 대기
+                await new Promise(r => setTimeout(r, 800)); 
             } catch (error) {
-                console.error("통신 에러:", error);
+                console.error(`${current.name} 처리 중 에러:`, error);
             }
         }
 
+        // 분석 성공 시 저장 데이터 삭제
+        localStorage.removeItem(STORAGE_KEY);
+        
         document.getElementById('loadingOverlay').classList.add('d-none');
-        alert("✅ 분석 완료!");
+        alert("✅ 모든 학생의 AI 분석 및 저장이 완료되었습니다.");
         window.location.href = "{% url 'activity_analysis' activity.id %}";
     }
-    
-    console.log("스크립트 로딩 완료 - 이제 버튼이 작동할 것입니다.");
 </script>
 {% endblock %}
