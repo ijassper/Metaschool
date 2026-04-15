@@ -282,12 +282,13 @@
             <div class="modal-body p-4 text-center">
                 <p class="fs-5 fw-bold mb-2">정말 나가시겠습니까?</p>
                 <p class="text-muted">
-                    다른 페이지로 나갈 경우 부정행위로 간주될 수 있습니다. 감독선생님께 문의하세요.<br>
+                    다른 페이지로 나갈 경우 부정행위로 간주될 수 있습니다.<br>
+                    감독선생님께 문의하세요.<br>
                     정말 나가시겠습니까?<br>
                     현재까지 작성된 내용은 <strong>자동 저장</strong>됩니다.</p>
             </div>
             <div class="modal-footer border-0 p-3 gap-2">
-                <button type="button" class="btn btn-light rounded-pill px-4 flex-grow-1" data-bs-modal="dismiss">취소</button>
+                <button type="button" class="btn btn-light rounded-pill px-4 flex-grow-1" data-bs-dismiss="modal">취소</button>
                 <!-- 실제 나가기 처리를 수행할 버튼 -->
                 <button type="button" class="btn btn-danger rounded-pill px-4 flex-grow-1 fw-bold" onclick="executeExit()">네, 저장하고 나갑니다</button>
             </div>
@@ -412,7 +413,7 @@
 
         const counter = document.getElementById('charCount');
         if (counter) {
-            counter.innerText = `${totalLength}자 / ${charLimit > 0 ? charLimit + '자 이상' : ''}`;
+            counter.innerText = `${totalLength}자 / ${charLimit > 0 ? charLimit + '자 이내' : ''}`;
             if (charLimit > 0) {
                 counter.className = totalLength >= charLimit ? 'badge bg-success px-3 py-2' : 'badge bg-white text-primary px-3 py-2';
             }
