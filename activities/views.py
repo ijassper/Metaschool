@@ -360,10 +360,12 @@ def activity_result(request, activity_id):
         note = ""
         absence = ""
 
+        log_data = ""
         if answer:
             answer_id = answer.id
             note = answer.note
             absence = answer.absence_type
+            log_data = answer.activity_log 
             if answer.content.strip():
                 status = "제출 완료"
                 submitted_at = answer.submitted_at
@@ -379,6 +381,7 @@ def activity_result(request, activity_id):
             'answer_id': answer_id,
             'note': note,
             'absence': absence,
+            'activity_log': log_data,
         })
 
     context = {
@@ -453,7 +456,7 @@ def take_test(request, activity_id):
         answer.save()
         
         messages.success(request, "답안이 성공적으로 제출되었습니다.")
-        return redirect('student_dashboard')
+        return redirect('dashboard')
 
     # 7. 화면에 데이터 전달
     return render(request, 'activities/take_test.html', {

@@ -175,49 +175,13 @@
                         <td>
                             {% if item.answer_id %}
                                 <button class="btn btn-link p-0 text-decoration-none" 
-                                        onclick="openNoteModal('{{ a.id }}', '{{ a.student.name }}', '{{ a.note|escapejs }}', '{{ a.activity_log|escapejs }}')">
-                                    {% if a.note %}
+                                        onclick="openNoteModal('{{ item.answer_id }}', '{{ item.student.name }}', '{{ item.note|escapejs }}', '{{ item.activity_log|escapejs }}')">
+                                    {% if item.note %}
                                         <i class="bi bi-file-earmark-text-fill text-warning fs-5"></i>
                                     {% else %}
                                         <i class="bi bi-file-earmark-plus text-muted fs-5 opacity-50"></i>
                                     {% endif %}
                                 </button>
-
-                                <!-- 메모 모달 -->
-                                <div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered">
-                                        <div class="modal-content border-0 shadow-lg">
-                                            <div class="modal-header bg-warning-subtle">
-                                                <h5 class="modal-title fw-bold"><i class="bi bi-sticky-fill me-2"></i>특이사항 메모</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <div class="modal-body p-4">
-                                                
-                                                <!-- [추가] 폐쇄형 평가일 때만 보이는 출입관리 기록 섹션 -->
-                                                {% if activity.exam_mode == 'CLOSED' %}
-                                                <div id="logSection" class="mb-4">
-                                                    <label class="fw-bold mb-2 text-danger small"><i class="bi bi-shield-exclamation me-1"></i> 출입관리 기록 (부정행위 의심 로그)</label>
-                                                    <div id="modalLogContent" class="p-3 bg-light border rounded-3 small text-secondary" 
-                                                        style="max-height: 150px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5;">
-                                                        <!-- 로그 데이터가 여기에 들어감 -->
-                                                    </div>
-                                                    <hr class="my-4">
-                                                </div>
-                                                {% endif %}
-
-                                                <!-- 기존 메모 입력 섹션 -->
-                                                <div class="mb-3">
-                                                    <label class="fw-bold mb-2 small"><span id="noteStudentName"></span> 학생에 대한 메모</label>
-                                                    <textarea id="noteTextArea" class="form-control border-0 shadow-sm bg-light" 
-                                                            rows="5" placeholder="선생님만 볼 수 있는 메모를 입력하세요."></textarea>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer border-0 pt-0 justify-content-center pb-4">
-                                                <button type="button" class="btn btn-primary px-5 rounded-pill fw-bold" onclick="saveNote()">저장</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                             {% else %}
                                 -
                             {% endif %}
@@ -225,9 +189,8 @@
 
                         <!--  폐기 버튼 (제출 완료일 때만 보임) -->
                         <td class="text-center">
-                            {% if a.status == '제출 완료' or a.activity_log %}
-                                <!-- 폐기 버튼을 관리 칸으로 이동 -->
-                                <button class="btn btn-sm btn-outline-danger px-2" onclick="discardAnswer('{{ a.id }}', '{{ a.student.name }}')">
+                            {% if item.answer_id %}
+                                <button class="btn btn-sm btn-outline-danger px-2" onclick="discardAnswer('{{ item.answer_id }}', '{{ item.student.name }}')">
                                     <i class="bi bi-trash3"></i> 폐기
                                 </button>
                             {% else %}
@@ -238,6 +201,38 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- 특이사항 메모 모달 -->
+<div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header bg-warning-subtle border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-sticky-fill me-2"></i>특이사항 메모</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                {% if activity.exam_mode == 'CLOSED' %}
+                <div id="logSection" class="mb-4">
+                    <label class="fw-bold mb-2 text-danger small"><i class="bi bi-shield-exclamation me-1"></i> 출입관리 기록 (부정행위 의심 로그)</label>
+                    <!-- [수정] pre 태그를 사용하여 줄바꿈을 유지합니다 -->
+                    <pre id="modalLogContent" class="p-3 bg-light border rounded-3 small text-secondary" 
+                         style="max-height: 200px; overflow-y: auto; white-space: pre-wrap; font-family: inherit;"></pre>
+                </div>
+                <hr>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="fw-bold mb-2 small"><span id="noteStudentName"></span> 학생에 대한 메모</label>
+                    <textarea id="noteTextArea" class="form-control border-0 shadow-sm bg-light" 
+                            rows="5" placeholder="선생님만 볼 수 있는 메모를 입력하세요."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 justify-content-center pb-4">
+                <button type="button" class="btn btn-primary px-5 rounded-pill fw-bold" onclick="saveNote()">저장</button>
+            </div>
         </div>
     </div>
 </div>
@@ -289,6 +284,29 @@
                 
                 // 만약 '결시'를 선택하면 상태 뱃지를 바꾸고 싶다면 여기서 DOM 조작 필요
                 // 하지만 간단하게는 새로고침하거나, 그냥 둡니다.
+            } else {
+                alert('저장 실패: ' + data.message);
+            }
+        });
+    }
+
+    // 메모 저장 함수 (AJAX 방식)
+    function saveNote() {
+        const answerId = window.currentEditingAnswerId;
+        const note = document.getElementById('noteTextArea').value;
+
+        fetch(`/activities/answer/${answerId}/save_note/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: new URLSearchParams({ 'note': note })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload(); // 저장 후 상태 반영을 위해 새로고침
             } else {
                 alert('저장 실패: ' + data.message);
             }
