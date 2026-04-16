@@ -157,6 +157,7 @@
     .scroll-area::-webkit-scrollbar { width: 4px; }
     .scroll-area::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
 
+    /* 1400px 이하일 때 2열로 조정 (반응형) */
     @media (max-width: 1400px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
 
@@ -236,9 +237,10 @@
                 </div>
                 {% endfor %}
             </div>
-            {% empty %}
-                <div class="text-center py-5">현재 진행 중인 평가나 활동이 없습니다.</div>
-            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <p class="text-muted">진행 중인 활동이 없습니다.</p>
         </div>
         {% endfor %}
     </div>
