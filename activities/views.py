@@ -32,26 +32,23 @@ def student_dashboard(request):
 
     # 1, 2단계를 모두 거쳤는데도 없다면? (에러 방지를 위해 빈 결과 반환)
     if not student_profile:
-        return render(request, 'activities/student_dashboard.html', {
-            'essay_activities': [], 
-            'creative_activities': [],
-            'student': None # 템플릿 에러 방지
-        })
+        return render(request, 'activities/student_dashboard.html', {'student': None})
 
     # 2. 이 학생에게 할당된 모든 활동 가져오기 (상태 필터 일단 제거하여 데이터 확인)
-    all_assigned = Activity.objects.filter(target_students=student_profile)
+    all_activities = Activity.objects.filter(
+        target_students=student_profile,
+        is_active=True  # 선생님이 시작 버튼을 누른 것만 노출
+    ).order_by('-created_at')
 
-    # 3. 카테고리 분류 (핵심 수정: 공백이나 오타를 방지하기 위해 icontains 사용)
-    # 쉘에서 발견된 'ESSAY ' 문제를 해결하기 위해 포함(icontains) 방식으로 필터링합니다.
-    essay_activities = all_assigned.filter(category__icontains='ESSAY').order_by('-created_at')
-    creative_activities = all_assigned.filter(category__icontains='CREATIVE').order_by('-created_at')
+    # 3. [데이터 매핑] 각 활동에 학생의 답안 정보를 미리 붙여줌 (템플릿 에러 방지)
+    for act in all_activities:
+        act.my_answer = act.get_student_answer(student_profile)
 
     # (디버깅용 출력: 가비아 터미널에서 확인 가능)
-    print(f"DEBUG: 학생 {student_profile.name} / 총 할당: {all_assigned.count()} / 논술형: {essay_activities.count()} / 자율: {creative_activities.count()}")
+    print(f"DEBUG: 학생 {student_profile.name} / 총 할당된 통합 활동: {all_activities.count()}건")
 
     return render(request, 'activities/student_dashboard.html', {
-        'essay_activities': essay_activities,
-        'creative_activities': creative_activities,
+        'activities': all_activities, # 변수명 통합
         'student': student_profile,
     })
 

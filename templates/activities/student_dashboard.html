@@ -225,29 +225,19 @@
                         </div>
 
                         <!-- 상태 표시 (오른쪽 정렬됨) -->
-                        {% with answer=act.get_student_answer(student) %}
-                            {% if answer and answer.submitted_at %}
-                                <!-- 1. 진짜 제출 완료 -->
-                                <span class="badge bg-success">제출 완료</span>
-                                <div class="small text-muted mt-1">{{ answer.submitted_at|date:"m-d H:i" }} 제출됨</div>
-
-                            {% elif answer %}
-                                <!-- 2. 객체는 있는데 제출은 안 함 (임시저장/작성중 상태) -->
-                                <a href="{% url 'take_test' act.id %}" class="btn btn-warning btn-sm">
-                                    작성 중 (이어 쓰기) →
-                                </a>
-
-                            {% else %}
-                                <!-- 3. 아예 처음 들어가는 상태 -->
-                                <a href="{% url 'take_test' act.id %}" class="btn btn-primary btn-sm">
-                                    응시 가능 →
-                                </a>
-                            {% endif %}
-                        {% endwith %}
+                        {% if act.my_answer and act.my_answer.submitted_at %}
+                            <span class="badge bg-success">제출 완료</span>
+                        {% elif act.my_answer %}
+                            <a href="{% url 'take_test' act.id %}" class="btn btn-warning btn-sm rounded-pill">작성 중 →</a>
+                        {% else %}
+                            <a href="{% url 'take_test' act.id %}" class="btn btn-primary btn-sm rounded-pill">응시 가능 →</a>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
             </div>
+        {% empty %}
+            <div class="text-center py-5">현재 진행 중인 평가나 활동이 없습니다.</div>
         </div>
         {% endfor %}
     </div>
