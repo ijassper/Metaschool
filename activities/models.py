@@ -69,6 +69,13 @@ class Activity(models.Model):
     achievement_standard = models.TextField(blank=True, null=True, verbose_name="성취 기준")
     evaluation_elements = models.TextField(blank=True, null=True, verbose_name="평가 요소")
 
+    # 특정 학생이 최종 제출을 완료했는지 확인하는 함수
+    def get_student_answer(self, student):
+        """특정 학생이 이 활동에 대해 작성한 답안 객체를 반환 (없으면 None)"""
+        # Answer 모델을 함수 내부에서 임포트하여 순환 참조 에러를 방지합니다.
+        from .models import Answer
+        return Answer.objects.filter(question__activity=self, student=student).first()
+
     class Meta:
         verbose_name = "활동 및 평가"
         verbose_name_plural = "활동 및 평가 목록"

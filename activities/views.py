@@ -20,19 +20,22 @@ from accounts.models import Student, SystemConfig, PromptTemplate, PromptCategor
 import logging
 logger = logging.getLogger(__name__)
 
-# 1. 학생 대시보드 (응시 가능한 평가 목록)
+# 1. 학생 대시보드 (응시 가능한 평가/활동 목록)
 @login_required
 def student_dashboard(request):
-    # 1. 학생 객체 찾기 (이메일 기반으로 찾는 것이 가장 정확함)
+    # 1. 학생 객체 찾기 (이메일로 학생 찾기)
     student_profile = Student.objects.filter(email=request.user.email).first()
     
     if not student_profile:
-        # 이메일로 못 찾으면 연결된 프로필로 재시도
+        # 이메일로 못 찾으면 연결된 프로필(OneToOne)로 찾기 시도
         student_profile = getattr(request.user, 'student', None)
 
+    # 1, 2단계를 모두 거쳤는데도 없다면? (에러 방지를 위해 빈 결과 반환)
     if not student_profile:
         return render(request, 'activities/student_dashboard.html', {
-            'essay_activities': [], 'creative_activities': []
+            'essay_activities': [], 
+            'creative_activities': [],
+            'student': None # 템플릿 에러 방지
         })
 
     # 2. 이 학생에게 할당된 모든 활동 가져오기 (상태 필터 일단 제거하여 데이터 확인)
@@ -49,6 +52,7 @@ def student_dashboard(request):
     return render(request, 'activities/student_dashboard.html', {
         'essay_activities': essay_activities,
         'creative_activities': creative_activities,
+        'student': student_profile,
     })
 
 # 교과 논술형 평가 목록 보기
@@ -433,30 +437,38 @@ def take_test(request, activity_id):
         question=question
     )
 
+    # 최초 진입 시간 기록 로직 (활동 로그에 기록)
+    if created:
+        timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+        answer.activity_log += f"[{timestamp}] 시험 시작 (최초 진입)\n"
+        answer.save()
+
     if request.method == 'POST':
+        # 제출인지 임시저장인지 구분 (hidden 필드 'is_submit' 기준)
+        is_final_submit = request.POST.get('is_submit') == 'true'
+
         # 6. 답안 제출 처리 (이미 생성된 객체에 내용만 업데이트)
         # 6-1. 항목별 답변 가져오기
-        a1 = request.POST.get('ans_q1', '').strip()
-        a2 = request.POST.get('ans_q2', '').strip()
-        a3 = request.POST.get('ans_q3', '').strip()
-
-        # 6-2. 데이터 저장
-        answer.ans_q1 = a1
-        answer.ans_q2 = a2
-        answer.ans_q3 = a3
-
-        # 6-3. AI 분석 및 하이브리드 지원을 위해 하나로 병합하여 content에 저장
-        merged_content = ""
-        if a1: merged_content += f"[{activity.q1_title}]\n{a1}\n\n"
-        if a2: merged_content += f"[{activity.q2_title}]\n{a2}\n\n"
-        if a3: merged_content += f"[{activity.q3_title}]\n{a3}\n\n"
-        answer.content = merged_content
+        answer.ans_q1 = request.POST.get('ans_q1', '').strip()
+        answer.ans_q2 = request.POST.get('ans_q2', '').strip()
+        answer.ans_q3 = request.POST.get('ans_q3', '').strip()
         
-        answer.submitted_at = timezone.now()
+        # 합본 생성 로직
+        answer.content = f"[{activity.q1_title}]\n{answer.ans_q1}\n\n[{activity.q2_title}]\n{answer.ans_q2}\n\n[{activity.q3_title}]\n{answer.ans_q3}"
+        
+        # 최종 제출일 때만 제출 시간 기록 및 로그 남기기
+        if is_final_submit:
+            answer.submitted_at = timezone.now()
+            timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            answer.activity_log += f"[{timestamp}] 답안 최종 제출 완료\n"
+
         answer.save()
         
-        messages.success(request, "답안이 성공적으로 제출되었습니다.")
-        return redirect('dashboard')
+        if is_final_submit:
+            messages.success(request, "답안이 제출되었습니다.")
+            return redirect('dashboard')
+        else:
+            return JsonResponse({'status': 'success', 'message': '임시 저장 완료'})
 
     # 7. 화면에 데이터 전달
     return render(request, 'activities/take_test.html', {

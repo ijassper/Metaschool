@@ -144,6 +144,8 @@
         <div class="col-md-9 d-flex flex-column bg-white h-100">
             <form id="answerForm" method="post" class="h-100 d-flex flex-column">
                 {% csrf_token %}
+                <!-- 응시 계속하기 로그 기록 -->
+                <input type="hidden" name="is_submit" id="isSubmitField" value="false">
                 <!-- 상단 헤더 고정 -->
                  <div class="p-3 d-flex justify-content-between align-items-center shadow-sm text-white" 
                     style="background: var(--ingrid-gradient); z-index: 10; height: 65px;">
@@ -247,7 +249,7 @@
       </div>
       <div class="modal-footer justify-content-center">
         <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">아니오, 더 쓸래요</button>
-        <button type="button" class="btn btn-danger px-4 fw-bold" onclick="document.getElementById('answerForm').submit()">네, 제출합니다</button>
+        <button type="button" class="btn btn-danger px-4 fw-bold" onclick="finalSubmit()">네, 제출합니다</button>
       </div>
     </div>
   </div>
@@ -327,11 +329,27 @@
         }
     }
 
+    /**
+     * 보안 경고창에서 '응시 계속하기' 클릭 시 실행
+     */
     function completeStart() {
         testStarted = true;
+        if (document.getElementById('startOverlay').classList.contains('d-none') === false) {
+            // 보안 경고로 인해 다시 들어온 경우에만 로그 기록
+            sendLog('RE-ENTRY'); 
+        }
         document.getElementById('startOverlay').classList.add('d-none');
         const container = document.getElementById('testContainer');
         if (container) container.style.filter = "none";
+    }
+
+    /**
+     * 최종 제출 버튼 클릭 시 호출 (제출 확인 모달 내 버튼)
+     */
+    function finalSubmit() {
+        document.getElementById('isSubmitField').value = 'true'; // 제출 플래그 설정
+        isSubmitting = true;
+        document.getElementById('answerForm').submit();
     }
 
     /* 3. 보안 제어: 화면 잠금(가림막) 함수 (Native Alert 대체) */
@@ -476,6 +494,15 @@
 
     /* 9. 서버 로그 전송 (AJAX) */
     function sendLog(type) {
+        const logMessages = {
+            'OUT': '화면 이탈(Alt+Tab 등)',
+            'IN': '화면 복귀',
+            'RE-ENTRY': '응시 계속하기 클릭 (답안지 복귀)', // 추가된 로그
+            'EXIT': '중도 퇴장 (임시저장)',
+            'COPY': '복사 시도',
+            'PASTE': '붙여넣기 시도'
+        };
+
         if (!answerId || answerId === "None" || answerId === "") return;
         fetch('/activities/api/log/', {
             method: 'POST',
