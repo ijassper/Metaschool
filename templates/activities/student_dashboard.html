@@ -236,8 +236,9 @@
                 </div>
                 {% endfor %}
             </div>
-        {% empty %}
-            <div class="text-center py-5">현재 진행 중인 평가나 활동이 없습니다.</div>
+            {% empty %}
+                <div class="text-center py-5">현재 진행 중인 평가나 활동이 없습니다.</div>
+            </div>
         </div>
         {% endfor %}
     </div>
