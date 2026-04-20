@@ -37,6 +37,9 @@ def dashboard(request):
         print(f"DEBUG: {user.name}님은 학생 로직으로 진입합니다.", flush=True)
         student_profile = Student.objects.filter(email=user.email).first()
                 
+        if not student_profile:
+            student_profile = getattr(user, 'student', None)
+
         if student_profile:
             # 나에게 배정된 모든 활성화된 평가 (전체 리스트용)
             base_query = Activity.objects.filter(target_students=student_profile, is_active=True).order_by('-created_at')
@@ -46,12 +49,12 @@ def dashboard(request):
 
             # 전체 리스트에 대해서도 제출 여부 체크
             for activity in base_query:
-                activity.form_config = get_form_config(activity.sub_category)
-                activity.has_submitted = Answer.objects.filter(
-                    student=student_profile, 
-                    question__activity=activity,
-                    submitted_at__isnull=False
-                ).exists()
+                # 모델에 추가한 함수를 사용하여 답변 객체 가져오기
+                ans = activity.get_student_answer(student_profile)
+                activity.my_answer = ans # [추가] 이 객체가 있어야 템플릿에서 '작성 중' 판단 가능
+                
+                # 제출 여부 판단 (제출 시간이 기록되어 있어야 함)
+                activity.has_submitted = bool(ans and ans.submitted_at)
 
                 # 제출 완료된 경우 카운트 증가
                 if activity.has_submitted:
@@ -61,19 +64,20 @@ def dashboard(request):
             category_blocks = []
             seen_categories = []
             for act in base_query:
-                clean_cat = act.category.strip()
-                if clean_cat not in seen_categories:
-                    seen_categories.append(clean_cat)
+                cat_code = act.category.strip()
+                if cat_code not in seen_categories:
+                    seen_categories.append(cat_code)
                     category_blocks.append({
                         'name': act.get_category_display(),
-                        'items': [a for a in base_query if a.category.strip() == clean_cat]
+                        'items': [a for a in base_query if a.category.strip() == cat_code]
                     })
 
             context.update({
                 'student': student_profile,  # student 라는 이름으로 객체 전달
                 'category_blocks': category_blocks, # 묶인 데이터
                 'activities': base_query,           # 전체 카운트용
-                'completed_count': completed_count
+                'completed_count': completed_count, # 완료된 개수
+                'ongoing_count': base_query.count() - completed_count # 진행 중 개수 계산
             })
 
         # 학생 전용 템플릿 반환
