@@ -104,10 +104,18 @@
     }
 
     /* --- 우측 로그인 폼 섹션 --- */
-    .form-side {
-        flex: 1; background-color: white;
-        display: flex; align-items: center; justify-content: center;
-        padding: 40px;
+    .form-side { 
+        flex: 1.2; /* 폼 영역 비중을 살짝 높임 */
+        background-color: white; 
+        display: flex; 
+        justify-content: center; 
+        padding: 100px 40px; /* 상단 여백을 고정하여 UI 흔들림 방지 */
+        height: 100vh; 
+        overflow-y: auto; 
+    }
+    .auth-box { 
+        width: 100%; 
+        max-width: 560px; /* 너비 1.5배 확장 */
     }
     .login-box { width: 100%; max-width: 380px; }
     .login-box h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 40px; color: #1e293b; }
@@ -278,60 +286,4 @@
   </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // 1. 요소 선택
-        const radioTeacher = document.getElementById('type_teacher');
-        const radioStudent = document.getElementById('type_student');
-        const labelUsername = document.getElementById('label_username');
-        const inputUsername = document.getElementById('id_username');
-        const signupLink = document.getElementById('signup-link');
-
-        // 1. UI 업데이트 함수
-        function updateUI(role) {
-            const signupArea = document.getElementById('teacher-signup-area');
-            if (role === 'teacher') {
-                labelUsername.innerText = "선생님 이메일 아이디";
-                inputUsername.placeholder = "아이디(이메일)를 입력하세요";
-                signupArea.style.display = 'block'; // 교사일 때만 가입 링크 표시
-            } else {
-                labelUsername.innerText = "학생 ID";
-                inputUsername.placeholder = "학생 ID를 입력하세요";
-                signupArea.style.display = 'none';  // 학생일 때는 숨김
-            }
-            setTimeout(() => inputUsername.focus(), 100);
-        }
-
-        radioTeacher.addEventListener('change', () => updateUI('teacher'));
-        radioStudent.addEventListener('change', () => updateUI('student'));
-
-        // 2. 초기 상태 설정 (학생 디폴트)
-        updateUI('student');
-
-        // 3. 학생 회원가입 차단 로직 (복구됨)
-        if (signupLink) {
-            signupLink.addEventListener('click', function(event) {
-                if (radioStudent.checked) {
-                    event.preventDefault(); // 페이지 이동 차단
-                    const studentModal = new bootstrap.Modal(document.getElementById('studentSignupModal'));
-                    studentModal.show();
-                }
-            });
-        }
-
-        // 4. 로그인 실패 시 에러 모달 노출
-        // 장고 에러가 있거나 non_field_errors가 있을 때 실행
-        const hasErrors = "{% if form.errors or form.non_field_errors %}true{% else %}false{% endif %}";
-        if (hasErrors === 'true') {
-            const errorModal = new bootstrap.Modal(document.getElementById('loginErrorModal'));
-            errorModal.show();
-        }
-
-        // 5. 태블릿 최적화 (페이지 로드 시 강제 활성화)
-        setTimeout(() => {
-            inputUsername.click();
-            inputUsername.focus();
-        }, 400);
-    });
-</script>
 {% endblock %}
