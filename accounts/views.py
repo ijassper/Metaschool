@@ -10,6 +10,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages  # 알림 메시지(성공/실패)를 위해 필요
 from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from django.db import transaction   # 트랜잭션 처리를 위해 필요
+from django.contrib.auth.forms import AuthenticationForm    # 로그인 폼 (필요 시 사용)
+from django.contrib.auth import login as auth_login # 회원가입 후 자동 로그인 위해 필요
 import requests
 import random
 from activities.views import get_form_config
@@ -18,12 +20,42 @@ import pandas as pd
 import io
 import json
 import pandas as pd  # 엑셀 처리를 위해 필요
-from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼
+from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm, CustomAuthenticationForm  # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼, 로그인 폼
 from .models import CustomUser, School  # CustomUser, School 모델 모두 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import Activity, Student, Answer  # 평가관리, 학생, 답안 모델 가져오기
 
+# 로그인 유지 기능이 포함된 커스텀 로그인 함수
+def login_view(request):
+    # 이미 로그인된 상태라면 대시보드로 보냄
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        form = CustomAuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            auth_login(request, user) # 실제 로그인 수행
+            
+            # --- [로그인 유지 로직 시작] ---
+            # login.html의 <input type="checkbox" name="remember_me"> 확인
+            remember_me = request.POST.get('remember_me')
+            
+            if remember_me:
+                # 체크박스 선택 시: 2주(1,209,600초) 동안 세션 유지
+                request.session.set_expiry(1209600)
+            else:
+                # 선택 안 할 시: 브라우저를 닫으면 로그아웃
+                request.session.set_expiry(0)
+            # --- [로그인 유지 로직 끝] ---
+            
+            return redirect('dashboard')
+    else:
+        form = CustomAuthenticationForm()
+    
+    # login.html 템플릿을 사용하여 로그인 화면을 보여줌
+    return render(request, 'registration/login.html', {'form': form})
 
 # 대시보드 (로그인 후 첫 화면)
 @login_required
