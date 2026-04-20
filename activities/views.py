@@ -42,7 +42,9 @@ def student_dashboard(request):
 
     # 3. [데이터 매핑] 각 활동에 학생의 답안 정보를 미리 붙여줌 (템플릿 에러 방지)
     for act in all_activities:
-        act.my_answer = act.get_student_answer(student_profile)
+        ans = act.get_student_answer(student_profile)
+        print(f"DEBUG: 활동[{act.title}] - 답변존재여부: {bool(ans)}")
+        act.my_answer = ans
 
     # (디버깅용 출력: 가비아 터미널에서 확인 가능)
     print(f"DEBUG: 학생 {student_profile.name} / 총 할당된 통합 활동: {all_activities.count()}건")
@@ -415,29 +417,28 @@ def take_test(request, activity_id):
         messages.error(request, "본인의 평가 대상이 아닙니다.")
         return redirect('dashboard')
 
-    # 4. 문항(Question) 가져오기 및 자율활동 예외 처리
-    # (자율활동은 문항 객체가 없을 수 있으므로 즉석 생성하여 IntegrityError 방지)
-    question = activity.questions.first()
-    if not question and activity.category == 'CREATIVE':
-        from .models import Question
-        question = Question.objects.create(
-            activity=activity,
-            content=activity.question,
-            conditions=activity.conditions,
-            reference_material=activity.reference_material
-        )
+    # 4. 문항(Question) 가져오기 (통합 로직: 없으면 자동 생성)
+    # activity.questions.first()가 있으면 가져오고, 없으면 defaults의 내용으로 새로 만듭니다.
+    question, q_created = Question.objects.get_or_create(
+        activity=activity,
+        defaults={
+            'content': activity.question,
+            'conditions': activity.conditions,
+            'reference': activity.reference_material # Question 모델은 필드명이 'reference'입니다.
+        }
+    )
 
-    # 5. [핵심] 답안지(Answer) 껍데기 미리 생성/가져오기
-    # 페이지 접속 시점에 만들어둬야 실시간 이탈 로그(AJAX)를 기록할 수 있습니다.
-    answer, created = Answer.objects.get_or_create(
+    # 5. [핵심] 답안지(Answer) 껍데기 생성/가져오기
+    # 이 시점에 Answer 객체가 확실히 생성되므로 대시보드에서 '작성 중'으로 인지하게 됩니다.
+    answer, a_created = Answer.objects.get_or_create(
         student=student_info,
         question=question
     )
 
-    # 최초 진입 시간 기록 로직 (활동 로그에 기록)
-    if created:
+    # 6. 최초 진입 시간 기록 (처음 생성된 경우에만 로그 기록)
+    if a_created:
         timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
-        answer.activity_log += f"[{timestamp}] 시험 시작 (최초 진입)\n"
+        answer.activity_log = f"[{timestamp}] 시험 시작 (최초 진입)\n"
         answer.save()
 
     if request.method == 'POST':
