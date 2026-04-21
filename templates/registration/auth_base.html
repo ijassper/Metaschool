@@ -17,7 +17,7 @@
 
     .login-full-wrapper {
         position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        display: flex; z-index: 9999;
+        display: flex; z-index: 1;
     }
 
     /* 인그리드 브랜드 텍스트 스타일 */
@@ -308,7 +308,7 @@
       </div>
     </div>
   </div>
-  {% block auth_modals %}{% endblock %}
 </div>
+{% block auth_modals %}{% endblock %}
 
 {% endblock %}
