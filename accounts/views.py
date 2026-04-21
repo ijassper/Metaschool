@@ -92,7 +92,8 @@ def login_view(request):
             # 템플릿에 에러 메시지와 코드를 보냄
             return render(request, 'registration/login.html', {
                 'error_message': error_message,
-                'error_code': error_code
+                'error_code': error_code,
+                'login_type': login_type    # 선택한 탭 정보도 함께 보내서 탭 유지
             })
     else:
         form = CustomAuthenticationForm()
