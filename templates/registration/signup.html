@@ -48,15 +48,19 @@
                             <div class="mb-4">
                                 <label class="fw-bold small text-muted mb-2 d-block">비밀번호 <span class="text-danger">*</span></label>
                                 {{ field }}
-                                {% if field.help_text %}<div class="form-text small" style="font-size: 0.75rem;">{{ field.help_text }}</div>{% endif %}
+                                <!-- [수정] 영문 안내문구는 숨기고, 한국어 권장사항만 아주 작게 표시하거나 아예 생략합니다 -->
+                                <div class="form-text small text-muted" style="font-size: 0.7rem;">
+                                    * 8자 이상의 영문, 숫자, 특수문자 조합을 권장합니다.
+                                </div>
                             </div>
                         {% elif field.name == 'password2' %}
                             <div class="mb-4">
                                 <label class="fw-bold small text-muted mb-2 d-block">비밀번호 확인 <span class="text-danger">*</span></label>
                                 {{ field }}
+                                <!-- [추가] 실시간 일치 여부를 보여줄 공간 -->
+                                <div id="pwCheckResult" class="mt-1 small" style="font-size: 0.8rem;"></div>
                             </div>
                         {% elif field.name != 'email' and field.name != 'name' and field.name != 'phone' and field.name != 'subject' and field.name != 'school' %}
-                            <!-- 기타 나머지 필드가 있다면 여기서 출력 -->
                             <div class="mb-4">
                                 <label class="fw-bold small text-muted mb-2 d-block">{{ field.label }}</label>
                                 {{ field }}
@@ -177,29 +181,6 @@
     // 입력할 때마다 체크
     emailId.addEventListener('keyup', checkEmailDuplicate);
     emailDomain.addEventListener('keyup', checkEmailDuplicate);
-    
-    // 3. 비밀번호 실시간 일치 확인
-    const pw1 = document.getElementById('password');
-    const pw2 = document.getElementById('password_confirm');
-    const pwMsg = document.getElementById('pwCheckResult');
-    
-    function checkPassword() {
-        // 둘 중 하나라도 비어있으면 메시지 지움
-        if (!pw1.value || !pw2.value) {
-            pwMsg.innerHTML = '';
-            return;
-        }
-        if(pw1.value !== pw2.value) {
-            pwMsg.innerHTML = '<span class="text-danger">❌ 비밀번호가 일치하지 않습니다.</span>';
-        } else {
-            pwMsg.innerHTML = '<span class="text-success">✅ 비밀번호가 일치합니다.</span>';
-        }
-    }
-    // 키보드 뗄 때마다(keyup) 검사
-    if(pw1 && pw2) {
-        pw1.addEventListener('keyup', checkPassword);
-        pw2.addEventListener('keyup', checkPassword);
-    }
 
     // 3. 폼 제출 전 이메일 합치기
     function combineEmail() {
@@ -208,7 +189,43 @@
         return true;
     }
 
-    // 4. 학교 검색 기능
+    // 4. 비밀번호 실시간 일치 확인
+    document.addEventListener('DOMContentLoaded', function() {
+        // 장고 기본 필드 이름인 password1, password2를 찾습니다.
+        const pw1 = document.querySelector('input[name="password1"]');
+        const pw2 = document.querySelector('input[name="password2"]');
+        const pwResult = document.getElementById('pwCheckResult');
+
+        function validatePassword() {
+            const val1 = pw1.value;
+            const val2 = pw2.value;
+
+            // 1. 아무것도 입력하지 않았을 때
+            if (!val1 && !val2) {
+                pwResult.innerHTML = '';
+                return;
+            }
+
+            // 2. 두 값이 일치하는지 확인
+            if (val1 === val2) {
+                pwResult.innerHTML = '<span class="text-success">✅ 비밀번호가 일치합니다.</span>';
+                pw2.style.borderColor = '#198754'; // 초록색 테두리
+            } else {
+                if (val2.length > 0) { // 확인란에 입력이 시작되었을 때만 에러 노출
+                    pwResult.innerHTML = '<span class="text-danger">❌ 비밀번호가 일치하지 않습니다.</span>';
+                    pw2.style.borderColor = '#dc3545'; // 빨간색 테두리
+                }
+            }
+        }
+
+        // 실시간 입력 감지
+        if (pw1 && pw2) {
+            pw1.addEventListener('keyup', validatePassword);
+            pw2.addEventListener('keyup', validatePassword);
+        }
+    });
+
+    // 5. 학교 검색 기능
     function searchSchool() {
         const query = document.getElementById('schoolSearchInput').value;
         if (query.length < 1) {
