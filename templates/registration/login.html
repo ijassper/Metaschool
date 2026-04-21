@@ -157,8 +157,18 @@
                     <p class="text-muted mb-3">${finalMsg}</p>
                 `;
                 modalFooter.innerHTML = `
-                    <a href="{% url 'signup' %}" class="btn btn-primary rounded-pill px-4 fw-bold">교사 회원가입</a>
-                    <a href="{% url 'find_account' %}" class="btn btn-outline-primary rounded-pill px-4 fw-bold">비밀번호 찾기</a>
+                    <!-- 1. 교사 회원가입: 시그니처 그라데이션 적용 -->
+                    <a href="{% url 'signup' %}" class="btn shadow-sm rounded-pill px-4 fw-bold" 
+                    style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none; color: white;">
+                    교사 회원가입
+                    </a>
+                    
+                    <!-- 2. 비밀번호 찾기: 보라색 테두리(Outline) 스타일 적용 -->
+                    <a href="{% url 'find_account' %}" class="btn rounded-pill px-4 fw-bold" 
+                    style="border: 2px solid #8E44AD; color: #8E44AD; background: white;">
+                    비밀번호 찾기
+                    </a>
+                    
                     <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">닫기</button>
                 `;
             }

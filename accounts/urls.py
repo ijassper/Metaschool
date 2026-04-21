@@ -2,7 +2,7 @@ from django.contrib.auth.views import LoginView
 from django.urls import path
 from .forms import CustomAuthenticationForm # 교사, 학생 로그인
 from .views import (
-    SignUpView, login_view, student_list, mypage, student_upload, student_create, search_school, dashboard, approve_teacher,
+    SignUpView, login_view, student_list, profile_settings, student_upload, student_create, search_school, dashboard, approve_teacher,
     check_email_duplicate, ai_generator_step1, ai_generator_step2, # 추가
     api_process_one_row, api_download_excel, # 추가
     reset_student_password, student_delete, profile_update
@@ -12,7 +12,7 @@ urlpatterns = [
     path("login/", login_view, name="login"), # 커스텀 로그인 뷰로 변경
     path('signup/', SignUpView.as_view(), name='signup'),   # 회원가입 URL
     path("dashboard/", dashboard, name="dashboard"),    # 대시보드 URL
-    path("mypage/", mypage, name="mypage"),
+    path('profile-settings/', profile_settings, name='profile_settings'), # 프로필 설정 URL
     path("student-list/", student_list, name="student_list"),
     path("student/upload/", student_upload, name="student_upload"), # 엑셀 업로드 URL
     path("student/create/", student_create, name="student_create"), # 학생 개별 등록 URL

@@ -5,12 +5,12 @@ from django.http import HttpResponse
 from django.views import generic
 from django.views.decorators.csrf import csrf_exempt    # API 뷰에서 CSRF 예외 처리를 위해 필요
 from django.shortcuts import render, redirect, get_object_or_404 # 리다이렉트 및 객체 가져오기
-from django.contrib.auth import login  # 자동 로그인을 위해 필요
+from django.contrib.auth import login, update_session_auth_hash  # 자동 로그인을 위해 필요, 비밀번호 변경 후 세션 유지 위해 필요
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages  # 알림 메시지(성공/실패)를 위해 필요
 from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from django.db import transaction   # 트랜잭션 처리를 위해 필요
-from django.contrib.auth.forms import AuthenticationForm    # 로그인 폼 (필요 시 사용)
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm    # 로그인 폼 (필요 시 사용), 비밀번호 변경 폼
 from django.contrib.auth import authenticate,login as auth_login # 로그인 처리 함수 (회원가입 후 자동 로그인 위해 필요)
 import requests
 import random
@@ -256,14 +256,46 @@ def student_create(request):
     
     return render(request, 'accounts/student_form.html', {'form': form})
 
-# 2. 마이페이지 뷰
+# 2. 정보수정
 @login_required
-@teacher_required
-def mypage(request):
-    # 로그인한 선생님(request.user)이 담당하는 학생들만 가져오기
-    my_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+def profile_settings(request):
+    user = request.user
+    # 학생이면 무조건 보안(비밀번호) 탭으로 고정, 교사는 URL 파라미터 따름
+    if user.role == 'STUDENT':
+        active_tab = 'security'
+    else:
+        active_tab = request.GET.get('tab', 'profile')
     
-    return render(request, 'accounts/mypage.html', {'students': my_students})
+    if request.method == 'POST':
+        # 1. 정보 수정 (교사 전용)
+        if 'update_profile' in request.POST and user.role != 'STUDENT':
+            profile_form = UserUpdateForm(request.POST, instance=user)
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, "정보가 수정되었습니다.")
+                return redirect('/accounts/profile-settings/?tab=profile')
+
+        # 2. 비밀번호 변경 (공통)
+        elif 'change_password' in request.POST:
+            password_form = PasswordChangeForm(user, request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user) # 세션 유지
+                messages.success(request, "비밀번호가 변경되었습니다.")
+                # 이동 후에도 탭 유지
+                return redirect(f'/accounts/profile-settings/?tab=security')
+            else:
+                active_tab = 'security'
+    
+    # GET 요청 시 폼 초기화
+    profile_form = UserUpdateForm(instance=user) if user.role != 'STUDENT' else None
+    password_form = PasswordChangeForm(user)
+
+    return render(request, 'accounts/profile_settings.html', {
+        'profile_form': profile_form,
+        'password_form': password_form,
+        'active_tab': active_tab,
+    })
 
 @login_required
 @teacher_required
@@ -774,7 +806,7 @@ def reset_student_password(request, student_id):
     except Exception as e:
         messages.error(request, f"오류: {str(e)}")
         
-    return redirect('dashboard') # 또는 mypage
+    return redirect('dashboard')
 
 # 학생 삭제
 @login_required

@@ -209,7 +209,7 @@
             <h2>안녕하세요, {{ user.name }} 학생 👋</h2>
             <p>{{ user.school.name }} | {{ student.grade }}학년 {{ student.class_no }}반</p>
             <div class="mt-4 d-flex gap-2">
-                <a href="{% url 'password_change' %}" class="btn btn-sm border-white text-white rounded-pill px-3" style="background: rgba(255,255,255,0.2);">비밀번호 변경</a>
+                <a href="{% url 'profile_settings' %}?tab=security" class="btn btn-sm border-white text-white rounded-pill px-3" style="background: rgba(255,255,255,0.2);">비밀번호 변경</a>
                 <form action="{% url 'logout' %}" method="post" class="m-0">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm border-white text-white rounded-pill px-3" style="background: rgba(255,255,255,0.2);">로그아웃</button>
