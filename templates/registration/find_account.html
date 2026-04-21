@@ -1,0 +1,77 @@
+{% extends 'registration/auth_base.html' %}
+
+{% block brand_title %}계정을 분실하셨나요?<br>인그리드가 도와드릴게요.{% endblock %}
+
+{% block auth_form %}
+    <h2 class="fw-bold mb-4" style="color: #1e293b;">ID / 비밀번호 찾기</h2>
+    <p class="text-muted small mb-4">선생님 계정만 찾기가 가능합니다. (학생은 담당 선생님께 문의)</p>
+
+    <!-- 상단 탭 (아이디 찾기 / 비밀번호 찾기) -->
+    <div class="role-selector mb-4" style="display: flex; background: #f1f3f5; padding: 5px; border-radius: 14px;">
+        <input type="radio" name="find_type" id="find_id" value="id" checked style="display:none;">
+        <label for="find_id" style="flex:1; text-align:center; padding:12px; border-radius:10px; cursor:pointer; font-weight:700;">아이디 찾기</label>
+        
+        <input type="radio" name="find_type" id="find_pw" value="pw" style="display:none;">
+        <label for="find_pw" style="flex:1; text-align:center; padding:12px; border-radius:10px; cursor:pointer; font-weight:700;">비밀번호 찾기</label>
+    </div>
+
+    <style>
+        .role-selector input:checked + label { background: white; color: #8E44AD; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .role-selector label { color: #adb5bd; transition: 0.2s; }
+    </style>
+
+    <!-- [1] 아이디 찾기 폼 -->
+    <div id="findIdForm">
+        <div class="mb-4">
+            <label class="fw-bold small text-muted mb-2 d-block">이름</label>
+            <input type="text" class="form-input w-100 p-3 border rounded-3" placeholder="가입하신 이름을 입력하세요">
+        </div>
+        <div class="mb-5">
+            <label class="fw-bold small text-muted mb-2 d-block">연락처</label>
+            <input type="text" class="form-input w-100 p-3 border rounded-3" placeholder="'-'없이 숫자만 입력하세요">
+        </div>
+        <button type="button" class="btn-ingrid-submit" onclick="alert('본인인증 모듈 연동 준비 중입니다.')">아이디 찾기</button>
+    </div>
+
+    <!-- [2] 비밀번호 찾기 폼 (초기 숨김) -->
+    <div id="findPwForm" style="display: none;">
+        <div class="mb-4">
+            <label class="fw-bold small text-muted mb-2 d-block">가입한 이메일 (아이디)</label>
+            <input type="email" class="form-input w-100 p-3 border rounded-3" placeholder="이메일 주소를 입력하세요">
+        </div>
+        <div class="mb-5">
+            <label class="fw-bold small text-muted mb-2 d-block">이름</label>
+            <input type="text" class="form-input w-100 p-3 border rounded-3" placeholder="가입하신 이름을 입력하세요">
+        </div>
+        <button type="button" class="btn-ingrid-submit" onclick="alert('비밀번호 재설정 메일 발송 기능 준비 중입니다.')">비밀번호 재설정</button>
+    </div>
+
+    <!-- 하단 돌아가기 -->
+    <div class="text-center mt-5 mb-5 pb-5">
+        <a href="{% url 'login' %}" class="text-ingrid text-decoration-none small">
+            <i class="bi bi-arrow-left me-1"></i> 로그인 화면으로 돌아가기
+        </a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const findIdRadio = document.getElementById('find_id');
+            const findPwRadio = document.getElementById('find_pw');
+            const findIdForm = document.getElementById('findIdForm');
+            const findPwForm = document.getElementById('findPwForm');
+
+            function switchForm(type) {
+                if (type === 'id') {
+                    findIdForm.style.display = 'block';
+                    findPwForm.style.display = 'none';
+                } else {
+                    findIdForm.style.display = 'none';
+                    findPwForm.style.display = 'block';
+                }
+            }
+
+            findIdRadio.addEventListener('change', () => switchForm('id'));
+            findPwRadio.addEventListener('change', () => switchForm('pw'));
+        });
+    </script>
+{% endblock %}

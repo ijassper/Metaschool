@@ -20,6 +20,10 @@ from accounts.models import Student, SystemConfig, PromptTemplate, PromptCategor
 import logging
 logger = logging.getLogger(__name__)
 
+# 공통 함수: 서브 메뉴에 따른 폼 설정값 반환 (계정 찾기)
+def find_account(request):
+    return render(request, 'registration/find_account.html')
+
 # 1. 학생 대시보드 (응시 가능한 평가/활동 목록)
 @login_required
 def student_dashboard(request):

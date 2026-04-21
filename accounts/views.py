@@ -11,7 +11,7 @@ from django.contrib import messages  # 알림 메시지(성공/실패)를 위해
 from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from django.db import transaction   # 트랜잭션 처리를 위해 필요
 from django.contrib.auth.forms import AuthenticationForm    # 로그인 폼 (필요 시 사용)
-from django.contrib.auth import login as auth_login # 회원가입 후 자동 로그인 위해 필요
+from django.contrib.auth import authenticate,login as auth_login # 로그인 처리 함수 (회원가입 후 자동 로그인 위해 필요)
 import requests
 import random
 from activities.views import get_form_config
@@ -22,7 +22,7 @@ import json
 import pandas as pd  # 엑셀 처리를 위해 필요
 from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm, CustomAuthenticationForm  # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼, 로그인 폼
 from .models import CustomUser, School  # CustomUser, School 모델 모두 가져오기
-from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate
+from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate # AI 생성기 관련 모델 가져오기
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import Activity, Student, Answer  # 평가관리, 학생, 답안 모델 가져오기
 
@@ -33,15 +33,23 @@ def login_view(request):
         return redirect('dashboard')
 
     if request.method == 'POST':
-        form = CustomAuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
+        # 1. 폼에서 아이디(username)와 비번(password) 가져오기
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        # login.html의 <input type="checkbox" name="remember_me"> 확인
+        remember_me = request.POST.get('remember_me')
+
+        # 2. 아이디가 DB에 존재하는지 먼저 확인
+        user_exists = CustomUser.objects.filter(username=username).exists()
+
+        # 3. 실제 인증 시도
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            # [성공] 로그인 처리
             auth_login(request, user) # 실제 로그인 수행
             
             # --- [로그인 유지 로직 시작] ---
-            # login.html의 <input type="checkbox" name="remember_me"> 확인
-            remember_me = request.POST.get('remember_me')
-            
             if remember_me:
                 # 체크박스 선택 시: 2주(1,209,600초) 동안 세션 유지
                 request.session.set_expiry(1209600)
@@ -51,6 +59,22 @@ def login_view(request):
             # --- [로그인 유지 로직 끝] ---
             
             return redirect('dashboard')
+        else:
+            # [실패] 원인 분석 로직
+            if user_exists:
+                # 아이디는 있는데 인증에 실패했다면? -> 비밀번호가 틀린 것
+                error_message = "비밀번호가 일치하지 않습니다. 다시 확인해 주세요."
+                error_code = "INVALID_PASSWORD"
+            else:
+                # 아이디 자체가 없다면?
+                error_message = "존재하지 않는 아이디입니다. 회원가입을 먼저 진행해 주세요."
+                error_code = "USER_NOT_FOUND"
+            
+            # 템플릿에 에러 메시지와 코드를 보냄
+            return render(request, 'registration/login.html', {
+                'error_message': error_message,
+                'error_code': error_code
+            })
     else:
         form = CustomAuthenticationForm()
     

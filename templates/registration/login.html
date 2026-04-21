@@ -35,7 +35,7 @@
             <label class="form-check-label text-secondary small" for="rememberMe">로그인 유지</label>
         </div>
         <!-- class="text-ingrid" 적용 -->
-        <a href="#" id="forgot-password-link" class="text-ingrid small text-decoration-none" style="display: none;">비밀번호 찾기</a>
+        <a href="{% url 'find_account' %}" id="forgot-password-link" class="text-ingrid small text-decoration-none" style="display: none;">비밀번호 찾기</a>
     </div>
 
     <button type="submit" class="btn-ingrid-submit">로그인</button>
@@ -96,9 +96,66 @@
         // 4. 로그인 실패 시 에러 모달 노출
         // 장고 에러가 있거나 non_field_errors가 있을 때 실행
         const hasErrors = "{% if form.errors or form.non_field_errors %}true{% else %}false{% endif %}";
+        
         if (hasErrors === 'true') {
-            const errorModal = new bootstrap.Modal(document.getElementById('loginErrorModal'));
+            const errorModalElem = document.getElementById('loginErrorModal');
+            const modalBody = errorModalElem.querySelector('.modal-body');
+            const modalFooter = errorModalElem.querySelector('.modal-footer');
+            
+            // [핵심] 현재 선택된 로그인 타입 확인
+            const isStudent = document.getElementById('type_student').checked;
+
+            if (isStudent) {
+                // --- 학생 모드일 때 문구와 버튼 ---
+                modalBody.innerHTML = `
+                    <div class="text-danger mb-3"><i class="bi bi-person-x-fill" style="font-size: 3.5rem;"></i></div>
+                    <h4 class="fw-bold mb-3">로그인 정보 불일치</h4>
+                    <p class="text-muted mb-0">학생 ID 또는 비밀번호가 일치하지 않습니다.</p>
+                    <p class="fw-bold text-dark mt-2">비밀번호를 분실했다면<br><span class="text-primary">담당 선생님께 초기화를 요청하세요.</span></p>
+                `;
+                modalFooter.innerHTML = `
+                    <button type="button" class="btn btn-secondary rounded-pill px-5" data-bs-dismiss="modal">확인</button>
+                `;
+            } else {
+                // --- 교사 모드일 때 문구와 버튼 (SaaS 스탠다드) ---
+                modalBody.innerHTML = `
+                    <div class="text-danger mb-3"><i class="bi bi-shield-lock-fill" style="font-size: 3.5rem;"></i></div>
+                    <h4 class="fw-bold mb-3">로그인 실패</h4>
+                    <p class="text-muted mb-3">아이디(이메일) 또는 비밀번호가 정확하지 않습니다.<br>정보를 다시 확인해 주세요.</p>
+                `;
+                modalFooter.innerHTML = `
+                    <a href="{% url 'signup' %}" class="btn btn-primary rounded-pill px-4 fw-bold">교사 회원가입</a>
+                    <a href="#" class="btn btn-outline-primary rounded-pill px-4 fw-bold">비밀번호 찾기</a>
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">닫기</button>
+                `;
+            }
+
+            const errorModal = new bootstrap.Modal(errorModalElem);
             errorModal.show();
+        }
+
+        // 서버에서 넘겨준 에러 메시지가 있는지 확인
+        const serverErrorMessage = "{{ error_message|escapejs }}";
+        const errorCode = "{{ error_code }}";
+
+        if (serverErrorMessage) {
+            const errorModalElem = document.getElementById('loginErrorModal');
+            const modalBody = errorModalElem.querySelector('.modal-body');
+            
+            // 아이디는 맞고 비번만 틀린 경우 아이콘이나 색상을 다르게 줄 수도 있습니다.
+            let iconHtml = '<i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3.5rem;"></i>';
+            if (errorCode === "INVALID_PASSWORD") {
+                iconHtml = '<i class="bi bi-shield-lock-fill text-warning" style="font-size: 3.5rem;"></i>';
+            }
+
+            modalBody.innerHTML = `
+                <div class="mb-3">${iconHtml}</div>
+                <h4 class="fw-bold mb-3">${errorCode === "INVALID_PASSWORD" ? '비밀번호 불일치' : '아이디 오류'}</h4>
+                <p class="text-muted mb-4">${serverErrorMessage}</p>
+                <button type="button" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" data-bs-dismiss="modal">다시 시도하기</button>
+            `;
+
+            new bootstrap.Modal(errorModalElem).show();
         }
 
         // 5. 태블릿 최적화 (페이지 로드 시 강제 활성화)
