@@ -20,6 +20,18 @@
         display: flex; z-index: 9999;
     }
 
+    /* 인그리드 브랜드 텍스트 스타일 */
+    .text-ingrid {
+        color: #8E44AD !important; /* 기본 보라색 */
+        font-weight: 700;
+        transition: color 0.2s ease;
+    }
+
+    .text-ingrid:hover {
+        color: #FF80B5 !important; /* 호버 시 핑크색 */
+        text-decoration: underline !important;
+    }
+
     /* --- 좌측 브랜드 섹션: 피그마의 정교한 그라데이션 적용 --- */
     .brand-side {
         flex: 1;
@@ -198,6 +210,18 @@
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         /* 시스템 폰트가 흐릿해 보일 수 있으므로 선명도 보정 */
         -webkit-font-smoothing: antialiased;
+    }
+
+    /* 학교 검색 버튼 전용 스타일 */
+    .btn-ingrid-search {
+        background-color: #8E44AD !important;
+        color: white !important;
+        border: none !important;
+        transition: all 0.3s ease;
+    }
+    .btn-ingrid-search:hover {
+        background-color: #FF80B5 !important; /* 호버 시 핑크 */
+        filter: brightness(1.1);
     }
 
     @media (max-width: 1024px) {

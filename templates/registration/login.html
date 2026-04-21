@@ -34,8 +34,8 @@
             <input class="form-check-input" type="checkbox" name="remember_me" id="rememberMe" style="width: 1.1rem; height: 1.1rem;">
             <label class="form-check-label text-secondary small" for="rememberMe">로그인 유지</label>
         </div>
-        <!-- id="forgot-password-link" 추가 -->
-        <a href="#" id="forgot-password-link" class="text-primary small text-decoration-none" style="display: none;">비밀번호 찾기</a>
+        <!-- class="text-ingrid" 적용 -->
+        <a href="#" id="forgot-password-link" class="text-ingrid small text-decoration-none" style="display: none;">비밀번호 찾기</a>
     </div>
 
     <button type="submit" class="btn-ingrid-submit">로그인</button>
@@ -44,7 +44,8 @@
 <!-- 교사 선택 시에만 나타나는 영역 -->
 <div id="teacher-signup-area" class="text-center mt-5 small" style="display: none;">
     <span class="text-secondary">계정이 없으신가요?</span>
-    <a href="{% url 'signup' %}" class="fw-bold text-primary ms-2 text-decoration-none">교사 회원가입</a>
+    <!-- class="text-ingrid" 적용 -->
+    <a href="{% url 'signup' %}" id="signup-link" class="text-ingrid ms-2 text-decoration-none">교사 회원가입</a>
 </div>
 
 <script>

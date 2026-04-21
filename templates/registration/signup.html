@@ -66,12 +66,12 @@
                     <!-- 4. 학교 검색 (버튼 속성 확인) -->
                     <div class="mb-4">
                         <label class="form-label fw-bold small text-muted mb-2 d-block">소속 학교</label>
-                        <div class="input-group shadow-sm rounded-3 overflow-hidden">
+                        <div class="input-group shadow-sm rounded-3 overflow-hidden border">
                             <input type="text" id="schoolNameDisplay" class="form-control border-0 bg-light p-3" placeholder="학교 검색 버튼을 눌러주세요" readonly required>
                             <input type="hidden" name="school" id="schoolIdInput">
-                            <!-- data-bs-target이 #schoolSearchModal인지 확인 -->
-                            <button class="btn btn-dark px-4" type="button" data-bs-toggle="modal" data-bs-target="#schoolSearchModal">
-                                <i class="bi bi-search"></i>
+                            <!-- 인그리드 컬러 전용 버튼 클래스 적용 -->
+                            <button class="btn btn-ingrid-search px-4" type="button" data-bs-toggle="modal" data-bs-target="#schoolSearchModal">
+                                <i class="bi bi-search"></i> 검색
                             </button>
                         </div>
                     </div>
@@ -87,7 +87,7 @@
                     </div>
                     
                     <div class="text-center small mb-5 pb-5"> 
-                        <a href="{% url 'login' %}" class="text-muted text-decoration-none">
+                        <a href="{% url 'login' %}" class="text-ingrid text-decoration-none">
                             <i class="bi bi-arrow-left me-1"></i> 로그인 화면으로 돌아가기
                         </a>
                     </div>
@@ -98,24 +98,31 @@
 
 <!-- 학교 검색 모달 -->
 <div class="modal fade" id="schoolSearchModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-            <div class="modal-header border-0 p-4 pb-0">
-                <h5 class="modal-title fw-bold">학교 검색</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4">
-                <div class="input-group mb-3 bg-light rounded-3 p-1">
-                    <input type="text" id="schoolSearchInput" class="form-control border-0 bg-transparent" placeholder="학교명 (예: 가락)">
-                    <button type="button" class="btn btn-primary rounded-3 px-4" onclick="searchSchool()">검색</button>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
+                <div class="modal-header border-0 p-4 pb-0">
+                    <h5 class="modal-title fw-bold" style="color: #8E44AD;">
+                        <i class="bi bi-bank me-2"></i>소속 학교 검색
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="list-group list-group-flush" id="schoolResultList" style="max-height: 250px; overflow-y: auto;">
-                    <!-- 결과 리스트 -->
+                <div class="modal-body p-4">
+                    <div class="input-group mb-3 bg-light rounded-3 p-1 border">
+                        <input type="text" id="schoolSearchInput" class="form-control border-0 bg-transparent p-2" placeholder="학교명 입력 (예: 가락)">
+                        <button class="btn btn-primary rounded-3 px-4 shadow-sm" style="background: var(--ingrid-gradient); border:none;" onclick="searchSchool()">
+                            검색
+                        </button>
+                    </div>
+                    <div class="list-group list-group-flush border-top" id="schoolResultList" style="max-height: 250px; overflow-y: auto;">
+                        <div class="p-4 text-center text-muted small">학교명을 입력하고 검색 버튼을 눌러주세요.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-3">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">닫기</button>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
 <script>
     // 1. 이메일 도메인 선택 로직
