@@ -38,6 +38,7 @@ def login_view(request):
         password = request.POST.get('password')
         # login.html의 <input type="checkbox" name="remember_me"> 확인
         remember_me = request.POST.get('remember_me')
+        login_type = request.POST.get('login_type') # 'teacher' 또는 'student' 가져오기
 
         # 2. 아이디가 DB에 존재하는지 먼저 확인
         user_exists = CustomUser.objects.filter(username=username).exists()
@@ -46,7 +47,23 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
-            # [성공] 로그인 처리
+            # [성공 시 추가 검증] 선택한 탭(login_type)과 실제 계정 권한(user.role) 비교
+            
+            # (A) 학생 탭인데 교사/관리자 계정인 경우
+            if login_type == 'student' and user.role in ['TEACHER', 'LEADER']:
+                return render(request, 'registration/login.html', {
+                    'error_message': "이 계정은 [선생님] 전용 계정입니다. '교사' 탭을 선택 후 로그인해 주세요.",
+                    'error_code': "ROLE_MISMATCH_TEACHER"
+                })
+            
+            # (B) 교사 탭인데 학생 계정인 경우
+            elif login_type == 'teacher' and user.role == 'STUDENT':
+                return render(request, 'registration/login.html', {
+                    'error_message': "이 계정은 [학생] 전용 계정입니다. '학생' 탭을 선택 후 로그인해 주세요.",
+                    'error_code': "ROLE_MISMATCH_STUDENT"
+                })
+            
+            # (C) 모든 검증 통과 시 로그인 처리
             auth_login(request, user) # 실제 로그인 수행
             
             # --- [로그인 유지 로직 시작] ---
@@ -60,7 +77,7 @@ def login_view(request):
             
             return redirect('dashboard')
         else:
-            # [실패] 원인 분석 로직
+            # [인증 실패 로직] 원인 분석 로직
             if user_exists:
                 # 아이디는 있는데 인증에 실패했다면? -> 비밀번호가 틀린 것
                 error_message = "비밀번호가 일치하지 않습니다. 다시 확인해 주세요."

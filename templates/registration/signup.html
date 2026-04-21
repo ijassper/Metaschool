@@ -42,12 +42,23 @@
                         <input type="hidden" name="email" id="real_email">
                     </div>
 
-                    <!-- 2. [장고 자동] 비밀번호 -->
-                    <!-- 비상 대책: 장고 폼 필드 루프 돌리기 -->
+                    <!-- 2. 비밀번호 섹션 (한글화 및 스타일 적용) -->
                     {% for field in form %}
-                        {% if field.name != 'email' and field.name != 'name' and field.name != 'phone' and field.name != 'subject' and field.name != 'school' %}
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">{{ field.label }}</label>
+                        {% if field.name == 'password1' %}
+                            <div class="mb-4">
+                                <label class="fw-bold small text-muted mb-2 d-block">비밀번호 <span class="text-danger">*</span></label>
+                                {{ field }}
+                                {% if field.help_text %}<div class="form-text small" style="font-size: 0.75rem;">{{ field.help_text }}</div>{% endif %}
+                            </div>
+                        {% elif field.name == 'password2' %}
+                            <div class="mb-4">
+                                <label class="fw-bold small text-muted mb-2 d-block">비밀번호 확인 <span class="text-danger">*</span></label>
+                                {{ field }}
+                            </div>
+                        {% elif field.name != 'email' and field.name != 'name' and field.name != 'phone' and field.name != 'subject' and field.name != 'school' %}
+                            <!-- 기타 나머지 필드가 있다면 여기서 출력 -->
+                            <div class="mb-4">
+                                <label class="fw-bold small text-muted mb-2 d-block">{{ field.label }}</label>
                                 {{ field }}
                             </div>
                         {% endif %}
@@ -65,13 +76,14 @@
 
                     <!-- 4. 학교 검색 (버튼 속성 확인) -->
                     <div class="mb-4">
-                        <label class="form-label fw-bold small text-muted mb-2 d-block">소속 학교</label>
+                        <label class="fw-bold small text-muted mb-2 d-block">소속 학교 <span class="text-danger">*</span></label>
                         <div class="input-group shadow-sm rounded-3 overflow-hidden border">
-                            <input type="text" id="schoolNameDisplay" class="form-control border-0 bg-light p-3" placeholder="학교 검색 버튼을 눌러주세요" readonly required>
+                            <input type="text" id="schoolNameDisplay" class="form-control border-0 bg-light p-3" 
+                                placeholder="학교 검색 버튼을 눌러주세요" readonly required 
+                                style="font-size: 0.95rem;">
                             <input type="hidden" name="school" id="schoolIdInput">
-                            <!-- 인그리드 컬러 전용 버튼 클래스 적용 -->
                             <button class="btn btn-ingrid-search px-4" type="button" data-bs-toggle="modal" data-bs-target="#schoolSearchModal">
-                                <i class="bi bi-search"></i> 검색
+                                <i class="bi bi-search me-1"></i> 검색
                             </button>
                         </div>
                     </div>

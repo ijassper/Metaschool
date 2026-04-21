@@ -32,6 +32,8 @@ class CustomUserCreationForm(UserCreationForm):
         self.fields['subject'].required = True
 
         # # 비밀번호 필드 ID 지정 (자바스크립트 연결용)
+        self.fields['password1'].widget.attrs.update({'class': 'form-control p-3', 'placeholder': '비밀번호를 입력하세요'})
+        self.fields['password2'].widget.attrs.update({'class': 'form-control p-3', 'placeholder': '비밀번호를 한 번 더 입력하세요'})
         # # UserCreationForm의 기본 필드명은 'pass1'(비번), 'pass2'(확인) 입니다.
         # if 'pass1' in self.fields:
         #     self.fields['pass1'].widget.attrs['class'] = 'form-control'
