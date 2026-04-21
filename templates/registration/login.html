@@ -93,8 +93,16 @@
             });
         }
 
+        
+
         // 1. 서버에서 넘겨준 시도된 로그인 타입 (없으면 현재 체크된 값)
+        // [디버깅 코드 추가]
         const attemptedType = "{{ login_type }}"; 
+        console.log("1. 서버에서 넘어온 login_type:", attemptedType); // 이게 'teacher'로 찍히는지 확인!
+
+        const isStudentChecked = document.getElementById('type_student').checked;
+        console.log("2. 현재 HTML 라디오 버튼 학생 체크 여부:", isStudentChecked);
+        
         if (attemptedType) {
             updateUI(attemptedType); // 탭 디자인과 레이블을 시도했던 타입에 맞게 강제 고정
         }
