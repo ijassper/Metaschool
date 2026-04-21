@@ -6,10 +6,10 @@
     <form method="post" action="{% url 'login' %}" id="loginForm">
     {% csrf_token %}
     <div class="role-selector mb-4" style="display: flex; background: #f1f3f5; padding: 5px; border-radius: 14px;">
-        <input type="radio" name="login_type" id="type_student" value="student" checked style="display:none;">
+        <input type="radio" name="login_type" id="type_student" value="student" style="display:none;" {% if login_type == 'student' or not login_type %}checked{% endif %}>
         <label for="type_student" style="flex:1; text-align:center; padding:12px; border-radius:10px; cursor:pointer; font-weight:700;">학생</label>
         
-        <input type="radio" name="login_type" id="type_teacher" value="teacher" style="display:none;">
+        <input type="radio" name="login_type" id="type_teacher" value="teacher" style="display:none;" {% if login_type == 'teacher' %}checked{% endif %}>
         <label for="type_teacher" style="flex:1; text-align:center; padding:12px; border-radius:10px; cursor:pointer; font-weight:700;">교사</label>
     </div>
 
@@ -93,6 +93,12 @@
             });
         }
 
+        // 1. 서버에서 넘겨준 시도된 로그인 타입 (없으면 현재 체크된 값)
+        const attemptedType = "{{ login_type }}"; 
+        if (attemptedType) {
+            updateUI(attemptedType); // 탭 디자인과 레이블을 시도했던 타입에 맞게 강제 고정
+        }
+
         // 4. 로그인 실패 시 에러 모달 노출
         // 1. 에러 상태값 취합
         const hasDjangoErrors = "{% if form.errors or form.non_field_errors %}true{% else %}false{% endif %}";
@@ -105,15 +111,15 @@
             const modalBody = errorModalElem.querySelector('.modal-body');
             const modalFooter = errorModalElem.querySelector('.modal-footer');
             
-            // [핵심] 현재 선택된 로그인 타입 확인
-            const isStudent = document.getElementById('type_student').checked;
+            // 현재 UI 상태가 아닌, '시도했던' 타입을 기준으로 판단
+            const isAttemptedStudent = attemptedType ? (attemptedType === 'student') : document.getElementById('type_student').checked;
 
             // 최종적으로 보여줄 메시지 결정
             let finalMsg = serverErrorMessage ? serverErrorMessage : "아이디 또는 비밀번호가 일치하지 않습니다.";
             let title = "로그인 실패";
             let iconHtml = '<i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3.5rem;"></i>';
 
-            if (isStudent) {
+            if (isAttemptedStudent) {
                 // --- [학생 전용 UI 조립] ---
                 title = "로그인 정보 불일치";
                 iconHtml = '<i class="bi bi-person-x-fill text-danger" style="font-size: 3.5rem;"></i>';

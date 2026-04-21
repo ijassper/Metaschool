@@ -53,14 +53,16 @@ def login_view(request):
             if login_type == 'student' and user.role in ['TEACHER', 'LEADER']:
                 return render(request, 'registration/login.html', {
                     'error_message': "이 계정은 [선생님] 전용 계정입니다.<br>'교사' 탭을 선택 후 로그인해 주세요.",
-                    'error_code': "ROLE_MISMATCH_TEACHER"
+                    'error_code': "ROLE_MISMATCH_TEACHER",
+                    'login_type': login_type    # 선택한 탭 정보도 함께 보내서 탭 유지
                 })
             
             # (B) 교사 탭인데 학생 계정인 경우
             elif login_type == 'teacher' and user.role == 'STUDENT':
                 return render(request, 'registration/login.html', {
                     'error_message': "이 계정은 [학생] 전용 계정입니다.<br>'학생' 탭을 선택 후 로그인해 주세요.",
-                    'error_code': "ROLE_MISMATCH_STUDENT"
+                    'error_code': "ROLE_MISMATCH_STUDENT",
+                    'login_type': login_type    # 선택한 탭 정보도 함께 보내서 탭 유지
                 })
             
             # (C) 모든 검증 통과 시 로그인 처리
