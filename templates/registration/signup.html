@@ -25,7 +25,7 @@
 
                     <!-- 1. [수동 구현] 이메일 (아이디) -->
                     <div class="mb-3">
-                        <label class="form-label fw-bold">아이디(이메일) <span class="text-danger">*</span></label>
+                        <label class="fw-bold small text-muted mb-2 d-block">아이디(이메일) <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <input type="text" class="form-control" id="email_id" placeholder="이메일 앞자리" required>
                             <span class="input-group-text">@</span>
@@ -70,11 +70,11 @@
 
                     <!-- 3. [장고 자동] 이름 & 연락처 -->
                     <div class="mb-3">
-                        <label class="form-label fw-bold">이름 <span class="text-danger">*</span></label>
+                        <label class="fw-bold small text-muted mb-2 d-block">이름 <span class="text-danger">*</span></label>
                         {{ form.name }}
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">연락처</label>
+                        <label class="fw-bold small text-muted mb-2 d-block">연락처</label>
                         {{ form.phone }}
                     </div>
 
@@ -94,7 +94,7 @@
 
                     <!-- 5. [장고 자동] 담당 과목 -->
                     <div class="mb-4">
-                        <label class="form-label fw-bold">담당 과목</label>
+                        <label class="fw-bold small text-muted mb-2 d-block">담당 과목</label>
                         {{ form.subject }}
                     </div>
 
