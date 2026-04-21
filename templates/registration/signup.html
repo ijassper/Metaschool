@@ -63,15 +63,15 @@
                         {{ form.phone }}
                     </div>
 
-                    <!-- 4. [수동 구현] 학교 검색 -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">소속 학교</label>
-                        <div class="input-group">
-                            <input type="text" id="schoolNameDisplay" class="form-control bg-white" placeholder="학교를 검색해주세요" readonly required>
-                            <!-- ★ 중요: 실제 서버로 전송될 히든 필드 (이름이 school이어야 함) -->
+                    <!-- 4. 학교 검색 (버튼 속성 확인) -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small text-muted mb-2 d-block">소속 학교</label>
+                        <div class="input-group shadow-sm rounded-3 overflow-hidden">
+                            <input type="text" id="schoolNameDisplay" class="form-control border-0 bg-light p-3" placeholder="학교 검색 버튼을 눌러주세요" readonly required>
                             <input type="hidden" name="school" id="schoolIdInput">
-                            <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#schoolSearchModal">
-                                <i class="bi bi-search"></i> 검색
+                            <!-- data-bs-target이 #schoolSearchModal인지 확인 -->
+                            <button class="btn btn-dark px-4" type="button" data-bs-toggle="modal" data-bs-target="#schoolSearchModal">
+                                <i class="bi bi-search"></i>
                             </button>
                         </div>
                     </div>
@@ -82,12 +82,14 @@
                         {{ form.subject }}
                     </div>
 
-                    <div class="d-grid">
+                    <div class="d-grid mb-4">
                         <button type="submit" class="btn-ingrid-submit mt-4">가입 완료</button>
                     </div>
                     
-                    <div class="text-center mt-4 small">
-                        <a href="{% url 'login' %}" class="text-muted text-decoration-none">로그인 화면으로 돌아가기</a>
+                    <div class="text-center small mb-5 pb-5"> 
+                        <a href="{% url 'login' %}" class="text-muted text-decoration-none">
+                            <i class="bi bi-arrow-left me-1"></i> 로그인 화면으로 돌아가기
+                        </a>
                     </div>
             </form>
         </div>
@@ -96,18 +98,20 @@
 
 <!-- 학교 검색 모달 -->
 <div class="modal fade" id="schoolSearchModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">학교 검색</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold">학교 검색</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="input-group mb-3">
-                    <input type="text" id="schoolSearchInput" class="form-control" placeholder="학교명 (예: 가락)">
-                    <button class="btn btn-primary" onclick="searchSchool()">검색</button>
+            <div class="modal-body p-4">
+                <div class="input-group mb-3 bg-light rounded-3 p-1">
+                    <input type="text" id="schoolSearchInput" class="form-control border-0 bg-transparent" placeholder="학교명 (예: 가락)">
+                    <button type="button" class="btn btn-primary rounded-3 px-4" onclick="searchSchool()">검색</button>
                 </div>
-                <div class="list-group" id="schoolResultList" style="max-height: 200px; overflow-y: auto;"></div>
+                <div class="list-group list-group-flush" id="schoolResultList" style="max-height: 250px; overflow-y: auto;">
+                    <!-- 결과 리스트 -->
+                </div>
             </div>
         </div>
     </div>
