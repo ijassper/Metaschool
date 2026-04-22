@@ -152,16 +152,27 @@
 
                     <!-- 1. 학생 관리 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between {% if '/student/' not in request.path %}collapsed{% endif %}" 
-                            data-bs-toggle="collapse" href="#studentSubMenu" role="button">
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if 'student' not in request.path %}collapsed{% endif %}" 
+                            data-bs-toggle="collapse" href="#studentSubMenu" role="button"
+                            aria-expanded="{% if 'student' in request.path %}true{% else %}false{% endif %}">
                             <span><i class="bi bi-people me-2"></i> 학생 관리</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse {% if '/student/' in request.path %}show{% endif %}" id="studentSubMenu">
+                        
+                        <!-- [소메뉴 리스트] 현재 경로에 'student'가 포함되어 있으면 자동으로 show 클래스를 붙여 펼쳐줍니다. -->
+                        <div class="collapse {% if 'student' in request.path %}show{% endif %}" id="studentSubMenu">
                             <div class="sub-menu-list">
-                                <a href="{% url 'student_list' %}" class="sub-menu-item {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}">등록된 학생 조회</a>
-                                <a href="#" class="sub-menu-item">학생 일괄 등록</a>
-                                <a href="#" class="sub-menu-item">학생 개별 등록</a>
+                                <!-- 1. 등록된 학생 조회 -->
+                                <a href="{% url 'student_list' %}" 
+                                class="sub-menu-item {% if request.resolver_match.url_name == 'student_list' %}active{% endif %}">
+                                등록된 학생 조회
+                                </a>
+
+                                <!-- 2. 학생 등록 센터 (일괄/개별 통합 페이지) -->
+                                <a href="{% url 'student_create_hub' %}" 
+                                class="sub-menu-item {% if request.resolver_match.url_name == 'student_create_hub' %}active{% endif %}">
+                                학생 등록 센터 (신규)
+                                </a>
                             </div>
                         </div>
                     </div>

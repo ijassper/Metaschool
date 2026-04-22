@@ -1,7 +1,6 @@
 from django.db.models import Q  # 다중 필터 기능
 from django.urls import reverse_lazy
-from django.http import JsonResponse  # 검색 기능을 위해 필요
-from django.http import HttpResponse
+from django.http import JsonResponse, HttpResponse  # 검색 기능을 위해 필요, API 응답을 위해 필요
 from django.views import generic
 from django.views.decorators.csrf import csrf_exempt    # API 뷰에서 CSRF 예외 처리를 위해 필요
 from django.shortcuts import render, redirect, get_object_or_404 # 리다이렉트 및 객체 가져오기
@@ -12,16 +11,17 @@ from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from django.db import transaction   # 트랜잭션 처리를 위해 필요
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm    # 로그인 폼 (필요 시 사용), 비밀번호 변경 폼
 from django.contrib.auth import authenticate,login as auth_login # 로그인 처리 함수 (회원가입 후 자동 로그인 위해 필요)
+from django.utils import timezone
 import requests
 import random
 from activities.views import get_form_config
 import openai
-import pandas as pd
 import io
 import json
 import pandas as pd  # 엑셀 처리를 위해 필요
+from openpyxl import Workbook   # 엑셀 파일 생성 및 조작을 위해 필요
 from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm, CustomAuthenticationForm  # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼, 로그인 폼
-from .models import CustomUser, School  # CustomUser, School 모델 모두 가져오기
+from .models import Student, CustomUser, School # 학교 모델 가져오기  
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate # AI 생성기 관련 모델 가져오기
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import Activity, Student, Answer  # 평가관리, 학생, 답안 모델 가져오기
@@ -851,3 +851,85 @@ def profile_update(request):
     else:
         form = UserUpdateForm(instance=request.user)
     return render(request, 'accounts/profile_update.html', {'form': form})
+
+# --- 학생 관리 관련 뷰 ---
+# [1] 학생 등록 허브 (학생 등록과 엑셀 업로드 중 선택하는 페이지)
+@login_required
+@teacher_required
+def student_create_hub(request):
+    # 개별 등록용 폼 준비
+    form = StudentForm()
+    return render(request, 'accounts/student_create_hub.html', {'form': form})
+
+# [2] 일괄 처리 통합 API (JSON 기반)
+@csrf_exempt # 스크립트에서 호출하므로 추가
+@login_required
+@teacher_required
+def student_bulk_action(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            student_ids = data.get('student_ids', [])
+            action = data.get('action')
+            
+            # 내 학생들만 필터링 (보안)
+            target_students = Student.objects.filter(id__in=student_ids, teacher=request.user)
+            count = target_students.count()
+
+            if action == 'delete':
+                # 연동된 계정(CustomUser)도 함께 삭제
+                emails = target_students.values_list('email', flat=True)
+                CustomUser.objects.filter(email__in=emails, role='STUDENT').delete()
+                target_students.delete()
+                msg = f"{count}명의 학생과 계정을 영구 삭제했습니다."
+
+            elif action == 'reset':
+                for s in target_students:
+                    # 초기화 규칙: s + 학번 + !@
+                    student_code = f"{s.grade}{s.class_no:02d}{s.number:02d}"
+                    new_pw = f"s{student_code}!@"
+                    # 연결된 User 모델의 비밀번호 변경
+                    user = CustomUser.objects.filter(email=s.email, role='STUDENT').first()
+                    if user:
+                        user.set_password(new_pw)
+                        user.save()
+                msg = f"{count}명의 비밀번호를 초기화했습니다."
+
+            elif action == 'promote':
+                new_grade = data.get('new_grade')
+                new_class = data.get('new_class')
+                target_students.update(grade=new_grade, class_no=new_class)
+                msg = f"{count}명의 학년/반 정보를 변경했습니다."
+
+            return JsonResponse({'status': 'success', 'message': msg})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+
+    return JsonResponse({'status': 'fail'}, status=400)
+
+# [3] 학생 명단 엑셀 내보내기 뷰
+@login_required
+@teacher_required
+def student_export_excel(request):
+    students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Ingrid_Student_List"
+    
+    # 헤더 정의
+    ws.append(['학년', '반', '번호', '이름', '이메일(ID)', '최근접속일'])
+    
+    for s in students:
+        # 연결된 유저의 최근 로그인 시간 가져오기
+        user = CustomUser.objects.filter(email=s.email, role='STUDENT').first()
+        last_login = user.last_login.strftime('%Y-%m-%d %H:%M') if user and user.last_login else "미접속"
+        ws.append([s.grade, s.class_no, s.number, s.name, s.email, last_login])
+    
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    file_name = f"Student_List_{timezone.now().strftime('%Y%m%d')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename={file_name}'
+    wb.save(response)
+    return response
+# --- 학생 관리 관련 뷰 끝 ---
+

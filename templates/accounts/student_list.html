@@ -32,6 +32,31 @@
     @keyframes slideUp { from { bottom: -100px; } to { bottom: 40px; } }
 
     .btn-action-pill { border-radius: 50px; padding: 5px 15px; font-weight: 600; font-size: 0.8rem; }
+
+    /* 1. 학급 선택 드롭다운 최상위 고정 */
+    .dropdown-menu {
+        z-index: 1060 !important; /* 부트스트랩 모달급 우선순위 */
+    }
+
+    /* 2. 학생 등록 센터 버튼 인그리드 컬러 */
+    .btn-ingrid-main {
+        background: var(--ingrid-gradient) !important;
+        color: white !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
+        transition: 0.3s;
+    }
+    .btn-ingrid-main:hover {
+        transform: translateY(-2px);
+        filter: brightness(1.1);
+    }
+
+    /* 3. 로그인 상태 점 스타일 */
+    .status-dot {
+        width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px;
+    }
+    .status-online { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+    .status-offline { background-color: #bdc3c7; }
 </style>
 
 <div class="student-mgmt-wrapper">
@@ -42,10 +67,15 @@
             <p class="text-muted small mb-0">현재 등록된 우리 학교 학생들을 확인하고 일괄 관리합니다.</p>
         </div>
         <div class="d-flex gap-2">
-            <!-- [제안] 등록 허브로 이동하는 버튼 -->
-            <a href="{% url 'student_create' %}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
+            <!-- 학생 등록 허브로 이동하는 버튼 -->
+            <a href="{% url 'student_create_hub' %}" class="btn btn-ingrid-main rounded-pill px-4 shadow-sm fw-bold">
                 <i class="bi bi-person-plus-fill me-1"></i> 학생 등록 센터
             </a>
+
+            <!-- 엑셀 내보내기 버튼 (onclick 함수와 연결) -->
+            <button class="btn btn-outline-success rounded-pill px-4 shadow-sm fw-bold" onclick="exportExcel()">
+                <i class="bi bi-file-earmark-excel me-1"></i> 명단 내보내기
+            </button>
         </div>
     </div>
 
@@ -105,6 +135,7 @@
                             <th>연번</th>
                             <th>학년-반-번호</th>
                             <th>이름</th>
+                            <th>접속상태</th>
                             <th>아이디(이메일)</th>
                             <th>소속 학교</th>
                             <th>관리</th>
@@ -117,6 +148,17 @@
                             <td class="text-muted">{{ forloop.counter }}</td>
                             <td class="fw-bold text-dark">{{ student.grade }} - {{ student.class_no }} - {{ student.number }}</td>
                             <td class="fw-extrabold text-primary">{{ student.name }}</td>
+                            <td>
+                                {% if student.user.last_login %}
+                                    {% if student.user.last_login|date:"Ymd" == today|date:"Ymd" %}
+                                        <span class="status-dot status-online"></span> <span class="small">오늘 접속</span>
+                                    {% else %}
+                                        <span class="status-dot status-offline"></span> <span class="small text-muted">{{ student.user.last_login|date:"m-d" }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="status-dot status-offline"></span> <span class="small text-muted">미접속</span>
+                                {% endif %}
+                            </td>
                             <td class="small font-monospace">{{ student.email }}</td>
                             <td class="small text-muted">{{ student.teacher.school.name }}</td>
                             <td>
@@ -134,7 +176,32 @@
     </div>
 </div>
 
-<!-- [신규] 일괄 작업 플로팅 바 -->
+<!-- 학년/반 일괄 진급 처리 모달 -->
+<div class="modal fade" id="promoteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold">학년/반 일괄 변경</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="small fw-bold mb-1">변경할 학년</label>
+                    <input type="number" id="newGrade" class="form-control" placeholder="학년">
+                </div>
+                <div>
+                    <label class="small fw-bold mb-1">변경할 반</label>
+                    <input type="number" id="newClass" class="form-control" placeholder="반">
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3">
+                <button type="button" class="btn btn-primary w-100 rounded-pill fw-bold" onclick="executePromote()">변경 적용</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 일괄 작업 플로팅 바 -->
 <div id="bulkActionBar" class="d-flex">
     <div class="d-flex align-items-center me-3">
         <i class="bi bi-check2-circle fs-4 me-2 text-success"></i>
@@ -142,11 +209,13 @@
     </div>
     <div class="vr opacity-25"></div>
     <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-info text-white fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#promoteModal">일괄 진급/변경</button>
         <button class="btn btn-sm btn-warning fw-bold rounded-pill px-3" onclick="bulkAction('reset')">일괄 비번 초기화</button>
         <button class="btn btn-sm btn-danger fw-bold rounded-pill px-3" onclick="bulkAction('delete')">일괄 삭제</button>
     </div>
     <button class="btn btn-sm btn-outline-light border-0 rounded-circle ms-2" onclick="clearSelection()"><i class="bi bi-x-lg"></i></button>
 </div>
+
 
 <script>
     // 1. 체크박스 및 플로팅 바 로직
@@ -182,13 +251,82 @@
 
     // 2. 일괄 처리 실행 함수 (추후 views.py와 연동)
     function bulkAction(type) {
+        // 1. 체크된 학생들의 ID 리스트 추출
         const selectedIds = Array.from(document.querySelectorAll('.student-check:checked')).map(cb => cb.value);
-        const actionText = type === 'delete' ? '영구 삭제' : '비밀번호 초기화';
         
-        if (confirm(`선택한 ${selectedIds.length}명의 학생을 ${actionText} 하시겠습니까?`)) {
-            // 이 부분에 폼 제출 혹은 AJAX 로직이 들어갑니다.
-            alert(`${type} 작업은 다음 단계에서 백엔드와 연결됩니다!`);
+        if (selectedIds.length === 0) {
+            alert("선택된 학생이 없습니다.");
+            return;
         }
+
+        // 2. '진급(promote)'은 별도 모달을 통해 처리하므로 여기선 제외
+        if (type === 'promote') return;
+
+        // 3. 확인 문구 설정
+        const actionText = type === 'delete' ? '영구 삭제' : '비밀번호 초기화';
+        const confirmMsg = `선택한 ${selectedIds.length}명의 학생을 ${actionText} 하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`;
+
+        if (confirm(confirmMsg)) {
+            // 4. 서버(views.py)의 student_bulk_action API 호출
+            fetch('/accounts/student/bulk-action/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}', // 장고 보안 토큰
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    'action': type,
+                    'student_ids': selectedIds
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message);
+                    location.reload(); // 성공 시 리스트 새로고침
+                } else {
+                    alert("오류 발생: " + data.message);
+                }
+            })
+            .catch(err => {
+                console.error("API Error:", err);
+                alert("서버 통신 중 오류가 발생했습니다.");
+            });
+        }
+    }
+
+    function executePromote() {
+        const selectedIds = Array.from(document.querySelectorAll('.student-check:checked')).map(cb => cb.value);
+        const newGrade = document.getElementById('newGrade').value;
+        const newClass = document.getElementById('newClass').value;
+
+        if(!newGrade || !newClass) { alert("학년과 반을 입력해주세요."); return; }
+
+        callBulkApi({
+            action: 'promote',
+            student_ids: selectedIds,
+            new_grade: newGrade,
+            new_class: newClass
+        });
+    }
+
+    function callBulkApi(data) {
+        fetch('/accounts/student/bulk-action/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(resData => {
+            alert(resData.message);
+            location.reload();
+        });
+    }
+
+    // 엑셀 내보내기 함수
+    function exportExcel() {
+        location.href = "{% url 'student_export_excel' %}";
     }
 
     function toggleGrade(grade) {
