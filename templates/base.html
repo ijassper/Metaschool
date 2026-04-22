@@ -337,23 +337,28 @@
                                     <i class="bi bi-person-gear me-2"></i>내 정보 수정
                                 </a>
                             </li>
-                            <li><a class="dropdown-item rounded-2" href="{% url 'profile_settings' %}?tab=security">비밀번호 변경</a></li>
+                            <li>
+                                <a class="dropdown-item rounded-2 py-2" href="{% url 'profile_settings' %}?tab=security">
+                                    <i class="bi bi-key me-2"></i>비밀번호 변경
+                                </a>
+                            </li>
 
                             <!-- [추가] 2. 관리자 전용 메뉴 (ADMIN 권한일 때만 노출) -->
                             {% if user.role == 'ADMIN' %}
-                            <li><hr class="dropdown-divider"></li> <!-- 구분선 -->
+                            <li><hr class="dropdown-divider mx-2"></li> <!-- 구분선 -->
                             <li>
-                                <a class="dropdown-item rounded-2 text-danger fw-bold" href="/admin/" target="_blank">
-                                    <i class="bi bi-shield-lock-fill me-2"></i>시스템 관리자 페이지
+                                <a class="dropdown-item rounded-2 py-2 fw-bold text-primary" href="/admin/" target="_blank" style="font-size: 0.85rem;">
+                                    <i class="bi bi-shield-lock-fill me-2"></i>시스템 관리자
                                 </a>
                             </li>
                             {% endif %}
                             
-                            <li><hr class="dropdown-divider"></li>
+                            <!-- 4. 로그아웃 -->
+                            <li><hr class="dropdown-divider mx-2"></li>
                             <li>
                                 <form action="{% url 'logout' %}" method="post" class="m-0">
                                     {% csrf_token %}
-                                    <button type="submit" class="dropdown-item text-danger">로그아웃</button>
+                                    <button type="submit" class="dropdown-item text-danger rounded-2 py-2">로그아웃</button>
                                 </form>
                             </li>
                         </ul>
