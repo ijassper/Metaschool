@@ -1,168 +1,129 @@
-{% extends 'base.html' %} <!-- base.html을 뼈대로 사용하겠다는 선언 -->
+{% extends 'base.html' %}
 {% load static %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-11"> <!-- 넓게 보기 위해 10 -> 11로 변경 -->
-        <div class="card shadow-sm border-0">
-            
-            <!-- 1. 상단 헤더 & 버튼 -->
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-person-lines-fill"></i>📋 학생 명렬표</h5>
-                <div>
-                    <!-- 1. 일괄 등록 버튼 (팝업 띄우기) -->
-                    <button type="button" class="btn btn-success btn-sm me-2" data-bs-toggle="modal" data-bs-target="#uploadModal">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> 엑셀 일괄 등록
+<style>
+    /* Ingrid 전용 학생 관리 스타일 */
+    .student-mgmt-wrapper { padding: 20px; }
+    .content-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+    }
+    .table thead th { 
+        background-color: #f8f9fa; 
+        color: #64748b; 
+        font-weight: 700; 
+        border-top: none;
+        font-size: 0.85rem;
+        padding: 15px;
+    }
+    .student-row:hover { background-color: #fcfaff !important; }
+    
+    /* 일괄 작업 플로팅 바 */
+    #bulkActionBar {
+        display: none; position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+        background: #2d3436; color: white; padding: 16px 32px; border-radius: 50px;
+        z-index: 1000; gap: 24px; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+        animation: slideUp 0.3s ease-out;
+    }
+    @keyframes slideUp { from { bottom: -100px; } to { bottom: 40px; } }
+
+    .btn-action-pill { border-radius: 50px; padding: 5px 15px; font-weight: 600; font-size: 0.8rem; }
+</style>
+
+<div class="student-mgmt-wrapper">
+    <!-- 상단 헤더 -->
+    <div class="d-flex justify-content-between align-items-end mb-4 px-2">
+        <div>
+            <h2 class="fw-bold" style="letter-spacing: -1px; color: #1e293b;">학생 명렬표 관리</h2>
+            <p class="text-muted small mb-0">현재 등록된 우리 학교 학생들을 확인하고 일괄 관리합니다.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- [제안] 등록 허브로 이동하는 버튼 -->
+            <a href="{% url 'student_create' %}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
+                <i class="bi bi-person-plus-fill me-1"></i> 학생 등록 센터
+            </a>
+        </div>
+    </div>
+
+    <!-- 1. 필터 및 검색 영역 -->
+    <div class="content-card mb-4 p-3">
+        <form method="get" id="filterForm" class="row g-2 align-items-center">
+            <div class="col-auto">
+                <div class="dropdown">
+                    <button class="btn btn-white border dropdown-toggle rounded-pill px-3 shadow-sm bg-white" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <i class="bi bi-filter-circle me-1 text-primary"></i> 학급 선택
                     </button>
-                    
-                    <!-- 2. 개별 등록 버튼 (새 페이지로 이동) -->
-                    <a href="{% url 'student_create' %}" class="btn btn-light btn-sm text-primary fw-bold">
-                        + 학생 개별 등록
-                    </a>
+                    <div class="dropdown-menu p-3 shadow-lg border-0 rounded-4" style="min-width: 280px; max-height: 450px; overflow-y: auto;">
+                        <h6 class="dropdown-header fw-bold mb-3 border-bottom pb-2">조회 대상 필터링</h6>
+                        {% for item in filter_data %}
+                        <div class="mb-3 px-2">
+                            <div class="form-check fw-bold text-primary">
+                                <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
+                                <label class="form-check-label" for="g_{{ item.grade }}">{{ item.grade }}학년 전체</label>
+                            </div>
+                            <div class="ms-3 border-start ps-3 mt-2">
+                                {% for c in item.classes %}
+                                <div class="form-check mb-1">
+                                    <input class="form-check-input child-check child-g-{{ item.grade }}" type="checkbox" name="target" 
+                                           value="{{ item.grade }}_{{ c }}" id="c_{{ item.grade }}_{{ c }}"
+                                           {% if selected_targets %}{% for t in selected_targets %}{% if t == item.grade|stringformat:"s"|add:"_"|add:c|stringformat:"s" %}checked{% endif %}{% endfor %}{% endif %}>
+                                    <label class="form-check-label text-dark" for="c_{{ item.grade }}_{{ c }}">{{ c }}반</label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="d-grid mt-3"><button type="submit" class="btn btn-primary rounded-pill">필터 적용</button></div>
+                    </div>
                 </div>
             </div>
-            <div class="card-body">
-                
-                <!-- 2. 검색 및 필터 영역 -->
-                <div class="bg-light p-3 rounded mb-4 border">
-                    <form method="get" id="filterForm" class="row g-2 align-items-center">
-                        <div class="col-auto fw-bold text-secondary">
-                            <i class="bi bi-funnel-fill"></i> 필터:
-                        </div>
-
-                        <!-- ★ [신규] 학년/반 다중 선택 드롭다운 -->
-                        <div class="col-auto">
-                            <div class="dropdown">
-                                <button class="btn btn-white border dropdown-toggle bg-white" type="button" id="classFilterBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                                    <i class="bi bi-funnel-fill text-secondary"></i> 학급 선택
-                                </button>
-                                <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
-                                    <h6 class="dropdown-header fw-bold mb-2">조회할 학급 선택</h6>
-                                    
-                                    {% if not filter_data %}
-                                        <div class="p-2 text-muted small">등록된 학생 데이터가 없습니다.</div>
-                                    {% endif %}
-
-                                    <!-- 트리 구조 출력 -->
-                                    {% for item in filter_data %}
-                                    <div class="mb-2">
-                                        <!-- 학년 (부모) -->
-                                        <div class="form-check fw-bold text-primary">
-                                            <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
-                                            <label class="form-check-label" for="g_{{ item.grade }}">
-                                                {{ item.grade }}학년
-                                            </label>
-                                        </div>
-                                        
-                                        <!-- 반 (자식) -->
-                                        <div class="ms-3 border-start ps-2 mt-1">
-                                            {% for c in item.classes %}
-                                                <div class="form-check">
-                                                    <input class="form-check-input child-check child-g-{{ item.grade }}" 
-                                                           type="checkbox" 
-                                                           name="target" 
-                                                           value="{{ item.grade }}_{{ c }}" 
-                                                           id="c_{{ item.grade }}_{{ c }}"
-                                                           {% if selected_targets %}
-                                                               {% for t in selected_targets %}
-                                                                   {% if t == item.grade|stringformat:"s"|add:"_"|add:c|stringformat:"s" %}checked{% endif %}
-                                                               {% endfor %}
-                                                           {% endif %}>
-                                                    <label class="form-check-label text-dark fw-normal" for="c_{{ item.grade }}_{{ c }}">
-                                                        {{ c }}반
-                                                    </label>
-                                                </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-
-                                    <div class="d-grid mt-3 border-top pt-2">
-                                        <button type="submit" class="btn btn-primary btn-sm">적용하기</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 선택 요약 -->
-                        <div class="col-auto">
-                            <span class="text-muted small">
-                                {% if selected_targets %}
-                                    {{ selected_targets|length }}개 학급 조회 중
-                                {% else %}
-                                    전체
-                                {% endif %}
-                            </span>
-                        </div>
-
-                        <!-- 이름 검색 -->
-                        <div class="col-auto ms-auto">
-                            <div class="input-group input-group-sm">
-                                <input type="text" name="q" class="form-control" placeholder="이름 검색" value="{{ current_q }}">
-                                <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
-                            </div>
-                        </div>
-                        
-                        <!-- 초기화 -->
-                        <div class="col-auto">
-                            <a href="{% url 'student_list' %}" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-arrow-counterclockwise"></i> 초기화
-                            </a>
-                        </div>
-                    </form>
+            
+            <div class="col-auto ms-auto">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control rounded-start-pill border-end-0 bg-white" style="width: 200px;" placeholder="이름으로 검색" value="{{ current_q }}">
+                    <button type="submit" class="btn btn-white border border-start-0 rounded-end-pill px-3 shadow-sm bg-white"><i class="bi bi-search text-primary"></i></button>
                 </div>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'student_list' %}" class="btn btn-light rounded-circle shadow-sm"><i class="bi bi-arrow-counterclockwise"></i></a>
+            </div>
+        </form>
+    </div>
 
-                <!-- 3. 학생 목록 테이블 -->
-                <table class="table table-hover text-center align-middle">
-                    <thead class="table-light">
+    <!-- 2. 학생 목록 테이블 -->
+    <div class="content-card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle text-center mb-0" id="studentTable">
+                    <thead>
                         <tr>
+                            <th style="width: 60px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
                             <th>연번</th>
-                            <th>학교</th>
-                            <th>학년</th>
-                            <th>반</th>
-                            <th>번호</th>
+                            <th>학년-반-번호</th>
                             <th>이름</th>
-                            <th>이메일(ID)</th>
+                            <th>아이디(이메일)</th>
+                            <th>소속 학교</th>
                             <th>관리</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for student in students %}
-                        <tr>
-                            <td>{{ forloop.counter }}</td>
-                            <!-- 학교명 -->
-                            <td class="small text-muted">{{ student.teacher.school.name|default:"-" }}</td>
-                            <td>{{ student.grade }}</td>
-                            <td>{{ student.class_no }}</td>
-                            <td>{{ student.number }}</td>
-                            <td class="fw-bold">{{ student.name }}</td>
-                            <td class="text-primary small font-monospace">
-                                {{ student.email|default:"-" }}
-                            </td>
-
-                            <!-- 관리 버튼 -->
+                        <tr class="student-row">
+                            <td><input type="checkbox" name="student_ids" value="{{ student.id }}" class="form-check-input student-check" data-name="{{ student.name }}"></td>
+                            <td class="text-muted">{{ forloop.counter }}</td>
+                            <td class="fw-bold text-dark">{{ student.grade }} - {{ student.class_no }} - {{ student.number }}</td>
+                            <td class="fw-extrabold text-primary">{{ student.name }}</td>
+                            <td class="small font-monospace">{{ student.email }}</td>
+                            <td class="small text-muted">{{ student.teacher.school.name }}</td>
                             <td>
-                                <div class="btn-group" role="group">
-                                    <!-- 1. 비번 초기화 버튼 (기존 유지) -->
-                                    <a href="{% url 'reset_student_password' student.id %}" 
-                                    class="btn btn-outline-warning btn-sm py-0" 
-                                    onclick="return confirm('{{ student.name }} 학생의 비밀번호를 초기화하시겠습니까?');">
-                                    <i class="bi bi-arrow-counterclockwise"></i> 초기화
-                                    </a>
-
-                                    <!-- 2. ★ [추가] 삭제 버튼 -->
-                                    <a href="{% url 'student_delete' student.id %}" 
-                                    class="btn btn-outline-danger btn-sm py-0" 
-                                    onclick="return confirm('정말 삭제하시겠습니까?\n\n이 학생의 [명렬표]와 [로그인 계정]이 모두 영구 삭제됩니다.\n(전학/자퇴 시 사용)');">
-                                    <i class="bi bi-trash"></i> 삭제
-                                    </a>
+                                <div class="d-flex justify-content-center gap-1">
+                                    <a href="{% url 'reset_student_password' student.id %}" class="btn btn-light btn-action-pill border text-warning" onclick="return confirm('{{ student.name }} 학생의 비밀번호를 초기화하시겠습니까?');">초기화</a>
+                                    <a href="{% url 'student_delete' student.id %}" class="btn btn-light btn-action-pill border text-danger" onclick="return confirm('정말 삭제하시겠습니까? 계정도 영구 삭제됩니다.');"><i class="bi bi-trash"></i></a>
                                 </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="8" class="py-5 text-muted">
-                                <p class="mb-0">조건에 맞는 학생이 없습니다.</p>
                             </td>
                         </tr>
                         {% endfor %}
@@ -172,53 +133,68 @@
         </div>
     </div>
 </div>
-<!-- 엑셀 업로드 모달 -->
-<div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">학생 일괄 등록</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <form action="{% url 'student_upload' %}" method="post" enctype="multipart/form-data">
-          {% csrf_token %}
-          <div class="modal-body">
-            
-            <!-- ★ 샘플 다운로드 안내 영역 -->
-            <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3">
-                <span class="small text-muted">
-                    <i class="bi bi-info-circle-fill text-info"></i> 양식에 맞춰 작성해주세요.
-                </span>
-                <!-- 다운로드 버튼 (static 경로 확인 필수) -->
-                <a href="/static/files/학생_일괄등록_양식.xlsx" download class="btn btn-sm btn-outline-success">
-                    <i class="bi bi-download"></i> 엑셀 양식 다운로드
-                </a>
-            </div>
 
-            <div class="mb-3">
-                <label class="form-label fw-bold">엑셀 파일 업로드</label>
-                <input class="form-control" type="file" name="excel_file" required accept=".xlsx, .xls">
-                <div class="form-text small">필수 컬럼: 학년, 반, 번호, 이름, 이메일(ID)</div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-            <button type="submit" class="btn btn-primary">등록하기</button>
-          </div>
-      </form>
+<!-- [신규] 일괄 작업 플로팅 바 -->
+<div id="bulkActionBar" class="d-flex">
+    <div class="d-flex align-items-center me-3">
+        <i class="bi bi-check2-circle fs-4 me-2 text-success"></i>
+        <span class="fw-bold"><span id="selectedCount">0</span>명 선택됨</span>
     </div>
-  </div>
+    <div class="vr opacity-25"></div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-warning fw-bold rounded-pill px-3" onclick="bulkAction('reset')">일괄 비번 초기화</button>
+        <button class="btn btn-sm btn-danger fw-bold rounded-pill px-3" onclick="bulkAction('delete')">일괄 삭제</button>
+    </div>
+    <button class="btn btn-sm btn-outline-light border-0 rounded-circle ms-2" onclick="clearSelection()"><i class="bi bi-x-lg"></i></button>
 </div>
+
 <script>
-    // 학년 체크박스 제어 함수
+    // 1. 체크박스 및 플로팅 바 로직
+    const selectAll = document.getElementById('selectAll');
+    const studentChecks = document.querySelectorAll('.student-check');
+    const bulkBar = document.getElementById('bulkActionBar');
+    const countDisplay = document.getElementById('selectedCount');
+
+    function updateBulkBar() {
+        const checkedCount = document.querySelectorAll('.student-check:checked').length;
+        if (checkedCount > 0) {
+            bulkBar.style.display = 'flex';
+            countDisplay.innerText = checkedCount;
+        } else {
+            bulkBar.style.display = 'none';
+        }
+    }
+
+    selectAll.addEventListener('change', (e) => {
+        studentChecks.forEach(cb => cb.checked = e.target.checked);
+        updateBulkBar();
+    });
+
+    studentChecks.forEach(cb => {
+        cb.addEventListener('change', updateBulkBar);
+    });
+
+    function clearSelection() {
+        selectAll.checked = false;
+        studentChecks.forEach(cb => cb.checked = false);
+        updateBulkBar();
+    }
+
+    // 2. 일괄 처리 실행 함수 (추후 views.py와 연동)
+    function bulkAction(type) {
+        const selectedIds = Array.from(document.querySelectorAll('.student-check:checked')).map(cb => cb.value);
+        const actionText = type === 'delete' ? '영구 삭제' : '비밀번호 초기화';
+        
+        if (confirm(`선택한 ${selectedIds.length}명의 학생을 ${actionText} 하시겠습니까?`)) {
+            // 이 부분에 폼 제출 혹은 AJAX 로직이 들어갑니다.
+            alert(`${type} 작업은 다음 단계에서 백엔드와 연결됩니다!`);
+        }
+    }
+
     function toggleGrade(grade) {
         const parent = document.getElementById('g_' + grade);
         const children = document.querySelectorAll('.child-g-' + grade);
-        children.forEach(cb => {
-            cb.checked = parent.checked;
-        });
+        children.forEach(cb => cb.checked = parent.checked);
     }
-    
-    // (기존 업로드 관련 스크립트가 있다면 유지)
 </script>
 {% endblock %}
