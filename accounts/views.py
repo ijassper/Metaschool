@@ -117,40 +117,39 @@ def dashboard(request):
             student_profile = getattr(user, 'student', None)
 
         if student_profile:
-            # 나에게 배정된 모든 활성화된 평가 (전체 리스트용)
+            # 1. 나에게 배정된 모든 활성화된 평가 가져오기
             base_query = Activity.objects.filter(target_students=student_profile, is_active=True).order_by('-created_at')
             
             # 완료된 개수를 세기 위한 변수 초기화
             completed_count = 0 
 
-            # 전체 리스트에 대해서도 제출 여부 체크
+            # 2. 개별 활동 데이터 매핑 (답변 객체 및 제출 여부)
             for activity in base_query:
-                # 모델에 추가한 함수를 사용하여 답변 객체 가져오기
                 ans = activity.get_student_answer(student_profile)
-                activity.my_answer = ans # [추가] 이 객체가 있어야 템플릿에서 '작성 중' 판단 가능
-                
-                # 제출 여부 판단 (제출 시간이 기록되어 있어야 함)
+                activity.my_answer = ans
                 activity.has_submitted = bool(ans and ans.submitted_at)
 
-                # 제출 완료된 경우 카운트 증가
                 if activity.has_submitted:
                     completed_count += 1
             
-            # 교사용과 동일하게 카테고리별로 묶기
+            # 3. [개편] 표준 카테고리 기준 블록 생성 (seen_categories 제거)
             category_blocks = []
-            seen_categories = []
-            for act in base_query:
-                cat_code = act.category.strip()
-                if cat_code not in seen_categories:
-                    seen_categories.append(cat_code)
+            
+            # 모델에 정의된 7대 카테고리 표준 리스트를 순회합니다.
+            for cat_code, cat_name in Activity.CATEGORY_CHOICES:
+                # base_query(나에게 할당된 것들) 내에서 해당 카테고리만 필터링
+                # .strip()과 icontains로 데이터 부정합(공백 등) 방지
+                items = base_query.filter(category__icontains=cat_code.strip())
+                
+                if items.exists():
                     category_blocks.append({
-                        'name': act.get_category_display(),
-                        'items': [a for a in base_query if a.category.strip() == cat_code]
+                        'name': cat_name,
+                        'items': items
                     })
 
             context.update({
                 'student': student_profile,  # student 라는 이름으로 객체 전달
-                'category_blocks': category_blocks, # 묶인 데이터
+                'category_blocks': category_blocks, # 정렬 및 누락 방지된 데이터
                 'activities': base_query,           # 전체 카운트용
                 'completed_count': completed_count, # 완료된 개수
                 'ongoing_count': base_query.count() - completed_count # 진행 중 개수 계산
@@ -161,9 +160,9 @@ def dashboard(request):
     
     # 2. 교사/대표 공통 로직 시작 (TEACHER와 LEADER 모두 진입)
     if user.role in ['LEADER', 'TEACHER']:
+        print(f"--- [DEBUG] 교사 대시보드 진입: {user.name} (Role: {user.role}) ---", flush=True)
 
-        print(f"DEBUG: {user.name}님은 교사 로직으로 진입합니다.", flush=True)
-        # [2-1] 학교 대표(LEADER) 전용 데이터만 처리
+        # [2-1] 학교 대표(LEADER) 전용 데이터 처리 (기존 기능 100% 유지)
         if user.role == 'LEADER' and user.school:
             guest_teachers = CustomUser.objects.filter(school=user.school, role='GUEST')
             school_students = Student.objects.filter(teacher__school=user.school)        
@@ -171,35 +170,51 @@ def dashboard(request):
             context['school_students'] = school_students
             context['student_count'] = school_students.count()
 
-        # [2-2] 모든 교사 공통: 5개(7개) 블록 생성 로직
-        # 1. 선생님이 만든 모든 활동을 최신순으로 가져옴
+        # [2-2] 모든 활동 가져오기
         my_activities = Activity.objects.filter(teacher=user).order_by('-created_at')
+        print(f"--- [DEBUG] 총 생성 활동 수: {my_activities.count()}건 ---", flush=True)
 
-        # 2. 활동이 존재하는 카테고리들을 순서대로 추출 (최대 5개)
+        # [2-3] 7대 카테고리 블록 생성 로직 (버그 수정 및 기능 통합)
         category_blocks = []
-        seen_categories = []
-
-        for act in my_activities:
-            clean_cat = act.category.strip()
-            if clean_cat not in seen_categories:
-                if len(seen_categories) < 7: # 7개로 확장 권장
-                    seen_categories.append(clean_cat)
-                    # 해당 카테고리의 아이템들을 가져온 후, 각각 config를 심어줍니다.
-                    items = my_activities.filter(category__icontains=clean_cat)
-                    for item in items:
-                        item.form_config = get_form_config(item.sub_category)
+        
+        # 모델에 정의된 7대 대분류 표준 리스트를 순회합니다.
+        for cat_code, cat_name in Activity.CATEGORY_CHOICES:
+            # 해당 카테고리에 속하는 활동들 필터링 (공백 제거 및 포함 검사)
+            # .strip()을 통해 'CREATIVE ' 처럼 공백이 섞인 데이터도 정확히 잡아냅니다.
+            items = my_activities.filter(category__icontains=cat_code.strip())
+            
+            if items.exists():
+                print(f"--- [DEBUG] 카테고리 매칭 성공: {cat_name} ({items.count()}건) ---", flush=True)
+                
+                # 각 활동 아이템에 필요한 부가 정보(설정, 제출현황) 세팅
+                for item in items:
+                    # 1. 기존 기능: 동적 폼 라벨 설정 심기
+                    item.form_config = get_form_config(item.sub_category)
                     
-                    category_blocks.append({
-                        'name': act.get_category_display(),
-                        'items': items # config가 포함된 items를 넣습니다.
-                    })
-        context['category_blocks'] = category_blocks
+                    # 2. 추가 기능: 대시보드에서 바로 제출 인원을 볼 수 있게 계산
+                    # (Answer 모델에서 최종 제출일이 있는 학생들만 카운트)
+                    item.submit_count = Answer.objects.filter(
+                        question__activity=item, 
+                        submitted_at__isnull=False
+                    ).count()
+                    
+                    # 3. 추가 기능: 전체 대상 인원 (명렬표 기준)
+                    item.total_target = item.target_students.count()
 
-        # 교사 전용 대시보드 반환
+                category_blocks.append({
+                    'name': cat_name,
+                    'items': items,
+                    'count': items.count()
+                })
+
+        # 템플릿으로 데이터 전달
+        context['category_blocks'] = category_blocks
+        context['total_activity_count'] = my_activities.count()
+
+        print(f"--- [DEBUG] 최종 생성된 대시보드 블록 수: {len(category_blocks)}개 ---", flush=True)
         return render(request, 'dashboard.html', context)
 
-    # 3. 그 외 권한 (관리자 등)
-    print(f"DEBUG: {user.name}님은 예외 상황입니다. Role: {user.role}", flush=True)
+    # 3. 그 외 권한 (관리자 등) 처리
     return render(request, 'dashboard.html', context)
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
