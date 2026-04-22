@@ -159,11 +159,11 @@ def dashboard(request):
         return render(request, 'activities/student_dashboard.html', context)
     
     # 2. 교사/대표 공통 로직 시작 (TEACHER와 LEADER 모두 진입)
-    if user.role in ['LEADER', 'TEACHER']:
+    if user.role in ['LEADER', 'TEACHER', 'ADMIN']:
         print(f"--- [DEBUG] 교사 대시보드 진입: {user.name} (Role: {user.role}) ---", flush=True)
 
         # [2-1] 학교 대표(LEADER) 전용 데이터 처리 (기존 기능 100% 유지)
-        if user.role == 'LEADER' and user.school:
+        if user.role in ['LEADER', 'ADMIN'] and user.school:
             guest_teachers = CustomUser.objects.filter(school=user.school, role='GUEST')
             school_students = Student.objects.filter(teacher__school=user.school)        
             context['guest_teachers'] = guest_teachers
