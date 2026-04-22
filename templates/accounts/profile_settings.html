@@ -13,7 +13,7 @@
         box-shadow: 0 15px 35px rgba(0,0,0,0.05);
         overflow: hidden;
         display: flex;
-        min-height: 600px;
+        min-height: 650px;
     }
 
     /* 좌측 설정 메뉴 */
@@ -38,12 +38,10 @@
 
     /* 우측 콘텐츠 영역 */
     .settings-content { flex: 1; padding: 50px; background: white; }
-    .form-label { font-weight: 700; font-size: 0.85rem; color: #475569; margin-bottom: 8px; }
+    .form-label { font-weight: 700; font-size: 0.85rem; color: #475569; margin-bottom: 8px; display: block; }
     .form-control, .form-select { 
-        padding: 12px 15px; border-radius: 12px; border: 1px solid #e2e8f0; 
-        font-size: 0.95rem; background: #fcfcfc;
+        padding: 12px 15px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 0.95rem;
     }
-    .form-control:focus { border-color: #8E44AD; box-shadow: 0 0 0 4px rgba(142, 68, 173, 0.05); background: white; }
 
     /* 인그리드 버튼 */
     .btn-ingrid-save {
@@ -58,7 +56,7 @@
 </style>
 
 <div class="settings-container">
-    <div class="mb-4">
+    <div class="mb-4 px-2">
         <h3 class="fw-bold" style="letter-spacing: -1px; color: #1e293b;">계정 설정</h3>
         <p class="text-muted small">개인 정보와 보안 설정을 관리하세요.</p>
     </div>
@@ -98,17 +96,22 @@
                 </div>
                 <div class="mb-4">
                     <label class="form-label">소속 학교</label>
-                    <div class="p-3 bg-light rounded-3 text-muted border small">
-                        <i class="bi bi-bank me-2"></i>{{ user.school.name|default:"소속 정보 없음" }}
+                    <div class="input-group shadow-sm rounded-3 overflow-hidden border">
+                        <input type="text" id="schoolNameDisplay" class="form-control border-0 bg-light" 
+                               value="{{ user.school.name }}" readonly style="font-size: 0.9rem;">
+                        <input type="hidden" name="school" id="schoolIdInput" value="{{ user.school.id }}">
+                        <button class="btn btn-dark px-3" type="button" data-bs-toggle="modal" data-bs-target="#schoolSearchModal">
+                            <i class="bi bi-search"></i> 변경
+                        </button>
                     </div>
-                    <small class="text-muted mt-2 d-block">* 학교 정보 변경은 관리자에게 문의하세요.</small>
+                    <!-- <small class="text-muted mt-2 d-block">* 전근 등으로 소속이 바뀐 경우 변경해 주세요.</small> -->
                 </div>
                 <div class="mb-5">
                     <label class="form-label">담당 과목</label>
                     {{ profile_form.subject }}
                 </div>
 
-                <button type="submit" class="btn-ingrid-save w-100">저장하기</button>
+                <button type="submit" class="btn-ingrid-save w-100 shadow">정보 수정 완료</button>
             </form>
 
             {% elif active_tab == 'security' %}
@@ -119,18 +122,22 @@
                 <h4 class="fw-bold mb-4">비밀번호 변경</h4>
                 <p class="text-muted small mb-4">보안을 위해 정기적인 비밀번호 변경을 권장합니다.</p>
 
-                {% for field in password_form %}
                 <div class="mb-4">
-                    <label class="form-label">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.help_text %}
-                    <div class="password-help mt-2">{{ field.help_text|safe }}</div>
-                    {% endif %}
-                    {% for error in field.errors %}
-                    <div class="text-danger small mt-1 fw-bold">{{ error }}</div>
-                    {% endfor %}
+                    <label class="form-label">현재 비밀번호</label>
+                    <input type="password" name="old_password" class="form-control w-100" required>
                 </div>
-                {% endfor %}
+                <div class="mb-4">
+                    <label class="form-label">새 비밀번호</label>
+                    <input type="password" name="new_password1" class="form-control w-100" required>
+                    <div class="password-help mt-2">
+                        • 8자 이상의 영문, 숫자, 특수문자를 혼합해 주세요.<br>
+                        • 이전에 사용한 비밀번호는 피하는 것이 좋습니다.
+                    </div>
+                </div>
+                <div class="mb-5">
+                    <label class="form-label">새 비밀번호 확인</label>
+                    <input type="password" name="new_password2" class="form-control w-100" required>
+                </div>
 
                 <button type="submit" class="btn-ingrid-save w-100 mt-3">비밀번호 업데이트</button>
             </form>
@@ -138,4 +145,52 @@
         </div>
     </div>
 </div>
+
+<!-- 학교 검색 모달 (회원가입 로직 재활용) -->
+<div class="modal fade" id="schoolSearchModal" tabindex="-1" aria-hidden="true" style="z-index: 10000;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold" style="color: #8E44AD;"><i class="bi bi-bank me-2"></i>소속 학교 변경</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="input-group mb-3 bg-light rounded-3 p-1 border">
+                    <input type="text" id="schoolSearchInput" class="form-control border-0 bg-transparent" placeholder="새로운 학교명 입력">
+                    <button class="btn btn-primary rounded-3 px-4" style="background: var(--ingrid-gradient); border:none;" onclick="searchSchool()">검색</button>
+                </div>
+                <div class="list-group list-group-flush border-top" id="schoolResultList" style="max-height: 250px; overflow-y: auto;">
+                    <div class="p-4 text-center text-muted small">이동하신 학교명을 입력해 주세요.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 학교 검색 로직
+    function searchSchool() {
+        const q = document.getElementById('schoolSearchInput').value;
+        if (q.length < 1) return;
+        fetch(`/accounts/search/school/?q=${q}`)
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('schoolResultList');
+                list.innerHTML = '';
+                data.results.forEach(s => {
+                    const btn = document.createElement('button');
+                    btn.className = 'list-group-item list-group-item-action border-0 py-3';
+                    btn.innerHTML = `<div class="fw-bold">${s.name}</div><div class="small text-muted">${s.office}</div>`;
+                    btn.type = 'button';
+                    btn.onclick = () => {
+                        document.getElementById('schoolNameDisplay').value = s.name;
+                        document.getElementById('schoolIdInput').value = s.id;
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('schoolSearchModal'));
+                        modal.hide();
+                    };
+                    list.appendChild(btn);
+                });
+            });
+    }
+</script>
 {% endblock %}

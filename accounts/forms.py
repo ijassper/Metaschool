@@ -108,6 +108,5 @@ class UserUpdateForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
-            'school': forms.Select(attrs={'class': 'form-select'}), # 학교 선택 박스
-            'subject': forms.Select(attrs={'class': 'form-select'}),
+            'subject': forms.Select(attrs={'class': 'form-select'}),    # 과목은 드롭다운으로
         }
