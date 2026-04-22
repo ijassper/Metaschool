@@ -796,40 +796,54 @@ def api_process_db_row(request):
             answer_id = body.get('answer_id')
             prompt_system = body.get('prompt_system')
             temperature = float(body.get('temperature', 0.7))
-            
-            # ★ 모델명을 gemini-2.0-flash 로 고정하거나 기본값으로 설정
             ai_model = body.get('ai_model', 'gemini-2.0-flash')
 
-            # 1. 답안 데이터 가져오기
+            # 1. 답안 및 활동 정보 가져오기
             answer = Answer.objects.get(id=answer_id)
+            activity = answer.question.activity # 역참조로 활동 정보 획득
             student = answer.student
             
-            # 2. 프롬프트 재료 조합
-            student_info = f"[학생: {student.name}({student.grade}-{student.class_no}-{student.number})]"
-            # 최종 지시사항 조립
-            final_prompt = f"{student_info}\n[학생 답안]\n{answer.content}\n\n[지시사항]\n{prompt_system}"
-            
-            result_text = ""
+            # [추가 피드백 반영] 답안이 비어있으면 AI 호출 없이 리턴
+            if not answer.content or not answer.content.strip():
+                return JsonResponse({'status': 'skipped', 'message': '답안 내용이 없어 분석을 건너뛰었습니다.'})
 
+            # 2. [추가 피드백 반영] 프롬프트에 활동 상세 정보 통합
+            # AI에게 "문제와 조건"을 먼저 알려주어 분석 정확도를 높입니다.
+            activity_context = f"""
+[활동 정보 및 컨텍스트]
+- 활동명: {activity.section}
+- 평가 주제: {activity.title}
+- 평가 문항: {activity.question}
+- 참고 자료: {activity.reference_material}
+- 작성 조건: {activity.conditions}
+- 권장 분량: {activity.char_limit}자 이상
+"""
+            student_info = f"[대상 학생: {student.name}({student.grade}-{student.class_no}-{student.number})]"
+            
+            # 최종 지시사항 조립 (활동 정보 + 학생 답안 + 교사 지시사항)
+            final_prompt = f"{activity_context}\n{student_info}\n[학생 답안 내용]\n{answer.content}\n\n[AI 지시사항]\n{prompt_system}"
+            
             # ---------------------------------------------------------
-            # Google Gemini 2.0 Flash 호출 로직 (REST API 방식)
+            # Google Gemini 2.0 Flash 호출 (기존 로직 유지)
             # ---------------------------------------------------------
             config = SystemConfig.objects.get(key_name='GOOGLE_API_KEY')
             api_key = config.value.strip()
-            
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{ai_model}:generateContent?key={api_key}"
             
             payload = {
-                "contents": [{
-                    "parts": [{"text": final_prompt}]
-                }],
-                "generationConfig": {
-                    "temperature": temperature
-                }
+                "contents": [{"parts": [{"text": final_prompt}]}],
+                "generationConfig": {"temperature": temperature}
             }
             
-            # 구글 서버로 직접 요청
-            response = requests.post(url, json=payload)
+            response = requests.post(url, json=payload, timeout=60)
+            
+            # [추가 피드백 반영] 429 에러 처리 로직 강화
+            if response.status_code == 429:
+                return JsonResponse({
+                    'status': 'error', 
+                    'message': 'AI 서버가 너무 바쁩니다(429). 잠시 후 다시 시도해 주세요.'
+                }, status=429)
+
             response_data = response.json()
             
             if "candidates" in response_data:

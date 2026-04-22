@@ -244,12 +244,26 @@
                     })
                 });
                 
-                if (!response.ok) throw new Error("서버 응답 에러");
+                // 1. 429 에러(속도 제한) 발생 시: 5초 대기 후 현재 학생 다시 시도
+                if (response.status === 429) {
+                    console.warn(`Rate limit hit for ${current.name}, retrying in 5s...`);
+                    await new Promise(r => setTimeout(r, 5000)); 
+                    i--;      // 인덱스를 하나 뒤로 돌려서 현재 학생을 다시 처리하게 함
+                    continue; // 아래 코드를 실행하지 않고 다음 루프(사실상 재시도)로 점프
+                }
                 
-                // 가비아 서버 부하 방지를 위한 미세한 대기
-                await new Promise(r => setTimeout(r, 800)); 
+                // 2. 기타 서버 에러 발생 시
+                if (!response.ok) {
+                    throw new Error(`서버 응답 에러 (Status: ${response.status})`);
+                }
+
+                // 3. [성공 시] 가비아 및 구글 API 안정성을 위해 2.5초 대기
+                // 기존 800ms보다 늘려서 429 에러 발생 빈도를 낮춥니다.
+                await new Promise(r => setTimeout(r, 2500)); 
             } catch (error) {
                 console.error(`${current.name} 처리 중 에러:`, error);
+                // 에러가 나도 다음 학생으로 넘어가기 위해 continue (선택 사항)
+                await new Promise(r => setTimeout(r, 1000));
             }
         }
 
