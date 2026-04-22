@@ -331,11 +331,29 @@
                             <i class="bi bi-gear-fill fs-5"></i>
                         </button>
                         <ul class="dropdown-menu shadow border-0 p-2">
-                            <li><a class="dropdown-item rounded-2" href="{% url 'profile_settings' %}?tab=profile">내 정보 수정</a></li>
+                            <!-- 1. 기본 메뉴: 내 정보 수정 -->
+                            <li>
+                                <a class="dropdown-item rounded-2" href="{% url 'profile_settings' %}?tab=profile">
+                                    <i class="bi bi-person-gear me-2"></i>내 정보 수정
+                                </a>
+                            </li>
+
+                            <!-- [추가] 2. 관리자 전용 메뉴 (ADMIN 권한일 때만 노출) -->
+                            {% if user.role == 'ADMIN' %}
+                            <li><hr class="dropdown-divider"></li> <!-- 구분선 -->
+                            <li>
+                                <a class="dropdown-item rounded-2 text-danger fw-bold" href="/admin/" target="_blank">
+                                    <i class="bi bi-shield-lock-fill me-2"></i>시스템 관리자 페이지
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            <li><a class="dropdown-item rounded-2" href="{% url 'profile_settings' %}?tab=security">비밀번호 변경</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form action="{% url 'logout' %}" method="post" class="m-0">
-                                    {% csrf_token %}<button type="submit" class="dropdown-item text-danger">로그아웃</button>
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger">로그아웃</button>
                                 </form>
                             </li>
                         </ul>
