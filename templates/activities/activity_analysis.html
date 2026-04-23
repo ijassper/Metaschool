@@ -141,7 +141,7 @@
                     <td class="text-start p-2 pointer-cursor" 
                         style="cursor: pointer; max-width: 400px;" 
                         onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
-                        {% if item.has_answer %}
+                        {% if item.content and item.content.strip %}
                             <div class="text-truncate">
                                 {{ item.content|truncatechars:200 }}
                             </div>

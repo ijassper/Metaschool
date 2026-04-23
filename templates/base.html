@@ -347,7 +347,7 @@
                             {% if user.role == 'ADMIN' %}
                             <li><hr class="dropdown-divider mx-2"></li> <!-- 구분선 -->
                             <li>
-                                <a class="dropdown-item rounded-2 py-2 fw-bold text-primary" href="/admin/" target="_blank" style="font-size: 0.85rem;">
+                                <a class="dropdown-item rounded-2 py-2 fw-bold text-primary" href="/admin/" target="_blank">
                                     <i class="bi bi-shield-lock-fill me-2"></i>시스템 관리자
                                 </a>
                             </li>
@@ -358,7 +358,9 @@
                             <li>
                                 <form action="{% url 'logout' %}" method="post" class="m-0">
                                     {% csrf_token %}
-                                    <button type="submit" class="dropdown-item text-danger rounded-2 py-2">로그아웃</button>
+                                    <button type="submit" class="dropdown-item text-danger rounded-2 py-2">
+                                        <i class="bi bi-box-arrow-right me-2"></i>로그아웃
+                                    </button>
                                 </form>
                             </li>
                         </ul>

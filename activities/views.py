@@ -765,13 +765,18 @@ def activity_analysis_work(request, activity_id):
     
     # 질문이 존재할 때만 답안을 찾음
     if question:
-        answers = Answer.objects.filter(question=question).select_related('student')
+        # content가 비어있지 않은(공백 제외) 답안만 가져옵니다.
+        answers = Answer.objects.filter(
+            question=question
+        ).exclude(content__set='').select_related('student') # 실제 내용이 있는 것만!
+
         for a in answers:
-            answer_list.append({
-                'id': a.id,
-                'name': a.student.name,
-                'info': f"{a.student.grade}-{a.student.class_no}-{a.student.number}"
-            })
+            if a.content and a.content.strip():
+                answer_list.append({
+                    'id': a.id,
+                    'name': a.student.name,
+                    'info': f"{a.student.grade}-{a.student.class_no}-{a.student.number}"
+                })
 
     # 만약 answer_list가 비어있다면 명시적으로 '[]' 문자열을 만듦
     answer_list_json = json.dumps(answer_list) if answer_list else "[]"
@@ -803,9 +808,12 @@ def api_process_db_row(request):
             activity = answer.question.activity # 역참조로 활동 정보 획득
             student = answer.student
             
-            # [추가 피드백 반영] 답안이 비어있으면 AI 호출 없이 리턴
+            # 답안이 비어있으면 AI 호출 없이 리턴
             if not answer.content or not answer.content.strip():
-                return JsonResponse({'status': 'skipped', 'message': '답안 내용이 없어 분석을 건너뛰었습니다.'})
+                return JsonResponse({
+                    'status': 'skipped', 
+                    'message': '내용이 없는 답안은 분석하지 않습니다.'
+                })
 
             # 2. [추가 피드백 반영] 프롬프트에 활동 상세 정보 통합
             # AI에게 "문제와 조건"을 먼저 알려주어 분석 정확도를 높입니다.

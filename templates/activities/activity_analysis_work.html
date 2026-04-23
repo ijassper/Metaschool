@@ -147,8 +147,9 @@
 <script>
     // 1. 초기 데이터 설정
     const ACTIVITY_ID = "{{ activity.id }}";
-    const STORAGE_KEY = `ingrid_prompt_${ACTIVITY_ID}`;
+    const STORAGE_KEY = `ingrid_prompt_draft_${ACTIVITY_ID}`;
     
+    // 분석 대상 학생 명단 (답안 제출자 리스트)
     let answerList = [];
     try {
         const rawJson = '{{ answer_list_json|escapejs }}';
@@ -158,44 +159,47 @@
         console.error("데이터 파싱 에러:", e);
     }
 
-    // 2. [신규] 로컬 스토리지 임시 저장 로직
-    function saveToLocal() {
-        const data = {
+    /* 2. 자동 저장 및 복구 함수 정의 */
+    function savePromptDraft() {
+        const draftData = {
             context: document.getElementById('p_context').value,
             task: document.getElementById('p_task').value,
             example: document.getElementById('p_example').value,
             length: document.getElementById('p_length').value,
             temp: document.getElementById('temperature').value
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(draftData));
     }
 
-    function loadFromLocal() {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            const data = JSON.parse(saved);
+    function loadPromptDraft() {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (savedData) {
+            const data = JSON.parse(savedData);
             document.getElementById('p_context').value = data.context || "";
             document.getElementById('p_task').value = data.task || "";
             document.getElementById('p_example').value = data.example || "";
             document.getElementById('p_length').value = data.length || "";
             document.getElementById('temperature').value = data.temp || "0.7";
-            document.getElementById('tempVal').innerText = data.temp || "0.7";
-            console.log("임시 저장된 프롬프트를 불러왔습니다.");
+            if(document.getElementById('tempVal')) document.getElementById('tempVal').innerText = data.temp || "0.7";
         }
     }
 
-    // 페이지 로드 시 실행
+    /* 3. 실행 및 이벤트 바인딩 (DOMContentLoaded) */
     document.addEventListener('DOMContentLoaded', function() {
-        loadFromLocal(); // 저장된 데이터 불러오기
+        
+        loadPromptDraft(); // 페이지 열자마자 복구
 
-        // 모든 입력창에 변경 시 자동 저장 이벤트 등록
         const inputs = ['p_context', 'p_task', 'p_example', 'p_length', 'temperature'];
         inputs.forEach(id => {
-            document.getElementById(id).addEventListener('input', saveToLocal);
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', savePromptDraft);
+                if (el.tagName === 'SELECT') el.addEventListener('change', savePromptDraft);
+            }
         });
     });
 
-    // 3. AI 분석 실행 함수
+    // 4. AI 분석 실행 함수
     async function runDBAnalysis() {
         if (!answerList || answerList.length === 0) {
             alert("분석할 학생 답안이 없습니다.");
@@ -258,9 +262,6 @@
             // 한 묶음(5명) 처리 후 아주 미세한 휴식 (0.3초)
             await new Promise(r => setTimeout(r, 300));
         }
-
-        // 분석 성공 시 저장 데이터 삭제
-        localStorage.removeItem(STORAGE_KEY);
         
         document.getElementById('loadingOverlay').classList.add('d-none');
         alert("✅ 모든 학생의 AI 분석 및 저장이 완료되었습니다.");
