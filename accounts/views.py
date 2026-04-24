@@ -956,26 +956,33 @@ def admin_system_settings(request):
         messages.error(request, "접근 권한이 없습니다.")
         return redirect('dashboard')
 
-    # 설정값들 가져오기 (없으면 기본값 생성)
-    demo_cfg, _ = SystemConfig.objects.get_or_create(
-        key_name='IS_DEMO_MODE', defaults={'value': 'N', 'description': '시연 모드(Y/N)'})
+    #  기존 설정값 가져오기 (없으면 생성)
+    demo_cfg, _ = SystemConfig.objects.get_or_create(key_name='IS_DEMO_MODE')
+    model_cfg, _ = SystemConfig.objects.get_or_create(key_name='SELECTED_AI_MODEL')
     
-    ai_model_cfg, _ = SystemConfig.objects.get_or_create(
-        key_name='SELECTED_AI_MODEL', defaults={'value': 'gemini-2.0-flash', 'description': '현재 분석용 AI 모델'})
+    # [추가] API 키 설정 가져오기
+    google_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='GOOGLE_API_KEY')
+    openai_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='OPENAI_API_KEY')
 
     if request.method == 'POST':
-        # 1. 데모 모드 업데이트
+        # 일반 설정 저장
         demo_cfg.value = request.POST.get('demo_mode', 'N')
         demo_cfg.save()
+        model_cfg.value = request.POST.get('ai_model')
+        model_cfg.save()
 
-        # 2. AI 모델 업데이트
-        ai_model_cfg.value = request.POST.get('ai_model')
-        ai_model_cfg.save()
+        # [추가] API 키 저장
+        google_key_cfg.value = request.POST.get('google_api_key', '').strip()
+        google_key_cfg.save()
+        openai_key_cfg.value = request.POST.get('openai_api_key', '').strip()
+        openai_key_cfg.save()
 
-        messages.success(request, "시스템 설정이 업데이트되었습니다.")
+        messages.success(request, "모든 시스템 설정 및 API 키가 안전하게 저장되었습니다.")
         return redirect('admin_system_settings')
 
     return render(request, 'accounts/system_settings.html', {
         'demo_mode': demo_cfg.value,
-        'current_model': ai_model_cfg.value
+        'current_model': model_cfg.value,
+        'google_api_key': google_key_cfg.value, # 템플릿으로 전달
+        'openai_api_key': openai_key_cfg.value,
     })

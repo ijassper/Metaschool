@@ -50,6 +50,39 @@
             </div>
         </div>
 
+        <!-- 섹션 3. API 자격 증명 관리 (새로 추가) -->
+        <div class="card border-0 shadow-sm rounded-4 mb-5 p-4 bg-white">
+            <h5 class="fw-bold text-dark mb-4">
+                <i class="bi bi-key-fill text-warning me-2"></i>API 자격 증명 (Secrets)
+            </h5>
+            
+            <!-- Google Gemini API Key -->
+            <div class="mb-4">
+                <label class="form-label small fw-bold">Google Gemini API Key</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-google text-danger"></i></span>
+                    <input type="password" name="google_api_key" value="{{ google_api_key }}" 
+                        class="form-control border-start-0 p-3 bg-light api-key-input" id="googleKey">
+                    <button class="btn btn-outline-secondary border-start-0" type="button" onclick="toggleKeyVisibility('googleKey')">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- OpenAI API Key (멀티 키 대응을 위해 Textarea 사용 권장) -->
+            <div class="mb-2">
+                <label class="form-label small fw-bold">OpenAI API Key (GPT)</label>
+                <p class="text-muted" style="font-size: 0.75rem;">* 여러 개의 키를 사용하려면 줄바꿈(Enter)으로 구분하여 입력하세요.</p>
+                <div class="position-relative">
+                    <textarea name="openai_api_key" id="openaiKey" class="form-control p-3 bg-light api-key-input" 
+                            rows="3" style="-webkit-text-security: disc;">{{ openai_api_key }}</textarea>
+                    <button class="btn btn-sm btn-light position-absolute top-0 end-0 m-2 border" type="button" onclick="toggleTextAreaMask('openaiKey')">
+                        <i class="bi bi-eye"></i> 확인하기
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="text-center">
             <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow" style="background: var(--ingrid-gradient); border:none;">
                 시스템 글로벌 설정 저장하기
@@ -57,4 +90,30 @@
         </div>
     </form>
 </div>
+
+<!-- API 키 입력창 토글 스크립트 -->
+<script>
+    // 입력창 보기/숨기기 토글
+    function toggleKeyVisibility(id) {
+        const input = document.getElementById(id);
+        const icon = event.currentTarget.querySelector('i');
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            input.type = "password";
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    }
+
+    // Textarea 마스킹 토글
+    function toggleTextAreaMask(id) {
+        const el = document.getElementById(id);
+        if (el.style.webkitTextSecurity === 'disc') {
+            el.style.webkitTextSecurity = 'none';
+        } else {
+            el.style.webkitTextSecurity = 'disc';
+        }
+    }
+</script>
 {% endblock %}
