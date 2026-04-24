@@ -69,15 +69,16 @@
                 </div>
             </div>
 
-            <!-- OpenAI API Key (멀티 키 대응을 위해 Textarea 사용 권장) -->
-            <div class="mb-2">
+            <!-- OpenAI API Key -->
+            <div class="mb-4">
                 <label class="form-label small fw-bold">OpenAI API Key (GPT)</label>
-                <p class="text-muted" style="font-size: 0.75rem;">* 여러 개의 키를 사용하려면 줄바꿈(Enter)으로 구분하여 입력하세요.</p>
-                <div class="position-relative">
-                    <textarea name="openai_api_key" id="openaiKey" class="form-control p-3 bg-light api-key-input" 
-                            rows="3" style="-webkit-text-security: disc;">{{ openai_api_key }}</textarea>
-                    <button class="btn btn-sm btn-light position-absolute top-0 end-0 m-2 border" type="button" onclick="toggleTextAreaMask('openaiKey')">
-                        <i class="bi bi-eye"></i> 확인하기
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-cpu text-primary"></i></span>
+                    <input type="password" name="openai_api_key" value="{{ openai_api_key }}" 
+                        class="form-control border-start-0 p-3 bg-light api-key-input" id="openaiKey" 
+                        placeholder="sk-... 로 시작하는 키를 입력하세요">
+                    <button class="btn btn-outline-secondary border-start-0" type="button" onclick="toggleKeyVisibility('openaiKey')">
+                        <i class="bi bi-eye"></i>
                     </button>
                 </div>
             </div>
