@@ -309,6 +309,7 @@
     const charLimit = parseInt("{{ activity.char_limit|default:0 }}");
     const answerId = "{{ answer_id }}"; 
     const csrfToken = '{{ csrf_token }}';
+    const IS_DEMO = "{{ is_demo|yesno:'true,false' }}"; // 서버에서 온 데모 모드 여부
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
@@ -376,7 +377,7 @@
     };
 
     /* 4. 폐쇄형 모드 전용 보안 로직 */
-    if (EXAM_MODE === 'CLOSED') {
+    if (EXAM_MODE === 'CLOSED' && IS_DEMO === 'false') {
         // (1) 전체화면 및 창 전환 감시
         const checkSecurity = () => {
             if (!testStarted || isSubmitting) return;
@@ -403,14 +404,25 @@
         // (2) 키보드/마우스 조작 차단
         document.addEventListener('keydown', (e) => {
             if (!testStarted) return;
-            if (e.key === 'F11') { e.preventDefault(); lockScreen("전체화면 해제(F11)는 금지되어 있습니다."); }
+            // 데모 모드여도 전체화면 해제(F11)는 막는 것이 시연 시 더 멋져 보입니다.
+            if (e.key === 'F11') { e.preventDefault(); lockScreen("보안 안내..."); }
+            
+            // [중요] 데모 모드이면 복사/붙여넣기 차단 로직을 실행하지 않음
+            if (IS_DEMO === 'true') return; 
+
             if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v'].includes(e.key.toLowerCase())) {
                 e.preventDefault();
                 sendLog(e.key.toUpperCase() === 'C' ? 'COPY' : 'PASTE');
             }
         });
 
-        document.addEventListener('contextmenu', (e) => { e.preventDefault(); sendLog('RIGHT_CLICK'); });
+        // 우클릭 차단도 데모일 땐 허용
+        document.addEventListener('contextmenu', (e) => { 
+            if (IS_DEMO === 'false') {
+                e.preventDefault(); 
+                sendLog('RIGHT_CLICK'); 
+            }
+        });
         document.addEventListener('selectstart', (e) => { e.preventDefault(); });
     }
 

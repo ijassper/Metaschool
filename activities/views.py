@@ -421,6 +421,13 @@ def take_test(request, activity_id):
         messages.error(request, "본인의 평가 대상이 아닙니다.")
         return redirect('dashboard')
 
+    # [추가] 데모 모드 설정값 가져오기
+    try:
+        demo_config = SystemConfig.objects.get(key_name='IS_DEMO_MODE')
+        is_demo = demo_config.value.strip().upper() == 'Y'
+    except SystemConfig.DoesNotExist:
+        is_demo = False
+
     # 4. 문항(Question) 가져오기 (통합 로직: 없으면 자동 생성)
     # activity.questions.first()가 있으면 가져오고, 없으면 defaults의 내용으로 새로 만듭니다.
     question, q_created = Question.objects.get_or_create(
@@ -475,8 +482,10 @@ def take_test(request, activity_id):
     # 7. 화면에 데이터 전달
     return render(request, 'activities/take_test.html', {
         'activity': activity,
-        'answer': answer, # 기존 답안 전달
+        'question': question,  # [추가] 템플릿에서 문항 정보를 쉽게 쓰기 위해
+        'answer': answer,
         'answer_id': answer.id,
+        'is_demo': is_demo,    # [추가] 시연 모드 여부 전달 (복붙 허용 로직용)
     })
 
 # 9. 결시 사유 업데이트 API (AJAX용)
@@ -832,40 +841,102 @@ def api_process_db_row(request):
             final_prompt = f"{activity_context}\n{student_info}\n[학생 답안 내용]\n{answer.content}\n\n[AI 지시사항]\n{prompt_system}"
             
             # ---------------------------------------------------------
-            # Google Gemini 2.0 Flash 호출 (기존 로직 유지)
+            # [핵심] AI 모델별 API 호출 분기 처리
             # ---------------------------------------------------------
-            config = SystemConfig.objects.get(key_name='GOOGLE_API_KEY')
-            api_key = config.value.strip()
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{ai_model}:generateContent?key={api_key}"
-            
-            payload = {
-                "contents": [{"parts": [{"text": final_prompt}]}],
-                "generationConfig": {"temperature": temperature}
-            }
-            
-            response = requests.post(url, json=payload, timeout=60)
-            
-            # [추가 피드백 반영] 429 에러 처리 로직 강화
-            if response.status_code == 429:
-                return JsonResponse({
-                    'status': 'error', 
-                    'message': 'AI 서버가 너무 바쁩니다(429). 잠시 후 다시 시도해 주세요.'
-                }, status=429)
+            # 1. 설정 페이지에서 선택된 AI 모델 가져오기
+            try:
+                model_cfg = SystemConfig.objects.get(key_name='SELECTED_AI_MODEL')
+                ai_model = model_cfg.value.strip()
+            except SystemConfig.DoesNotExist:
+                ai_model = 'gemini-2.0-flash' # 기본값
 
-            response_data = response.json()
-            
-            if "candidates" in response_data:
-                result_text = response_data["candidates"][0]["content"]["parts"][0]["text"]
+            result_text = ""
+
+            # ---------------------------------------------------------
+            # [분기 1] Google Gemini 엔진 (gemini- 로 시작할 때)
+            # ---------------------------------------------------------
+            if ai_model.startswith('gemini'):
+                config = SystemConfig.objects.get(key_name='GOOGLE_API_KEY')
+                api_key = config.value.strip()
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{ai_model}:generateContent?key={api_key}"
+                
+                payload = {
+                    "contents": [{"parts": [{"text": final_prompt}]}],
+                    "generationConfig": {"temperature": temperature}
+                }
+                response = requests.post(url, json=payload, timeout=60)
+                
+                if response.status_code == 429:
+                    return JsonResponse({'status': 'error', 'message': 'Gemini 서버 과부하(429).'}, status=429)
+                
+                res_data = response.json()
+                if "candidates" in res_data:
+                    result_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
+
+            # ---------------------------------------------------------
+            # [분기 2] OpenAI GPT 엔진 (gpt- 로 시작할 때)
+            # ---------------------------------------------------------
+            elif ai_model.startswith('gpt'):
+                config = SystemConfig.objects.get(key_name='OPENAI_API_KEY')
+                api_key = config.value.strip()
+                url = "https://api.openai.com/v1/chat/completions"
+                
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": ai_model,
+                    "messages": [
+                        {"role": "system", "content": "당신은 생활기록부 작성 및 학생 분석 전문가입니다."},
+                        {"role": "user", "content": final_prompt}
+                    ],
+                    "temperature": temperature
+                }
+                response = requests.post(url, headers=headers, json=payload, timeout=60)
+                
+                if response.status_code == 429:
+                    return JsonResponse({'status': 'error', 'message': 'GPT 서버 과부하(429).'}, status=429)
+                
+                res_data = response.json()
+                if "choices" in res_data:
+                    result_text = res_data["choices"][0]["message"]["content"]
+
+            # ---------------------------------------------------------
+            # [분기 3] Anthropic Claude 엔진 (claude- 로 시작할 때)
+            # ---------------------------------------------------------
+            elif ai_model.startswith('claude'):
+                config = SystemConfig.objects.get(key_name='CLAUDE_API_KEY')
+                api_key = config.value.strip()
+                url = "https://api.anthropic.com/v1/messages"
+                
+                headers = {
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json"
+                }
+                payload = {
+                    "model": ai_model,
+                    "max_tokens": 2000,
+                    "messages": [{"role": "user", "content": final_prompt}],
+                    "temperature": temperature
+                }
+                response = requests.post(url, headers=headers, json=payload, timeout=60)
+                
+                res_data = response.json()
+                if "content" in res_data:
+                    result_text = res_data["content"][0]["text"]
+
+            # ---------------------------------------------------------
+            # 2. 분석 결과 DB 저장 (공통 처리)
+            # ---------------------------------------------------------
+            if result_text:
+                answer.ai_result = result_text
+                answer.ai_updated_at = timezone.now()
+                answer.save()
+                return JsonResponse({'status': 'success', 'result': '저장 완료'})
             else:
-                # 에러 발생 시 상세 메시지 기록
-                result_text = f"[Google API 에러] {response_data}"
-
-            # 3. ★ DB에 분석 결과 저장 ★
-            answer.ai_result = result_text
-            answer.ai_updated_at = timezone.now() # AI 분석 일시 기록
-            answer.save()
-            
-            return JsonResponse({'status': 'success', 'result': '저장 완료'})
+                return JsonResponse({'status': 'error', 'message': f'AI 응답 실패: {response.text}'})
             
         except SystemConfig.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': '관리자 페이지에서 GOOGLE_API_KEY를 등록해주세요.'})

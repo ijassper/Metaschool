@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 800px;">
+    <div class="mb-5 px-2">
+        <h2 class="fw-bold" style="color: var(--ingrid-primary); letter-spacing: -1px;">시스템 설정 센터</h2>
+        <p class="text-muted small">인그리드의 글로벌 보안 정책과 분석용 AI 엔진을 제어합니다.</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <!-- 섹션 1. 데모 모드 (토글 스위치 형태) -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4 p-4" style="background: #fcfaff; border: 1px solid #e9e2ff !important;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1"><i class="bi bi-play-circle-fill text-primary me-2"></i>시연(Demo) 모드</h5>
+                    <p class="small text-muted mb-0">ON 상태일 때는 폐쇄형 평가에서도 복사/붙여넣기가 허용됩니다.</p>
+                </div>
+                <div class="form-check form-switch fs-4">
+                    <input class="form-check-input" type="checkbox" name="demo_mode" value="Y" id="demoSwitch" {% if demo_mode == 'Y' %}checked{% endif %}>
+                </div>
+            </div>
+        </div>
+
+        <!-- 섹션 2. AI 분석 엔진 선택 -->
+        <div class="card border-0 shadow-sm rounded-4 mb-5 p-4 bg-white">
+            <h5 class="fw-bold text-dark mb-4"><i class="bi bi-cpu-fill text-success me-2"></i>AI 분석 엔진 모델 설정</h5>
+            <div class="row g-3">
+                <!-- Gemini (현재 주력) -->
+                <div class="col-md-12">
+                    <div class="form-check p-3 border rounded-3 mb-2 {% if current_model == 'gemini-2.0-flash' %}border-primary bg-primary-subtle{% endif %}">
+                        <input class="form-check-input ms-0 me-3" type="radio" name="ai_model" value="gemini-2.0-flash" id="m_gemini" {% if current_model == 'gemini-2.0-flash' %}checked{% endif %}>
+                        <label class="form-check-label fw-bold" for="m_gemini">Google Gemini 2.0 Flash (추천: 고속 처리)</label>
+                    </div>
+                </div>
+                <!-- GPT-4o -->
+                <div class="col-md-12">
+                    <div class="form-check p-3 border rounded-3 mb-2 {% if current_model == 'gpt-4o-mini' %}border-primary bg-primary-subtle{% endif %}">
+                        <input class="form-check-input ms-0 me-3" type="radio" name="ai_model" value="gpt-4o-mini" id="m_gpt" {% if current_model == 'gpt-4o-mini' %}checked{% endif %}>
+                        <label class="form-check-label fw-bold" for="m_gpt">OpenAI GPT-4o Mini (안정적인 문장력)</label>
+                    </div>
+                </div>
+                <!-- Claude 3.5 (추후 지원 예정) -->
+                <div class="col-md-12">
+                    <div class="form-check p-3 border rounded-3 text-muted">
+                        <input class="form-check-input ms-0 me-3" type="radio" name="ai_model" value="claude-3-5" id="m_claude" disabled>
+                        <label class="form-check-label fw-bold" for="m_claude">Anthropic Claude 3.5 Sonnet (준비 중)</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow" style="background: var(--ingrid-gradient); border:none;">
+                시스템 글로벌 설정 저장하기
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

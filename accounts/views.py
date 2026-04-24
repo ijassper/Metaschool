@@ -948,3 +948,34 @@ def student_export_excel(request):
     return response
 # --- 학생 관리 관련 뷰 끝 ---
 
+# 시스템 설정 페이지 (관리자 전용)
+@login_required
+def admin_system_settings(request):
+    # ADMIN 권한이 아니면 접근 차단
+    if request.user.role != 'ADMIN':
+        messages.error(request, "접근 권한이 없습니다.")
+        return redirect('dashboard')
+
+    # 설정값들 가져오기 (없으면 기본값 생성)
+    demo_cfg, _ = SystemConfig.objects.get_or_create(
+        key_name='IS_DEMO_MODE', defaults={'value': 'N', 'description': '시연 모드(Y/N)'})
+    
+    ai_model_cfg, _ = SystemConfig.objects.get_or_create(
+        key_name='SELECTED_AI_MODEL', defaults={'value': 'gemini-2.0-flash', 'description': '현재 분석용 AI 모델'})
+
+    if request.method == 'POST':
+        # 1. 데모 모드 업데이트
+        demo_cfg.value = request.POST.get('demo_mode', 'N')
+        demo_cfg.save()
+
+        # 2. AI 모델 업데이트
+        ai_model_cfg.value = request.POST.get('ai_model')
+        ai_model_cfg.save()
+
+        messages.success(request, "시스템 설정이 업데이트되었습니다.")
+        return redirect('admin_system_settings')
+
+    return render(request, 'accounts/system_settings.html', {
+        'demo_mode': demo_cfg.value,
+        'current_model': ai_model_cfg.value
+    })

@@ -171,7 +171,7 @@
                                 <!-- 2. 학생 등록 센터 (일괄/개별 통합 페이지) -->
                                 <a href="{% url 'student_create_hub' %}" 
                                 class="sub-menu-item {% if request.resolver_match.url_name == 'student_create_hub' %}active{% endif %}">
-                                학생 등록 센터 (신규)
+                                학생 등록 센터
                                 </a>
                             </div>
                         </div>
@@ -345,9 +345,14 @@
 
                             <!-- [추가] 2. 관리자 전용 메뉴 (ADMIN 권한일 때만 노출) -->
                             {% if user.role == 'ADMIN' %}
-                            <li><hr class="dropdown-divider mx-2"></li> <!-- 구분선 -->
+                            <li><hr class="dropdown-divider mx-2"></li>
                             <li>
-                                <a class="dropdown-item rounded-2 py-2 fw-bold text-primary" href="/admin/" target="_blank">
+                                <a class="dropdown-item rounded-2 py-2 fw-bold text-success" href="{% url 'admin_system_settings' %}" style="font-size: 0.85rem;">
+                                    <i class="bi bi-gear-wide-connected me-2"></i>시스템 설정 센터
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item rounded-2 py-2 fw-bold text-primary" href="/admin/" target="_blank" style="font-size: 0.85rem;">
                                     <i class="bi bi-shield-lock-fill me-2"></i>시스템 관리자
                                 </a>
                             </li>

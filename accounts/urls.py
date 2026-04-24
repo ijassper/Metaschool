@@ -5,7 +5,7 @@ from .views import (
     SignUpView, login_view, student_export_excel, student_bulk_action, student_list, profile_settings, student_upload, student_create, search_school, dashboard, approve_teacher,
     student_create_hub,check_email_duplicate, ai_generator_step1, ai_generator_step2, # 추가
     api_process_one_row, api_download_excel, # 추가
-    reset_student_password, student_delete, profile_update
+    reset_student_password, student_delete, profile_update, admin_system_settings   
 )
 
 urlpatterns = [
@@ -31,4 +31,5 @@ urlpatterns = [
     path('student/export-excel/', student_export_excel, name='student_export_excel'), # 학생 명단 엑셀 내보내기 URL
     path('student/bulk-action/', student_bulk_action, name='student_bulk_action'), # 학생 일괄 처리 API (삭제, 초기화, 진급 통합) URL
     path('student/create-hub/', student_create_hub, name='student_create_hub'), # 학생 등록 허브 URL
+    path('system-settings/', admin_system_settings, name='admin_system_settings'), # 시스템 설정 URL
 ]
