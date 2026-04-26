@@ -50,66 +50,81 @@
         </div>
     </div>
 
-    <!-- 필터 및 검색 바 시작 -->
-    <div class="bg-light p-2 rounded mb-3 border">
-        <form method="get" id="filterForm" class="row g-2 align-items-center m-0 flex-nowrap"> <!-- flex-nowrap 추가로 한 줄 강제 -->
+    <div class="bg-light p-3 rounded-4 mb-4 border shadow-sm">
+        <form method="get" id="filterForm" class="row g-2 align-items-center">
             
-            <!-- 1. 좌측: 학급 선택 (필요한 만큼만 너비 차지) -->
-            <div class="col-auto">
+            <!-- 왼쪽 그룹: 필터 + 토글 + 검색 + 초기화 -->
+            <div class="col-auto d-flex gap-2 align-items-center">
+                <!-- 1. 학급 선택 -->
                 <div class="dropdown">
-                    <button class="btn btn-white btn-sm border dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-filter me-1"></i> 학급 선택
+                    <button class="btn btn-white border dropdown-toggle bg-white rounded-pill px-3 shadow-sm" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-filter-circle me-1 text-primary"></i> 학급 선택
                     </button>
-                    <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto; z-index: 1050;">
-                        <h6 class="dropdown-header fw-bold mb-2">필터링할 학급을 선택하세요</h6>
-                        {% if not filter_data %}<div class="text-muted small ps-3">데이터 없음</div>{% endif %}
-                        {% for item in filter_data %}
-                            <div class="mb-2">
-                                <div class="form-check fw-bold text-primary">
-                                    <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
-                                    <label class="form-check-label text-nowrap" for="g_{{ item.grade }}">{{ item.grade }}학년</label>
-                                </div>
-                                <div class="ms-3 border-start ps-2 mt-1">
-                                    {% for c in item.classes %}
-                                        <div class="form-check">
-                                            <input class="form-check-input child-check child-g-{{ item.grade }}" type="checkbox" name="target" value="{{ item.grade }}_{{ c }}" id="c_{{ item.grade }}_{{ c }}" {% if selected_targets %}{% for t in selected_targets %}{% if t == item.grade|stringformat:"s"|add:"_"|add:c %}checked{% endif %}{% endfor %}{% endif %}>
-                                            <label class="form-check-label small" for="c_{{ item.grade }}_{{ c }}">{{ c }}반</label>
+                    <div class="dropdown-menu p-3 shadow-lg border-0 rounded-4" style="min-width: 250px;">
+                        <!-- 1. 좌측: 학급 선택 (필요한 만큼만 너비 차지) -->
+                        <div class="col-auto">
+                            <div class="dropdown">
+                                <button class="btn btn-white btn-sm border dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-filter me-1"></i> 학급 선택
+                                </button>
+                                <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto; z-index: 1050;">
+                                    <h6 class="dropdown-header fw-bold mb-2">필터링할 학급을 선택하세요</h6>
+                                    {% if not filter_data %}<div class="text-muted small ps-3">데이터 없음</div>{% endif %}
+                                    {% for item in filter_data %}
+                                        <div class="mb-2">
+                                            <div class="form-check fw-bold text-primary">
+                                                <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
+                                                <label class="form-check-label text-nowrap" for="g_{{ item.grade }}">{{ item.grade }}학년</label>
+                                            </div>
+                                            <div class="ms-3 border-start ps-2 mt-1">
+                                                {% for c in item.classes %}
+                                                    <div class="form-check">
+                                                        <input class="form-check-input child-check child-g-{{ item.grade }}" type="checkbox" name="target" value="{{ item.grade }}_{{ c }}" id="c_{{ item.grade }}_{{ c }}" {% if selected_targets %}{% for t in selected_targets %}{% if t == item.grade|stringformat:"s"|add:"_"|add:c %}checked{% endif %}{% endfor %}{% endif %}>
+                                                        <label class="form-check-label small" for="c_{{ item.grade }}_{{ c }}">{{ c }}반</label>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
                                         </div>
                                     {% endfor %}
+                                    <div class="d-grid mt-2 border-top pt-2">
+                                        <button type="submit" class="btn btn-primary btn-sm">적용</button>
+                                    </div>
                                 </div>
                             </div>
-                        {% endfor %}
-                        <div class="d-grid mt-2 border-top pt-2">
-                            <button type="submit" class="btn btn-primary btn-sm">적용</button>
                         </div>
                     </div>
                 </div>
+
+                <!-- 2. 목록/그리드 토글 -->
+                <div class="btn-group shadow-sm rounded-pill overflow-hidden border">
+                    <a href="?view=list&{% if request.GET.target %}target={{ request.GET.target }}&{% endif %}q={{ current_q }}" 
+                    class="btn btn-sm {% if request.GET.view != 'grid' %}btn-primary{% else %}btn-white{% endif %}">
+                        <i class="bi bi-list-ul"></i>
+                    </a>
+                    <a href="?view=grid&{% if request.GET.target %}target={{ request.GET.target }}&{% endif %}q={{ current_q }}" 
+                    class="btn btn-sm {% if request.GET.view == 'grid' %}btn-primary{% else %}btn-white{% endif %}">
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                    </a>
+                </div>
+
+                <!-- 3. 이름 검색 -->
+                <div class="input-group input-group-sm" style="width: 200px;">
+                    <input type="text" name="q" class="form-control rounded-start-pill border-end-0" placeholder="이름 검색" value="{{ current_q }}">
+                    <button type="submit" class="btn btn-white border border-start-0 rounded-end-pill px-3 shadow-sm bg-white">
+                        <i class="bi bi-search text-primary"></i>
+                    </button>
+                </div>
+
+                <!-- 4. 초기화 -->
+                <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-light rounded-circle shadow-sm">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
             </div>
 
-            <!-- 2. 우측: 보기 전환 + 이름 검색 + 초기화 (남은 공간 모두 차지하며 우측 정렬) -->
-            <div class="col d-flex justify-content-end align-items-center gap-2 flex-nowrap">
-                
-                <!-- (1) 보기 모드 전환 버튼 -->
-                <div class="btn-group shadow-sm" role="group" style="height: 31px; flex-shrink: 0;">
-                    <button type="button" class="btn btn-sm btn-outline-primary active" id="btnList" onclick="changeView('list')" title="리스트형">
-                        <i class="bi bi-list-ul"></i>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnGrid" onclick="changeView('grid')" title="그리드형">
-                        <i class="bi bi-grid-3x3-gap"></i>
-                    </button>
-                </div>
-
-                <!-- (2) 이름 검색 필드 -->
-                <div class="input-group input-group-sm" style="width: 200px; flex-shrink: 0;">
-                    <input type="text" name="q" class="form-control" placeholder="이름 검색" value="{{ current_q|default:'' }}">
-                    <button class="btn btn-primary" type="submit">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-
-                <!-- (3) 초기화 버튼 -->
-                <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-outline-secondary btn-sm text-nowrap" style="flex-shrink: 0;">
-                    <i class="bi bi-arrow-counterclockwise"></i> 초기화
+            <!-- 오른쪽 그룹: 엑셀 내보내기 (ms-auto로 우측 끝 정렬) -->
+            <div class="col-auto ms-auto">
+                <a href="{% url 'analysis_export_excel' activity.id %}" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold">
+                    <i class="bi bi-file-earmark-excel me-1"></i> 분석 결과 엑셀 내려받기
                 </a>
             </div>
 

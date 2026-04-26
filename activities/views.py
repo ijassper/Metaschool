@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from accounts.decorators import teacher_required
 from django.contrib import messages
+from django.http import JsonResponse, HttpResponse
 from django.utils import timezone # 날짜 표시용
 from django.utils.timezone import make_aware    # 시간대 인식 datetime 변환
 from datetime import datetime   # 날짜 비교용
@@ -10,7 +11,8 @@ import json
 import requests
 import random
 import openai
-from django.http import JsonResponse
+from openpyxl import Workbook
+from urllib.parse import quote
 from django.views.decorators.csrf import csrf_exempt
 
 # 모델과 폼 가져오기
@@ -1432,3 +1434,40 @@ def unified_create(request):
         'student_tree': get_student_tree(request.user),
         'action': '생성'
     })
+
+# AI 분석 결과 엑셀 다운로드
+@login_required
+@teacher_required
+def analysis_export_excel(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    question = activity.questions.first()
+    
+    # 1. 엑셀 파일 생성
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "AI 분석 결과"
+    
+    # 2. 헤더 작성
+    headers = ['학년', '반', '번호', '이름', '학생 답안', 'AI 분석 결과', '분석일시']
+    ws.append(headers)
+    
+    # 3. 데이터 추출 (현재 평가 대상 학생들 기준)
+    students = activity.target_students.all().order_by('grade', 'class_no', 'number')
+    
+    for s in students:
+        answer = Answer.objects.filter(student=s, question=question).first()
+        content = answer.content if answer else "(미제출)"
+        ai_res = answer.ai_result if answer and answer.ai_result else "-"
+        ai_date = answer.ai_updated_at.strftime('%Y-%m-%d %H:%M') if answer and answer.ai_updated_at else "-"
+        
+        ws.append([s.grade, s.class_no, s.number, s.name, content, ai_res, ai_date])
+    
+    # 4. 파일 다운로드 응답 생성
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"AI_분석결과_{activity.title}_{timezone.now().strftime('%m%d')}.xlsx"
+    
+    # 한글 파일명 깨짐 방지 처리
+    response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+    wb.save(response)
+    
+    return response
