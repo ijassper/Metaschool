@@ -777,7 +777,7 @@ def activity_analysis_work(request, activity_id):
         # content가 비어있지 않은(공백 제외) 답안만 가져옵니다.
         answers = Answer.objects.filter(
             question=question
-        ).exclude(content__set='').select_related('student') # 실제 내용이 있는 것만!
+        ).exclude(content='').select_related('student') # 실제 내용이 있는 것만!
 
         for a in answers:
             if a.content and a.content.strip():
