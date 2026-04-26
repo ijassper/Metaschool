@@ -97,12 +97,14 @@
 
                 <!-- 2. 목록/그리드 토글 -->
                 <div class="btn-group shadow-sm rounded-pill overflow-hidden border">
-                    <a href="?view=list&{% if request.GET.target %}target={{ request.GET.target }}&{% endif %}q={{ current_q }}" 
-                    class="btn btn-sm {% if request.GET.view != 'grid' %}btn-primary{% else %}btn-white{% endif %}">
+                    <!-- 목록 보기 버튼 -->
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'view' %}{{ key }}={{ value }}&{% endif %}{% endfor %}view=list" 
+                    class="btn btn-sm {% if request.GET.view != 'grid' %}btn-primary text-white{% else %}btn-white{% endif %}">
                         <i class="bi bi-list-ul"></i>
                     </a>
-                    <a href="?view=grid&{% if request.GET.target %}target={{ request.GET.target }}&{% endif %}q={{ current_q }}" 
-                    class="btn btn-sm {% if request.GET.view == 'grid' %}btn-primary{% else %}btn-white{% endif %}">
+                    <!-- 그리드 보기 버튼 -->
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'view' %}{{ key }}={{ value }}&{% endif %}{% endfor %}view=grid" 
+                    class="btn btn-sm {% if request.GET.view == 'grid' %}btn-primary text-white{% else %}btn-white{% endif %}">
                         <i class="bi bi-grid-3x3-gap-fill"></i>
                     </a>
                 </div>
@@ -185,55 +187,86 @@
         </table>
     </div>
 </div>
-<!-- [그리드 뷰 영역] -->
-<div id="gridView" class="d-none"> <!-- 기본적으로는 숨김 -->
-    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">
-        {% for item in analysis_list %}
-        <div class="col student-card-item" data-name="{{ item.student.name }}" data-grade="{{ item.student.grade }}" data-class="{{ item.student.class_no }}">
-            <div class="card h-100 shadow-sm border-0 post-it">
-                <!-- 헤더: 한 줄 정렬 -->
-                <div class="card-header bg-white border-0 pt-3 pb-2 d-flex align-items-center gap-2">
-                    <span class="badge bg-primary-subtle text-primary" style="font-size: 0.7rem;">
-                        {{ item.student.grade }}-{{ item.student.class_no }} / {{ item.student.number }}번
-                    </span>
-                    <h6 class="fw-bold mb-0 text-truncate" style="font-size: 0.95rem;">{{ item.student.name }}</h6>
-                </div>
-                
-                <div class="card-body py-2">
-                    <!-- 학생 답안 섹션 -->
-                    <div class="pointer-cursor mb-3" onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
-                        <div class="d-flex justify-content-between align-items-end mb-1">
-                            <label class="text-muted mb-0" style="font-size: 0.7rem; font-weight: bold;">[학생 답안]</label>
-                            <!-- 시간 정보 우측 배치 -->
-                            <span class="text-muted" style="font-size: 0.65rem;">
-                                {{ item.submitted_at|date:"m-d H:i"|default:"" }}
-                            </span>
-                        </div>
-                        <div class="small text-secondary px-1 overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; min-height: 4.2rem; line-height: 1.5;">
-                            {{ item.content|truncatechars:200|default:"(미제출)" }}
-                        </div>
+<!-- [A] 그리드 뷰 영역: URL 파라미터가 view=grid 일 때만 출력 -->
+{% if request.GET.view == 'grid' %}
+    <div id="gridView"> 
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">
+            {% for item in analysis_list %}
+            <div class="col student-card-item" data-name="{{ item.student.name }}" data-grade="{{ item.student.grade }}" data-class="{{ item.student.class_no }}">
+                <div class="card h-100 shadow-sm border-0 post-it" style="border-radius: 20px; border-top: 5px solid #8E44AD !important;">
+                    <!-- 헤더: 학번 및 이름 -->
+                    <div class="card-header bg-white border-0 pt-3 pb-2 d-flex align-items-center gap-2">
+                        <span class="badge bg-primary-subtle text-primary" style="font-size: 0.7rem;">
+                            {{ item.student.grade }}-{{ item.student.class_no }} / {{ item.student.number }}
+                        </span>
+                        <h6 class="fw-bold mb-0 text-truncate" style="font-size: 0.95rem;">{{ item.student.name }}</h6>
                     </div>
-
-                    <!-- AI 분석 결과 섹션 -->
-                    <div class="pointer-cursor p-2 rounded" style="background-color: #f0f7ff;" 
-                         onclick="showAIModal('{{ item.student.name }}', '{{ item.ai_result|escapejs }}')">
-                        <div class="d-flex justify-content-between align-items-end mb-1">
-                            <label class="text-primary fw-bold mb-0" style="font-size: 0.7rem;">[AI 분석 결과]</label>
-                            <!-- AI 분석 시간 정보 (필드가 있다면 사용, 없다면 빈칸) -->
-                            <span class="text-primary-emphasis opacity-75" style="font-size: 0.65rem;">
-                                {{ item.ai_updated_at|date:"m-d H:i"|default:"" }}
-                            </span>
+                    
+                    <div class="card-body py-2">
+                        <!-- 학생 답안 섹션 (클릭 시 모달) -->
+                        <div class="pointer-cursor mb-3" style="cursor: pointer;" onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
+                            <div class="d-flex justify-content-between align-items-end mb-1">
+                                <label class="text-muted mb-0" style="font-size: 0.7rem; font-weight: bold;">[학생 답안]</label>
+                                <span class="text-muted" style="font-size: 0.65rem;">{{ item.submitted_at|date:"m-d H:i"|default:"" }}</span>
+                            </div>
+                            <div class="small text-secondary px-1 overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; min-height: 4.2rem; line-height: 1.5;">
+                                {{ item.content|default:"(미제출)" }}
+                            </div>
                         </div>
-                        <div class="small text-dark overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; line-height: 1.5;">
-                            {{ item.ai_result|default:"분석 전입니다."|truncatechars:200 }}
+
+                        <!-- AI 분석 결과 섹션 (클릭 시 모달) -->
+                        <div class="pointer-cursor p-2 rounded" style="background-color: #f0f7ff; cursor: pointer;" 
+                             onclick="showAIModal('{{ item.student.name }}', '{{ item.ai_result|escapejs }}')">
+                            <div class="d-flex justify-content-between align-items-end mb-1">
+                                <label class="text-primary fw-bold mb-0" style="font-size: 0.7rem;">[AI 분석 결과]</label>
+                                <span class="text-primary-emphasis opacity-75" style="font-size: 0.65rem;">{{ item.ai_updated_at|date:"m-d H:i"|default:"" }}</span>
+                            </div>
+                            <div class="small text-dark overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; line-height: 1.5;">
+                                {{ item.ai_result|default:"분석 전입니다." }}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
-</div>
+
+<!-- [B] 리스트(테이블) 뷰 영역: 파라미터가 없거나 view=list 일 때 출력 -->
+{% else %}
+    <div id="listView" class="card shadow-sm border-0 rounded-4 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle text-center mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 80px;">번호</th>
+                        <th style="width: 120px;">이름</th>
+                        <th>학생 답안 (요약)</th>
+                        <th>AI 분석 결과 (요약)</th>
+                        <th style="width: 120px;">제출일</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in analysis_list %}
+                    <tr>
+                        <td class="small text-muted">{{ item.student.grade }}-{{ item.student.class_no }}-{{ item.student.number }}</td>
+                        <td class="fw-bold">{{ item.student.name }}</td>
+                        <td class="text-start small text-truncate" style="max-width: 300px; cursor: pointer;" onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
+                            {{ item.content|default:"(미제출)" }}
+                        </td>
+                        <td class="text-start small text-primary text-truncate" style="max-width: 300px; cursor: pointer;" onclick="showAIModal('{{ item.student.name }}', '{{ item.ai_result|escapejs }}')">
+                            {{ item.ai_result|default:"-" }}
+                        </td>
+                        <td class="small text-muted">{{ item.submitted_at|date:"m-d H:i"|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="py-5 text-muted">조회된 데이터가 없습니다.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endif %}
 
 <!-- 내용 전체보기 모달 -->
 <div class="modal fade" id="contentModal" tabindex="-1" aria-hidden="true">
