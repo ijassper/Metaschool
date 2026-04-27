@@ -1435,6 +1435,45 @@ def unified_create(request):
         'action': '생성'
     })
 
+# 학생 답안 엑셀 다운로드
+@login_required
+@teacher_required
+def submission_export_excel(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    question = activity.questions.first() # 활동의 문항 정보
+    
+    # 1. 엑셀 파일 생성
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "학생답안목록"
+    
+    # 2. 헤더 작성 (요청하신 순서: 학년, 반, 번호, 이름, 답안)
+    headers = ['학년', '반', '번호', '이름', '학생 답안']
+    ws.append(headers)
+    
+    # 3. 데이터 추출 (해당 활동의 대상 학생 전체)
+    students = activity.target_students.all().order_by('grade', 'class_no', 'number')
+    
+    for s in students:
+        answer = Answer.objects.filter(student=s, question=question).first()
+        
+        # 학생이 작성한 답안이 있으면 가져오고, 없으면 공백처리
+        # (통합 필드인 content를 사용하여 항목 1,2,3 합본을 가져옵니다)
+        content = answer.content if answer and answer.content else ""
+        
+        ws.append([s.grade, s.class_no, s.number, s.name, content])
+    
+    # 4. 파일 다운로드 응답 생성
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"학생답안_{activity.title}_{timezone.now().strftime('%m%d')}.xlsx"
+    
+    # 한글 파일명 깨짐 방지
+    from urllib.parse import quote
+    response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+    wb.save(response)
+    
+    return response
+
 # AI 분석 결과 엑셀 다운로드
 @login_required
 @teacher_required

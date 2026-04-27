@@ -376,61 +376,79 @@
         document.getElementById('testContainer').style.filter = "blur(20px)";
     };
 
-    /* 4. 폐쇄형 모드 전용 보안 로직 */
-    if (EXAM_MODE === 'CLOSED' && IS_DEMO === 'false') {
-        // (1) 전체화면 및 창 전환 감시
+    // 1. [폐쇄형(CLOSED)] : 모든 보안 장치 가동 + 실시간 로그 기록
+    if (EXAM_MODE === 'CLOSED') {
+        
+        // (1) 화면 이탈 및 창 전환 감시 (Alt+Tab, 탭 이동 등)
         const checkSecurity = () => {
-            if (!testStarted || isSubmitting) return;
+            if (!testStarted || isSubmitting || IS_DEMO === 'true') return;
+            
             const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
             const isTabActive = !document.hidden;
 
             if (!isFullscreen) {
-                sendLog('OUT');
+                sendLog('OUT'); // [기록] 전체화면 해제
                 lockScreen("전체 화면 모드가 해제되었습니다. 다시 복귀해 주세요.");
             } else if (!isTabActive) {
-                sendLog('OUT');
+                sendLog('OUT'); // [기록] 탭 전환
                 lockScreen("브라우저 탭을 이탈하였습니다. 시험지 보안을 위해 화면을 차단합니다.");
             }
         };
 
         document.addEventListener('fullscreenchange', checkSecurity);
         document.addEventListener('visibilitychange', checkSecurity);
+        
+        // [Alt+Tab 및 외부 프로그램 사용 감지]
         window.addEventListener('blur', () => {
-            if (!testStarted || isSubmitting) return;
-            sendLog('OUT');
-            lockScreen("브라우저 포커스가 이탈되었습니다. 다른 프로그램을 사용하지 마세요.");
+            if (!testStarted || isSubmitting || IS_DEMO === 'true') return;
+            sendLog('OUT'); // [기록] 포커스 이탈
+            lockScreen("브라우저 포커스가 이탈되었습니다. 다른 프로그램 사용이 감지되었습니다.");
         });
 
-        // (2) 키보드/마우스 조작 차단
+        // (2) 복사하기/붙여넣기/우클릭 차단 (복사하기 금지 정의 반영)
         document.addEventListener('keydown', (e) => {
-            if (!testStarted) return;
-            // 데모 모드여도 전체화면 해제(F11)는 막는 것이 시연 시 더 멋져 보입니다.
-            if (e.key === 'F11') { e.preventDefault(); lockScreen("보안 안내..."); }
+            if (!testStarted || IS_DEMO === 'true') return;
             
-            // [중요] 데모 모드이면 복사/붙여넣기 차단 로직을 실행하지 않음
-            if (IS_DEMO === 'true') return; 
-
-            if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v'].includes(e.key.toLowerCase())) {
+            // Ctrl+C, Ctrl+V, Ctrl+A, Ctrl+X 등 모든 복사/붙여넣기 단축키 차단
+            if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'a', 'x'].includes(e.key.toLowerCase())) {
                 e.preventDefault();
                 sendLog(e.key.toUpperCase() === 'C' ? 'COPY' : 'PASTE');
+                // alert 대신 하단에 작게 토스트 알림을 띄우거나 콘솔 경고만 남김 (전체화면 유지 위해)
+                console.warn("복사/붙여넣기가 금지된 환경입니다.");
             }
         });
 
-        // 우클릭 차단도 데모일 땐 허용
         document.addEventListener('contextmenu', (e) => { 
             if (IS_DEMO === 'false') {
                 e.preventDefault(); 
-                sendLog('RIGHT_CLICK'); 
+                sendLog('RIGHT_CLICK'); // [기록] 우클릭 시도
             }
         });
-        document.addEventListener('selectstart', (e) => { e.preventDefault(); });
+
+        // 드래그(범위 지정) 차단
+        document.addEventListener('selectstart', (e) => { 
+            if (IS_DEMO === 'false') e.preventDefault(); 
+        });
+
+    } 
+    // 2. [개방형(OPEN)] : 자유로운 환경 + 로그 기록 중단
+    else {
+        console.log("개방형 응시 모드: 참고자료 확인이 허용되며, 이탈 로그를 기록하지 않습니다.");
+        
+        // 개방형에서는 모든 단축키 및 화면 이탈이 자유로우므로 
+        // 아무런 이벤트 리스너를 등록하지 않습니다.
     }
 
-    /* 5. 뒤로가기 방지 (History Trap) */
+    /**
+     * 3. 공통: 뒤로가기 방지 (이탈 방지)
+     * 개방형이라도 작성 중인 데이터 유실을 막기 위해 뒤로가기는 막아줍니다.
+     */
     history.pushState(null, null, location.href);
     window.onpopstate = function () {
         history.pushState(null, null, location.href);
-        sendLog('BACK_BUTTON');
+        if (EXAM_MODE === 'CLOSED') {
+            sendLog('BACK_BUTTON'); // 폐쇄형일 때만 로그 기록
+        }
         const backModal = new bootstrap.Modal(document.getElementById('backButtonModal'));
         backModal.show();
     };
