@@ -32,6 +32,19 @@
     .post-it {
         border-top: 5px solid {% if activity.category == 'CREATIVE' %}#198754{% else %}#0d6efd{% endif %} !important;
     }
+
+    /* 모달 내 답안 가독성 향상 */
+    #modalContent {
+        font-size: 1.1rem;
+        line-height: 1.8;
+        color: #333;
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 12px;
+        max-height: 500px;
+        overflow-y: auto;
+        white-space: pre-wrap; /* 스크립트에서도 넣었지만, CSS에서도 한 번 더 선언 */
+    }
 </style>
 
 <div class="container-fluid mt-4 mb-5 px-4"> <!-- 꽉 찬 화면 -->
@@ -241,26 +254,48 @@
                     <tr>
                         <th style="width: 80px;">번호</th>
                         <th style="width: 120px;">이름</th>
-                        <th>학생 답안 (요약)</th>
+                        <th>{{ activity.q1_title }}</th>
+                        {% if activity.q2_title %}<th>{{ activity.q2_title }}</th>{% endif %}
+                        {% if activity.q3_title %}<th>{{ activity.q3_title }}</th>{% endif %}
                         <th>AI 분석 결과 (요약)</th>
-                        <th style="width: 120px;">제출일</th>
+                        <!-- <th style="width: 120px;">제출일</th> -->
                     </tr>
                 </thead>
                 <tbody>
+                    <!-- 결과 분석 페이지 테이블 본문(tbody) 수정 -->
                     {% for item in analysis_list %}
                     <tr>
                         <td class="small text-muted">{{ item.student.grade }}-{{ item.student.class_no }}-{{ item.student.number }}</td>
                         <td class="fw-bold">{{ item.student.name }}</td>
-                        <td class="text-start small text-truncate" style="max-width: 300px; cursor: pointer;" onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
-                            {{ item.content|default:"(미제출)" }}
+                        
+                        <!-- 답변 1: 클릭 시 전체 답안(content)을 모달로 출력 -->
+                        <td class="small text-start text-truncate" style="max-width: 200px; cursor: pointer;" 
+                            onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
+                            {{ item.ans_q1|default:"-" }}
                         </td>
-                        <td class="text-start small text-primary text-truncate" style="max-width: 300px; cursor: pointer;" onclick="showAIModal('{{ item.student.name }}', '{{ item.ai_result|escapejs }}')">
-                            {{ item.ai_result|default:"-" }}
+                        
+                        <!-- 답변 2 (제목이 있을 때만) -->
+                        {% if activity.q2_title %}
+                        <td class="small text-start text-truncate" style="max-width: 200px; cursor: pointer;" 
+                            onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
+                            {{ item.ans_q2|default:"-" }}
                         </td>
-                        <td class="small text-muted">{{ item.submitted_at|date:"m-d H:i"|default:"-" }}</td>
+                        {% endif %}
+                        
+                        <!-- 답변 3 (제목이 있을 때만) -->
+                        {% if activity.q3_title %}
+                        <td class="small text-start text-truncate" style="max-width: 200px; cursor: pointer;" 
+                            onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
+                            {{ item.ans_q3|default:"-" }}
+                        </td>
+                        {% endif %}
+
+                        <!-- AI 분석 결과 -->
+                        <td class="text-start small text-primary text-truncate" style="max-width: 250px; cursor: pointer;" 
+                            onclick="showAIModal('{{ item.student.name }}', '{{ item.ai_result|escapejs }}')">
+                            {{ item.ai_result|default:"분석 전" }}
+                        </td>
                     </tr>
-                    {% empty %}
-                    <tr><td colspan="5" class="py-5 text-muted">조회된 데이터가 없습니다.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -308,13 +343,20 @@
     /**
      * 1. 모달 팝업 관련 함수
      */
-    // 학생 답안 전체보기 (contentModal 사용)
+    // 학생 답안 전체보기 (기존 함수 보완)
     function showContentModal(name, content) {
-        if (!content || content === 'None' || content.trim() === '') return;
+        // 1. 데이터 검증: 내용이 없으면 모달을 띄우지 않음
+        if (!content || content === 'None' || content.trim() === '' || content === '(미제출)') return;
         
-        document.getElementById('modalTitle').innerText = name + " 학생의 답안";
-        document.getElementById('modalContent').innerText = content;
+        // 2. 타이틀 및 내용 삽입
+        document.getElementById('modalTitle').innerText = name + " 학생의 전체 답안";
         
+        // 3. [핵심] 줄바꿈 유지를 위해 .innerText 대신 스타일과 함께 적용
+        const contentElem = document.getElementById('modalContent');
+        contentElem.innerText = content; 
+        contentElem.style.whiteSpace = "pre-wrap"; // 자바스크립트로 줄바꿈 스타일 강제 적용
+        
+        // 4. 모달 인스턴스 생성 및 출력
         const modalElem = document.getElementById('contentModal');
         const myModal = new bootstrap.Modal(modalElem);
         myModal.show();

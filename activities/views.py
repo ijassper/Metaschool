@@ -1486,20 +1486,36 @@ def analysis_export_excel(request, activity_id):
     ws = wb.active
     ws.title = "AI 분석 결과"
     
-    # 2. 헤더 작성
-    headers = ['학년', '반', '번호', '이름', '학생 답안', 'AI 분석 결과', '분석일시']
+    # 1. 헤더 동적 생성 (설계도 반영)
+    headers = ['학년', '반', '번호', '이름']
+    headers.append(activity.q1_title)
+    if activity.q2_title: headers.append(activity.q2_title)
+    if activity.q3_title: headers.append(activity.q3_title)
+    headers.extend(['AI 분석 결과', '분석일시'])
+    
     ws.append(headers)
     
-    # 3. 데이터 추출 (현재 평가 대상 학생들 기준)
+    # 2. 데이터 추출
     students = activity.target_students.all().order_by('grade', 'class_no', 'number')
-    
     for s in students:
         answer = Answer.objects.filter(student=s, question=question).first()
-        content = answer.content if answer else "(미제출)"
-        ai_res = answer.ai_result if answer and answer.ai_result else "-"
-        ai_date = answer.ai_updated_at.strftime('%Y-%m-%d %H:%M') if answer and answer.ai_updated_at else "-"
         
-        ws.append([s.grade, s.class_no, s.number, s.name, content, ai_res, ai_date])
+        row = [s.grade, s.class_no, s.number, s.name]
+        
+        if answer:
+            row.append(answer.ans_q1 if answer.ans_q1 else "")
+            if activity.q2_title: row.append(answer.ans_q2 if answer.ans_q2 else "")
+            if activity.q3_title: row.append(answer.ans_q3 if answer.ans_q3 else "")
+            row.append(answer.ai_result if answer.ai_result else "")
+            row.append(answer.ai_updated_at.strftime('%Y-%m-%d %H:%M') if answer.ai_updated_at else "")
+        else:
+            # 미제출 학생 처리
+            row.append("(미제출)")
+            if activity.q2_title: row.append("")
+            if activity.q3_title: row.append("")
+            row.extend(["", ""])
+            
+        ws.append(row)
     
     # 4. 파일 다운로드 응답 생성
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

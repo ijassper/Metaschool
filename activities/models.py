@@ -84,6 +84,19 @@ class Activity(models.Model):
     def __str__(self):
         return f"[{self.get_category_display()}] {self.title}"
 
+    # 제출된 답안 수와 대상 학생 수 계산을 위한 프로퍼티
+    @property
+    def submit_count(self):
+        """실제 제출을 완료한 학생 수 계산"""
+        from .models import Answer
+        return Answer.objects.filter(question__activity=self, submitted_at__isnull=False).count()
+
+    # 제출률 계산 프로퍼티
+    @property
+    def target_count(self):
+        """전체 응시 대상 학생 수"""
+        return self.target_students.count()
+    
     # 상태를 실시간으로 판단하는 프로퍼티
     @property
     def status_text(self):
