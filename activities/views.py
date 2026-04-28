@@ -658,23 +658,37 @@ def activity_analysis(request, activity_id):
     for student in target_students:
         answer = Answer.objects.filter(student=student, question=question).first()
         
+        # 기본값 설정
         content = ""
+        ans_q1 = ""
+        ans_q2 = ""
+        ans_q3 = ""
         submitted_at = ""
         ai_result = ""
+        ai_updated_at = "" # 그리드 뷰에서 사용됨
         has_answer = False
 
         if answer:
+            has_answer = True
             content = answer.content
+            # [핵심] 분리된 개별 답변들을 변수에 담아줍니다.
+            ans_q1 = answer.ans_q1
+            ans_q2 = answer.ans_q2
+            ans_q3 = answer.ans_q3
             submitted_at = answer.submitted_at
             ai_result = answer.ai_result
-            has_answer = True
+            ai_updated_at = answer.ai_updated_at
         
         analysis_list.append({
             'student': student,
             'has_answer': has_answer,
             'content': content,
+            'ans_q1': ans_q1, # 템플릿의 {{ item.ans_q1 }}과 연결됨
+            'ans_q2': ans_q2,
+            'ans_q3': ans_q3,
             'submitted_at': submitted_at,
             'ai_result': ai_result,
+            'ai_updated_at': ai_updated_at,
         })
 
     context = {
