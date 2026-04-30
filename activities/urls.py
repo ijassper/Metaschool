@@ -1,5 +1,3 @@
-# activities/urls.py
-
 from django.urls import path
 # 쪼개진 파일들로부터 함수를 각각 가져옵니다.
 from .views.main_views import *
@@ -11,9 +9,11 @@ from .views.export_views import *
 
 urlpatterns = [
     # 1. 공통 및 목록 (main_views)
-    path('find-account/', find_account, name='find_account'), # 계정 찾기
+    path('find-account/', find_account, name='find_account'), 
     path('list/', unified_list, name='unified_list'),
     path('creative/', creative_list, name='creative_list'),
+    path('detail/<int:activity_id>/', activity_detail, name='activity_detail'),
+    path('creative/<int:pk>/', creative_detail, name='creative_detail'),
 
     # 2. 생성/수정/삭제 (manage_views)
     path('create/', unified_create, name='unified_create'),
