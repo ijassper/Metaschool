@@ -188,19 +188,10 @@ def dashboard(request):
                 
                 # 각 활동 아이템에 필요한 부가 정보(설정, 제출현황) 세팅
                 for item in items:
-                    # 1. 기존 기능: 동적 폼 라벨 설정 심기
+                    # 기존 기능: 동적 폼 라벨 설정 심기
                     item.form_config = get_form_config(item.sub_category)
                     
-                    # 2. 추가 기능: 대시보드에서 바로 제출 인원을 볼 수 있게 계산
-                    # (Answer 모델에서 최종 제출일이 있는 학생들만 카운트)
-                    item.submit_count = Answer.objects.filter(
-                        question__activity=item, 
-                        submitted_at__isnull=False
-                    ).count()
-                    
-                    # 3. 추가 기능: 전체 대상 인원 (명렬표 기준)
-                    item.total_target = item.target_students.count()
-
+                # 블록에 추가    
                 category_blocks.append({
                     'name': cat_name,
                     'items': items,
