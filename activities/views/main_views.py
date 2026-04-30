@@ -5,6 +5,10 @@ from django.contrib.auth.decorators import login_required
 from accounts.models import Student
 from ..models import Activity  # [중요] 한 단계 위 폴더의 models에서 가져옴
 
+# [중요] 교사 권한 데코레이터 가져오기 (accounts 앱에서)
+from accounts.decorators import teacher_required
+
+
 # [공통 함수] 학생 선택용 트리 데이터 생성 (학년-반-학생 구조)
 def get_student_tree(teacher):
     students = Student.objects.filter(teacher=teacher).order_by('grade', 'class_no', 'number')
@@ -248,3 +252,27 @@ def creative_list(request):
     return render(request, 'activities/creative_list.html', {
         'activities': activities
     })
+
+# 통합 상세 페이지 (모든 평가/활동 공용)
+@login_required
+@teacher_required
+def activity_detail(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    
+    # URL에서 받은 sub_menu 정보를 바탕으로 config 가져오기 (사이드바 활성화 유지)
+    sub_menu = request.GET.get('sub', activity.sub_category)
+    config = get_form_config(sub_menu) 
+    
+    questions = activity.questions.all()
+    
+    return render(request, 'activities/activity_detail.html', {
+        'activity': activity, 
+        'questions': questions, 
+        'config': config
+    })
+
+# 자율활동 전용 상세 페이지 (레거시 지원용)
+@login_required
+def creative_detail(request, pk):
+    activity = get_object_or_404(Activity, pk=pk, teacher=request.user)
+    return render(request, 'activities/creative_detail.html', {'activity': activity})
