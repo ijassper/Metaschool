@@ -60,9 +60,16 @@
             </div>
 
             <!-- [우측] 3. 답안 엑셀 다운로드 버튼 -->
-            <div class="col-auto">
-                <a href="{% url 'submission_export_excel' activity.id %}" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold">
-                    <i class="bi bi-file-earmark-arrow-down me-1"></i> 답안 엑셀 다운
+            <div class="col-auto d-flex gap-2">
+                <!-- 1. 기존 엑셀 다운로드 -->
+                <a href="{% url 'submission_export_excel' activity.id %}" class="btn btn-outline-success rounded-pill px-4 shadow-sm fw-bold">
+                    <i class="bi bi-file-earmark-excel me-1"></i> 데이터 엑셀
+                </a>
+
+                <!-- 2. 신규 워드 출력용 다운로드 (보라색 강조) -->
+                <a href="{% url 'export_answer_sheets_docx' activity.id %}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold" 
+                style="background: var(--ingrid-gradient); border:none;">
+                    <i class="bi bi-printer-fill me-1"></i> 개별 답안지 출력(Word)
                 </a>
             </div>
 

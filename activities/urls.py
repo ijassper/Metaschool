@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     find_account, unified_create, unified_list, create_test, activity_list, unified_update, unified_delete, 
-    toggle_activity_status, activity_detail, activity_result, take_test, submission_export_excel, analysis_export_excel,
+    toggle_activity_status, activity_detail, activity_result, take_test, submission_export_excel, export_answer_sheets_docx,analysis_export_excel,
     answer_detail, answer_delete, save_note, update_absence, log_activity,
     activity_analysis, integrated_analysis, activity_analysis_work, api_process_db_row,
     creative_list, creative_create, creative_detail, creative_update, creative_delete
@@ -34,6 +34,7 @@ urlpatterns = [
     path('creative/<int:pk>/', creative_detail, name='creative_detail'),  # 창의적체험활동 상세
     path('creative/<int:pk>/edit/', creative_update, name='creative_update'), # 창의적체험활동 수정
     path('creative/<int:pk>/delete/', creative_delete, name='creative_delete'),   # 창의적체험활동 삭제
-    path('submission/export/<int:activity_id>/', submission_export_excel, name='submission_export_excel'),
+    path('submission/export/<int:activity_id>/', submission_export_excel, name='submission_export_excel'),  # 답안지 엑셀 다운로드
+    path('submission/export-docx/<int:activity_id>/', export_answer_sheets_docx, name='export_answer_sheets_docx'),   # 답안지 DOCX 다운로드
     path('analysis/export/<int:activity_id>/', analysis_export_excel, name='analysis_export_excel'), # 분석 결과 엑셀 다운로드
 ]

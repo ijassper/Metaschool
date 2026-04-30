@@ -1,6 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from accounts.decorators import teacher_required
+from docx import Document
+from docx.shared import Pt, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone # 날짜 표시용
@@ -1538,5 +1542,79 @@ def analysis_export_excel(request, activity_id):
     # 한글 파일명 깨짐 방지 처리
     response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
     wb.save(response)
+    
+    return response
+
+@login_required
+@teacher_required
+def export_answer_sheets_docx(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    
+    # 1. 워드 문서 생성 및 기본 설정
+    doc = Document()
+    
+    # 2. 모든 응시 대상 학생을 순회
+    students = activity.target_students.all().order_by('grade', 'class_no', 'number')
+    
+    for idx, student in enumerate(students):
+        if idx > 0:
+            doc.add_page_break() # 학생별로 페이지 나누기 (인쇄 편의성)
+
+        # [표 생성] 4행 4열 (스크린샷 양식 반영)
+        table = doc.add_table(rows=4, cols=4)
+        table.style = 'Table Grid'
+        
+        # 표의 각 셀 너비 조정 (선택 사항)
+        # table.autofit = False
+        
+        # 1행: 응시 과목 / 평가명
+        table.cell(0, 0).text = "응시 과목"
+        table.cell(0, 1).text = activity.section # 과목명
+        table.cell(0, 2).text = "평가명"
+        table.cell(0, 3).text = activity.title # 주제
+
+        # 2행: 응시자 정보 / 응시 일시
+        answer = activity.get_student_answer(student)
+        submitted_at = answer.submitted_at.strftime('%Y-%m-%d %H:%M') if answer and answer.submitted_at else "-"
+        
+        table.cell(1, 0).text = "응시자 정보"
+        table.cell(1, 1).text = f"{student.grade}학년 {student.class_no}반 {student.number}번 {student.name}"
+        table.cell(1, 2).text = "응시 일시"
+        table.cell(1, 3).text = submitted_at
+
+        # 3행: 제목 (병합 처리)
+        title_cell = table.cell(2, 0)
+        title_cell.merge(table.cell(2, 3))
+        title_cell.text = f"학생 답안 (제목: {activity.q1_title})"
+        title_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # 4행: 답안 내용 (병합 처리 및 내용 삽입)
+        content_cell = table.cell(3, 0)
+        content_cell.merge(table.cell(3, 3))
+        
+        if answer:
+            # 항목 1, 2, 3이 있다면 합쳐서 출력
+            combined_content = ""
+            if answer.ans_q1: combined_content += f"[{activity.q1_title}]\n{answer.ans_q1}\n\n"
+            if answer.ans_q2: combined_content += f"[{activity.q2_title}]\n{answer.ans_q2}\n\n"
+            if answer.ans_q3: combined_content += f"[{activity.q3_title}]\n{answer.ans_q3}"
+            
+            content_cell.text = combined_content if combined_content else answer.content
+        else:
+            content_cell.text = "\n\n(미제출된 답안입니다.)\n\n"
+
+        # [디테일] 표 내부 텍스트 폰트 설정 (한글 깨짐 방지)
+        for row in table.rows:
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(10)
+                        run._element.rPr.rFonts.set(qn('w:eastAsia'), '함초롬바탕')
+
+    # 3. 파일 다운로드 응답 생성
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    filename = f"답안지_목록_{activity.title}.docx"
+    response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+    doc.save(response)
     
     return response
