@@ -1609,7 +1609,13 @@ def export_answer_sheets_docx(request, activity_id):
                 for paragraph in cell.paragraphs:
                     for run in paragraph.runs:
                         run.font.size = Pt(10)
-                        run._element.rPr.rFonts.set(qn('w:eastAsia'), '함초롬바탕')
+                        
+                        # --- [안전한 한글 폰트 설정 로직] ---
+                        r = run._element
+                        rPr = r.get_or_add_rPr() # 속성 요소가 없으면 생성
+                        rFonts = rPr.get_or_add_rFonts() # 폰트 요소가 없으면 생성
+                        rFonts.set(qn('w:eastAsia'), '함초롬바탕') # 한글 폰트 강제 지정
+                        # -----------------------------------
 
     # 3. 파일 다운로드 응답 생성
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
