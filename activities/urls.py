@@ -1,40 +1,48 @@
+# activities/urls.py
+
 from django.urls import path
-from .views import (
-    find_account, unified_create, unified_list, create_test, activity_list, unified_update, unified_delete, 
-    toggle_activity_status, activity_detail, activity_result, take_test, submission_export_excel, export_answer_sheets_docx,analysis_export_excel,
-    answer_detail, answer_delete, save_note, update_absence, log_activity,
-    activity_analysis, integrated_analysis, activity_analysis_work, api_process_db_row,
-    creative_list, creative_create, creative_detail, creative_update, creative_delete
-)
-from activities import views
+# 쪼개진 파일들로부터 함수를 각각 가져옵니다.
+from .views.main_views import *
+from .views.manage_views import *
+from .views.exam_views import *
+from .views.result_views import *
+from .views.ai_views import *
+from .views.export_views import *
 
 urlpatterns = [
-    #path('list/', activity_list, name='activity_list'),      # 목록
-    #path('create/', create_test, name='create_test'),        # 생성
-    path('find-account/', find_account, name='find_account'),   # 계정 찾기
-    path('list/', unified_list, name='unified_list'), # 통합 목록
-    path('create/', unified_create, name='unified_create'), # 통합 생성
-    path('update/<int:activity_id>/', unified_update, name='unified_update'), # 수정
-    path('delete/<int:activity_id>/', unified_delete, name='unified_delete'), # 삭제
-    path('toggle/<int:activity_id>/', toggle_activity_status, name='toggle_activity_status'),   # 상태
-    path('detail/<int:activity_id>/', activity_detail, name='activity_detail'), # 상세페이지
-    path('result/<int:activity_id>/', activity_result, name='activity_result'), # 결과
-    path('take/<int:activity_id>/', take_test, name='take_test'), # 응시
-    path('answer/detail/<int:answer_id>/', answer_detail, name='answer_detail'),    # 답안 상세페이지
-    path('answer/delete/<int:answer_id>/', answer_delete, name='answer_delete'),    # 답안 삭제
-    path('api/update-absence/', update_absence, name='update_absence'), # 결시사유
-    path('answer/note/<int:answer_id>/', save_note, name='save_note'),  # 특이사항 메모
-    path('api/log/', log_activity, name='log_activity'), # 학생 답안 화면 이탈로그
-    path('analysis/<int:activity_id>/', activity_analysis, name='activity_analysis'), # 결과 분석 페이지
-    path('analysis/all/', integrated_analysis, name='integrated_analysis'), # 종합 분석 페이지
-    path('analysis-work/<int:activity_id>/', activity_analysis_work, name='activity_analysis_work'), # 분석 작업 메인 페이지
-    path('api/process-db-row/', api_process_db_row, name='api_process_db_row'), # DB 답안 AI 처리 API
-    path('creative/', creative_list, name='creative_list'), # 창의적체험활동 목록
-    path('creative/create/', creative_create, name='creative_create'),  # 창의적체험활동 생성
-    path('creative/<int:pk>/', creative_detail, name='creative_detail'),  # 창의적체험활동 상세
-    path('creative/<int:pk>/edit/', creative_update, name='creative_update'), # 창의적체험활동 수정
-    path('creative/<int:pk>/delete/', creative_delete, name='creative_delete'),   # 창의적체험활동 삭제
-    path('submission/export/<int:activity_id>/', submission_export_excel, name='submission_export_excel'),  # 답안지 엑셀 다운로드
-    path('submission/export-docx/<int:activity_id>/', export_answer_sheets_docx, name='export_answer_sheets_docx'),   # 답안지 DOCX 다운로드
-    path('analysis/export/<int:activity_id>/', analysis_export_excel, name='analysis_export_excel'), # 분석 결과 엑셀 다운로드
+    # 1. 공통 및 목록 (main_views)
+    path('find-account/', find_account, name='find_account'), # 계정 찾기
+    path('list/', unified_list, name='unified_list'),
+    path('creative/', creative_list, name='creative_list'),
+
+    # 2. 생성/수정/삭제 (manage_views)
+    path('create/', unified_create, name='unified_create'),
+    path('update/<int:activity_id>/', unified_update, name='unified_update'),
+    path('delete/<int:activity_id>/', unified_delete, name='unified_delete'),
+    path('toggle/<int:activity_id>/', toggle_activity_status, name='toggle_activity_status'),
+    path('creative/create/', creative_create, name='creative_create'),
+    path('creative/<int:pk>/edit/', creative_update, name='creative_update'),
+    path('creative/<int:pk>/delete/', creative_delete, name='creative_delete'),
+
+    # 3. 학생 응시 및 보안 (exam_views)
+    path('take/<int:activity_id>/', take_test, name='take_test'),
+    path('api/log/', log_activity, name='log_activity'),
+    path('api/update-absence/', update_absence, name='update_absence'),
+
+    # 4. 결과 및 답안 관리 (result_views)
+    path('result/<int:activity_id>/', activity_result, name='activity_result'),
+    path('answer/detail/<int:answer_id>/', answer_detail, name='answer_detail'),
+    path('answer/delete/<int:answer_id>/', answer_delete, name='answer_delete'),
+    path('answer/note/<int:answer_id>/', save_note, name='save_note'),
+
+    # 5. AI 분석 (ai_views)
+    path('analysis/<int:activity_id>/', activity_analysis, name='activity_analysis'),
+    path('analysis/all/', integrated_analysis, name='integrated_analysis'),
+    path('analysis-work/<int:activity_id>/', activity_analysis_work, name='activity_analysis_work'),
+    path('api/process-db-row/', api_process_db_row, name='api_process_db_row'),
+
+    # 6. 내보내기 (export_views)
+    path('submission/export/<int:activity_id>/', submission_export_excel, name='submission_export_excel'),
+    path('submission/export-docx/<int:activity_id>/', export_answer_sheets_docx, name='export_answer_sheets_docx'),
+    path('analysis/export/<int:activity_id>/', analysis_export_excel, name='analysis_export_excel'),
 ]
