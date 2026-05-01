@@ -3,123 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <title>학생답안지 출력</title>
+    <!-- 라이브러리 로드 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* 1. 공통 설정 */
-        body { margin: 0; padding: 0; font-family: 'Pretendard', '함초롬바탕', sans-serif; background-color: #f0f2f5; }
+        /* 1. 기본 스타일 */
+        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background-color: #f0f2f5; }
 
-        /* 2. 화면(Web)에서만 보이는 디자인 */
-        @media screen {
-            .page-wrapper {
-                background-color: #f0f2f5; /* 배경 회색 */
-                padding: 30px 0;
-            }
-            .print-page {
-                width: 210mm;
-                margin: 0 auto; /* 가운데 정렬 */
-                box-shadow: 0 0 20px rgba(0,0,0,0.1); /* 그림자 */
-            }
+        /* 2. 상단 버튼 바 (pdfArea 밖에 두어 캡처 방지) */
+        .no-print-bar { 
+            position: sticky; top: 0; background: white; padding: 15px; 
+            z-index: 1000; display: flex; justify-content: center; gap: 15px; 
+            border-bottom: 1px solid #ddd; 
         }
+        .btn-action { border: none; padding: 12px 25px; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; text-decoration: none; }
 
-        /* 3. 실제 출력/PDF 영역 (순수 종이 규격) */
+        /* 3. 실제 종이 영역 (A4) */
         .print-page {
             width: 210mm;
-            height: 296mm; /* 297mm보다 살짝 작게 해서 다음 장 넘김 방지 */
+            height: 296.5mm; /* 297mm보다 미세하게 작게 설정하여 빈 페이지 방지 */
             padding: 20mm;
-            box-sizing: border-box;
+            margin: 0 auto;
             background-color: white !important;
+            box-sizing: border-box;
+            page-break-after: always; /* 브라우저 인쇄용 */
             position: relative;
-            overflow: hidden;
-            page-break-after: always;
         }
 
-        /* 4. 테이블 고정 디자인 (들쑥날쑥 방지) */
+        /* 4. 화면 미리보기용 (회색 배경 위 종이 느낌) */
+        @media screen {
+            .pdf-outer-wrapper { padding: 30px 0; }
+            .print-page { box-shadow: 0 0 20px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        }
+
+        /* 5. 테이블 디자인 */
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th, td { border: 1px solid black; padding: 8px; text-align: center; font-size: 11pt; height: 40px; }
-        .header-bg { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-weight: bold; width: 20%; }
-
-        /* 답안 영역 높이 고정 */
+        th, td { border: 1px solid black; padding: 10px; text-align: center; font-size: 11pt; height: 40px; }
+        .header-bg { background-color: #f2f2f2 !important; font-weight: bold; width: 22%; }
         .answer-box { 
-            height: 750px; /* 인쇄 미리보기와 동일하게 맞춤 */
-            vertical-align: top; text-align: left; padding: 20px; line-height: 1.8; word-break: break-all; 
+            height: 750px; /* A4 용지를 채우는 높이 */
+            vertical-align: top; text-align: left; padding: 25px; line-height: 1.8; word-break: break-all; 
         }
 
-        /* 버튼 바 */
-        .no-print-bar { position: sticky; top: 0; background: white; padding: 15px; z-index: 1000; display: flex; justify-content: center; gap: 15px; border-bottom: 1px solid #ddd; }
-        .btn-action { border: none; padding: 12px 25px; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; }
+        /* 6. 인쇄 시 불필요 요소 제거 */
+        @media print {
+            body { background: white; }
+            .no-print-bar { display: none !important; }
+            .pdf-outer-wrapper { padding: 0 !important; }
+            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
+        }
     </style>
 </head>
 <body>
 
+    <!-- [중요] 버튼은 pdfArea 밖에 위치해야 텍스트가 안 찍힙니다 -->
     <div class="no-print-bar">
         <button onclick="downloadAsPDF()" class="btn-action" style="background-color: #FF80B5;">PDF 다운로드</button>
         <button onclick="window.print()" class="btn-action" style="background-color: #8E44AD;">PDF 인쇄하기</button>
     </div>
 
-    <!-- PDFArea: 이 내부의 것만 캡처합니다 -->
-    <div id="pdfArea">
+    <!-- 캡처 대상 시작 -->
+    <div id="pdfArea" class="pdf-outer-wrapper">
         {% for s in students %}
-        <div class="page-wrapper">
-            <div class="print-page">
-                <table>
-                    <tr>
-                        <td class="header-bg">응시 과목</td><td>{{ activity.section }}</td>
-                        <td class="header-bg">평가명</td><td>{{ activity.title }}</td>
-                    </tr>
-                    <tr>
-                        <td class="header-bg">응시자 정보</td>
-                        <td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td>
-                        <td class="header-bg">응시 일시</td>
-                        <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
-                    </tr>
-                    <tr>
-                        <td colspan="4" class="header-bg">학생 답안</td>
-                    </tr>
-                    <tr>
-                        <td colspan="4" class="answer-box">
-                            {{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}
-                        </td>
-                    </tr>
-                </table>
-            </div>
+        <div class="print-page">
+            <table>
+                <tr>
+                    <td class="header-bg">응시 과목</td><td>{{ activity.section }}</td>
+                    <td class="header-bg">평가명</td><td>{{ activity.title }}</td>
+                </tr>
+                <tr>
+                    <td class="header-bg">응시자 정보</td>
+                    <td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td>
+                    <td class="header-bg">응시 일시</td>
+                    <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="header-bg" style="text-align: center;">학생 답안</td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="answer-box">
+                        {{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}
+                    </td>
+                </tr>
+            </table>
         </div>
         {% endfor %}
     </div>
 
     <script>
         function downloadAsPDF() {
-            // 캡처할 대상 (전체 영역이 아닌 개별 페이지들의 부모)
             const element = document.getElementById('pdfArea');
             const btn = event.currentTarget;
-            const originalText = btn.innerHTML;
-
-            btn.innerText = "⏳ PDF 최적화 및 생성 중...";
+            btn.innerText = "⏳ PDF 생성 중...";
             btn.disabled = true;
 
-            // [핵심] html2pdf 설정
             const options = {
                 margin: 0,
                 filename: '학생답안지_{{ activity.title }}.pdf',
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { 
-                    scale: 2,           // 선명도
-                    useCORS: true,      // 이미지 등 외부 리소스 허용
-                    scrollY: 0,         // 스크롤 위치 무시 (백지 방지 핵심)
-                    windowWidth: 800,   // [중요] 캡처하는 가상 창의 너비를 좁게 잡아 여백을 강제 제거
-                    removeContainer: true
+                    scale: 2, 
+                    useCORS: true, 
+                    scrollY: 0,
+                    windowWidth: 1000 // 캡처 너비 최적화
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                // [중요] .print-page 클래스 단위로만 페이지를 자르도록 명령
-                pagebreak: { mode: ['css', 'legacy'], before: '.print-page' }
+                // [수정] 84페이지 현상을 막기 위해 pagebreak 모드를 가장 안정적인 형식으로 고정
+                pagebreak: { mode: ['css', 'legacy'] }
             };
 
-            // 실행
             html2pdf().set(options).from(element).save().then(() => {
-                btn.innerHTML = originalText;
+                btn.innerText = "PDF로 즉시 다운로드";
                 btn.disabled = false;
             }).catch(err => {
                 console.error(err);
-                alert("PDF 생성 중 오류가 발생했습니다.");
                 btn.disabled = false;
             });
         }
