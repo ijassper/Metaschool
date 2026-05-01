@@ -25,7 +25,7 @@
         .print-page {
             background-color: white !important;
             width: 210mm;
-            height: 293mm !important;
+            height: 285mm !important;
             padding: 15mm; 
             margin: 0 auto;
             box-sizing: border-box;
@@ -57,10 +57,10 @@
 
         .answer-box { 
             /* 헤더 영역을 고려하여 답안 박스를 215mm로 설정 */
-            height: 205mm !important; 
+            height: 185mm !important; 
             vertical-align: top; 
             text-align: left; 
-            padding: 10px 15px; 
+            padding: 10mm 10mm;
             line-height: 1.7; 
             overflow: hidden;
         }
@@ -136,8 +136,8 @@
                     scale: 2, 
                     useCORS: true, 
                     scrollY: 0,
-                    /* [수정] 잘림 방지를 위해 800에서 1050으로 너비를 늘립니다. */
-                    windowWidth: 1100 
+                    /* 잘림 방지를 위해 1024mm로 너비를 늘립니다. (표준 해상도) */
+                    windowWidth: 1024
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 /* [수정] 가장 안전한 css 모드로 고정 */
