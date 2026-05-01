@@ -25,7 +25,7 @@
         .print-page {
             background-color: white !important;
             width: 210mm;
-            height: 296.5mm !important;
+            height: 293mm !important;
             padding: 15mm; 
             margin: 0 auto;
             box-sizing: border-box;
@@ -57,7 +57,7 @@
 
         .answer-box { 
             /* 헤더 영역을 고려하여 답안 박스를 215mm로 설정 */
-            height: 215mm !important; 
+            height: 205mm !important; 
             vertical-align: top; 
             text-align: left; 
             padding: 10px 15px; 
@@ -66,15 +66,13 @@
         }
 
         @media print {
-            body { background: white !important; }
             .print-page { 
                 margin: 0 !important; 
-                box-shadow: none !important; 
                 width: 100% !important; 
-                /* [수정] always 대신 avoid-after를 써서 브라우저의 중복 분할을 막습니다. */
+                height: 100% !important;
+                /* [중요] 브라우저 인쇄 시 중복 페이지 생성을 막기 위해 avoid 사용 */
                 page-break-after: avoid !important; 
             }
-            .no-print-bar { display: none !important; }
         }
     </style>
 </head>
@@ -136,7 +134,7 @@
                     useCORS: true, 
                     scrollY: 0,
                     /* [수정] 잘림 방지를 위해 800에서 1050으로 너비를 늘립니다. */
-                    windowWidth: 1050 
+                    windowWidth: 1100 
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 /* [수정] 가장 안전한 css 모드로 고정 */
