@@ -5,64 +5,48 @@
     <title>학생답안지 출력</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* 1. 공통 폰트 및 초기화 */
-        body { margin: 0; padding: 0; font-family: 'Pretendard', '함초롬바탕', serif; background-color: #f0f2f5; }
+        /* 1. 공통 설정 */
+        body { margin: 0; padding: 0; font-family: 'Pretendard', '함초롬바탕', sans-serif; background-color: #f0f2f5; }
 
-        /* 2. 화면 미리보기용 (좌우 여백) */
+        /* 2. 화면(Web)에서만 보이는 디자인 */
         @media screen {
             .page-wrapper {
+                background-color: #f0f2f5; /* 배경 회색 */
+                padding: 30px 0;
+            }
+            .print-page {
                 width: 210mm;
-                margin: 30px auto;
-                background-color: white;
-                box-shadow: 0 0 20px rgba(0,0,0,0.1);
-                box-sizing: border-box;
+                margin: 0 auto; /* 가운데 정렬 */
+                box-shadow: 0 0 20px rgba(0,0,0,0.1); /* 그림자 */
             }
         }
 
-        /* 3. A4 한 페이지 규격 강제 고정 (가장 중요) */
+        /* 3. 실제 출력/PDF 영역 (순수 종이 규격) */
         .print-page {
             width: 210mm;
-            height: 296mm; /* 297mm보다 살짝 작게 하여 빈 페이지 생성을 방지 */
+            height: 296mm; /* 297mm보다 살짝 작게 해서 다음 장 넘김 방지 */
             padding: 20mm;
             box-sizing: border-box;
-            background-color: white;
+            background-color: white !important;
             position: relative;
-            overflow: hidden; /* 내용이 넘쳐서 다음 페이지를 만드는 것 방지 */
-            page-break-after: always; /* 인쇄 시 페이지 나눔 */
+            overflow: hidden;
+            page-break-after: always;
         }
 
-        /* 4. 테이블 디자인 (들쑥날쑥 현상 해결) */
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            table-layout: fixed; /* 열 너비 고정 */
-        }
+        /* 4. 테이블 고정 디자인 (들쑥날쑥 방지) */
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { border: 1px solid black; padding: 8px; text-align: center; font-size: 11pt; height: 40px; }
-        .header-bg { background-color: #f2f2f2; font-weight: bold; width: 20%; }
+        .header-bg { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-weight: bold; width: 20%; }
 
-        /* [핵심] 답안 영역 높이 강제 고정 (스크린샷 양식 재현) */
+        /* 답안 영역 높이 고정 */
         .answer-box { 
-            height: 780px; /* A4 하단까지 꽉 채우는 고정 높이 */
-            vertical-align: top; 
-            text-align: left; 
-            padding: 20px; 
-            line-height: 1.8; 
-            word-break: break-all;
+            height: 750px; /* 인쇄 미리보기와 동일하게 맞춤 */
+            vertical-align: top; text-align: left; padding: 20px; line-height: 1.8; word-break: break-all; 
         }
 
-        /* 상단 버튼 바 */
-        .no-print-bar { 
-            position: sticky; top: 0; background: white; padding: 15px; 
-            z-index: 1000; display: flex; justify-content: center; gap: 15px; 
-            border-bottom: 1px solid #ddd; 
-        }
+        /* 버튼 바 */
+        .no-print-bar { position: sticky; top: 0; background: white; padding: 15px; z-index: 1000; display: flex; justify-content: center; gap: 15px; border-bottom: 1px solid #ddd; }
         .btn-action { border: none; padding: 12px 25px; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; }
-
-        @media print {
-            body { background: white; }
-            .page-wrapper { margin: 0; box-shadow: none; width: 100%; }
-            .no-print-bar { display: none; }
-        }
     </style>
 </head>
 <body>
@@ -104,28 +88,38 @@
 
     <script>
         function downloadAsPDF() {
+            // 캡처할 대상 (전체 영역이 아닌 개별 페이지들의 부모)
             const element = document.getElementById('pdfArea');
             const btn = event.currentTarget;
-            btn.innerText = "⏳ PDF 생성 중...";
+            const originalText = btn.innerHTML;
+
+            btn.innerText = "⏳ PDF 최적화 및 생성 중...";
             btn.disabled = true;
 
+            // [핵심] html2pdf 설정
             const options = {
                 margin: 0,
                 filename: '학생답안지_{{ activity.title }}.pdf',
-                image: { type: 'jpeg', quality: 1.0 },
+                image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    logging: false,
-                    scrollY: 0
+                    scale: 2,           // 선명도
+                    useCORS: true,      // 이미지 등 외부 리소스 허용
+                    scrollY: 0,         // 스크롤 위치 무시 (백지 방지 핵심)
+                    windowWidth: 800,   // [중요] 캡처하는 가상 창의 너비를 좁게 잡아 여백을 강제 제거
+                    removeContainer: true
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                // [수정] 아래 설정을 통해 56페이지(중복) 문제를 해결합니다.
-                pagebreak: { mode: 'css', before: '.page-wrapper' }
+                // [중요] .print-page 클래스 단위로만 페이지를 자르도록 명령
+                pagebreak: { mode: ['css', 'legacy'], before: '.print-page' }
             };
 
+            // 실행
             html2pdf().set(options).from(element).save().then(() => {
-                btn.innerText = "PDF로 즉시 다운로드";
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error(err);
+                alert("PDF 생성 중 오류가 발생했습니다.");
                 btn.disabled = false;
             });
         }
