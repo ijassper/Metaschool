@@ -14,24 +14,35 @@
             font-family: 'Pretendard', '함초롬바탕', serif;
         }
 
-        .print-container {
-            width: 210mm; /* A4 가로 규격 */
-            margin: 30px auto; /* 상하 30px, 좌우 자동(가운데 정렬) 여백 */
-            padding: 20mm;
-            background-color: white; /* 종이 부분은 흰색 */
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            min-height: 297mm;
-            box-sizing: border-box;
+        @media screen {
+            .print-container {
+                width: 210mm;
+                margin: 30px auto;
+                padding: 20mm;
+                background-color: white;
+                box-shadow: 0 0 20px rgba(0,0,0,0.1);
+                min-height: 297mm;
+                box-sizing: border-box;
+            }
         }
 
         /* 2. 인쇄 및 PDF 저장용 스타일 */
         .page-break { page-break-after: always; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 20px; }
         th, td { border: 1px solid black; padding: 10px; text-align: center; font-size: 11pt; }
-        .answer-box { height: 750px; vertical-align: top; text-align: left; padding: 20px; line-height: 1.8; word-break: break-all; }
+        
+        /* 3. 답안 영역 높이 조정 (fixed -> min-height) */
+        .answer-box {
+            min-height: 750px; /* 고정 height 대신 min-height 사용 권장 */
+            vertical-align: top;
+            text-align: left;
+            padding: 20px;
+            line-height: 1.8;
+            word-break: break-all;
+        }
         .header-bg { background-color: #f2f2f2; font-weight: bold; width: 20%; }
 
-        /* 3. 상단 컨트롤 바 (화면에서만 보임) */
+        /* 4. 상단 컨트롤 바 (화면에서만 보임) */
         .no-print-bar {
             position: sticky; top: 0; 
             background: #ffffff; border-bottom: 1px solid #e0e0e0; 
@@ -50,6 +61,12 @@
             .no-print-bar { display: none !important; }
             body { background-color: white; }
             .print-container { margin: 0; padding: 0; box-shadow: none; width: 100%; }
+        }
+        
+        /* PDF 생성 시 여백 오류 강제 교정 */
+        .html2pdf__container {
+            margin: 0 !important;
+            padding: 0 !important;
         }
     </style>
 </head>
@@ -91,7 +108,7 @@
                     <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
                 </tr>
                 <tr>
-                    <td colspan="4" class="header-bg">학생 답안 ({{ activity.q1_title }})</td>
+                    <td colspan="4" class="header-bg">학생 답안</td>
                 </tr>
                 <tr>
                     <td colspan="4" class="answer-box">
@@ -105,28 +122,52 @@
 
     <script>
         /**
-         * 1. PDF 즉시 다운로드 함수 (html2pdf 활용)
+         * 1. PDF 즉시 다운로드 함수 (백지 현상 해결 버전)
          */
         function downloadAsPDF() {
             const element = document.getElementById('pdfArea');
-            const options = {
-                margin: 0,
-                filename: '학생답안지_{{ activity.title }}.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            // 다운로드 시작 안내
             const btn = event.currentTarget;
             const originalText = btn.innerHTML;
-            btn.innerText = "⏳ PDF 생성 중...";
+
+            // 버튼 비활성화 및 로딩 표시
+            btn.innerText = "⏳ PDF 생성 및 최적화 중...";
             btn.disabled = true;
 
-            html2pdf().set(options).from(element).save().then(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            });
+            // PDF 생성 옵션 최적화
+            const options = {
+                margin: [10, 10, 10, 10], // [상, 좌, 하, 우] 여백 (mm)
+                filename: '학생답안지_{{ activity.title }}.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2,           // 해상도 (2 정도가 출력용으로 적당)
+                    useCORS: true,      // 외부 리소스 허용
+                    letterRendering: true,
+                    scrollY: 0,         // 스크롤 위치 초기화 (백지 방지 핵심)
+                    windowWidth: 1200   // 캡처할 윈도우 너비 고정
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: 'portrait' 
+                },
+                // [핵심] 페이지 분할 모드 설정: CSS의 page-break 설정을 강제로 따르도록 함
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            // 렌더링 안정성을 위해 아주 짧은 지연(delay) 후 생성 시작
+            setTimeout(() => {
+                html2pdf().set(options).from(element).toPdf().get('pdf').then(function (pdf) {
+                    // 생성이 완료되면 실제 저장
+                }).save().then(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }).catch(err => {
+                    console.error("PDF 생성 에러:", err);
+                    alert("PDF 생성 중 오류가 발생했습니다. 다시 시도해 주세요.");
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
+            }, 500); // 0.5초 지연으로 CSS가 완전히 적용된 후 캡처
         }
     </script>
 </body>
