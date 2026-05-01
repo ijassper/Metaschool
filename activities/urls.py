@@ -44,5 +44,6 @@ urlpatterns = [
     # 6. 내보내기 (export_views)
     path('submission/export/<int:activity_id>/', submission_export_excel, name='submission_export_excel'),
     path('submission/export-docx/<int:activity_id>/', export_answer_sheets_docx, name='export_answer_sheets_docx'),
+    path('submission/print/<int:activity_id>/', print_answer_sheets, name='print_answer_sheets'),
     path('analysis/export/<int:activity_id>/', analysis_export_excel, name='analysis_export_excel'),
 ]
