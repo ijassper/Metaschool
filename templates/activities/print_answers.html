@@ -25,7 +25,7 @@
         .print-page {
             background-color: white !important;
             width: 210mm;
-            height: 296mm; /* 297mm보다 작게 설정하여 '유령 페이지' 생성 방지 */
+            height: 285mm;
             padding: 15mm; 
             margin: 0 auto;
             box-sizing: border-box;
@@ -59,8 +59,11 @@
         }
 
         .answer-box { 
-            height: 190mm !important; /* 높이를 조금 더 줄여 안전권 확보 */
-            vertical-align: top; text-align: left; padding: 15px; line-height: 1.7; 
+            height: 170mm !important; /* 170으로 줄여서 절대 다음 장으로 안 밀리게 함 */
+            vertical-align: top; 
+            text-align: left; 
+            padding: 15px; 
+            line-height: 1.6; 
         }
 
         @media print {
@@ -129,8 +132,8 @@
                     windowWidth: 800 // 캡처 너비를 좁혀서 배경 노이즈 차단
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                // [핵심] mode: 'css'만 사용하여 사용자가 만든 .print-page 하나당 1장씩만 생성하도록 고정
-                pagebreak: { mode: 'css' } 
+                
+                pagebreak: { mode: ['avoid-all', 'css'], after: '.print-page' }
             };
 
             html2pdf().set(options).from(element).save().then(() => {

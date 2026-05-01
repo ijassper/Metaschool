@@ -13,7 +13,10 @@
     <!-- 검색 및 필터 영역 -->
     <div class="bg-light p-3 rounded-4 mb-4 border shadow-sm">
         <form method="get" id="filterForm" class="row g-2 align-items-center">
-            
+            <!-- [추가] 사이드바 네비게이션 유지를 위한 히든 필드 -->
+            <input type="hidden" name="category" value="{{ activity.category }}">
+            <input type="hidden" name="sub" value="{{ activity.sub_category }}">
+
             <!-- [좌측] 1. 학급 선택 필터 -->
             <div class="col-auto">
                 <div class="dropdown">
@@ -21,7 +24,6 @@
                         <i class="bi bi-filter-circle me-1 text-primary"></i> 학급 선택
                     </button>
                     <div class="dropdown-menu p-3 shadow-lg border-0 rounded-4" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
-                        <!-- 기존 학급 선택 트리 구조 (유지) -->
                         {% for item in filter_data %}
                             <div class="mb-2">
                                 <div class="form-check fw-bold text-primary">
@@ -40,51 +42,40 @@
                             </div>
                         {% endfor %}
                         <div class="d-grid mt-3 border-top pt-2">
-                            <button type="submit" class="btn btn-primary btn-sm rounded-pill">조회</button>
+                            <!-- [수정] 텍스트 '조회'로 변경 및 클릭 시 이름 검색어 초기화 함수 실행 -->
+                            <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold" onclick="submitClassFilter()">조회</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- [중앙] 2. 이름 검색 및 초기화 (ms-auto, me-auto를 사용하여 가운데 정렬) -->
-            <div class="col-auto ms-auto me-auto d-flex gap-2">
+            <!-- [수정] 2. 이름 검색 (필터 바로 옆으로 이동) -->
+            <div class="col-auto d-flex gap-2">
                 <div class="input-group input-group-sm" style="width: 200px;">
-                    <input type="text" name="q" class="form-control rounded-start-pill border-end-0 bg-white" placeholder="이름 검색" value="{{ current_q }}">
+                    <input type="text" name="q" id="nameSearchInput" class="form-control rounded-start-pill border-end-0 bg-white" placeholder="이름 검색" value="{{ current_q }}">
                     <button type="submit" class="btn btn-white border border-start-0 rounded-end-pill px-3 shadow-sm bg-white">
                         <i class="bi bi-search text-primary"></i>
                     </button>
                 </div>
-                <a href="{% url 'activity_result' activity.id %}" class="btn btn-light rounded-circle shadow-sm" title="검색 초기화">
+                <!-- 초기화 버튼 -->
+                <a href="{% url 'activity_result' activity.id %}?category={{ activity.category }}&sub={{ activity.sub_category }}" class="btn btn-light rounded-circle shadow-sm" title="전체 초기화">
                     <i class="bi bi-arrow-counterclockwise"></i>
                 </a>
             </div>
 
-            <!-- [우측] 학생답안 다운로드 통합 드롭다운 -->
-            <div class="col-auto">
+            <!-- [우측 끝] 3. 학생답안 다운로드 (ms-auto로 밀기) -->
+            <div class="col-auto ms-auto">
                 <div class="dropdown">
                     <button class="btn btn-success dropdown-toggle rounded-pill px-4 shadow-sm fw-bold" type="button" data-bs-toggle="dropdown">
                         <i class="bi bi-download me-1"></i> 학생답안 다운로드
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3">
-                        <li>
-                            <a class="dropdown-item py-2" href="{% url 'submission_export_excel' activity.id %}">
-                                <i class="bi bi-file-earmark-excel text-success me-2"></i>엑셀 (xlsx)
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item py-2" href="{% url 'export_answer_sheets_docx' activity.id %}">
-                                <i class="bi bi-file-earmark-word text-primary me-2"></i>문서 (docx)
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item py-2" href="{% url 'print_answer_sheets' activity.id %}" target="_blank">
-                                <i class="bi bi-file-pdf text-danger me-2"></i>PDF (pdf / 인쇄)
-                            </a>
-                        </li>
+                        <li><a class="dropdown-item py-2" href="{% url 'submission_export_excel' activity.id %}"><i class="bi bi-file-earmark-excel text-success me-2"></i>엑셀 (xlsx)</a></li>
+                        <li><a class="dropdown-item py-2" href="{% url 'export_answer_sheets_docx' activity.id %}"><i class="bi bi-file-earmark-word text-primary me-2"></i>문서 (docx)</a></li>
+                        <li><a class="dropdown-item py-2" href="{% url 'print_answer_sheets' activity.id %}" target="_blank"><i class="bi bi-file-pdf text-danger me-2"></i>PDF (pdf / 인쇄)</a></li>
                     </ul>
                 </div>
             </div>
-
         </form>
     </div>
 
@@ -150,9 +141,10 @@
                         <!-- 답안지 열기 (제출 완료일 때만 보임) -->
                         <td>
                             {% if item.status == '제출 완료' %}
-                                <a href="{% url 'answer_detail' item.answer_id %}" target="_blank" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-search"></i> 열기
-                                </a>
+                                <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" 
+                                        onclick="openAnswerModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
+                                    <i class="bi bi-search me-1"></i> 열기
+                                </button>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -208,6 +200,26 @@
     </div>
 </div>
 
+<!-- 답안 확인 모달 -->
+<div class="modal fade" id="answerViewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-file-text text-primary me-2"></i><span id="ansModalStudentName"></span> 학생의 답안</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="ansModalContent" class="p-4 bg-light rounded-4" style="white-space: pre-wrap; line-height: 1.8; min-height: 200px; font-size: 1.05rem;">
+                    <!-- 답안 내용 주입 -->
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3">
+                <button type="button" class="btn btn-secondary rounded-pill px-5" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 특이사항 메모 모달 -->
 <div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -256,14 +268,29 @@
 </div>
 
 <script>
+    // 1. 학급 선택 '조회' 버튼 클릭 시 이름 검색어 비우고 제출
+    function submitClassFilter() {
+        const nameInput = document.getElementById('nameSearchInput');
+        if (nameInput) nameInput.value = ""; // 이름 검색어 초기화
+        document.getElementById('filterForm').submit();
+    }
+
+    // 2. 답안 확인 모달 열기
+    function openAnswerModal(name, content) {
+        document.getElementById('ansModalStudentName').innerText = name;
+        document.getElementById('ansModalContent').innerText = content || "작성된 내용이 없습니다.";
+        
+        const modal = new bootstrap.Modal(document.getElementById('answerViewModal'));
+        modal.show();
+    }
+
     // 학년 체크박스 누르면 -> 해당 학년의 반 모두 선택/해제
     function toggleGrade(grade) {
         const parent = document.getElementById('g_' + grade);
         const children = document.querySelectorAll('.child-g-' + grade);
-        children.forEach(cb => {
-            cb.checked = parent.checked;
-        });
+        children.forEach(cb => cb.checked = parent.checked);
     }
+    
     // 결시 사유 저장 스크립트
     function updateAbsence(studentId, activityId, value) {
         // 서버로 전송 (AJAX)
