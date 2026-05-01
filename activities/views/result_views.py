@@ -18,21 +18,36 @@ from ..models import Activity, Answer
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 1. 필터 조건 가져오기
+    # 1. [항상 실행] 필터 메뉴 구성을 위한 '전체 대상 학생' 가져오기
+    all_students_for_filter = activity.target_students.all().order_by('grade', 'class_no', 'number')
+    if not all_students_for_filter.exists():
+        all_students_for_filter = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+
+    # 2. [항상 실행] filter_data 변수 초기화 및 생성
+    # 이 부분이 if문 밖에 있어야 NameError가 나지 않습니다.
+    temp_data = {}
+    for s in all_students_for_filter:
+        g = s.grade
+        c = s.class_no
+        if g not in temp_data: temp_data[g] = []
+        if c not in temp_data[g]: temp_data[g].append(c)
+    
+    filter_data = [] # 여기서 변수가 확실히 생성됩니다.
+    for g in sorted(temp_data.keys()):
+        filter_data.append({
+            'grade': g,
+            'classes': sorted(list(set(temp_data[g])))
+        })
+
+    # 3. 검색 조건 처리
     selected_targets = request.GET.getlist('target') 
     name_query = request.GET.get('q', '')
 
-    # 2. [핵심 수정] 필터나 검색어가 없을 경우 빈 목록 반환
-    # (기존의 1학년 1반 자동 선택 로직을 삭제합니다)
+    # 4. [선택적 실행] 목록 데이터 필터링
     if not selected_targets and not name_query:
-        target_students = Student.objects.none() # 빈 데이터셋
+        target_students = Student.objects.none() # 최초 진입 시 데이터 없음
     else:
-        # 필터링 로직 (기존 로직 유지)
-        all_students = activity.target_students.all().order_by('grade', 'class_no', 'number')
-        if not all_students.exists():
-            all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
-        
-        target_students = all_students
+        target_students = all_students_for_filter
         if selected_targets:
             q_objects = Q()
             for t in selected_targets:
@@ -40,7 +55,7 @@ def activity_result(request, activity_id):
                     g, c = t.split('_')
                     q_objects |= Q(grade=g, class_no=c)
             target_students = target_students.filter(q_objects)
-        
+
         if name_query:
             target_students = target_students.filter(name__contains=name_query)
 
