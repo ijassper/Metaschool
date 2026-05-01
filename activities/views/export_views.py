@@ -1,6 +1,6 @@
 # 엑셀/워드 출력 (submission_export_excel 등)
 
-from django.shortcuts import get_object_or_404
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.utils import timezone
