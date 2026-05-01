@@ -25,14 +25,12 @@
         .print-page {
             background-color: white !important;
             width: 210mm;
-            height: 280mm;
+            height: 296.5mm !important;
             padding: 15mm; 
             margin: 0 auto;
             box-sizing: border-box;
             position: relative;
             overflow: hidden; /* 내용이 넘쳐서 빈 페이지 만드는 것 방지 */
-            /* 인쇄 시 페이지 나눔 */
-            page-break-inside: avoid;
         }
 
         /* 4. 화면 미리보기용 (웹에서만 보임) */
@@ -58,16 +56,24 @@
         }
 
         .answer-box { 
-            height: 170mm !important; /* 170으로 줄여서 절대 다음 장으로 안 밀리게 함 */
+            /* 헤더 영역을 고려하여 답안 박스를 215mm로 설정 */
+            height: 215mm !important; 
             vertical-align: top; 
             text-align: left; 
-            padding: 15px; 
-            line-height: 1.6; 
+            padding: 10px 15px; 
+            line-height: 1.7; 
+            overflow: hidden;
         }
 
         @media print {
             body { background: white !important; }
-            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; page-break-after: always !important; }
+            .print-page { 
+                margin: 0 !important; 
+                box-shadow: none !important; 
+                width: 100% !important; 
+                /* [수정] always 대신 avoid-after를 써서 브라우저의 중복 분할을 막습니다. */
+                page-break-after: avoid !important; 
+            }
             .no-print-bar { display: none !important; }
         }
     </style>
@@ -117,29 +123,28 @@
         function downloadAsPDF() {
             const element = document.getElementById('pdfArea');
             const btn = event.currentTarget;
-            btn.innerText = "⏳ 고속 변환 중...";
+            btn.innerText = "⏳ 생성 중...";
             btn.disabled = true;
 
             const options = {
-                margin: 0,
+                /* [수정] 라이브러리가 여백을 임의로 넣지 못하게 0으로 고정 */
+                margin: 0, 
                 filename: '학생답안지_{{ activity.title }}.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
+                image: { type: 'jpeg', quality: 1.0 },
                 html2canvas: { 
-                    scale: 1.5, 
+                    scale: 2, 
                     useCORS: true, 
                     scrollY: 0,
-                    windowWidth: 1000 
+                    /* [수정] 잘림 방지를 위해 800에서 1050으로 너비를 늘립니다. */
+                    windowWidth: 1050 
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                // [수정] 'after' 대신 'avoid-all'만 사용하여 이중 분할 방지
-                pagebreak: { mode: 'avoid-all' } 
-
+                /* [수정] 가장 안전한 css 모드로 고정 */
+                pagebreak: { mode: 'css' } 
             };
+
             html2pdf().set(options).from(element).save().then(() => {
                 btn.innerText = "PDF 다운로드";
-                btn.disabled = false;
-            }).catch(err => {
-                console.error(err);
                 btn.disabled = false;
             });
         }
