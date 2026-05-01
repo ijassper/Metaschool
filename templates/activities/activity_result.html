@@ -40,7 +40,7 @@
                             </div>
                         {% endfor %}
                         <div class="d-grid mt-3 border-top pt-2">
-                            <button type="submit" class="btn btn-primary btn-sm rounded-pill">필터 적용</button>
+                            <button type="submit" class="btn btn-primary btn-sm rounded-pill">조회</button>
                         </div>
                     </div>
                 </div>
@@ -59,23 +59,30 @@
                 </a>
             </div>
 
-            <!-- [우측] 3. 답안 엑셀 다운로드 버튼 -->
-            <div class="col-auto d-flex gap-2">
-                <!-- 1. 기존 엑셀 다운로드 -->
-                <a href="{% url 'submission_export_excel' activity.id %}" class="btn btn-outline-success rounded-pill px-4 shadow-sm fw-bold">
-                    <i class="bi bi-file-earmark-excel me-1"></i> 데이터 엑셀
-                </a>
-
-                <!-- 2. 신규 워드 출력용 다운로드 (보라색 강조) -->
-                <a href="{% url 'export_answer_sheets_docx' activity.id %}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold" 
-                style="background: var(--ingrid-gradient); border:none;">
-                    <i class="bi bi-printer-fill me-1"></i> 답안지 출력(Word)
-                </a>
-
-                <!-- PDF/인쇄 (새 창으로 열기) -->
-                <a href="{% url 'print_answer_sheets' activity.id %}" target="_blank" class="btn btn-danger rounded-pill px-4 fw-bold shadow">
-                    <i class="bi bi-file-earmark-pdf"></i> PDF 저장 및 인쇄
-                </a>
+            <!-- [우측] 학생답안 다운로드 통합 드롭다운 -->
+            <div class="col-auto">
+                <div class="dropdown">
+                    <button class="btn btn-success dropdown-toggle rounded-pill px-4 shadow-sm fw-bold" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-download me-1"></i> 학생답안 다운로드
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3">
+                        <li>
+                            <a class="dropdown-item py-2" href="{% url 'submission_export_excel' activity.id %}">
+                                <i class="bi bi-file-earmark-excel text-success me-2"></i>엑셀 (xlsx)
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2" href="{% url 'export_answer_sheets_docx' activity.id %}">
+                                <i class="bi bi-file-earmark-word text-primary me-2"></i>문서 (docx)
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2" href="{% url 'print_answer_sheets' activity.id %}" target="_blank">
+                                <i class="bi bi-file-pdf text-danger me-2"></i>PDF (pdf / 인쇄)
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
 
         </form>
@@ -178,6 +185,20 @@
                             {% else %}
                                 -
                             {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="py-5">
+                            <div class="text-center text-muted">
+                                {% if not request.GET.target and not request.GET.q %}
+                                    <i class="bi bi-info-circle fs-1 d-block mb-3"></i>
+                                    <p class="mb-0 fw-bold">조회할 학급을 상단 필터에서 선택해 주세요.</p>
+                                {% else %}
+                                    <i class="bi bi-search fs-1 d-block mb-3"></i>
+                                    <p class="mb-0">해당 조건에 맞는 학생이 없습니다.</p>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

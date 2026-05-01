@@ -18,59 +18,31 @@ from ..models import Activity, Answer
 def activity_result(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
-    # 1. 평가 '대상 학생(Target)' 가져오기
-    # (만약 대상 학생이 0명이면, 혹시 모르니 선생님 전체 학생을 가져오는 안전장치 추가 가능)
-    all_students = activity.target_students.all().order_by('grade', 'class_no', 'number')
-    
-    # 대상자가 한 명도 없으면(예전 데이터) -> 기존대로 선생님 학생 전체 가져오기 (호환성 유지)
-    if not all_students.exists():
-        all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
-
-    # 2. 필터 데이터 만들기 (파이썬 기본 문법 사용 - 가장 안전함!)
-    # 복잡한 DB 기능 대신, 직접 리스트를 만듭니다.
-    temp_data = {}
-    for s in all_students:
-        g = s.grade
-        c = s.class_no
-        if g not in temp_data:
-            temp_data[g] = []
-        if c not in temp_data[g]:
-            temp_data[g].append(c)
-    
-    # 리스트로 변환 (HTML에서 쓰기 좋게 가공)
-    filter_data = []
-    for g in sorted(temp_data.keys()):
-        # 반 목록 정렬 및 중복 제거
-        sorted_classes = sorted(list(set(temp_data[g])))
-        filter_data.append({
-            'grade': g,
-            'classes': sorted(list(set(temp_data[g])))
-        })
-
-    # 3. 검색 조건 처리
+    # 1. 필터 조건 가져오기
     selected_targets = request.GET.getlist('target') 
     name_query = request.GET.get('q', '')
 
-    # 4. 초기값 설정 (1학년 1반 자동 선택)
-    # 데이터가 있으면 첫 번째 학년/반을 기본값으로
-    if not selected_targets and not name_query and filter_data:
-        g = filter_data[0]['grade']
-        c = filter_data[0]['classes'][0]
-        selected_targets = [f"{g}_{c}"]
-
-    # 5. 필터링 (안전하게 처리)
-    target_students = all_students
-
-    if selected_targets:
-        q_objects = Q()
-        for t in selected_targets:
-            if '_' in t: # 안전장치: 형식이 맞을 때만 처리
-                g, c = t.split('_')
-                q_objects |= Q(grade=g, class_no=c)
-        target_students = target_students.filter(q_objects)
-
-    if name_query:
-        target_students = target_students.filter(name__contains=name_query)
+    # 2. [핵심 수정] 필터나 검색어가 없을 경우 빈 목록 반환
+    # (기존의 1학년 1반 자동 선택 로직을 삭제합니다)
+    if not selected_targets and not name_query:
+        target_students = Student.objects.none() # 빈 데이터셋
+    else:
+        # 필터링 로직 (기존 로직 유지)
+        all_students = activity.target_students.all().order_by('grade', 'class_no', 'number')
+        if not all_students.exists():
+            all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+        
+        target_students = all_students
+        if selected_targets:
+            q_objects = Q()
+            for t in selected_targets:
+                if '_' in t:
+                    g, c = t.split('_')
+                    q_objects |= Q(grade=g, class_no=c)
+            target_students = target_students.filter(q_objects)
+        
+        if name_query:
+            target_students = target_students.filter(name__contains=name_query)
 
     # 6. 제출 현황 정리
     submission_list = []

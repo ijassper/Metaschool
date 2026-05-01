@@ -16,9 +16,33 @@
     </style>
 </head>
 <body>
-    <div class="no-print" style="text-align:center; padding: 20px; background: #eee;">
-        <button onclick="window.print()" style="padding: 10px 30px; cursor:pointer;">PDF 저장 및 인쇄하기 (Ctrl+P)</button>
+    <!-- 상단 컨트롤 바 (인쇄 시에는 숨겨짐) -->
+    <div class="no-print" style="position: sticky; top: 0; background: #f8f9fa; border-bottom: 1px solid #dee2e6; padding: 15px; z-index: 1000; display: flex; justify-content: center; gap: 15px;">
+        
+        <!-- 1. 인쇄 버튼 -->
+        <button onclick="window.print()" style="background-color: #8E44AD; color: white; border: none; padding: 12px 25px; border-radius: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(142, 68, 173, 0.2);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-printer" viewBox="0 0 16 16">
+                <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/>
+                <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2H5zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4V3zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2H5zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1z"/>
+            </svg>
+            답안지 즉시 인쇄하기
+        </button>
+
+        <!-- 2. PDF 저장 버튼 -->
+        <button onclick="saveAsPdf()" style="background-color: #FF80B5; color: white; border: none; padding: 12px 25px; border-radius: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(255, 128, 181, 0.2);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-file-earmark-pdf" viewBox="0 0 16 16">
+                <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3V1.1L13.9 5.5H12a1 1 0 0 1-1-1zM4.603 12.087a.81.81 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.68 7.68 0 0 1 1.482-.645 19.697 19.697 0 0 0 1.062-2.227 7.269 7.269 0 0 1-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077.308.064.596.233.741.507.356.673.357 1.432.128 2.225-.103.354-.253.714-.426 1.074.457.755.992 1.458 1.583 2.1l.001.001c.438.53.911.975 1.396 1.341.22.165.433.293.641.385.123.078.243.16.326.28.165.239.167.541.054.776-.118.24-.316.376-.516.425a.89.89 0 0 1-.287.018 1.031 1.031 0 0 1-.599-.254 5.241 5.241 0 0 1-.68-.553 15.504 15.504 0 0 0-2.212-1.27 4.35 4.35 0 0 1-2.488.45c-.411-.013-.78-.096-1.138-.252z"/>
+            </svg>
+            PDF 파일로 저장하기
+        </button>
     </div>
+
+    <script>
+        function saveAsPdf() {
+            alert("인쇄창이 뜨면 '대상'을 [PDF로 저장]으로 선택해 주세요.");
+            window.print();
+        }
+    </script>
 
     {% for s in students %}
     <div class="page-break">
