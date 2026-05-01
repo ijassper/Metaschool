@@ -68,6 +68,7 @@ def activity_result(request, activity_id):
         status = "미응시"
         submitted_at = "-"
         answer_id = None
+        content = ""  # [추가] 답안 내용을 담을 변수
         note = ""
         absence = ""
 
@@ -77,6 +78,7 @@ def activity_result(request, activity_id):
             note = answer.note
             absence = answer.absence_type
             log_data = answer.activity_log 
+            content = answer.content  # [추가] 답안 내용을 변수에 저장
             if answer.content.strip():
                 status = "제출 완료"
                 submitted_at = answer.submitted_at
@@ -93,6 +95,7 @@ def activity_result(request, activity_id):
             'note': note,
             'absence': absence,
             'activity_log': log_data,
+            'content': content, # [핵심 추가] 리스트에 담아서 템플릿으로 전달
         })
 
     context = {

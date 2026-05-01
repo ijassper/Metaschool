@@ -25,14 +25,13 @@
         .print-page {
             background-color: white !important;
             width: 210mm;
-            height: 285mm;
+            height: 280mm;
             padding: 15mm; 
             margin: 0 auto;
             box-sizing: border-box;
             position: relative;
             overflow: hidden; /* 내용이 넘쳐서 빈 페이지 만드는 것 방지 */
             /* 인쇄 시 페이지 나눔 */
-            page-break-after: always;
             page-break-inside: avoid;
         }
 
@@ -68,7 +67,7 @@
 
         @media print {
             body { background: white !important; }
-            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
+            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; page-break-after: always !important; }
             .no-print-bar { display: none !important; }
         }
     </style>
@@ -126,16 +125,16 @@
                 filename: '학생답안지_{{ activity.title }}.pdf',
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { 
-                    scale: 2, 
+                    scale: 1.5, 
                     useCORS: true, 
                     scrollY: 0,
-                    windowWidth: 800 // 캡처 너비를 좁혀서 배경 노이즈 차단
+                    windowWidth: 1000 
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                
-                pagebreak: { mode: ['avoid-all', 'css'], after: '.print-page' }
-            };
+                // [수정] 'after' 대신 'avoid-all'만 사용하여 이중 분할 방지
+                pagebreak: { mode: 'avoid-all' } 
 
+            };
             html2pdf().set(options).from(element).save().then(() => {
                 btn.innerText = "PDF 다운로드";
                 btn.disabled = false;
