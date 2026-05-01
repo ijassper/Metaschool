@@ -2,80 +2,100 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <title>학생답안지 출력 - {{ activity.title }}</title>
+    <!-- PDF 라이브러리 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* 1. 맑은 고딕 및 10포인트 최적화 */
-        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background-color: #525659; }
+        /* 1. 기본 배경 및 폰트 설정 (맑은 고딕) */
+        body { 
+            margin: 0; padding: 0; 
+            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; 
+            background-color: #525659; /* 화면 볼 때는 어두운 배경 */
+        }
 
-        /* 2. 상단 버튼 바 */
+        /* 2. 상단 버튼 바 (PDF에 안 나오도록 설정) */
         .no-print-bar { 
             position: sticky; top: 0; background: white; padding: 12px; 
             z-index: 1000; display: flex; justify-content: center; gap: 15px; 
-            border-bottom: 1px solid #333; 
+            border-bottom: 2px solid #333; 
         }
-        .btn-action { border: none; padding: 10px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-action { 
+            border: none; padding: 10px 25px; border-radius: 8px; 
+            font-weight: bold; cursor: pointer; color: white; font-size: 14px;
+        }
 
-        /* 3. A4 용지 규격 (강력한 높이 제한) */
+        /* 3. 화면 미리보기용 A4 스타일 (웹 화면에서만 적용) */
+        @media screen {
+            #pdfArea { padding: 20px 0; }
+            .print-page {
+                width: 210mm;
+                margin: 0 auto 30px auto; /* 페이지 간 간격 */
+                box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            }
+        }
+
+        /* 4. 실제 종이 영역 (A4 규격 강제 고정) */
         .print-page {
-            width: 210mm;
-            min-height: 296.5mm; /* 최소 높이만 지정 */
-            padding: 20mm;
-            margin: 20px auto;
             background-color: white !important;
+            width: 210mm;
+            min-height: 296mm; /* 297보다 살짝 작게 하여 다음 장 밀림 방지 */
+            padding: 15mm; /* 여백 조정 */
             box-sizing: border-box;
             position: relative;
-            /* overflow: hidden 제거 - 내용이 늘어날 수 있게 허용 */
-            page-break-after: always;
-            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            page-break-after: always; /* 페이지 나눔 강제 */
         }
 
-        /* 4. 테이블 디자인 - 내부 행 분할 허용 */
+        /* 5. 테이블 디자인 (선명한 테두리 및 너비 고정) */
         table { 
             width: 100%; 
             border-collapse: collapse; 
-            table-layout: fixed;
-            /* 표 내부에서 페이지가 넘어가는 것을 허용 */
-            page-break-inside: auto; 
+            table-layout: fixed; /* 맑은 고딕 밀림 방지 */
         }
-        
-        /* 행 단위로 페이지가 잘리지 않도록 설정 */
-        tr { page-break-inside: avoid; page-break-after: auto; }
-
-        /* 5. [핵심] 답안 영역 높이 설정 변경 */
-        .answer-box { 
-            /* 고정 height 대신 최소 높이만 부여 */
-            min-height: 200mm !important; 
-            height: auto !important; /* 내용에 따라 늘어남 */
-            vertical-align: top; 
-            text-align: left; 
-            padding: 10mm; 
-            line-height: 1.8; 
-            overflow: visible !important; /* 잘림 방지 */
+        td { 
+            border: 1px solid #000; 
+            padding: 10px 8px; 
+            text-align: center; 
+            font-size: 10pt; /* 10포인트 적용 */
+            height: 45px;
             word-break: break-all;
         }
+        .header-bg { background-color: #f2f2f2 !important; font-weight: bold; width: 20%; }
 
+        /* 6. 답안 영역 (내용이 길어도 1페이지 틀 유지 또는 자동 넘김) */
+        .answer-box { 
+            min-height: 200mm; /* 최소 20cm 높이 확보 */
+            vertical-align: top; 
+            text-align: left; 
+            padding: 15px; 
+            line-height: 1.7; 
+        }
+
+        /* 7. 출력 시 불필요 요소 제거 */
         @media print {
-            /* 인쇄 시 여백 최적화 */
-            .print-page { margin: 0 !important; min-height: 100%; box-shadow: none !important; }
+            body { background: white !important; }
+            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
+            .no-print-bar { display: none !important; }
         }
     </style>
 </head>
 <body>
 
+    <!-- 버튼 영역 -->
     <div class="no-print-bar">
         <button onclick="downloadAsPDF()" class="btn-action" style="background-color: #FF80B5;">PDF 다운로드</button>
         <button onclick="window.print()" class="btn-action" style="background-color: #8E44AD;">PDF 인쇄하기</button>
     </div>
 
+    <!-- PDF 캡처 대상 -->
     <div id="pdfArea">
         {% for s in students %}
         <div class="print-page">
             <table>
                 <colgroup>
-                    <col style="width: 18%;">
-                    <col style="width: 32%;">
-                    <col style="width: 18%;">
-                    <col style="width: 32%;">
+                    <col style="width: 20%;">
+                    <col style="width: 30%;">
+                    <col style="width: 20%;">
+                    <col style="width: 30%;">
                 </colgroup>
                 <tr>
                     <td class="header-bg">응시 과목</td>
@@ -90,11 +110,10 @@
                     <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
                 </tr>
                 <tr>
-                    <td colspan="4" class="header-bg" style="font-size: 11pt; letter-spacing: 5px;">학생 답안</td>
+                    <td colspan="4" class="header-bg">학생 답안</td>
                 </tr>
                 <tr>
                     <td colspan="4" class="answer-box">
-                        <!-- linebreaksbr 필터로 줄바꿈 유지 -->
                         {{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}
                     </td>
                 </tr>
@@ -104,30 +123,39 @@
     </div>
 
     <script>
+        /**
+         * [최종 해결책] 
+         * html2pdf가 페이지를 오판하지 않도록 '가상 윈도우 너비'를 
+         * A4 사이즈에 딱 맞춰서 캡처하는 로직입니다.
+         */
         function downloadAsPDF() {
             const element = document.getElementById('pdfArea');
             const btn = event.currentTarget;
-            btn.innerText = "⏳ 고속 렌더링 중...";
+            btn.innerText = "⏳ PDF 변환 중...";
             btn.disabled = true;
 
             const options = {
-                margin: [0, 0, 0, 0], 
+                margin: 0,
                 filename: '학생답안지_{{ activity.title }}.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
+                image: { type: 'jpeg', quality: 1.0 },
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
                     scrollY: 0,
-                    windowWidth: 1000 
+                    // [핵심] 캡처용 가상 해상도를 800px로 고정하여 
+                    // 화면 좌우 여백이 PDF에 포함되지 않게 합니다.
+                    windowWidth: 800 
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                // [수정] mode: 'css'는 우리가 설정한 page-break-after를 지키게 하고,
-                // 'legacy'는 내용이 너무 길 때 라이브러리가 알아서 페이지를 나누게 합니다.
-                pagebreak: { mode: ['css', 'legacy'] } 
+                // [핵심] 오직 CSS의 .print-page 단위로만 페이지를 나누게 함
+                pagebreak: { mode: ['css'], before: '.print-page' } 
             };
 
             html2pdf().set(options).from(element).save().then(() => {
                 btn.innerText = "PDF 다운로드";
+                btn.disabled = false;
+            }).catch(err => {
+                console.error(err);
                 btn.disabled = false;
             });
         }
