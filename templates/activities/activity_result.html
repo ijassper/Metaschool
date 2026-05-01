@@ -1,146 +1,349 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>학생답안지 출력 - {{ activity.title }}</title>
-    <!-- 라이브러리 로드 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <style>
-        /* 1. 기본 배경 및 폰트 */
-        body { 
-            margin: 0; padding: 0; 
-            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; 
-            background-color: #525659; 
-        }
+{% extends 'base.html' %}
 
-        /* 2. 상단 버튼 바 */
-        .no-print-bar { 
-            position: sticky; top: 0; background: white; padding: 12px; 
-            z-index: 1000; display: flex; justify-content: center; gap: 15px; 
-            border-bottom: 2px solid #333; 
-        }
-        .btn-action { border: none; padding: 10px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
+{% block content %}
 
-        /* 3. A4 용지 규격 정의 (강력 보정) */
-        .print-page {
-            background-color: white !important;
-            width: 210mm;
-            height: 296mm; /* 297mm보다 작게 설정하여 '유령 페이지' 생성 방지 */
-            padding: 15mm; 
-            margin: 0 auto;
-            box-sizing: border-box;
-            position: relative;
-            overflow: hidden; /* 내용이 넘쳐서 빈 페이지 만드는 것 방지 */
-            /* 인쇄 시 페이지 나눔 */
-            page-break-after: always;
-            page-break-inside: avoid;
-        }
-
-        /* 4. 화면 미리보기용 (웹에서만 보임) */
-        @media screen {
-            #pdfArea { padding: 20px 0; }
-            .print-page { box-shadow: 0 0 15px rgba(0,0,0,0.5); margin-bottom: 30px; }
-        }
-
-        /* 5. 테이블 디자인 및 음영 강제 적용 */
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid #000; }
-        td { 
-            border: 1px solid #000; padding: 10px 8px; text-align: center; 
-            font-size: 10pt; height: 45px; word-break: break-all;
-        }
-        
-        /* [중요] PDF/인쇄 시 배경색(회색 음영) 강제 노출 설정 */
-        .header-bg { 
-            background-color: #f2f2f2 !important; 
-            font-weight: bold; 
-            width: 20%; 
-            -webkit-print-color-adjust: exact; /* 크롬/엣지 음영 강제 적용 */
-            print-color-adjust: exact; 
-        }
-
-        .answer-box { 
-            height: 190mm !important; /* 높이를 조금 더 줄여 안전권 확보 */
-            vertical-align: top; text-align: left; padding: 15px; line-height: 1.7; 
-        }
-
-        @media print {
-            body { background: white !important; }
-            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
-            .no-print-bar { display: none !important; }
-        }
-    </style>
-</head>
-<body>
-
-    <div class="no-print-bar">
-        <button onclick="downloadAsPDF()" class="btn-action" style="background-color: #FF80B5;">PDF 다운로드</button>
-        <button onclick="window.print()" class="btn-action" style="background-color: #8E44AD;">PDF 인쇄하기</button>
+<div class="container mt-5 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold text-primary"><i class="bi bi-card-checklist"></i> 제출 현황: {{ activity.title }}</h3>
+        <a href="{% url 'unified_list' %}?category={{ activity.category }}&sub={{ activity.sub_category }}" class="btn btn-outline-secondary rounded-pill">
+            <i class="bi bi-list me-1"></i> 목록으로
+        </a>
     </div>
 
-    <div id="pdfArea">
-        {% for s in students %}
-        <div class="print-page">
-            <table>
-                <colgroup>
-                    <col style="width: 20%;"><col style="width: 30%;">
-                    <col style="width: 20%;"><col style="width: 30%;">
-                </colgroup>
-                <tr>
-                    <td class="header-bg">응시 과목</td><td>{{ activity.section }}</td>
-                    <td class="header-bg">평가명</td><td>{{ activity.title }}</td>
-                </tr>
-                <tr>
-                    <td class="header-bg">응시자 정보</td>
-                    <td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td>
-                    <td class="header-bg">응시 일시</td>
-                    <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="header-bg">학생 답안</td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="answer-box">
-                        {{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}
-                    </td>
-                </tr>
+    <!-- 검색 및 필터 영역 -->
+    <div class="bg-light p-3 rounded-4 mb-4 border shadow-sm">
+        <form method="get" id="filterForm" class="row g-2 align-items-center">
+            
+            <!-- [좌측] 1. 학급 선택 필터 -->
+            <div class="col-auto">
+                <div class="dropdown">
+                    <button class="btn btn-white border dropdown-toggle bg-white rounded-pill px-3 shadow-sm" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                        <i class="bi bi-filter-circle me-1 text-primary"></i> 학급 선택
+                    </button>
+                    <div class="dropdown-menu p-3 shadow-lg border-0 rounded-4" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
+                        <!-- 기존 학급 선택 트리 구조 (유지) -->
+                        {% for item in filter_data %}
+                            <div class="mb-2">
+                                <div class="form-check fw-bold text-primary">
+                                    <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
+                                    <label class="form-check-label" for="g_{{ item.grade }}">{{ item.grade }}학년</label>
+                                </div>
+                                <div class="ms-3 border-start ps-2 mt-1">
+                                    {% for c in item.classes %}
+                                        <div class="form-check">
+                                            <input class="form-check-input child-check child-g-{{ item.grade }}" type="checkbox" name="target" value="{{ item.grade }}_{{ c }}" id="c_{{ item.grade }}_{{ c }}"
+                                                {% if selected_targets %}{% for t in selected_targets %}{% if t == item.grade|stringformat:"s"|add:"_"|add:c|stringformat:"s" %}checked{% endif %}{% endfor %}{% endif %}>
+                                            <label class="form-check-label text-dark fw-normal" for="c_{{ item.grade }}_{{ c }}">{{ c }}반</label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                        <div class="d-grid mt-3 border-top pt-2">
+                            <button type="submit" class="btn btn-primary btn-sm rounded-pill">조회</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- [중앙] 2. 이름 검색 및 초기화 (ms-auto, me-auto를 사용하여 가운데 정렬) -->
+            <div class="col-auto ms-auto me-auto d-flex gap-2">
+                <div class="input-group input-group-sm" style="width: 200px;">
+                    <input type="text" name="q" class="form-control rounded-start-pill border-end-0 bg-white" placeholder="이름 검색" value="{{ current_q }}">
+                    <button type="submit" class="btn btn-white border border-start-0 rounded-end-pill px-3 shadow-sm bg-white">
+                        <i class="bi bi-search text-primary"></i>
+                    </button>
+                </div>
+                <a href="{% url 'activity_result' activity.id %}" class="btn btn-light rounded-circle shadow-sm" title="검색 초기화">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+
+            <!-- [우측] 학생답안 다운로드 통합 드롭다운 -->
+            <div class="col-auto">
+                <div class="dropdown">
+                    <button class="btn btn-success dropdown-toggle rounded-pill px-4 shadow-sm fw-bold" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-download me-1"></i> 학생답안 다운로드
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3">
+                        <li>
+                            <a class="dropdown-item py-2" href="{% url 'submission_export_excel' activity.id %}">
+                                <i class="bi bi-file-earmark-excel text-success me-2"></i>엑셀 (xlsx)
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2" href="{% url 'export_answer_sheets_docx' activity.id %}">
+                                <i class="bi bi-file-earmark-word text-primary me-2"></i>문서 (docx)
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item py-2" href="{% url 'print_answer_sheets' activity.id %}" target="_blank">
+                                <i class="bi bi-file-pdf text-danger me-2"></i>PDF (pdf / 인쇄)
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+        </form>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover text-center align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>학년</th>
+                        <th>반</th>
+                        <th>번호</th>
+                        <th>이름</th>
+                        <th>상태</th>
+                        <th>제출 일시</th>
+                        <th>결시 사유</th>
+                        <th>답안지</th>
+                        <th>특이사항</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in submission_list %}
+                    <tr>
+                        <td>{{ item.student.grade }}</td>
+                        <td>{{ item.student.class_no }}</td>
+                        <td>{{ item.student.number }}</td>
+                        <td class="fw-bold">{{ item.student.name }}</td>
+                        
+                        <!-- 상태 -->
+                        <td>
+                            {% if item.status == '제출 완료' %}
+                                <span class="badge bg-success">제출 완료</span>
+                            {% elif item.status == '결시' %}
+                                <span class="badge bg-danger">결시</span>
+                            {% else %}
+                                <span class="badge bg-secondary opacity-50">미응시</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- 제출 일시 -->
+                        <td class="small text-muted">
+                            {% if item.status == '제출 완료' %}
+                                {{ item.submitted_at|date:"m-d H:i" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <!-- 결시 사유 (제출 완료 시 비활성화) -->
+                        <td>
+                            <select class="form-select form-select-sm" 
+                                    onchange="updateAbsence('{{ item.student.id }}', '{{ activity.id }}', this.value)"
+                                    style="width: 100px; margin: 0 auto;"
+                                    {% if item.status == '제출 완료' %}disabled title="제출 완료된 학생은 변경할 수 없습니다."{% endif %}>
+                                <option value="" {% if not item.absence %}selected{% endif %}>-</option>
+                                <option value="병결" {% if item.absence == '병결' %}selected{% endif %}>병결</option>
+                                <option value="공결" {% if item.absence == '공결' %}selected{% endif %}>공결</option>
+                                <option value="인정결" {% if item.absence == '인정결' %}selected{% endif %}>인정결</option>
+                                <option value="미인정결" {% if item.absence == '미인정결' %}selected{% endif %}>미인정결</option>
+                            </select>
+                        </td>
+
+                        <!-- 답안지 열기 (제출 완료일 때만 보임) -->
+                        <td>
+                            {% if item.status == '제출 완료' %}
+                                <a href="{% url 'answer_detail' item.answer_id %}" target="_blank" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-search"></i> 열기
+                                </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- 특이사항 -->
+                        <td>
+                            {% if item.answer_id %}
+                                <button class="btn btn-link p-0 text-decoration-none" 
+                                        onclick="openNoteModal('{{ item.answer_id }}', '{{ item.student.name }}', '{{ item.note|escapejs }}', '{{ item.activity_log|escapejs }}')">
+                                    {% if item.note %}
+                                        <i class="bi bi-file-earmark-text-fill text-warning fs-5"></i>
+                                    {% else %}
+                                        <i class="bi bi-file-earmark-plus text-muted fs-5 opacity-50"></i>
+                                    {% endif %}
+                                </button>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <!--  폐기 버튼 (제출 완료일 때만 보임) -->
+                        <td class="text-center">
+                            {% if item.answer_id %}
+                                <button class="btn btn-sm btn-outline-danger px-2" 
+                                        onclick="discardAnswer('{{ item.answer_id }}', '{{ item.student.name }}')"
+                                        data-url="{% url 'answer_delete' item.answer_id %}?category={{ activity.category }}&sub={{ activity.sub_category }}">
+                                    <i class="bi bi-trash3"></i> 폐기
+                                </button>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="py-5">
+                            <div class="text-center text-muted">
+                                {% if not request.GET.target and not request.GET.q %}
+                                    <i class="bi bi-info-circle fs-1 d-block mb-3"></i>
+                                    <p class="mb-0 fw-bold">조회할 학급을 상단 필터에서 선택해 주세요.</p>
+                                {% else %}
+                                    <i class="bi bi-search fs-1 d-block mb-3"></i>
+                                    <p class="mb-0">해당 조건에 맞는 학생이 없습니다.</p>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
             </table>
         </div>
-        {% endfor %}
     </div>
+</div>
 
-    <script>
-        /**
-         * [최종 해결책] 56장 백지 현상 해결 로직
-         */
-        function downloadAsPDF() {
-            const element = document.getElementById('pdfArea');
-            const btn = event.currentTarget;
-            btn.innerText = "⏳ 고속 변환 중...";
-            btn.disabled = true;
+<!-- 특이사항 메모 모달 -->
+<div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header bg-warning-subtle border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-sticky-fill me-2"></i>특이사항 메모</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                {% if activity.exam_mode == 'CLOSED' %}
+                <div id="logSection" class="mb-4">
+                    <label class="fw-bold mb-2 text-danger small"><i class="bi bi-shield-exclamation me-1"></i> 출입관리 기록 (부정행위 의심 로그)</label>
+                    <!-- [수정] pre 태그를 사용하여 줄바꿈을 유지합니다 -->
+                    <pre id="modalLogContent" class="p-3 bg-light border rounded-3 small text-secondary" 
+                         style="max-height: 200px; overflow-y: auto; white-space: pre-wrap; font-family: inherit;"></pre>
+                </div>
+                <hr>
+                {% endif %}
 
-            const options = {
-                margin: 0,
-                filename: '학생답안지_{{ activity.title }}.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    scrollY: 0,
-                    windowWidth: 800 // 캡처 너비를 좁혀서 배경 노이즈 차단
-                },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                // [핵심] mode: 'css'만 사용하여 사용자가 만든 .print-page 하나당 1장씩만 생성하도록 고정
-                pagebreak: { mode: 'css' } 
-            };
+                <div class="mb-3">
+                    <label class="fw-bold mb-2 small"><span id="noteStudentName"></span> 학생에 대한 메모</label>
+                    <textarea id="noteTextArea" class="form-control border-0 shadow-sm bg-light" 
+                            rows="5" placeholder="선생님만 볼 수 있는 메모를 입력하세요."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 justify-content-center pb-4">
+                <button type="button" class="btn btn-primary px-5 rounded-pill fw-bold" onclick="saveNote()">저장</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-            html2pdf().set(options).from(element).save().then(() => {
-                btn.innerText = "PDF 다운로드";
-                btn.disabled = false;
-            }).catch(err => {
-                console.error(err);
-                btn.disabled = false;
-            });
+<!-- 로그 확인용 모달 (페이지 하단 추가) -->
+<div class="modal fade" id="logModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-shield-exclamation me-2"></i> <span id="logStudentName"></span> 학생 활동 기록</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="logContent" class="bg-light p-3 border rounded" style="white-space: pre-wrap; font-size: 0.85rem; height: 300px; overflow-y: auto;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 학년 체크박스 누르면 -> 해당 학년의 반 모두 선택/해제
+    function toggleGrade(grade) {
+        const parent = document.getElementById('g_' + grade);
+        const children = document.querySelectorAll('.child-g-' + grade);
+        children.forEach(cb => {
+            cb.checked = parent.checked;
+        });
+    }
+    // 결시 사유 저장 스크립트
+    function updateAbsence(studentId, activityId, value) {
+        // 서버로 전송 (AJAX)
+        fetch('/activities/api/update-absence/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                'student_id': studentId,
+                'activity_id': activityId,
+                'value': value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // 성공 시 깜빡임 효과 (선택 사항)
+                // alert('저장되었습니다.'); // 너무 자주 뜨면 귀찮으니 생략
+                
+                // 만약 '결시'를 선택하면 상태 뱃지를 바꾸고 싶다면 여기서 DOM 조작 필요
+                // 하지만 간단하게는 새로고침하거나, 그냥 둡니다.
+            } else {
+                alert('저장 실패: ' + data.message);
+            }
+        });
+    }
+
+    // 메모 저장 함수 (AJAX 방식)
+    function saveNote() {
+        const answerId = window.currentEditingAnswerId;
+        const note = document.getElementById('noteTextArea').value;
+
+        fetch(`/activities/answer/${answerId}/save_note/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: new URLSearchParams({ 'note': note })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload(); // 저장 후 상태 반영을 위해 새로고침
+            } else {
+                alert('저장 실패: ' + data.message);
+            }
+        });
+    }
+
+    // 메모 모달 열기 함수 (테이블의 메모 아이콘 클릭 시 호출)
+    function openNoteModal(answerId, studentName, currentNote, activityLog) {
+        window.currentEditingAnswerId = answerId;
+        
+        // 학생 이름 및 메모 세팅
+        document.getElementById('noteStudentName').innerText = studentName;
+        document.getElementById('noteTextArea').value = currentNote;
+
+        // [중요] 폐쇄형일 경우 로그 데이터 세팅
+        const logContainer = document.getElementById('modalLogContent');
+        if (logContainer) {
+            logContainer.innerText = activityLog ? activityLog : "기록된 부정행위 의심 활동이 없습니다.";
         }
-    </script>
-</body>
-</html>
+
+        new bootstrap.Modal(document.getElementById('noteModal')).show();
+    }
+
+    // 폐기 확인 함수
+        function discardAnswer(answerId, studentName) {
+        // 1. 클릭된 버튼 요소를 찾습니다.
+        const btn = event.currentTarget;
+        // 2. 버튼에 심어둔 정확한 URL을 가져옵니다.
+        const targetUrl = btn.getAttribute('data-url');
+
+        if (confirm(`[${studentName}] 학생의 답안을 정말로 폐기하시겠습니까?\n폐기된 답안은 복구할 수 없으며 학생은 재응시해야 합니다.`)) {
+            // 3. 404 걱정 없는 정확한 주소로 이동합니다.
+            location.href = targetUrl;
+        }
+    }
+</script>
+{% endblock %}

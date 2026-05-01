@@ -2,14 +2,18 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>학생답안지 출력</title>
+    <title>학생답안지 출력 - {{ activity.title }}</title>
     <!-- 라이브러리 로드 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         /* 1. 기본 배경 및 폰트 */
-        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background-color: #525659; }
+        body { 
+            margin: 0; padding: 0; 
+            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; 
+            background-color: #525659; 
+        }
 
-        /* 2. 상단 버튼 바 (캡처 대상 제외) */
+        /* 2. 상단 버튼 바 */
         .no-print-bar { 
             position: sticky; top: 0; background: white; padding: 12px; 
             z-index: 1000; display: flex; justify-content: center; gap: 15px; 
@@ -17,51 +21,51 @@
         }
         .btn-action { border: none; padding: 10px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
 
-        /* 3. A4 용지 규격 (여유 공간 확보 버전) */
+        /* 3. A4 용지 규격 정의 (강력 보정) */
         .print-page {
             background-color: white !important;
             width: 210mm;
-            /* [중요] 높이를 290mm로 줄여서 하단에 절대적인 여유 공간을 줍니다 (57페이지 방지) */
-            height: 290mm; 
+            height: 296mm; /* 297mm보다 작게 설정하여 '유령 페이지' 생성 방지 */
             padding: 15mm; 
             margin: 0 auto;
             box-sizing: border-box;
             position: relative;
-            /* [중요] CSS의 page-break는 삭제합니다. 라이브러리 옵션으로만 제어합니다. */
+            overflow: hidden; /* 내용이 넘쳐서 빈 페이지 만드는 것 방지 */
+            /* 인쇄 시 페이지 나눔 */
+            page-break-after: always;
+            page-break-inside: avoid;
         }
 
-        /* 4. 화면 미리보기용 그림자 (웹에서만 보임) */
+        /* 4. 화면 미리보기용 (웹에서만 보임) */
         @media screen {
             #pdfArea { padding: 20px 0; }
             .print-page { box-shadow: 0 0 15px rgba(0,0,0,0.5); margin-bottom: 30px; }
         }
 
-        /* 5. 테이블 디자인 */
+        /* 5. 테이블 디자인 및 음영 강제 적용 */
         table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid #000; }
         td { 
-            border: 1px solid #000; 
-            padding: 8px; 
-            text-align: center; 
-            font-size: 10pt; /* 10포인트 고정 */
-            height: 40px;
-            word-break: break-all;
+            border: 1px solid #000; padding: 10px 8px; text-align: center; 
+            font-size: 10pt; height: 45px; word-break: break-all;
         }
-        .header-bg { background-color: #f2f2f2 !important; font-weight: bold; width: 20%; }
+        
+        /* [중요] PDF/인쇄 시 배경색(회색 음영) 강제 노출 설정 */
+        .header-bg { 
+            background-color: #f2f2f2 !important; 
+            font-weight: bold; 
+            width: 20%; 
+            -webkit-print-color-adjust: exact; /* 크롬/엣지 음영 강제 적용 */
+            print-color-adjust: exact; 
+        }
 
-        /* [가장 중요] 답안 영역 높이 축소 */
-        /* 높이를 180mm로 대폭 줄여서 다음 장으로 밀리는 현상을 원천 차단합니다. */
         .answer-box { 
-            height: 180mm !important; 
-            vertical-align: top; 
-            text-align: left; 
-            padding: 15px; 
-            line-height: 1.6; 
-            overflow: hidden;
+            height: 190mm !important; /* 높이를 조금 더 줄여 안전권 확보 */
+            vertical-align: top; text-align: left; padding: 15px; line-height: 1.7; 
         }
 
         @media print {
             body { background: white !important; }
-            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; height: 100% !important; }
+            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
             .no-print-bar { display: none !important; }
         }
     </style>
@@ -73,22 +77,17 @@
         <button onclick="window.print()" class="btn-action" style="background-color: #8E44AD;">PDF 인쇄하기</button>
     </div>
 
-    <!-- 캡처 대상 -->
     <div id="pdfArea">
         {% for s in students %}
         <div class="print-page">
             <table>
                 <colgroup>
-                    <col style="width: 20%;">
-                    <col style="width: 30%;">
-                    <col style="width: 20%;">
-                    <col style="width: 30%;">
+                    <col style="width: 20%;"><col style="width: 30%;">
+                    <col style="width: 20%;"><col style="width: 30%;">
                 </colgroup>
                 <tr>
-                    <td class="header-bg">응시 과목</td>
-                    <td>{{ activity.section }}</td>
-                    <td class="header-bg">평가명</td>
-                    <td>{{ activity.title }}</td>
+                    <td class="header-bg">응시 과목</td><td>{{ activity.section }}</td>
+                    <td class="header-bg">평가명</td><td>{{ activity.title }}</td>
                 </tr>
                 <tr>
                     <td class="header-bg">응시자 정보</td>
@@ -110,29 +109,30 @@
     </div>
 
     <script>
+        /**
+         * [최종 해결책] 56장 백지 현상 해결 로직
+         */
         function downloadAsPDF() {
             const element = document.getElementById('pdfArea');
             const btn = event.currentTarget;
-            btn.innerText = "⏳ 생성 중...";
+            btn.innerText = "⏳ 고속 변환 중...";
             btn.disabled = true;
 
             const options = {
                 margin: 0,
                 filename: '학생답안지_{{ activity.title }}.pdf',
-                image: { type: 'jpeg', quality: 0.95 },
+                image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { 
-                    scale: 1.5, // 메모리 부하를 줄이기 위해 스케일을 1.5로 약간 하향
+                    scale: 2, 
                     useCORS: true, 
                     scrollY: 0,
-                    windowWidth: 1000 
+                    windowWidth: 800 // 캡처 너비를 좁혀서 배경 노이즈 차단
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                // [수정] 84페이지 오류 해결의 핵심: 
-                // CSS 분할을 끄고, '.print-page' 요소를 만날 때마다 강제로 새 페이지 생성
-                pagebreak: { mode: 'avoid-all', after: '.print-page' }
+                // [핵심] mode: 'css'만 사용하여 사용자가 만든 .print-page 하나당 1장씩만 생성하도록 고정
+                pagebreak: { mode: 'css' } 
             };
 
-            // 라이브러리 실행
             html2pdf().set(options).from(element).save().then(() => {
                 btn.innerText = "PDF 다운로드";
                 btn.disabled = false;
