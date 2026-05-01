@@ -2,16 +2,11 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>학생답안지 출력 - {{ activity.title }}</title>
-    <!-- 라이브러리 로드 -->
+    <title>학생답안지 출력</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* 1. 기본 배경 및 폰트 */
-        body { 
-            margin: 0; padding: 0; 
-            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; 
-            background-color: #525659; 
-        }
+        /* 1. 기본 초기화 및 맑은 고딕 적용 */
+        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background-color: #525659; }
 
         /* 2. 상단 버튼 바 */
         .no-print-bar { 
@@ -21,61 +16,54 @@
         }
         .btn-action { border: none; padding: 10px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
 
-        /* 3. A4 용지 규격 정의 (강력 보정) */
+        /* 3. A4 용지 규격 정의 (가장 핵심) */
         .print-page {
             background-color: white !important;
             width: 210mm;
-            height: 285mm !important;
+            height: 297mm; /* A4 정사이즈 */
             padding: 15mm; 
             margin: 0 auto;
             box-sizing: border-box;
             position: relative;
-            overflow: hidden; /* 내용이 넘쳐서 빈 페이지 만드는 것 방지 */
+            overflow: hidden; /* 내용이 넘쳐서 빈 페이지를 만드는 것을 물리적으로 차단 */
+            page-break-after: always;
         }
 
-        /* 4. 화면 미리보기용 (웹에서만 보임) */
+        /* 4. 화면 미리보기 효과 */
         @media screen {
             #pdfArea { padding: 20px 0; }
-            .print-page { box-shadow: 0 0 15px rgba(0,0,0,0.5); margin-bottom: 30px; }
+            .print-page { box-shadow: 0 0 15px rgba(0,0,0,0.5); margin-bottom: 20px; }
         }
 
-        /* 5. 테이블 디자인 및 음영 강제 적용 */
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid #000; }
+        /* 5. 테이블 디자인 (너비 고정) */
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            table-layout: fixed; 
+            border: 1.5px solid #000;
+        }
         td { 
-            border: 1px solid #000; padding: 10px 8px; text-align: center; 
-            font-size: 10pt; height: 45px; word-break: break-all;
+            border: 1px solid #000; padding: 8px; text-align: center; 
+            font-size: 10pt; height: 40px; word-break: break-all;
         }
-        
-        /* [중요] PDF/인쇄 시 배경색(회색 음영) 강제 노출 설정 */
         .header-bg { 
-            background-color: #f2f2f2 !important; 
-            font-weight: bold; 
-            width: 20%; 
-            -webkit-print-color-adjust: exact; /* 크롬/엣지 음영 강제 적용 */
-            print-color-adjust: exact; 
+            background-color: #f2f2f2 !important; font-weight: bold; 
+            -webkit-print-color-adjust: exact; print-color-adjust: exact; 
         }
 
+        /* 6. 답안 영역 높이 조정 (빈 페이지 방지의 핵심 수치) */
         .answer-box { 
-            /* 헤더 영역을 고려하여 답안 박스를 215mm로 설정 */
-            height: 185mm !important; 
+            height: 215mm !important; /* A4 용지 안에서 표가 차지하는 최대 높이 제한 */
             vertical-align: top; 
             text-align: left; 
-            padding: 10mm 10mm;
-            line-height: 1.7; 
-            overflow: hidden;
+            padding: 10px; 
+            line-height: 1.6; 
         }
 
         @media print {
             body { background: white !important; }
-            .print-page { 
-                margin: 0 !important; 
-                width: 100% !important; 
-                height: 100% !important;
-                /* [중요] 브라우저 인쇄 시 중복 페이지 생성을 막기 위해 avoid 사용 */
-                page-break-after: avoid !important; 
-
-            }
-            .no-print-bar { display: none;
+            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
+            .no-print-bar { display: none !important; }
         }
     </style>
 </head>
@@ -105,7 +93,7 @@
                     <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
                 </tr>
                 <tr>
-                    <td colspan="4" class="header-bg">학생 답안</td>
+                    <td colspan="4" class="header-bg" style="letter-spacing: 5px;">학생 답안</td>
                 </tr>
                 <tr>
                     <td colspan="4" class="answer-box">
@@ -118,9 +106,6 @@
     </div>
 
     <script>
-        /**
-         * [최종 해결책] 56장 백지 현상 해결 로직
-         */
         function downloadAsPDF() {
             const element = document.getElementById('pdfArea');
             const btn = event.currentTarget;
@@ -128,24 +113,25 @@
             btn.disabled = true;
 
             const options = {
-                /* [수정] 라이브러리가 여백을 임의로 넣지 못하게 0으로 고정 */
-                margin: 0, 
+                margin: 0,
                 filename: '학생답안지_{{ activity.title }}.pdf',
-                image: { type: 'jpeg', quality: 1.0 },
+                image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
                     scrollY: 0,
-                    /* 잘림 방지를 위해 1024mm로 너비를 늘립니다. (표준 해상도) */
-                    windowWidth: 1024
+                    windowWidth: 800 // [중요] 800px로 캡처 너비를 고정하여 여백 간섭 차단
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                /* [수정] 가장 안전한 css 모드로 고정 */
+                // [중요] 'css' 모드 하나만 사용해서 중복 분할 방지
                 pagebreak: { mode: 'css' } 
             };
 
             html2pdf().set(options).from(element).save().then(() => {
                 btn.innerText = "PDF 다운로드";
+                btn.disabled = false;
+            }).catch(err => {
+                console.error(err);
                 btn.disabled = false;
             });
         }
