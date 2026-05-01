@@ -3,138 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <title>학생답안지 출력</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* 1. 기본 초기화 및 맑은 고딕 적용 */
-        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background-color: #525659; }
+        /* 1. 가장 깔끔하고 안정적인 인쇄용 스타일 */
+        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background-color: #f0f2f5; }
 
-        /* 2. 상단 버튼 바 */
         .no-print-bar { 
-            position: sticky; top: 0; background: white; padding: 12px; 
-            z-index: 1000; display: flex; justify-content: center; gap: 15px; 
-            border-bottom: 2px solid #333; 
+            position: sticky; top: 0; background: white; padding: 15px; 
+            z-index: 1000; display: flex; justify-content: center; border-bottom: 1px solid #ddd; 
         }
-        .btn-action { border: none; padding: 10px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-main { 
+            background-color: #8E44AD; color: white; border: none; 
+            padding: 15px 40px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;
+            box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
+        }
 
-        /* 3. A4 용지 규격 정의 (가장 핵심) */
         .print-page {
             background-color: white !important;
             width: 210mm;
-            height: 297mm; /* A4 정사이즈 */
-            padding: 15mm; 
-            margin: 0 auto;
+            min-height: 290mm;
+            padding: 20mm;
+            margin: 30px auto;
             box-sizing: border-box;
-            position: relative;
-            overflow: hidden; /* 내용이 넘쳐서 빈 페이지를 만드는 것을 물리적으로 차단 */
             page-break-after: always;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
 
-        /* 4. 화면 미리보기 효과 */
-        @media screen {
-            #pdfArea { padding: 20px 0; }
-            .print-page { box-shadow: 0 0 15px rgba(0,0,0,0.5); margin-bottom: 20px; }
-        }
-
-        /* 5. 테이블 디자인 (너비 고정) */
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            table-layout: fixed; 
-            border: 1.5px solid #000;
-        }
-        td { 
-            border: 1px solid #000; padding: 8px; text-align: center; 
-            font-size: 10pt; height: 40px; word-break: break-all;
-        }
-        .header-bg { 
-            background-color: #f2f2f2 !important; font-weight: bold; 
-            -webkit-print-color-adjust: exact; print-color-adjust: exact; 
-        }
-
-        /* 6. 답안 영역 높이 조정 (빈 페이지 방지의 핵심 수치) */
-        .answer-box { 
-            height: 215mm !important; /* A4 용지 안에서 표가 차지하는 최대 높이 제한 */
-            vertical-align: top; 
-            text-align: left; 
-            padding: 10px; 
-            line-height: 1.6; 
-        }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1.5px solid #000; }
+        td { border: 1px solid #000; padding: 10px; text-align: center; font-size: 10pt; }
+        .header-bg { background-color: #f2f2f2 !important; font-weight: bold; -webkit-print-color-adjust: exact; }
+        .answer-box { min-height: 200mm; vertical-align: top; text-align: left; padding: 15px; line-height: 1.7; }
 
         @media print {
             body { background: white !important; }
-            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
             .no-print-bar { display: none !important; }
+            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
         }
     </style>
 </head>
 <body>
-
+    <!-- 버튼 하나로 통일: 브라우저가 제공하는 가장 완벽한 PDF 저장 기능을 씁니다 -->
     <div class="no-print-bar">
-        <button onclick="downloadAsPDF()" class="btn-action" style="background-color: #FF80B5;">PDF 다운로드</button>
-        <button onclick="window.print()" class="btn-action" style="background-color: #8E44AD;">PDF 인쇄하기</button>
+        <button onclick="window.print()" class="btn-main">
+            🖨️ PDF 저장 및 인쇄하기 (Ctrl+P)
+        </button>
     </div>
 
     <div id="pdfArea">
         {% for s in students %}
         <div class="print-page">
             <table>
-                <colgroup>
-                    <col style="width: 20%;"><col style="width: 30%;">
-                    <col style="width: 20%;"><col style="width: 30%;">
-                </colgroup>
-                <tr>
-                    <td class="header-bg">응시 과목</td><td>{{ activity.section }}</td>
-                    <td class="header-bg">평가명</td><td>{{ activity.title }}</td>
-                </tr>
-                <tr>
-                    <td class="header-bg">응시자 정보</td>
-                    <td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td>
-                    <td class="header-bg">응시 일시</td>
-                    <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="header-bg" style="letter-spacing: 5px;">학생 답안</td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="answer-box">
-                        {{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}
-                    </td>
-                </tr>
+                <colgroup><col style="width: 20%;"><col style="width: 30%;"><col style="width: 20%;"><col style="width: 30%;"></colgroup>
+                <tr><td class="header-bg">응시 과목</td><td>{{ activity.section }}</td><td class="header-bg">평가명</td><td>{{ activity.title }}</td></tr>
+                <tr><td class="header-bg">응시자 정보</td><td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td><td class="header-bg">응시 일시</td><td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td></tr>
+                <tr><td colspan="4" class="header-bg">학생 답안</td></tr>
+                <tr><td colspan="4" class="answer-box">{{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}</td></tr>
             </table>
         </div>
         {% endfor %}
     </div>
-
-    <script>
-        function downloadAsPDF() {
-            const element = document.getElementById('pdfArea');
-            const btn = event.currentTarget;
-            btn.innerText = "⏳ 생성 중...";
-            btn.disabled = true;
-
-            const options = {
-                margin: 0,
-                filename: '학생답안지_{{ activity.title }}.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { 
-                    scale: 2, 
-                    useCORS: true, 
-                    scrollY: 0,
-                    windowWidth: 800 // [중요] 800px로 캡처 너비를 고정하여 여백 간섭 차단
-                },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                // [중요] 'css' 모드 하나만 사용해서 중복 분할 방지
-                pagebreak: { mode: 'css' } 
-            };
-
-            html2pdf().set(options).from(element).save().then(() => {
-                btn.innerText = "PDF 다운로드";
-                btn.disabled = false;
-            }).catch(err => {
-                console.error(err);
-                btn.disabled = false;
-            });
-        }
-    </script>
 </body>
 </html>
