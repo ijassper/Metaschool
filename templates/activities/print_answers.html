@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* 1. 맑은 고딕 최적화 초기화 */
+        /* 1. 맑은 고딕 및 10포인트 최적화 */
         body { margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background-color: #525659; }
 
         /* 2. 상단 버튼 바 */
@@ -15,59 +15,54 @@
         }
         .btn-action { border: none; padding: 10px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
 
-        /* 3. A4 용지 규격 (mm 고정) */
+        /* 3. A4 용지 규격 (강력한 높이 제한) */
         .print-page {
             width: 210mm;
-            height: 296.5mm; /* 빈 페이지 방지를 위해 0.5mm 여유 */
+            min-height: 296.5mm; /* 최소 높이만 지정 */
             padding: 20mm;
             margin: 20px auto;
             background-color: white !important;
             box-sizing: border-box;
             position: relative;
-            overflow: hidden;
+            /* overflow: hidden 제거 - 내용이 늘어날 수 있게 허용 */
             page-break-after: always;
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
         }
 
-        /* 4. 테이블 디자인 - 너비 고정 로직 */
+        /* 4. 테이블 디자인 - 내부 행 분할 허용 */
         table { 
             width: 100%; 
             border-collapse: collapse; 
-            table-layout: fixed; /* 너비 고정 필수 */
-            word-break: break-all;
+            table-layout: fixed;
+            /* 표 내부에서 페이지가 넘어가는 것을 허용 */
+            page-break-inside: auto; 
         }
-        th, td { 
-            border: 1.5px solid black; 
-            padding: 10px 5px; 
-            text-align: center; 
-            font-size: 10.5pt; /* 맑은 고딕 크기 미세 조정 */
-            line-height: 1.4;
-        }
-        .header-bg { 
-            background-color: #f2f2f2 !important; 
-            font-weight: bold; 
-        }
+        
+        /* 행 단위로 페이지가 잘리지 않도록 설정 */
+        tr { page-break-inside: avoid; page-break-after: auto; }
 
-        /* 5. 답안 영역 높이 제한 (mm) */
+        /* 5. [핵심] 답안 영역 높이 설정 변경 */
         .answer-box { 
-            height: 205mm !important; 
+            /* 고정 height 대신 최소 높이만 부여 */
+            min-height: 200mm !important; 
+            height: auto !important; /* 내용에 따라 늘어남 */
             vertical-align: top; 
             text-align: left; 
-            padding: 15mm 10mm; 
+            padding: 10mm; 
             line-height: 1.8; 
+            overflow: visible !important; /* 잘림 방지 */
+            word-break: break-all;
         }
 
         @media print {
-            body { background: white; }
-            .print-page { margin: 0 !important; box-shadow: none !important; }
-            .no-print-bar { display: none !important; }
+            /* 인쇄 시 여백 최적화 */
+            .print-page { margin: 0 !important; min-height: 100%; box-shadow: none !important; }
         }
     </style>
 </head>
 <body>
 
     <div class="no-print-bar">
-        <!-- 버튼 명칭 수정 -->
         <button onclick="downloadAsPDF()" class="btn-action" style="background-color: #FF80B5;">PDF 다운로드</button>
         <button onclick="window.print()" class="btn-action" style="background-color: #8E44AD;">PDF 인쇄하기</button>
     </div>
@@ -76,12 +71,11 @@
         {% for s in students %}
         <div class="print-page">
             <table>
-                <!-- [수정] 맑은 고딕 글씨 밀림 방지를 위한 너비 강제 할당 -->
                 <colgroup>
-                    <col style="width: 18%;"> <!-- 라벨1 -->
-                    <col style="width: 32%;"> <!-- 내용1 -->
-                    <col style="width: 18%;"> <!-- 라벨2 -->
-                    <col style="width: 32%;"> <!-- 내용2 -->
+                    <col style="width: 18%;">
+                    <col style="width: 32%;">
+                    <col style="width: 18%;">
+                    <col style="width: 32%;">
                 </colgroup>
                 <tr>
                     <td class="header-bg">응시 과목</td>
@@ -91,16 +85,16 @@
                 </tr>
                 <tr>
                     <td class="header-bg">응시자 정보</td>
-                    <td style="font-size: 9.5pt;">{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td>
+                    <td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td>
                     <td class="header-bg">응시 일시</td>
-                    <td style="font-size: 9.5pt;">{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                    <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
                 </tr>
                 <tr>
-                    <!-- [수정] 괄호 제목 삭제 -->
                     <td colspan="4" class="header-bg" style="font-size: 11pt; letter-spacing: 5px;">학생 답안</td>
                 </tr>
                 <tr>
                     <td colspan="4" class="answer-box">
+                        <!-- linebreaksbr 필터로 줄바꿈 유지 -->
                         {{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}
                     </td>
                 </tr>
@@ -113,13 +107,13 @@
         function downloadAsPDF() {
             const element = document.getElementById('pdfArea');
             const btn = event.currentTarget;
-            btn.innerText = "⏳ 생성 중...";
+            btn.innerText = "⏳ 고속 렌더링 중...";
             btn.disabled = true;
 
             const options = {
-                margin: 0,
+                margin: [0, 0, 0, 0], 
                 filename: '학생답안지_{{ activity.title }}.pdf',
-                image: { type: 'jpeg', quality: 1.0 },
+                image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
@@ -127,7 +121,9 @@
                     windowWidth: 1000 
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak: { mode: 'avoid-all' } 
+                // [수정] mode: 'css'는 우리가 설정한 page-break-after를 지키게 하고,
+                // 'legacy'는 내용이 너무 길 때 라이브러리가 알아서 페이지를 나누게 합니다.
+                pagebreak: { mode: ['css', 'legacy'] } 
             };
 
             html2pdf().set(options).from(element).save().then(() => {
