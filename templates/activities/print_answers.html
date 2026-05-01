@@ -66,13 +66,16 @@
         }
 
         @media print {
+            body { background: white !important; }
             .print-page { 
                 margin: 0 !important; 
                 width: 100% !important; 
                 height: 100% !important;
                 /* [중요] 브라우저 인쇄 시 중복 페이지 생성을 막기 위해 avoid 사용 */
                 page-break-after: avoid !important; 
+
             }
+            .no-print-bar { display: none;
         }
     </style>
 </head>
