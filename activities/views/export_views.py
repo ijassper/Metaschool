@@ -9,7 +9,7 @@ from urllib.parse import quote
 # 엑셀 및 워드 라이브러리
 from openpyxl import Workbook
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Pt, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 
@@ -189,3 +189,18 @@ def export_answer_sheets_docx(request, activity_id):
     doc.save(response)
     
     return response
+
+@login_required
+@teacher_required
+def print_answer_sheets(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    students = activity.target_students.all().order_by('grade', 'class_no', 'number')
+    
+    # 각 학생별 답안 데이터를 미리 매핑해서 전달
+    for s in students:
+        s.my_answer = activity.get_student_answer(s)
+        
+    return render(request, 'activities/print_answers.html', {
+        'activity': activity,
+        'students': students,
+    })

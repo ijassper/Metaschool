@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page { size: A4; margin: 20mm; }
+        body { font-family: 'Pretendard', '함초롬바탕', serif; }
+        .page-break { page-break-after: always; } /* 학생별 페이지 넘김 */
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid black; padding: 10px; text-align: center; font-size: 11pt; }
+        .answer-box { height: 750px; vertical-align: top; text-align: left; padding: 20px; line-height: 1.8; }
+        .header-bg { background-color: #f2f2f2; font-weight: bold; width: 20%; }
+        
+        @media print {
+            .no-print { display: none; } /* 인쇄 시 버튼 숨김 */
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:center; padding: 20px; background: #eee;">
+        <button onclick="window.print()" style="padding: 10px 30px; cursor:pointer;">PDF 저장 및 인쇄하기 (Ctrl+P)</button>
+    </div>
+
+    {% for s in students %}
+    <div class="page-break">
+        <table>
+            <tr>
+                <td class="header-bg">응시 과목</td><td>{{ activity.section }}</td>
+                <td class="header-bg">평가명</td><td>{{ activity.title }}</td>
+            </tr>
+            <tr>
+                <td class="header-bg">응시자 정보</td>
+                <td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td>
+                <td class="header-bg">응시 일시</td>
+                <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
+            </tr>
+            <tr>
+                <td colspan="4" class="header-bg">학생 답안 ({{ activity.q1_title }})</td>
+            </tr>
+            <tr>
+                <td colspan="4" class="answer-box">
+                    {{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}
+                </td>
+            </tr>
+        </table>
+    </div>
+    {% endfor %}
+</body>
+</html>

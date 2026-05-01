@@ -69,7 +69,12 @@
                 <!-- 2. 신규 워드 출력용 다운로드 (보라색 강조) -->
                 <a href="{% url 'export_answer_sheets_docx' activity.id %}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold" 
                 style="background: var(--ingrid-gradient); border:none;">
-                    <i class="bi bi-printer-fill me-1"></i> 개별 답안지 출력(Word)
+                    <i class="bi bi-printer-fill me-1"></i> 답안지 출력(Word)
+                </a>
+
+                <!-- PDF/인쇄 (새 창으로 열기) -->
+                <a href="{% url 'print_answer_sheets' activity.id %}" target="_blank" class="btn btn-danger rounded-pill px-4 fw-bold shadow">
+                    <i class="bi bi-file-earmark-pdf"></i> PDF 저장 및 인쇄
                 </a>
             </div>
 
