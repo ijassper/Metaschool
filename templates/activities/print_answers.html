@@ -2,72 +2,131 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <title>학생 답안지 - {{ activity.title }}</title>
     <style>
-        /* 인쇄 시 여백 강제 제거 및 A4 설정 */
+        /* 1. 용지 및 폰트 기본 설정 */
         @page { size: A4; margin: 0; }
-        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; background-color: #525659; }
-
-        /* 화면에서 볼 때: 종이가 회색 배경 위에 떠 있는 느낌 */
-        @media screen {
-            .pdf-container { padding: 40px 0; }
-            .print-page {
-                width: 210mm;
-                margin: 0 auto 30px auto;
-                box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            }
+        body { 
+            margin: 0; padding: 0; 
+            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; 
+            background-color: #525659; /* 화면 미리보기 배경 */
         }
 
-        /* 공통 종이 스타일 */
+        /* 2. 상단 버튼 바 (PDF 제외) */
+        .no-print-bar { 
+            position: sticky; top: 0; background: white; padding: 15px; 
+            z-index: 1000; display: flex; justify-content: center; gap: 15px; 
+            border-bottom: 2px solid #333; 
+        }
+        .btn-save { background-color: #FF80B5; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .btn-print { background-color: #8E44AD; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+
+        /* 3. 실제 종이 영역 (A4 규격 강제 고정) */
         .print-page {
             background-color: white !important;
             width: 210mm;
-            height: 297mm; /* 정사이즈 */
-            padding: 20mm;
+            height: 297mm;
+            padding: 15mm 15mm 10mm 15mm; /* 하단 여백 확보 */
+            margin: 20px auto;
             box-sizing: border-box;
-            page-break-after: always;
             position: relative;
+            overflow: hidden; /* 영역 밖 노이즈 차단 */
+            page-break-after: always;
         }
 
-        /* 상단 버튼 바 */
-        .no-print-bar { 
-            position: sticky; top: 0; background: white; padding: 15px; 
-            z-index: 1000; display: flex; justify-content: center; border-bottom: 1px solid #ddd; 
+        /* 4. 테이블 디자인 (너비 및 높이 완벽 고정) */
+        table { 
+            width: 100%; 
+            height: 265mm; /* [핵심] 표 전체 높이를 A4에 맞춰 고정 */
+            border-collapse: collapse; 
+            table-layout: fixed; 
+            border: 2px solid #000;
         }
-        .btn-print { 
-            background: #8E44AD; color: white; border: none; padding: 12px 35px; 
-            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px;
+        td { 
+            border: 1px solid #000; 
+            padding: 8px; 
+            text-align: center; 
+            font-size: 10.5pt;
+            word-break: break-all;
+        }
+        .header-bg { 
+            background-color: #f2f2f2 !important; 
+            font-weight: bold; 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact; 
         }
 
-        /* 테이블 디자인 */
-        table { width: 100%; height: 255mm; border-collapse: collapse; table-layout: fixed; border: 1.5px solid #000; }
-        td { border: 1px solid #000; padding: 10px; text-align: center; font-size: 10pt; }
-        .header-bg { background-color: #f2f2f2 !important; font-weight: bold; -webkit-print-color-adjust: exact; }
-        .answer-box { vertical-align: top; text-align: left; padding: 15px; line-height: 1.8; }
+        /* 5. 각 행의 고정 높이 설정 (스크린샷 양식 재현) */
+        .row-header { height: 15mm; }
+        .row-title { height: 12mm; }
+        
+        /* [가장 중요] 답안 영역 - 남은 모든 공간을 차지함 */
+        .answer-box { 
+            height: auto; 
+            vertical-align: top; 
+            text-align: left; 
+            padding: 20px; 
+            line-height: 1.8; 
+            font-size: 11pt;
+        }
 
+        /* 6. 미리보기 효과 및 인쇄 최적화 */
+        @media screen { .print-page { box-shadow: 0 0 15px rgba(0,0,0,0.5); } }
         @media print {
+            body { background: white !important; }
+            .print-page { margin: 0 !important; box-shadow: none !important; }
             .no-print-bar { display: none !important; }
-            .pdf-container { padding: 0 !important; }
-            .print-page { margin: 0 !important; box-shadow: none !important; width: 100% !important; }
         }
     </style>
 </head>
 <body>
+
     <div class="no-print-bar">
-        <button onclick="window.print()" class="btn-print">🖨️ PDF 저장 또는 인쇄 (Ctrl+P)</button>
+        <!-- 1. 저장 버튼: 누르면 안내 메시지 후 인쇄창 -->
+        <button onclick="savePdf()" class="btn-save">💾 PDF 저장</button>
+        <!-- 2. 인쇄 버튼: 즉시 인쇄창 -->
+        <button onclick="window.print()" class="btn-print">🖨️ PDF 인쇄</button>
     </div>
 
-    <div class="pdf-container">
+    <div id="pdfArea">
         {% for s in students %}
         <div class="print-page">
             <table>
-                <colgroup><col style="width:20%"><col style="width:30%"><col style="width:20%"><col style="width:30%"></colgroup>
-                <tr><td class="header-bg">응시 과목</td><td>{{ activity.section }}</td><td class="header-bg">평가명</td><td>{{ activity.title }}</td></tr>
-                <tr><td class="header-bg">응시자 정보</td><td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td><td class="header-bg">응시 일시</td><td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td></tr>
-                <tr><td colspan="4" class="header-bg">학생 답안</td></tr>
-                <tr><td colspan="4" class="answer-box">{{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}</td></tr>
+                <colgroup>
+                    <col style="width: 20%;"><col style="width: 30%;">
+                    <col style="width: 20%;"><col style="width: 30%;">
+                </colgroup>
+                <!-- 제목 영역 수정 -->
+                <tr class="row-header">
+                    <td class="header-bg">응시 과목</td>
+                    <td class="fw-bold">{{ activity.section }}</td>
+                    <td class="header-bg">평가명</td>
+                    <td class="fw-bold">{{ activity.title }}</td>
+                </tr>
+                <tr class="row-header">
+                    <td class="header-bg">응시자 정보</td>
+                    <td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td>
+                    <td class="header-bg">응시 일시</td>
+                    <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                </tr>
+                <tr class="row-title">
+                    <td colspan="4" class="header-bg" style="letter-spacing: 5px;">학 생 답 안 지</td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="answer-box">
+                        {{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}
+                    </td>
+                </tr>
             </table>
         </div>
         {% endfor %}
     </div>
+
+    <script>
+        function savePdf() {
+            alert("인쇄창이 뜨면 '대상'을 [PDF로 저장]으로 변경해 주세요.");
+            window.print();
+        }
+    </script>
 </body>
 </html>
