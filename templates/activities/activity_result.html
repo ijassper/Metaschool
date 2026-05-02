@@ -73,7 +73,7 @@
                         <li><a class="dropdown-item py-2" href="{% url 'submission_export_excel' activity.id %}"><i class="bi bi-file-earmark-excel text-success me-2"></i>엑셀 (xlsx)</a></li>
                         <li><a class="dropdown-item py-2" href="{% url 'export_answer_sheets_docx' activity.id %}"><i class="bi bi-file-earmark-word text-primary me-2"></i>문서 (docx)</a></li>
                         <!-- <li><a class="dropdown-item py-2" href="{% url 'print_answer_sheets' activity.id %}" target="_blank"><i class="bi bi-file-pdf text-danger me-2"></i>PDF (pdf / 인쇄)</a></li> -->
-                        <a class="dropdown-item py-2" href="javascript:void(0);" onclick="openPdfPreview('{% url 'print_answer_sheets' activity.id %}')">
+                        <a class="dropdown-item py-2" href="javascript:void(0);" onclick="openPdfPreview('{% url 'print_answer_sheets' activity.id %}{% if request.GET.urlencode %}?{{ request.GET.urlencode|escapejs }}{% endif %}')">
                             <i class="bi bi-file-pdf text-danger me-2"></i>PDF (저장 / 인쇄)
                         </a>
                     </ul>
@@ -270,17 +270,54 @@
     </div>
 </div>
 
+<style>
+    #pdfViewerModal .modal-dialog {
+        max-width: min(94vw, 1500px);
+        width: 94vw;
+        margin: 1.25rem auto;
+        height: calc(100vh - 2.5rem);
+    }
+
+    #pdfViewerModal .modal-content {
+        height: 100%;
+        border-radius: 28px !important;
+        background: rgba(43, 47, 54, 0.9) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45) !important;
+        backdrop-filter: blur(18px);
+    }
+
+    #pdfViewerModal .modal-header {
+        background: rgba(255, 255, 255, 0.92) !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+        border-radius: 28px 28px 0 0;
+    }
+
+    #pdfViewerModal .modal-body {
+        padding: 18px !important;
+        background: transparent !important;
+    }
+
+    #pdfIframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        border-radius: 18px;
+        background: #3b3f46;
+    }
+</style>
+
 <!-- PDF 뷰어 모달 (페이지 최하단) -->
 <div class="modal fade" id="pdfViewerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-fullscreen p-5"> <!-- 화면을 꽉 채우는 풀스크린 모달 -->
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 24px; background: #525659;">
-            <div class="modal-header border-0 bg-white px-4">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 px-4">
                 <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>학생 답안지 출력 시스템</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-0" style="overflow: hidden;">
+            <div class="modal-body" style="overflow: hidden;">
                 <!-- 우리가 만든 완벽한 인쇄 페이지를 이 iframe에 담습니다 -->
-                <iframe id="pdfIframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+                <iframe id="pdfIframe" src=""></iframe>
             </div>
         </div>
     </div>

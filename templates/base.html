@@ -15,6 +15,8 @@
             --ingrid-primary: #8E44AD;
             --ingrid-secondary: #512DA8;
             --ingrid-active-bg: #F3F0FF; /* 연보라 활성 배경 */
+            --sidebar-expanded-width: 280px;
+            --sidebar-collapsed-width: 92px;
         }
         /* 1. 기본 레이아웃 및 폰트 */
         body { 
@@ -27,23 +29,67 @@
         /* 2. 사이드바 스타일 (피그마 디자인 반영) */
         .sidebar {
             height: 100vh;
-            background-color: #ffffff;
-            border-right: 1px solid #f0f0f0;
+            background: rgba(255, 255, 255, 0.86);
+            border-right: 1px solid rgba(255, 255, 255, 0.6);
             position: fixed;
             top: 0; left: 0;
             z-index: 1000;
-            width: 280px; /* 고정 너비 */
+            width: var(--sidebar-expanded-width); /* 고정 너비 */
             display: flex;
             flex-direction: column;
+            backdrop-filter: blur(14px);
+            transition: width 0.3s ease, background 0.3s ease;
+        }
+
+        .sidebar::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(255, 128, 181, 0.12) 0%, rgba(142, 68, 173, 0.08) 100%);
+            pointer-events: none;
         }
 
         .brand-area {
-            padding: 30px 25px;
+            position: relative;
+            z-index: 1;
+            padding: 22px 18px;
             font-size: 1.5rem;
             font-weight: 800;
             color: var(--ingrid-primary) !important;
             text-decoration: none !important;
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .brand-title {
+            color: var(--ingrid-primary) !important;
+            text-decoration: none !important;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: opacity 0.3s ease, width 0.3s ease;
+        }
+
+        .sidebar-toggle-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 999px;
+            background: var(--ingrid-gradient);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(142, 68, 173, 0.35);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .sidebar-toggle-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(142, 68, 173, 0.45);
         }
 
         /* 메뉴 리스트 점(bullet) 제거 및 간격 조정 */
@@ -53,6 +99,8 @@
             margin: 0; 
             flex-grow: 1;
             overflow-y: auto;
+            position: relative;
+            z-index: 1;
         }
 
         .menu-btn {
@@ -61,12 +109,13 @@
             align-items: center;
             padding: 12px 20px;
             margin: 4px 15px;
-            border-radius: 12px;
+            border-radius: 24px;
             color: #555555;
             font-weight: 500;
             text-decoration: none !important;
-            transition: 0.2s;
+            transition: all 0.3s ease;
             cursor: pointer;
+            position: relative;
         }
 
         .menu-btn.active {
@@ -83,8 +132,9 @@
         .sub-menu-list {
             list-style: none !important;
             padding: 5px 0 10px 0 !important;
-            margin: 0;
-            background-color: #fafafa;
+            margin: 0 12px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
         }
 
         .sub-menu-item {
@@ -93,7 +143,9 @@
             font-size: 0.9rem;
             color: #777777;
             text-decoration: none !important;
-            transition: 0.2s;
+            transition: 0.3s ease;
+            border-radius: 999px;
+            margin: 2px 6px;
         }
 
         .sub-menu-item:hover, .sub-menu-item.active {
@@ -109,17 +161,87 @@
         .sidebar-footer {
             padding: 15px;
             margin-top: auto;
+            position: relative;
+            z-index: 1;
         }
         .profile-card {
-            background-color: #f4f7ff;
+            background-color: rgba(244, 247, 255, 0.82);
             padding: 12px 15px;
-            border-radius: 16px;
+            border-radius: 24px;
+            backdrop-filter: blur(10px);
         }
 
         /* 4. 메인 콘텐츠 영역 (사이드바 너비만큼 왼쪽 마진) */
         .main-wrapper {
-            margin-left: 280px;
+            margin-left: var(--sidebar-expanded-width);
             min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+
+        body.sidebar-collapsed .sidebar {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        body.sidebar-collapsed .main-wrapper {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        body.sidebar-collapsed .brand-title,
+        body.sidebar-collapsed .profile-meta,
+        body.sidebar-collapsed .sub-menu-list,
+        body.sidebar-collapsed .arrow-icon {
+            opacity: 0;
+            pointer-events: none;
+            width: 0;
+            overflow: hidden;
+        }
+
+        body.sidebar-collapsed .menu-group .collapse {
+            display: none !important;
+        }
+
+        body.sidebar-collapsed .menu-btn {
+            margin: 6px 12px;
+            padding: 12px;
+            justify-content: center !important;
+        }
+
+        body.sidebar-collapsed .menu-btn > span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            font-size: 0;
+        }
+
+        body.sidebar-collapsed .menu-btn > span i {
+            margin-right: 0 !important;
+            font-size: 1.1rem;
+        }
+
+        body.sidebar-collapsed .profile-card {
+            justify-content: center !important;
+            padding: 10px;
+        }
+
+        body.sidebar-collapsed #userMenuButton {
+            display: none !important;
+        }
+
+        body.sidebar-collapsed .menu-btn[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(35, 35, 45, 0.9);
+            color: #fff;
+            padding: 7px 12px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+            z-index: 2000;
         }
 
         /* 모바일 대응 */
@@ -142,7 +264,12 @@
             <!-- [왼쪽 확장형 사이드바] -->
             {% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}
             <nav id="sidebarMenu" class="sidebar shadow-sm">
-                <a href="{% url 'dashboard' %}" class="brand-area">Ingrid</a>
+                <div class="brand-area">
+                    <a href="{% url 'dashboard' %}" class="brand-title">Ingrid</a>
+                    <button type="button" id="sidebarToggleBtn" class="sidebar-toggle-btn" aria-label="사이드바 접기/펴기">
+                        <i class="bi bi-layout-sidebar-inset"></i>
+                    </button>
+                </div>
                 
                 <div class="nav-item-wrapper">
                     <!-- 0. 대시보드 (단독) -->
@@ -322,7 +449,7 @@
                                 style="width: 35px; height: 35px; font-weight: 700; font-size: 0.8rem; background: var(--ingrid-gradient) !important;">
                                 {{ user.name|slice:":1" }}
                             </div>
-                            <div class="overflow-hidden text-start">
+                            <div class="overflow-hidden text-start profile-meta">
                                 <div class="fw-bold text-dark text-truncate small" style="line-height:1.2;">{{ user.name }} 선생님</div>
                                 <div class="text-muted text-truncate" style="font-size: 0.65rem;">{{ user.school.name }}</div>
                             </div>
@@ -385,3 +512,43 @@
 
     <!-- 부트스트랩 JS (팝업, 드롭다운 등 인터랙션 기능) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (function () {
+            const body = document.body;
+            const sidebar = document.getElementById('sidebarMenu');
+            const toggleBtn = document.getElementById('sidebarToggleBtn');
+            const storageKey = 'ingrid.sidebar.collapsed';
+
+            if (!sidebar || !toggleBtn) return;
+
+            function updateToggleIcon(collapsed) {
+                toggleBtn.innerHTML = collapsed
+                    ? '<i class="bi bi-layout-sidebar-inset-reverse"></i>'
+                    : '<i class="bi bi-layout-sidebar-inset"></i>';
+            }
+
+            function setCollapsedState(collapsed, persist) {
+                body.classList.toggle('sidebar-collapsed', collapsed);
+                updateToggleIcon(collapsed);
+                if (persist) {
+                    localStorage.setItem(storageKey, collapsed ? 'true' : 'false');
+                }
+            }
+
+            // 아이콘 모드 툴팁용 텍스트 자동 매핑
+            sidebar.querySelectorAll('.menu-btn').forEach((menuBtn) => {
+                const text = (menuBtn.textContent || '').replace(/\s+/g, ' ').trim();
+                if (text) menuBtn.setAttribute('data-tooltip', text.replace('▾', '').trim());
+            });
+
+            const saved = localStorage.getItem(storageKey);
+            setCollapsedState(saved === 'true', false);
+
+            toggleBtn.addEventListener('click', function () {
+                const collapsed = !body.classList.contains('sidebar-collapsed');
+                setCollapsedState(collapsed, true);
+            });
+        })();
+    </script>
+</body>
+</html>

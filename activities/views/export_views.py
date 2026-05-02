@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.utils import timezone
 from urllib.parse import quote
+from django.db.models import Q
 
 # 엑셀 및 워드 라이브러리
 from openpyxl import Workbook
@@ -195,12 +196,31 @@ def export_answer_sheets_docx(request, activity_id):
 def print_answer_sheets(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     students = activity.target_students.all().order_by('grade', 'class_no', 'number')
+    selected_targets = request.GET.getlist('target')
+
+    if selected_targets:
+        q_objects = Q()
+        for target in selected_targets:
+            if '_' in target:
+                grade, class_no = target.split('_', 1)
+                q_objects |= Q(grade=grade, class_no=class_no)
+        if q_objects:
+            students = students.filter(q_objects)
     
     # 각 학생별 답안 데이터를 미리 매핑해서 전달
     for s in students:
         s.my_answer = activity.get_student_answer(s)
-        
+
+    class_labels = sorted({f"{s.grade}학년{s.class_no}반" for s in students})
+    if len(class_labels) == 1:
+        class_label = class_labels[0]
+    else:
+        class_label = "전체학급"
+
+    pdf_filename = f"[{activity.title}] {class_label}"
+
     return render(request, 'activities/print_answers.html', {
         'activity': activity,
         'students': students,
+        'pdf_filename': pdf_filename,
     })

@@ -2,21 +2,35 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>학생 답안지 - {{ activity.title }}</title>
+    <title>{{ pdf_filename }}</title>
     <style>
+        @font-face {
+            font-family: 'Noto Sans KR';
+            src: local('Noto Sans KR'), local('NotoSansKR');
+        }
+        @font-face {
+            font-family: 'Nanum Gothic';
+            src: local('Nanum Gothic'), local('NanumGothic');
+        }
+        @font-face {
+            font-family: 'Malgun Gothic';
+            src: local('Malgun Gothic'), local('맑은 고딕');
+        }
+
         /* 1. 용지 및 폰트 기본 설정 */
         @page { size: A4; margin: 0; }
         body { 
             margin: 0; padding: 0; 
-            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; 
-            background-color: #525659; /* 화면 미리보기 배경 */
+            font-family: 'Noto Sans KR', 'Nanum Gothic', 'Malgun Gothic', '맑은 고딕', sans-serif;
+            background-color: #3b3f46; /* 화면 미리보기 배경 */
         }
 
         /* 2. 상단 버튼 바 (PDF 제외) */
         .no-print-bar { 
-            position: sticky; top: 0; background: white; padding: 15px; 
+            position: sticky; top: 0; background: rgba(255, 255, 255, 0.88); padding: 15px; 
             z-index: 1000; display: flex; justify-content: center; gap: 15px; 
-            border-bottom: 2px solid #333; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(14px);
         }
         .btn-save { background-color: #FF80B5; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; }
         .btn-print { background-color: #8E44AD; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; }
@@ -25,29 +39,37 @@
         .print-page {
             background-color: white !important;
             width: 210mm;
-            height: 297mm;
+            min-height: 297mm;
+            height: auto;
             padding: 15mm 15mm 10mm 15mm; /* 하단 여백 확보 */
-            margin: 20px auto;
+            margin: 20px auto 28px auto;
             box-sizing: border-box;
             position: relative;
-            overflow: hidden; /* 영역 밖 노이즈 차단 */
+            overflow: visible;
             page-break-after: always;
+            break-after: page;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+            page-break-inside: auto;
         }
 
         /* 4. 테이블 디자인 (너비 및 높이 완벽 고정) */
-        table { 
-            width: 100%; 
-            height: 265mm; /* [핵심] 표 전체 높이를 A4에 맞춰 고정 */
-            border-collapse: collapse; 
-            table-layout: fixed; 
-            border: 2px solid #000;
+        table {
+            width: 100%;
+            min-height: 265mm;
+            height: auto;
+            border-collapse: collapse;
+            table-layout: fixed;
+            border: 1px solid #000;
+            page-break-inside: auto;
         }
-        td { 
-            border: 1px solid #000; 
-            padding: 8px; 
-            text-align: center; 
+        tr { page-break-inside: auto; }
+        td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: center;
             font-size: 10.5pt;
             word-break: break-all;
+            page-break-inside: auto;
         }
         .header-bg { 
             background-color: #f2f2f2 !important; 
@@ -68,18 +90,53 @@
             padding: 20px; 
             line-height: 1.8; 
             font-size: 11pt;
+            background-color: #f8f9fa !important;
+            word-break: break-all;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+            page-break-inside: auto;
+        }
+        .answer-box-content {
+            white-space: pre-wrap;
+            word-break: break-all;
+            overflow-wrap: anywhere;
+        }
+        .student-answer-section {
+            min-height: 120mm;
+            width: 100%;
+            page-break-inside: auto;
+            page-break-after: auto;
+            break-after: auto;
+        }
+        .student-answer-section.is-empty {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        .answer-box-empty {
+            font-weight: bold;
+            color: #495057;
         }
 
         /* 6. 미리보기 효과 및 인쇄 최적화 */
         @media screen { .print-page { box-shadow: 0 0 15px rgba(0,0,0,0.5); } }
         @media print {
             body { background: white !important; }
-            .print-page { margin: 0 !important; box-shadow: none !important; }
+            .print-page {
+                width: auto;
+                min-height: auto;
+                margin: 0 !important;
+                box-shadow: none !important;
+                page-break-after: always !important;
+                break-after: page !important;
+            }
             .no-print-bar { display: none !important; }
         }
     </style>
 </head>
-<body>
+<body data-print-title="{% if students|length == 1 %}[{{ activity.title }}] {{ students.0.grade }}학년{{ students.0.class_no }}반 {{ students.0.name }}{% else %}[{{ activity.title }}] {% if students %}{{ students.0.grade }}학년{{ students.0.class_no }}반{% else %}전체학급{% endif %}{% endif %}">
 
     <div class="no-print-bar">
         <!-- 1. 저장 버튼: 누르면 안내 메시지 후 인쇄창 -->
@@ -91,7 +148,7 @@
     <div id="pdfArea">
         {% for s in students %}
         <div class="print-page">
-            <table>
+            <table style="table-layout: fixed; width: 100%; border-collapse: collapse; page-break-inside: auto;">
                 <colgroup>
                     <col style="width: 20%;"><col style="width: 30%;">
                     <col style="width: 20%;"><col style="width: 30%;">
@@ -113,8 +170,14 @@
                     <td colspan="4" class="header-bg" style="letter-spacing: 5px;">학 생 답 안 지</td>
                 </tr>
                 <tr>
-                    <td colspan="4" class="answer-box">
-                        {{ s.my_answer.content|linebreaksbr|default:"(미제출)" }}
+                    <td colspan="4" class="answer-box" style="word-break: break-all; white-space: pre-wrap; background-color: #f8f9fa;">
+                        {% if s.my_answer and s.my_answer.content %}
+                            <div class="student-answer-section answer-box-content">{{ s.my_answer.content }}</div>
+                        {% else %}
+                            <div class="student-answer-section is-empty">
+                                <div class="answer-box-empty">미제출</div>
+                            </div>
+                        {% endif %}
                     </td>
                 </tr>
             </table>
@@ -122,10 +185,33 @@
         {% endfor %}
     </div>
 
+    
     <script>
+        const originalDocumentTitle = document.title;
+        let isPrinting = false;
+
+        function restoreDocumentTitle() {
+            if (!isPrinting) return;
+            document.title = originalDocumentTitle;
+            isPrinting = false;
+        }
+
+        window.addEventListener('afterprint', restoreDocumentTitle);
+
         function savePdf() {
-            alert("인쇄창이 뜨면 '대상'을 [PDF로 저장]으로 변경해 주세요.");
-            window.print();
+            const rawPrintTitle = (document.body.dataset.printTitle || "").trim();
+            let fileNameTitle = rawPrintTitle || originalDocumentTitle;
+            fileNameTitle = fileNameTitle.replace(/[\/:?*"<>|\\]/g, '_').trim();
+            document.title = fileNameTitle || originalDocumentTitle;
+            console.log("printTitle(raw):", rawPrintTitle);
+            console.log("변경될 파일명:", document.title);
+            isPrinting = true;
+
+            window.setTimeout(function () {
+                alert("인쇄창이 뜨면 '대상'을 [PDF로 저장]으로 변경해 주세요.");
+                window.print();
+                window.setTimeout(restoreDocumentTitle, 1200);
+            }, 300);
         }
     </script>
 </body>
