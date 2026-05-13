@@ -144,9 +144,19 @@
                         <!-- 답안지 열기 (제출 완료일 때만 보임) -->
                         <td>
                             {% if item.status == '제출 완료' %}
-                                <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" 
-                                        onclick="openAnswerModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
-                                    <i class="bi bi-search me-1"></i> 열기
+                                <button
+                                    type="button"
+                                    class="btn btn-primary btn-sm rounded-pill px-3"
+                                    data-student-name="{{ item.student.name|default:''|escape }}"
+                                    data-grade="{{ item.student.grade|default:''|escape }}"
+                                    data-class-no="{{ item.student.class_no|default:''|escape }}"
+                                    data-number="{{ item.student.number|default:''|escape }}"
+                                    data-submitted="{{ item.submitted_at|date:'Y-m-d H:i'|default:''|escape }}"
+                                    data-question-content="{{ activity.question|default:activity.questions.first.content|default:''|escape }}"
+                                    data-answer-content="{{ item.content|default:''|escape }}"
+                                    data-school-name="{{ item.student.teacher.school.name|default:''|escape }}"
+                                    onclick="openAnswerModal(this)">
+                                    <i class="bi bi-search me-1"></i> 보기
                                 </button>
                             {% else %}
                                 <span class="text-muted">-</span>
@@ -157,7 +167,7 @@
                         <td>
                             {% if item.answer_id %}
                                 <button class="btn btn-link p-0 text-decoration-none" 
-                                        onclick="openNoteModal('{{ item.answer_id }}', '{{ item.student.name }}', '{{ item.note|escapejs }}', '{{ item.activity_log|escapejs }}')">
+                                        onclick="openNoteModal('{{ item.answer_id }}', '{{ item.student.name|escapejs }}', '{{ item.note|escapejs }}', '{{ item.activity_log|escapejs }}')">
                                     {% if item.note %}
                                         <i class="bi bi-file-earmark-text-fill text-warning fs-5"></i>
                                     {% else %}
@@ -175,7 +185,7 @@
                                 <button class="btn btn-sm btn-outline-danger px-2" 
                                         onclick="discardAnswer('{{ item.answer_id }}', '{{ item.student.name }}')"
                                         data-url="{% url 'answer_delete' item.answer_id %}?category={{ activity.category }}&sub={{ activity.sub_category }}">
-                                    <i class="bi bi-trash3"></i> 폐기
+                                    <i class="bi bi-trash3"></i> 삭제
                                 </button>
                             {% else %}
                                 -
@@ -203,25 +213,8 @@
     </div>
 </div>
 
-<!-- 답안 확인 모달 -->
-<div class="modal fade" id="answerViewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
-            <div class="modal-header border-0 p-4 pb-0">
-                <h5 class="modal-title fw-bold"><i class="bi bi-file-text text-primary me-2"></i><span id="ansModalStudentName"></span> 학생의 답안</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4">
-                <div id="ansModalContent" class="p-4 bg-light rounded-4" style="white-space: pre-wrap; line-height: 1.8; min-height: 200px; font-size: 1.05rem;">
-                    <!-- 답안 내용 주입 -->
-                </div>
-            </div>
-            <div class="modal-footer border-0 p-3">
-                <button type="button" class="btn btn-secondary rounded-pill px-5" data-bs-dismiss="modal">닫기</button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- 답안 확인 공통 모달 포함 -->
+{% include 'components/answer_view_modal.html' %}
 
 <!-- 특이사항 메모 모달 -->
 <div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
@@ -270,7 +263,216 @@
     </div>
 </div>
 
+<!-- 인쇄 전용 레이아웃 (평소 숨김) -->
+<div id="final-print-area" aria-hidden="true"></div>
+
 <style>
+    .answer-view-content {
+        border-radius: 24px !important;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.96);
+    }
+
+    .answer-view-header {
+        background: linear-gradient(135deg, rgba(255, 128, 181, 0.92) 0%, rgba(142, 68, 173, 0.9) 100%);
+        align-items: center;
+    }
+
+    .answer-view-close-btn {
+        border-radius: 999px !important;
+    }
+
+    .answer-meta-bar {
+        border-radius: 16px;
+        margin-bottom: 1rem;
+    }
+
+    .answer-meta-main {
+        display: block;
+        margin-bottom: 0.35rem;
+    }
+
+    .answer-meta-main #modalSchoolName {
+        margin-right: 0.4rem;
+    }
+
+    .answer-meta-time {
+        display: block;
+    }
+
+    .answer-section {
+        display: block;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+    }
+
+    .answer-section-title {
+        display: block;
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
+    .answer-question-box {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        white-space: pre-wrap;
+        margin-bottom: 0.25rem;
+    }
+
+    .answer-content-box {
+        min-height: 300px;
+        font-size: 1.08rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        margin-top: 0.1rem;
+        margin-bottom: 0.4rem;
+        padding: 1rem 1.1rem !important;
+        border-bottom: 1px solid #dee2e6 !important;
+        /* 페이지 분할 시 테두리/배경의 시각적 연속성 강화 */
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+        background-clip: padding-box;
+        orphans: 3;
+        widows: 3;
+    }
+
+    .answer-content-box,
+    .answer-content-box * {
+        orphans: 3;
+        widows: 3;
+    }
+
+    @media print {
+        .answer-content-box {
+            /* 2페이지에서도 본문 영역을 일정하게 채우는 박스 비율 유지 */
+            min-height: 62vh;
+            width: 100%;
+            display: block !important;
+        }
+    }
+
+    /* PDF 캡처 영역은 flex를 block으로 고정해 페이지 분할 가능하게 함 */
+    #answerPdfCaptureArea .d-flex,
+    #answerPdfCaptureArea [class*="flex-"],
+    #ansModalContent .d-flex,
+    #ansModalContent [class*="flex-"] {
+        display: block !important;
+    }
+
+    #ansModalContent,
+    #ansModalContent * {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+    }
+
+    @media print {
+        #answerPdfCaptureArea .d-flex,
+        #answerPdfCaptureArea [class*="flex-"],
+        #ansModalContent .d-flex,
+        #ansModalContent [class*="flex-"] {
+            display: block !important;
+        }
+    }
+
+    .answer-pdf-btn {
+        color: #fff;
+        background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);
+        border: none;
+        box-shadow: 0 8px 20px rgba(142, 68, 173, 0.35);
+    }
+
+    .answer-pdf-btn:hover {
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 12px 24px rgba(142, 68, 173, 0.42);
+    }
+
+    #final-print-area {
+        display: none;
+    }
+
+    #final-print-area .print-sheet {
+        background: #fff;
+        color: #000;
+        width: 100%;
+        max-width: 190mm;
+        margin: 0 auto;
+        padding: 8mm 6mm;
+        font-size: 12pt;
+        line-height: 1.6;
+    }
+
+    #final-print-area .print-title {
+        margin: 0 0 10px;
+        font-size: 20px;
+        font-weight: 700;
+    }
+
+    #final-print-area .print-meta {
+        border: 1px solid #000;
+        padding: 12px;
+        margin-bottom: 14px;
+    }
+
+    #final-print-area .print-meta > div {
+        margin-bottom: 4px;
+    }
+
+    #final-print-area .print-meta > div:last-child {
+        margin-bottom: 0;
+    }
+
+    #final-print-area .print-section {
+        margin-bottom: 14px;
+        page-break-inside: auto;
+    }
+
+    #final-print-area .print-section h3 {
+        margin: 0 0 8px;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    #final-print-area .print-question-box {
+        border: 1px solid #000;
+        padding: 14px;
+        white-space: pre-wrap;
+        page-break-inside: auto;
+    }
+
+    #final-print-area .print-answer-box {
+        border: 1px solid #000;
+        border-bottom: 1px solid #000;
+        padding: 20px;
+        white-space: pre-wrap;
+        line-height: 1.6;
+        page-break-inside: auto;
+        orphans: 3;
+        widows: 3;
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+    }
+
+    @media print {
+        body * {
+            display: none !important;
+        }
+
+        #final-print-area,
+        #final-print-area * {
+            display: block !important;
+        }
+
+        #final-print-area {
+            position: static !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+    }
+
     #pdfViewerModal .modal-dialog {
         max-width: min(94vw, 1500px);
         width: 94vw;
@@ -305,7 +507,8 @@
         border-radius: 18px;
         background: #3b3f46;
     }
-</style>
+
+    </style>
 
 <!-- PDF 뷰어 모달 (페이지 최하단) -->
 <div class="modal fade" id="pdfViewerModal" tabindex="-1" aria-hidden="true">
@@ -332,12 +535,86 @@
     }
 
     // 2. 답안 확인 모달 열기
-    function openAnswerModal(name, content) {
-        document.getElementById('ansModalStudentName').innerText = name;
-        document.getElementById('ansModalContent').innerText = content || "작성된 내용이 없습니다.";
-        
-        const modal = new bootstrap.Modal(document.getElementById('answerViewModal'));
-        modal.show();
+    function openAnswerModal(buttonEl) {
+        const data = buttonEl.dataset;
+        const name = data.studentName || '';
+        const grade = data.grade || '';
+        const classNo = data.classNo || '';
+        const number = data.number || '';
+        const submittedAt = data.submitted || '';
+        const questionContent = data.questionContent || '';
+        const answerContent = data.answerContent || '';
+        const schoolName = data.schoolName || '';
+
+        openIngridModal({
+            title: '학생 답안지',
+            schoolName: schoolName,
+            studentInfo: `${grade}학년 ${classNo}반 ${number}번 ${name}`.trim(),
+            submittedAt: submittedAt,
+            questionContent: questionContent,
+            content: answerContent,
+            name, grade, classNo, number // PDF 저장용 원본 데이터 전달
+        });
+    }
+
+    function escapeHtml(value) {
+        return (value || '').toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderFinalPrintArea(data) {
+        const finalPrintArea = document.getElementById('final-print-area');
+        if (!finalPrintArea) return;
+
+        finalPrintArea.innerHTML = `
+            <div class="print-sheet">
+                <h2 class="print-title">학생 답안지</h2>
+                <div class="print-meta">
+                    <div>학교명: ${escapeHtml(data.schoolName || '학교 정보 없음')}</div>
+                    <div>학생: ${escapeHtml(`${data.grade}학년 ${data.classNo}반 ${data.number}번 ${data.name}`.trim())}</div>
+                    <div>제출일시: ${escapeHtml(data.submittedAt || '-')}</div>
+                </div>
+                <section class="print-section">
+                    <h3>평가 문항</h3>
+                    <div class="print-question-box">${escapeHtml(data.questionContent || '문항 정보가 없습니다.')}</div>
+                </section>
+                <section class="print-section">
+                    <h3>작성한 답안</h3>
+                    <div class="print-answer-box">${escapeHtml(data.answerContent || '작성된 내용이 없습니다.')}</div>
+                </section>
+            </div>
+        `;
+    }
+
+    function saveAnswerModalAsPdf() {
+        if (!window.currentAnswerModalData) return;
+
+        const grade = (window.currentAnswerModalData.grade || '').toString();
+        const classNo = (window.currentAnswerModalData.classNo || '').toString().padStart(2, '0');
+        const number = (window.currentAnswerModalData.number || '').toString().padStart(2, '0');
+        const name = (window.currentAnswerModalData.name || '').toString().trim();
+        const submittedDate = ((window.currentAnswerModalData.submittedAt || '').toString().slice(0, 10)) || '';
+        const formattedDate = submittedDate ? submittedDate.replace(/-/g, '') : '날짜없음';
+        const safeName = name.replace(/[\\/:*?"<>|]/g, '');
+        const printTitle = `${grade}${classNo}${number}${safeName}_답안지_${formattedDate}`;
+        const originalTitle = document.title;
+
+        renderFinalPrintArea(window.currentAnswerModalData);
+
+        const restoreTitle = function () {
+            document.title = originalTitle;
+        };
+
+        document.title = printTitle;
+        window.addEventListener('afterprint', restoreTitle, { once: true });
+        setTimeout(function () {
+            window.print();
+        }, 300);
+        setTimeout(restoreTitle, 1200);
     }
 
     // 학년 체크박스 누르면 -> 해당 학년의 반 모두 선택/해제
@@ -435,4 +712,5 @@
         new bootstrap.Modal(document.getElementById('pdfViewerModal')).show();
     }
 </script>
+
 {% endblock %}

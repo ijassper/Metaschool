@@ -1,441 +1,454 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block content %}
+{% block title %}결과 분석: {{ activity.title }}{% endblock %}
+
+{% block style %}
 <style>
-    /* 클릭 가능한 텍스트에 손가락 모양 커서 적용 */
     .pointer-cursor {
         cursor: pointer;
         transition: background-color 0.2s;
     }
     .pointer-cursor:hover {
-        background-color: rgba(0, 123, 255, 0.05); /* 마우스 올리면 아주 살짝 강조 */
+        background-color: rgba(0, 123, 255, 0.05);
     }
 
-    /* 그리드 포스트잇 스타일 */
     .post-it {
         transition: transform 0.2s;
         border-radius: 12px;
-        border-top: 5px solid #198754 !important; /* 자율활동 포인트 컬러 */
-    }
-    .post-it:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important;
-    }
-    /* 한 줄 정렬 시 텍스트 겹침 방지 */
-    .card-header h6 {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    /* 포스트잇 상단 포인트 컬러 (자율활동: 초록색, 교과: 파란색) */
-    .post-it {
         border-top: 5px solid {% if activity.category == 'CREATIVE' %}#198754{% else %}#0d6efd{% endif %} !important;
     }
-
-    /* 모달 내 답안 가독성 향상 */
-    #modalContent {
-        font-size: 1.1rem;
-        line-height: 1.8;
-        color: #333;
+    
+    .bg-purple-50 {
+        background-color: #faf5ff !important;
+    }
+    
+    .bg-pink-50 {
+        background-color: #fdf2f8 !important;
+    }
+    
+    .bg-gradient-to-r {
+        background-image: linear-gradient(to right, #faf5ff, #fdf2f8) !important;
+    }
+    
+    .border-purple-200 {
+        border-color: #e9d5ff !important;
+    }
+    
+    .text-purple-700 {
+        color: #6b21a8 !important;
+    }
+    
+    .text-purple-800 {
+        color: #581c87 !important;
+    }
+    
+    .bg-purple-100 {
+        background-color: #f3e8ff !important;
+    }
+    
+    .bg-purple-200 {
+        background-color: #e9d5ff !important;
+    }
+    
+    .bg-light-purple {
+        background-color: #faf5ff !important;
+    }
+    
+    .rounded-5 {
+        border-radius: 24px !important;
+    }
+    
+    .analysis-card {
         background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 12px;
-        max-height: 500px;
-        overflow-y: auto;
-        white-space: pre-wrap; /* 스크립트에서도 넣었지만, CSS에서도 한 번 더 선언 */
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .analysis-card:hover {
+        background-color: #e9ecef;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .student-answer {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .student-answer:hover {
+        background-color: #e9ecef;
     }
 </style>
+{% endblock %}
 
-<div class="container-fluid mt-4 mb-5 px-4"> <!-- 꽉 찬 화면 -->
+{% block content %}
+<div class="container-fluid mt-4 mb-5 px-4">
     
     <!-- 상단 헤더 -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="fw-bold text-success">
             <i class="bi bi-table"></i> 결과 분석: {{ activity.title }}
         </h3>
         <div>
-            <!-- 나중에 여기에 '엑셀 다운로드', 'AI 분석' 버튼을 추가하면 됩니다 -->
-            <a href="{% if activity.category == 'CREATIVE' %}{% url 'creative_list' %}{% else %}{% url 'activity_list' %}{% endif %}" 
+            <a href="{% if activity.category == 'CREATIVE' %}{% url 'creative_list' %}{% else %}{% url 'unified_list' %}{% endif %}?category={{ activity.category }}&sub={{ activity.sub_category }}" 
             class="btn btn-secondary shadow-sm">
                 목록으로
             </a>
         </div>
     </div>
 
+    <!-- 검색 및 필터 영역 -->
     <div class="bg-light p-3 rounded-4 mb-4 border shadow-sm">
         <form method="get" id="filterForm" class="row g-2 align-items-center">
-            
-            <!-- 왼쪽 그룹: 필터 + 토글 + 검색 + 초기화 -->
-            <div class="col-auto d-flex gap-2 align-items-center">
-                <!-- 1. 학급 선택 -->
+            <!-- [좌측] 1. 학급 선택 필터 -->
+            <div class="col-auto">
                 <div class="dropdown">
-                    <button class="btn btn-white border dropdown-toggle bg-white rounded-pill px-3 shadow-sm" type="button" data-bs-toggle="dropdown">
+                    <button class="btn btn-white border dropdown-toggle bg-white rounded-pill px-3 shadow-sm" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
                         <i class="bi bi-filter-circle me-1 text-primary"></i> 학급 선택
                     </button>
-                    <div class="dropdown-menu p-3 shadow-lg border-0 rounded-4" style="min-width: 250px;">
-                        <!-- 1. 좌측: 학급 선택 (필요한 만큼만 너비 차지) -->
-                        <div class="col-auto">
-                            <div class="dropdown">
-                                <button class="btn btn-white btn-sm border dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    <i class="bi bi-filter me-1"></i> 학급 선택
-                                </button>
-                                <div class="dropdown-menu p-3 shadow" style="min-width: 250px; max-height: 400px; overflow-y: auto; z-index: 1050;">
-                                    <h6 class="dropdown-header fw-bold mb-2">필터링할 학급을 선택하세요</h6>
-                                    {% if not filter_data %}<div class="text-muted small ps-3">데이터 없음</div>{% endif %}
-                                    {% for item in filter_data %}
-                                        <div class="mb-2">
-                                            <div class="form-check fw-bold text-primary">
-                                                <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
-                                                <label class="form-check-label text-nowrap" for="g_{{ item.grade }}">{{ item.grade }}학년</label>
-                                            </div>
-                                            <div class="ms-3 border-start ps-2 mt-1">
-                                                {% for c in item.classes %}
-                                                    <div class="form-check">
-                                                        <input class="form-check-input child-check child-g-{{ item.grade }}" type="checkbox" name="target" value="{{ item.grade }}_{{ c }}" id="c_{{ item.grade }}_{{ c }}" {% if selected_targets %}{% for t in selected_targets %}{% if t == item.grade|stringformat:"s"|add:"_"|add:c %}checked{% endif %}{% endfor %}{% endif %}>
-                                                        <label class="form-check-label small" for="c_{{ item.grade }}_{{ c }}">{{ c }}반</label>
-                                                    </div>
-                                                {% endfor %}
-                                            </div>
+                    <div class="dropdown-menu p-3 shadow-lg border-0 rounded-4" style="min-width: 250px; max-height: 400px; overflow-y: auto;">
+                        {% for item in filter_data %}
+                            <div class="mb-2">
+                                <div class="form-check fw-bold text-primary">
+                                    <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
+                                    <label class="form-check-label" for="g_{{ item.grade }}">{{ item.grade }}학년</label>
+                                </div>
+                                <div class="ms-3 border-start ps-2 mt-1">
+                                    {% for c in item.classes %}
+                                        <div class="form-check">
+                                            <input class="form-check-input child-check child-g-{{ item.grade }}" type="checkbox" name="target" value="{{ item.grade }}_{{ c }}" id="c_{{ item.grade }}_{{ c }}"
+                                                {% if selected_targets %}{% for t in selected_targets %}{% if t == item.grade|stringformat:"s"|add:"_"|add:c|stringformat:"s" %}checked{% endif %}{% endfor %}{% endif %}>
+                                            <label class="form-check-label text-dark fw-normal" for="c_{{ item.grade }}_{{ c }}">{{ c }}반</label>
                                         </div>
                                     {% endfor %}
-                                    <div class="d-grid mt-2 border-top pt-2">
-                                        <button type="submit" class="btn btn-primary btn-sm">적용</button>
-                                    </div>
                                 </div>
                             </div>
+                        {% endfor %}
+                        <div class="d-grid mt-3 border-top pt-2">
+                            <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold" onclick="submitClassFilter()">조회</button>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- 2. 목록/그리드 토글 -->
-                <div class="btn-group shadow-sm rounded-pill overflow-hidden border">
-                    <!-- 목록 보기 버튼 -->
-                    <a href="?{% for key, value in request.GET.items %}{% if key != 'view' %}{{ key }}={{ value }}&{% endif %}{% endfor %}view=list" 
-                    class="btn btn-sm {% if request.GET.view != 'grid' %}btn-primary text-white{% else %}btn-white{% endif %}">
-                        <i class="bi bi-list-ul"></i>
-                    </a>
-                    <!-- 그리드 보기 버튼 -->
-                    <a href="?{% for key, value in request.GET.items %}{% if key != 'view' %}{{ key }}={{ value }}&{% endif %}{% endfor %}view=grid" 
-                    class="btn btn-sm {% if request.GET.view == 'grid' %}btn-primary text-white{% else %}btn-white{% endif %}">
-                        <i class="bi bi-grid-3x3-gap-fill"></i>
-                    </a>
-                </div>
-
-                <!-- 3. 이름 검색 -->
+            <!-- [중간] 2. 이름 검색 -->
+            <div class="col-auto d-flex gap-2">
                 <div class="input-group input-group-sm" style="width: 200px;">
-                    <input type="text" name="q" class="form-control rounded-start-pill border-end-0" placeholder="이름 검색" value="{{ current_q }}">
+                    <input type="text" name="q" id="nameSearchInput" class="form-control rounded-start-pill border-end-0 bg-white" placeholder="이름 검색" value="{{ current_q }}">
                     <button type="submit" class="btn btn-white border border-start-0 rounded-end-pill px-3 shadow-sm bg-white">
                         <i class="bi bi-search text-primary"></i>
                     </button>
                 </div>
-
-                <!-- 4. 초기화 -->
-                <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-light rounded-circle shadow-sm">
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                </a>
+                
+                <!-- [중간 우측] 3. 목록/그리드 토글 (아이콘만) -->
+                <div class="btn-group" role="group">
+                    {% if request.GET.view != 'grid' %}
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'view' %}{{ key }}={{ value }}&{% endif %}{% endfor %}view=list" 
+                    class="btn btn-primary rounded-pill px-3 shadow-sm fw-bold"
+                    style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none; color: white;">
+                        <i class="bi bi-list-ul"></i>
+                    </a>
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'view' %}{{ key }}={{ value }}&{% endif %}{% endfor %}view=grid" 
+                    class="btn btn-light rounded-pill px-3 shadow-sm fw-bold">
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                    </a>
+                {% else %}
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'view' %}{{ key }}={{ value }}&{% endif %}{% endfor %}view=list" 
+                    class="btn btn-light rounded-pill px-3 shadow-sm fw-bold">
+                        <i class="bi bi-list-ul"></i>
+                    </a>
+                    <a href="?{% for key, value in request.GET.items %}{% if key != 'view' %}{{ key }}={{ value }}&{% endif %}{% endfor %}view=grid" 
+                    class="btn btn-primary rounded-pill px-3 shadow-sm fw-bold"
+                    style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none; color: white;">
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                    </a>
+                {% endif %}
+                </div>
             </div>
 
-            <!-- 오른쪽 그룹: 엑셀 내보내기 (ms-auto로 우측 끝 정렬) -->
+            <!-- [우측 끝] 4. 분석 결과 엑셀 내려받기 -->
             <div class="col-auto ms-auto">
-                <a href="{% url 'analysis_export_excel' activity.id %}" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold">
-                    <i class="bi bi-file-earmark-excel me-1"></i> 분석 결과 엑셀 내려받기
-                </a>
+                <div class="dropdown">
+                    <button class="btn btn-success dropdown-toggle rounded-pill px-4 shadow-sm fw-bold" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-file-earmark-excel me-1"></i> 분석 결과 엑셀 내려받기
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3">
+                        <li><a class="dropdown-item py-2" href="{% url 'analysis_export_excel' activity.id %}?format=xlsx"><i class="bi bi-file-earmark-excel text-success me-2"></i>엑셀 (xlsx)</a></li>
+                        <li><a class="dropdown-item py-2" href="{% url 'analysis_export_excel' activity.id %}?format=csv"><i class="bi bi-file-earmark-csv text-primary me-2"></i>CSV (csv)</a></li>
+                    </ul>
+                </div>
             </div>
-
         </form>
     </div>
 
-    <!-- 데이터 테이블 (구글 시트 스타일) -->
-    <div id="listView" class="table-responsive shadow-sm border" style="max-height: 75vh;">
-        <table class="table table-bordered table-hover mb-0" style="font-size: 0.95rem;">
-            <thead class="table-success sticky-top" style="z-index: 1;"> <!-- 초록색 헤더 -->
-                <tr class="text-center">
-                    <th style="width: 60px;">학년</th>
-                    <th style="width: 60px;">반</th>
-                    <th style="width: 60px;">번호</th>
-                    <th style="width: 100px;">이름</th>
-                    <th>{{ activity.title }} (학생 답안)</th>
-                    <th class="bg-primary text-white">AI 분석 결과</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in analysis_list %}
-                <tr>
-                    <td class="text-center">{{ item.student.grade }}</td>
-                    <td class="text-center">{{ item.student.class_no }}</td>
-                    <td class="text-center">{{ item.student.number }}</td>
-                    <td class="text-center fw-bold">{{ item.student.name }}</td>
-                    
-                    <!-- 1. 답안 내용 (클릭 시 전체 보기) -->
-                    <td class="text-start p-2 pointer-cursor" 
-                        style="cursor: pointer; max-width: 400px;" 
-                        onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
-                        {% if item.content and item.content.strip %}
-                            <div class="text-truncate">
-                                {{ item.content|truncatechars:200 }}
-                            </div>
-                        {% else %}
-                            <span class="text-muted small fst-italic">(미제출)</span>
-                        {% endif %}
-                    </td>
-
-                    <!-- 2. AI 결과 표시 (클릭 시 전체 보기) -->
-                    <td class="text-start bg-light pointer-cursor" 
-                        style="cursor: pointer; max-width: 300px;" 
-                        onclick="showAIModal('{{ item.student.name }}', '{{ item.ai_result|escapejs }}')">
-                        {% if item.ai_result %}
-                            <div class="text-truncate">
-                                {{ item.ai_result|truncatechars:200 }}
-                            </div>
-                        {% else %}
-                            <span class="text-muted small">-</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="5" class="text-center py-5">데이터가 없습니다.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-<!-- [A] 그리드 뷰 영역: URL 파라미터가 view=grid 일 때만 출력 -->
-{% if request.GET.view == 'grid' %}
-    <div id="gridView"> 
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">
-            {% for item in analysis_list %}
-            <div class="col student-card-item" data-name="{{ item.student.name }}" data-grade="{{ item.student.grade }}" data-class="{{ item.student.class_no }}">
-                <div class="card h-100 shadow-sm border-0 post-it" style="border-radius: 20px; border-top: 5px solid #8E44AD !important;">
-                    <!-- 헤더: 학번 및 이름 -->
-                    <div class="card-header bg-white border-0 pt-3 pb-2 d-flex align-items-center gap-2">
-                        <span class="badge bg-primary-subtle text-primary" style="font-size: 0.7rem;">
-                            {{ item.student.grade }}-{{ item.student.class_no }} / {{ item.student.number }}
-                        </span>
-                        <h6 class="fw-bold mb-0 text-truncate" style="font-size: 0.95rem;">{{ item.student.name }}</h6>
-                    </div>
-                    
-                    <div class="card-body py-2">
-                        <!-- 학생 답안 섹션 (클릭 시 모달) -->
-                        <div class="pointer-cursor mb-3" style="cursor: pointer;" onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
-                            <div class="d-flex justify-content-between align-items-end mb-1">
-                                <label class="text-muted mb-0" style="font-size: 0.7rem; font-weight: bold;">[학생 답안]</label>
-                                <span class="text-muted" style="font-size: 0.65rem;">{{ item.submitted_at|date:"m-d H:i"|default:"" }}</span>
-                            </div>
-                            <div class="small text-secondary px-1 overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; min-height: 4.2rem; line-height: 1.5;">
-                                {{ item.content|default:"(미제출)" }}
-                            </div>
-                        </div>
-
-                        <!-- AI 분석 결과 섹션 (클릭 시 모달) -->
-                        <div class="pointer-cursor p-2 rounded" style="background-color: #f0f7ff; cursor: pointer;" 
-                             onclick="showAIModal('{{ item.student.name }}', '{{ item.ai_result|escapejs }}')">
-                            <div class="d-flex justify-content-between align-items-end mb-1">
-                                <label class="text-primary fw-bold mb-0" style="font-size: 0.7rem;">[AI 분석 결과]</label>
-                                <span class="text-primary-emphasis opacity-75" style="font-size: 0.65rem;">{{ item.ai_updated_at|date:"m-d H:i"|default:"" }}</span>
-                            </div>
-                            <div class="small text-dark overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; line-height: 1.5;">
-                                {{ item.ai_result|default:"분석 전입니다." }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
-<!-- [B] 리스트(테이블) 뷰 영역: 파라미터가 없거나 view=list 일 때 출력 -->
-{% else %}
-    <div id="listView" class="card shadow-sm border-0 rounded-4 overflow-hidden">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle text-center mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width: 80px;">번호</th>
-                        <th style="width: 120px;">이름</th>
-                        <th>{{ activity.q1_title }}</th>
-                        {% if activity.q2_title %}<th>{{ activity.q2_title }}</th>{% endif %}
-                        {% if activity.q3_title %}<th>{{ activity.q3_title }}</th>{% endif %}
-                        <th>AI 분석 결과 (요약)</th>
-                        <!-- <th style="width: 120px;">제출일</th> -->
+    <!-- [A] 목록 보기 영역: view=list 이거나 파라미터가 없을 때 -->
+    {% if request.GET.view != 'grid' %}
+        <div class="table-responsive shadow-sm border" style="max-height: 75vh;">
+            <table class="table table-bordered table-hover mb-0" style="font-size: 0.95rem;">
+                <thead class="table-success sticky-top" style="z-index: 1;">
+                    <tr class="text-center">
+                        <th style="width: 60px;">학년</th>
+                        <th style="width: 60px;">반</th>
+                        <th style="width: 60px;">번호</th>
+                        <th style="width: 100px;">이름</th>
+                        <th>{{ activity.title }} (학생 답안)</th>
+                        <!-- 동적 분석 결과 컬럼 생성 (미리 계산된 헤더 정보 사용) -->
+                        {% for header in header_info %}
+                            <th class="bg-primary text-white" style="min-width: 200px; max-width: 150px;" 
+                                title="{{ header.work_name|default:'이름 없는 분석' }} ({{ header.batch_id }})">
+                                {{ header.display_name }}
+                            </th>
+                        {% endfor %}
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- 결과 분석 페이지 테이블 본문(tbody) 수정 -->
-                    {% for item in analysis_list %}
+                    {% for item in student_data_list %}
                     <tr>
-                        <td class="small text-muted">{{ item.student.grade }}-{{ item.student.class_no }}-{{ item.student.number }}</td>
-                        <td class="fw-bold">{{ item.student.name }}</td>
+                        <td class="text-center">{{ item.student.grade }}</td>
+                        <td class="text-center">{{ item.student.class_no }}</td>
+                        <td class="text-center">{{ item.student.number }}</td>
+                        <td class="text-center fw-bold">{{ item.student.name }}</td>
                         
-                        <!-- 답변 1: 클릭 시 전체 답안(content)을 모달로 출력 -->
-                        <td class="small text-start text-truncate" style="max-width: 200px; cursor: pointer;" 
-                            onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
-                            {{ item.ans_q1|default:"-" }}
+                        <!-- 학생 답안 -->
+                        <td class="text-start p-2 pointer-cursor" 
+                            style="cursor: pointer; max-width: 400px;" 
+                            onclick="showContentModal('{{ item.student.name }}', '{{ item.answer.content|escapejs }}')">
+                            {% if item.answer.content and item.answer.content.strip %}
+                                <div class="text-truncate">
+                                    {{ item.answer.content|truncatechars:200 }}
+                                </div>
+                            {% else %}
+                                <span class="text-muted small fst-italic">(미제출)</span>
+                            {% endif %}
                         </td>
-                        
-                        <!-- 답변 2 (제목이 있을 때만) -->
-                        {% if activity.q2_title %}
-                        <td class="small text-start text-truncate" style="max-width: 200px; cursor: pointer;" 
-                            onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
-                            {{ item.ans_q2|default:"-" }}
-                        </td>
-                        {% endif %}
-                        
-                        <!-- 답변 3 (제목이 있을 때만) -->
-                        {% if activity.q3_title %}
-                        <td class="small text-start text-truncate" style="max-width: 200px; cursor: pointer;" 
-                            onclick="showContentModal('{{ item.student.name }}', '{{ item.content|escapejs }}')">
-                            {{ item.ans_q3|default:"-" }}
-                        </td>
-                        {% endif %}
 
-                        <!-- AI 분석 결과 -->
-                        <td class="text-start small text-primary text-truncate" style="max-width: 250px; cursor: pointer;" 
-                            onclick="showAIModal('{{ item.student.name }}', '{{ item.ai_result|escapejs }}')">
-                            {{ item.ai_result|default:"분석 전" }}
-                        </td>
+                        <!-- 분석 결과들 (work_name 기준 정렬) -->
+                        {% for result in item.analysis_slots %}
+                            {% if result %}
+                                <td class="text-start bg-light pointer-cursor" 
+                                    style="cursor: pointer; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
+                                    title="{{ result.content|escapejs }}"
+                                    onclick="showAIModal('{{ item.student.name }}', '{{ result.content|escapejs }}')">
+                                    {{ result.content|truncatechars:50 }}
+                                </td>
+                            {% else %}
+                                <td class="text-center bg-light">
+                                    <span class="text-muted small">-</span>
+                                </td>
+                            {% endif %}
+                        {% endfor %}
                     </tr>
+                    {% empty %}
+                    <tr><td colspan="{{ 5|add:work_names|length }}" class="text-center py-5">데이터가 없습니다.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
-{% endif %}
 
-<!-- 내용 전체보기 모달 -->
-<div class="modal fade" id="contentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="modalTitle"></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- [B] 그리드 보기 영역: view=grid 일 때 -->
+    {% else %}
+        <div class="row g-3">
+            {% for item in student_data_list %}
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                <div class="card h-100 shadow-sm border-0 post-it" style="border-radius: 12px; display: flex; flex-direction: column;">
+                    <!-- [상단] 학생 정보 헤더 -->
+                    <div class="card-header bg-white border-0 pt-3 pb-2" style="position: relative; z-index: 1;">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary-subtle text-primary" style="font-size: 0.7rem;">
+                                {{ item.student.grade }}-{{ item.student.class_no }} / {{ item.student.number }}
+                            </span>
+                            <h6 class="fw-bold mb-0 text-truncate" style="font-size: 0.95rem;">{{ item.student.name }}</h6>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body d-flex flex-column p-3" style="position: relative; z-index: 1; flex: 1;">
+                        <!-- [중간] 학생 답안 섹션 -->
+                        <div class="student-answer-section mb-3" style="position: relative; z-index: 1;">
+                            <div class="bg-light rounded-5 p-3 border" style="height: 180px; position: relative; z-index: 1;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="text-muted mb-0 fw-bold" style="font-size: 0.75rem;">[학생 답안]</label>
+                                    <span class="text-muted" style="font-size: 0.65rem;">{{ item.answer.submitted_at|date:"m-d H:i"|default:"" }}</span>
+                                </div>
+                                {% if item.answer.content and item.answer.content.strip %}
+                                    <div class="small text-secondary" 
+                                         style="word-break: break-all; line-height: 1.4; position: relative; z-index: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 120px;"
+                                         onclick="showContentModal('{{ item.student.name }}', '{{ item.answer.content|escapejs }}')">
+                                        {{ item.answer.content|truncatechars:200 }}
+                                    </div>
+                                {% else %}
+                                    <div class="text-center text-muted small" 
+                                         style="display: flex; align-items: center; justify-content: center; height: 120px;">
+                                        제출된 답안이 없습니다.
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- [하단] AI 분석 결과 섹션 -->
+                        <div class="analysis-section flex-grow-1" style="position: relative; z-index: 1;">
+                            {% if item.analyses %}
+                                {% for analysis in item.analyses %}
+                                <div class="analysis-chip mb-2" 
+                                     style="position: relative; z-index: 1;"
+                                     onclick="showAIModal('{{ item.student.name }}', '{{ analysis.content|escapejs }}')">
+                                    <div class="bg-light-purple rounded-5 p-3 border border-purple-200" 
+                                         style="position: relative; z-index: 1; box-shadow: 0 4px 12px rgba(0,0,0,0.05); background-color: #faf5ff;">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <span class="badge bg-purple-100 text-dark fw-bold" style="font-size: 0.6rem; color: #8E44AD !important;">
+                                                분석 {{ forloop.counter }}
+                                            </span>
+                                            <span class="badge bg-purple-200 text-dark" style="font-size: 0.6rem; color: #444 !important;">
+                                                {{ analysis.created_at_formatted }}
+                                            </span>
+                                        </div>
+                                        <div class="small text-dark" 
+                                             style="word-break: break-all; line-height: 1.4; position: relative; z-index: 1;">
+                                            {{ analysis.content|truncatechars:100 }}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-4 text-muted bg-light rounded-3" style="position: relative; z-index: 1;">
+                                    <small>분석 전입니다.</small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body">
-                <div class="p-3 bg-light border rounded" style="white-space: pre-wrap; font-size: 1.1rem; line-height: 1.6;" id="modalContent"></div>
+            {% empty %}
+            <div class="col-12 text-center py-5">
+                <p class="text-muted">데이터가 없습니다.</p>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-            </div>
+            {% endfor %}
         </div>
-    </div>
+    {% endif %}
 </div>
 
-<!-- AI 결과 전체보기 모달 -->
-<div class="modal fade" id="aiModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold" id="aiModalTitle"></h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="p-3 bg-light border rounded" style="white-space: pre-wrap; font-size: 1.1rem; line-height: 1.6;" id="aiModalContent"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- 답안 확인 공통 모달 포함 -->
+{% include 'components/answer_view_modal.html' %}
 
 <script>
-    /**
-     * 1. 모달 팝업 관련 함수
-     */
-    // 학생 답안 전체보기 (기존 함수 보완)
-    function showContentModal(name, content) {
-        // 1. 데이터 검증: 내용이 없으면 모달을 띄우지 않음
-        if (!content || content === 'None' || content.trim() === '' || content === '(미제출)') return;
-        
-        // 2. 타이틀 및 내용 삽입
-        document.getElementById('modalTitle').innerText = name + " 학생의 전체 답안";
-        
-        // 3. [핵심] 줄바꿈 유지를 위해 .innerText 대신 스타일과 함께 적용
-        const contentElem = document.getElementById('modalContent');
-        contentElem.innerText = content; 
-        contentElem.style.whiteSpace = "pre-wrap"; // 자바스크립트로 줄바꿈 스타일 강제 적용
-        
-        // 4. 모달 인스턴스 생성 및 출력
-        const modalElem = document.getElementById('contentModal');
-        const myModal = new bootstrap.Modal(modalElem);
-        myModal.show();
-    }
-
-    // AI 분석 결과 전체보기 (aiModal 사용)
-    function showAIModal(name, content) {
-        if (!content || content === 'None' || content.trim() === '') return;
-        
-        document.getElementById('aiModalTitle').innerText = name + " 학생 AI 분석 결과";
-        document.getElementById('aiModalContent').innerText = content;
-        
-        const modalElem = document.getElementById('aiModal');
-        const myModal = new bootstrap.Modal(modalElem);
-        myModal.show();
-    }
-
-    /**
-     * 2. 필터링 관련 함수 (기존 유지)
-     */
-    function toggleGrade(grade) {
-        const parent = document.getElementById('g_' + grade);
-        const children = document.querySelectorAll('.child-g-' + grade);
-        children.forEach(cb => {
-            cb.checked = parent.checked;
-        });
-        // 만약 실시간 필터링 함수가 따로 있다면 여기서 호출 (예: applyFilter())
-    }
-
-    /**
-     * 3. 보기 모드 전환 (리스트 <-> 그리드)
-     */
-    function changeView(mode) {
-        const listView = document.getElementById('listView');
-        const gridView = document.getElementById('gridView');
-        const btnList = document.getElementById('btnList');
-        const btnGrid = document.getElementById('btnGrid');
-
-        if (mode === 'grid') {
-            // 그리드 모드 활성화
-            if(listView) listView.classList.add('d-none');
-            if(gridView) gridView.classList.remove('d-none');
-            
-            btnGrid.classList.add('active');
-            btnList.classList.remove('active');
-            
-            localStorage.setItem('analysis_view_mode', 'grid');
-        } else {
-            // 리스트 모드 활성화
-            if(listView) listView.classList.remove('d-none');
-            if(gridView) gridView.classList.add('d-none');
-            
-            btnList.classList.add('active');
-            btnGrid.classList.remove('active');
-            
-            localStorage.setItem('analysis_view_mode', 'list');
-        }
-    }
-
-    /**
-     * 4. 페이지 초기화 로직
-     */
-    document.addEventListener("DOMContentLoaded", function() {
-        // 저장된 보기 모드 불러오기
-        const savedMode = localStorage.getItem('analysis_view_mode');
-        if (savedMode === 'grid') {
-            changeView('grid');
-        } else {
-            changeView('list');
-        }
-
-        // (옵션) 가비아 서버 등에서 발생할 수 있는 뒤로가기 시 모달 잔상 제거
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            modal.addEventListener('hidden.bs.modal', function () {
-                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-                document.body.style.overflow = 'auto';
-            });
-        });
+/**
+ * 학생 답안 모달 열기 (공통 컴포넌트 활용)
+ */
+function showContentModal(studentName, content) {
+    openIngridModal({
+        title: '학생 답안지',
+        studentInfo: studentName + ' 학생',
+        content: content,
+        contentType: 'answer',
+        showQuestion: false, // 분석 페이지에서는 답안 본문만 강조
+        showPdfBtn: false
     });
+}
+
+/**
+ * AI 분석 결과 모달 열기 (공통 컴포넌트 활용)
+ */
+function showAIModal(studentName, content) {
+    openIngridModal({
+        title: 'AI 분석 결과',
+        studentInfo: studentName + ' 학생',
+        content: content,
+        contentType: 'ai',
+        showQuestion: false
+    });
+}
+</script>
+{% endblock %}
+
+{% block script %}
+<script>
+// 학급 선택 체크박스 로직
+document.querySelectorAll('.parent-check').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const grade = this.id.replace('g_', '');
+        const childChecks = document.querySelectorAll('.child-g-' + grade);
+        childChecks.forEach(child => child.checked = this.checked);
+    });
+});
+
+// 학급 필터 선택 시 이름 검색창 초기화 함수
+function submitClassFilter() {
+    // 이름 검색창 비우기
+    document.querySelector('input[name="q"]').value = '';
+    
+    // 보기 방식 파라미터 유지를 위해 폼 액션 URL 수정
+    const currentUrl = new URL(window.location);
+    const viewParam = currentUrl.searchParams.get('view');
+    
+    if (viewParam) {
+        // view 파라미터가 있으면 유지
+        const form = document.getElementById('filterForm');
+        const viewInput = document.createElement('input');
+        viewInput.type = 'hidden';
+        viewInput.name = 'view';
+        viewInput.value = viewParam;
+        form.appendChild(viewInput);
+    }
+    
+    // 폼 제출
+    document.getElementById('filterForm').submit();
+}
+
+// 학급 선택 체크박스 클릭 시 검색어 초기화
+document.querySelectorAll('.child-check').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        // 이름 검색창 비우기
+        document.querySelector('input[name="q"]').value = '';
+        
+        // 보기 방식 파라미터 유지
+        const currentUrl = new URL(window.location);
+        const viewParam = currentUrl.searchParams.get('view');
+        
+        if (viewParam) {
+            const form = document.getElementById('filterForm');
+            const viewInput = document.createElement('input');
+            viewInput.type = 'hidden';
+            viewInput.name = 'view';
+            viewInput.value = viewParam;
+            form.appendChild(viewInput);
+        }
+        
+        // 폼 제출
+        document.getElementById('filterForm').submit();
+    });
+});
+
+// 학년 전체 체크박스 클릭 시 검색어 초기화
+document.querySelectorAll('.parent-check').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        // 이름 검색창 비우기
+        document.querySelector('input[name="q"]').value = '';
+        
+        // 보기 방식 파라미터 유지
+        const currentUrl = new URL(window.location);
+        const viewParam = currentUrl.searchParams.get('view');
+        
+        if (viewParam) {
+            const form = document.getElementById('filterForm');
+            const viewInput = document.createElement('input');
+            viewInput.type = 'hidden';
+            viewInput.name = 'view';
+            viewInput.value = viewParam;
+            form.appendChild(viewInput);
+        }
+        
+        // 폼 제출
+        document.getElementById('filterForm').submit();
+    });
+});
 </script>
 {% endblock %}

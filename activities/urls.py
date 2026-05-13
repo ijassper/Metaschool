@@ -1,5 +1,6 @@
 from django.urls import path
-# 쪼개진 파일들로부터 함수를 각각 가져옵니다.
+
+# 와일드카드 임포트 전략 - 도메인별 깔끔한 정리
 from .views.main_views import *
 from .views.manage_views import *
 from .views.exam_views import *
@@ -39,6 +40,7 @@ urlpatterns = [
     path('analysis/<int:activity_id>/', activity_analysis, name='activity_analysis'),
     path('analysis/all/', integrated_analysis, name='integrated_analysis'),
     path('analysis-work/<int:activity_id>/', activity_analysis_work, name='activity_analysis_work'),
+    path('api/get-or-create-batch/', get_or_create_batch, name='get_or_create_batch'),
     path('api/process-db-row/', api_process_db_row, name='api_process_db_row'),
 
     # 6. 내보내기 (export_views)

@@ -45,7 +45,7 @@
     textarea.answer-input {
         display: block !important;
         width: 100% !important; /* 넓이 100% 강제 */
-        height: 600px !important; /* 높이를 더 키웠습니다 */
+        height: 600px !important; /* 높이를 더 키웝니다 */
         font-size: 1.25rem !important;
         line-height: 1.8 !important;
         padding: 40px !important;
@@ -64,12 +64,18 @@
         background-color: #fff !important;
     }
 
-    /* 문제지 내 첨부파일명 가독성 */
-    .file-preview-btn {
-        text-align: left;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    /* 보안 모드 안내 스타일 */
+    .security-notice {
+        background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-align: center;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 15px rgba(142, 68, 173, 0.2);
+        animation: pulse 2s infinite;
         padding: 10px 15px;
     }
 </style>
@@ -115,7 +121,7 @@
                 
                 {% if activity.reference_material %}
                 <label class="small text-muted fw-bold mb-1">참고 자료</label>
-                <div class="p-2 bg-light rounded-3 small mb-3">{{ activity.reference_material }}</div>
+                <div class="p-2 bg-light rounded-3 small mb-3" style="white-space: pre-wrap; word-break: break-all;">{{ activity.reference_material|linebreaksbr }}</div>
                 {% endif %}
 
                 <!-- 첨부파일 클릭 시 previewFile 함수 호출로 수정 -->
@@ -160,6 +166,12 @@
                 <!-- 답안 영역만 별도 스크롤 -->
                 <div class="flex-grow-1 scroll-panel p-5 bg-light-subtle">
                     <div class="w-100">
+                        <!-- 보안 모드 안내 -->
+                        {% if activity.exam_mode == 'CLOSED' %}
+                        <div class="security-notice">
+                            <i class="bi bi-shield-fill me-2"></i>현재 붙여넣기 및 외부 입력이 차단된 상태입니다
+                        </div>
+                        {% endif %}
                         <!-- 항목 1 답변창 -->
                         {% if activity.q1_title %}
                         <div class="mb-5">
@@ -313,6 +325,106 @@
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
+    
+    // 보안 모드 변수
+    let pasteAttempts = 0;
+    let securityLogs = [];
+
+    /* 1.5. 클립보드 보안 기능 (보안 모드 전용) */
+    function initSecurityMode() {
+        if (EXAM_MODE !== 'CLOSED') return;
+        
+        const textareas = document.querySelectorAll('textarea.answer-input');
+        
+        textareas.forEach(textarea => {
+            // 클립보드 이벤트 차단
+            textarea.addEventListener('paste', handlePasteAttempt);
+            textarea.addEventListener('copy', handleClipboardBlock);
+            textarea.addEventListener('cut', handleClipboardBlock);
+            textarea.addEventListener('drop', handleDropBlock);
+            textarea.addEventListener('contextmenu', handleContextMenuBlock);
+            
+            // 비정상 입력 감지
+            textarea.addEventListener('input', handleAbnormalInput);
+        });
+    }
+    
+    function handlePasteAttempt(e) {
+        e.preventDefault();
+        pasteAttempts++;
+        logSecurityEvent('paste_attempt', pasteAttempts);
+        showSecurityWarning('보안 모드에서는 붙여넣기가 금지되어 있습니다.');
+    }
+    
+    function handleClipboardBlock(e) {
+        e.preventDefault();
+        logSecurityEvent('clipboard_block', 1);
+        showSecurityWarning('보안 모드에서는 복사/잘라내기가 금지되어 있습니다.');
+    }
+    
+    function handleDropBlock(e) {
+        e.preventDefault();
+        logSecurityEvent('drop_block', 1);
+        showSecurityWarning('보안 모드에서는 파일 드롭이 금지되어 있습니다.');
+    }
+    
+    function handleContextMenuBlock(e) {
+        e.preventDefault();
+        logSecurityEvent('contextmenu_block', 1);
+        showSecurityWarning('보안 모드에서는 우클릭 메뉴가 금지되어 있습니다.');
+    }
+    
+    function handleAbnormalInput(e) {
+        const textarea = e.target;
+        const currentValue = textarea.value;
+        const previousValue = textarea.dataset.previousValue || '';
+        
+        // 단시간에 대량의 텍스트가 주입된 경우 감지
+        if (currentValue.length - previousValue.length > 100) {
+            e.preventDefault();
+            textarea.value = previousValue; // 이전 값으로 복원
+            logSecurityEvent('abnormal_input', currentValue.length - previousValue.length);
+            showSecurityWarning('비정상적인 입력이 감지되었습니다. 직접 입력해주세요.');
+            return;
+        }
+        
+        textarea.dataset.previousValue = currentValue;
+    }
+    
+    function showSecurityWarning(message) {
+        // 부드러운 인그리드 스타일의 경고창
+        const toast = document.createElement('div');
+        toast.className = 'position-fixed top-50 start-50 translate-middle bg-danger text-white px-4 py-3 rounded-3 shadow-lg';
+        toast.style.cssText = 'z-index: 9999; animation: slideDown 0.3s ease;';
+        toast.innerHTML = `<i class="bi bi-shield-exclamation me-2"></i>${message}`;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideUp 0.3s ease';
+            setTimeout(() => document.body.removeChild(toast), 300);
+        }, 2000);
+    }
+    
+    function logSecurityEvent(eventType, data) {
+        const logEntry = {
+            timestamp: new Date().toISOString(),
+            event: eventType,
+            data: data,
+            answerId: answerId
+        };
+        securityLogs.push(logEntry);
+        
+        // 서버로 로그 전송 (선택적)
+        if (securityLogs.length % 5 === 0) {
+            sendSecurityLogs();
+        }
+    }
+    
+    function sendSecurityLogs() {
+        // 서버로 보안 로그 전송하는 기능 (필요시 구현)
+        console.log('Security logs:', securityLogs);
+    }
 
     /* 2. 응시 시작 로직 (가림막 제거 및 전체화면) */
     function startTest() {
@@ -458,23 +570,24 @@
         const allInputs = document.querySelectorAll('.answer-input');
         let totalLength = 0;
         allInputs.forEach(input => { totalLength += input.value.length; });
-
-        const counter = document.getElementById('charCount');
-        if (counter) {
-            counter.innerText = `${totalLength}자 / ${charLimit > 0 ? charLimit + '자 이내' : ''}`;
-            if (charLimit > 0) {
-                counter.className = totalLength >= charLimit ? 'badge bg-success px-3 py-2' : 'badge bg-white text-primary px-3 py-2';
-            }
+        
+        const charCountElement = document.getElementById('charCount');
+        if (charCountElement) {
+            charCountElement.textContent = `${totalLength}자 / ${charLimit}자 이내`;
         }
     }
-    document.querySelectorAll('.answer-input').forEach(el => el.addEventListener('input', updateCharCount));
-    updateCharCount(); // 초기 실행
 
-    /* 7. 퇴장 및 임시 저장 로직 */
-    function confirmExit() {
-        const exitModal = new bootstrap.Modal(document.getElementById('exitConfirmModal'));
-        exitModal.show();
-    }
+    // 보안 모드 초기화 호출
+    document.addEventListener('DOMContentLoaded', function() {
+        initSecurityMode();
+        updateCharCount(); // 초기 글자 수 계산
+        
+        // 실시간 글자 수 업데이트
+        const textareas = document.querySelectorAll('textarea.answer-input');
+        textareas.forEach(textarea => {
+            textarea.addEventListener('input', updateCharCount);
+        });
+    });
 
     function executeExit() {
         isSubmitting = true; // 감시 중단

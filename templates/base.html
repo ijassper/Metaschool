@@ -16,7 +16,6 @@
             --ingrid-secondary: #512DA8;
             --ingrid-active-bg: #F3F0FF; /* 연보라 활성 배경 */
             --sidebar-expanded-width: 280px;
-            --sidebar-collapsed-width: 92px;
         }
         /* 1. 기본 레이아웃 및 폰트 */
         body { 
@@ -34,11 +33,12 @@
             position: fixed;
             top: 0; left: 0;
             z-index: 1000;
-            width: var(--sidebar-expanded-width); /* 고정 너비 */
+            width: var(--sidebar-expanded-width);
             display: flex;
             flex-direction: column;
             backdrop-filter: blur(14px);
-            transition: width 0.3s ease, background 0.3s ease;
+            transform: translateX(0);
+            transition: transform 0.3s ease, width 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
         }
 
         .sidebar::before {
@@ -88,8 +88,45 @@
         }
 
         .sidebar-toggle-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 28px rgba(142, 68, 173, 0.5);
+        }
+
+        .sidebar-toggle-btn:active {
             transform: translateY(-1px);
-            box-shadow: 0 10px 24px rgba(142, 68, 173, 0.45);
+        }
+
+        /* 숨김 상태에서 메인 영역으로 메뉴 열기 (항상 노출) */
+        .sidebar-toggle-floating {
+            position: fixed;
+            top: 20px;
+            left: 18px;
+            z-index: 1002;
+            display: none;
+        }
+
+        body.sidebar-collapsed .sidebar-toggle-floating {
+            display: inline-flex;
+        }
+
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            background: rgba(28, 24, 40, 0.38);
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        @media (max-width: 991.98px) {
+            body:not(.sidebar-collapsed) .sidebar-backdrop {
+                display: block;
+                opacity: 1;
+                pointer-events: auto;
+            }
         }
 
         /* 메뉴 리스트 점(bullet) 제거 및 간격 조정 */
@@ -171,83 +208,68 @@
             backdrop-filter: blur(10px);
         }
 
-        /* 4. 메인 콘텐츠 영역 (사이드바 너비만큼 왼쪽 마진) */
+        /* 4. 메인 콘텐츠 영역 (사이드바 너비만큼 왼쪽 마진 — 숨김 시 0) */
         .main-wrapper {
             margin-left: var(--sidebar-expanded-width);
             min-height: 100vh;
             transition: margin-left 0.3s ease;
         }
 
+        /* 데스크톱: 완전 숨김(AI Studio 스타일) — 아이콘 띠 없이 화면 밖으로 슬라이드 */
         body.sidebar-collapsed .sidebar {
-            width: var(--sidebar-collapsed-width);
+            transform: translateX(-100%);
+            pointer-events: none;
+            border-right-color: transparent;
         }
 
         body.sidebar-collapsed .main-wrapper {
-            margin-left: var(--sidebar-collapsed-width);
+            margin-left: 0;
         }
 
-        body.sidebar-collapsed .brand-title,
-        body.sidebar-collapsed .profile-meta,
-        body.sidebar-collapsed .sub-menu-list,
-        body.sidebar-collapsed .arrow-icon {
-            opacity: 0;
-            pointer-events: none;
-            width: 0;
-            overflow: hidden;
+        .main-content-shell {
+            padding: 1.75rem 1.5rem 1.5rem;
+            transition: padding-left 0.3s ease, padding-top 0.3s ease;
         }
 
-        body.sidebar-collapsed .menu-group .collapse {
-            display: none !important;
+        .main-content-shell > :first-child {
+            margin-top: 0;
         }
 
-        body.sidebar-collapsed .menu-btn {
-            margin: 6px 12px;
-            padding: 12px;
-            justify-content: center !important;
+        /* 숨김 상태에서 타이틀 안전 여백 확보 (햄버거와 절대 비중첩) */
+        body.sidebar-collapsed .main-content-shell {
+            padding-left: 4.5rem; /* 약 72px */
         }
 
-        body.sidebar-collapsed .menu-btn > span {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            font-size: 0;
-        }
-
-        body.sidebar-collapsed .menu-btn > span i {
-            margin-right: 0 !important;
-            font-size: 1.1rem;
-        }
-
-        body.sidebar-collapsed .profile-card {
-            justify-content: center !important;
-            padding: 10px;
-        }
-
-        body.sidebar-collapsed #userMenuButton {
-            display: none !important;
-        }
-
-        body.sidebar-collapsed .menu-btn[data-tooltip]:hover::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            left: calc(100% + 10px);
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(35, 35, 45, 0.9);
-            color: #fff;
-            padding: 7px 12px;
-            border-radius: 10px;
-            font-size: 0.8rem;
-            white-space: nowrap;
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
-            z-index: 2000;
-        }
-
-        /* 모바일 대응 */
+        /* 모바일: 오버레이 패널 + 백드롭 */
         @media (max-width: 991.98px) {
-            .sidebar { transform: translateX(-100%); transition: 0.3s; }
-            .main-wrapper { margin-left: 0; }
+            .main-wrapper {
+                margin-left: 0 !important;
+            }
+
+            .main-content-shell {
+                padding: 1.25rem 1rem 1rem;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+                box-shadow: none;
+            }
+
+            body:not(.sidebar-collapsed) .sidebar {
+                transform: translateX(0);
+                pointer-events: auto;
+                box-shadow: 12px 0 40px rgba(81, 45, 168, 0.18);
+            }
+
+            body.sidebar-collapsed .sidebar {
+                transform: translateX(-100%);
+                pointer-events: none;
+            }
+
+            body.sidebar-collapsed .main-content-shell {
+                padding-left: 1rem;
+                padding-top: 4.25rem;
+            }
         }
 
         /* 로그인 페이지 여백 제거 로직 */
@@ -263,10 +285,11 @@
         <div class="row g-0">
             <!-- [왼쪽 확장형 사이드바] -->
             {% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}
+            <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
             <nav id="sidebarMenu" class="sidebar shadow-sm">
                 <div class="brand-area">
                     <a href="{% url 'dashboard' %}" class="brand-title">Ingrid</a>
-                    <button type="button" id="sidebarToggleBtn" class="sidebar-toggle-btn" aria-label="사이드바 접기/펴기">
+                    <button type="button" id="sidebarToggleBtn" class="sidebar-toggle-btn" aria-label="메뉴 닫기" aria-expanded="true">
                         <i class="bi bi-layout-sidebar-inset"></i>
                     </button>
                 </div>
@@ -503,7 +526,12 @@
 
             <!-- [오른쪽 메인 콘텐츠 영역] -->
             <div class="col main-wrapper {% if request.resolver_match.url_name == 'login' or user.role == 'STUDENT' %}no-sidebar{% endif %}">
-                <main class="p-4">
+                {% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}
+                <button type="button" id="sidebarToggleBtnFloating" class="sidebar-toggle-btn sidebar-toggle-floating" aria-label="메뉴 열기" aria-expanded="false">
+                    <i class="bi bi-list"></i>
+                </button>
+                {% endif %}
+                <main class="main-content-shell">
                     {% block content %}{% endblock %}
                 </main>
             </div>
@@ -516,39 +544,61 @@
         (function () {
             const body = document.body;
             const sidebar = document.getElementById('sidebarMenu');
-            const toggleBtn = document.getElementById('sidebarToggleBtn');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            const toggleBtns = [
+                document.getElementById('sidebarToggleBtn'),
+                document.getElementById('sidebarToggleBtnFloating')
+            ].filter(Boolean);
             const storageKey = 'ingrid.sidebar.collapsed';
+            const mqDesktop = window.matchMedia('(min-width: 992px)');
 
-            if (!sidebar || !toggleBtn) return;
+            if (!sidebar || toggleBtns.length === 0) return;
 
-            function updateToggleIcon(collapsed) {
-                toggleBtn.innerHTML = collapsed
-                    ? '<i class="bi bi-layout-sidebar-inset-reverse"></i>'
+            function updateToggleIcons(collapsed) {
+                const iconHtml = collapsed
+                    ? '<i class="bi bi-list"></i>'
                     : '<i class="bi bi-layout-sidebar-inset"></i>';
+                const label = collapsed ? '메뉴 열기' : '메뉴 닫기';
+                toggleBtns.forEach(function (btn) {
+                    btn.innerHTML = iconHtml;
+                    btn.setAttribute('aria-label', label);
+                    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                });
             }
 
             function setCollapsedState(collapsed, persist) {
                 body.classList.toggle('sidebar-collapsed', collapsed);
-                updateToggleIcon(collapsed);
+                updateToggleIcons(collapsed);
+                if (backdrop) {
+                    backdrop.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+                }
                 if (persist) {
                     localStorage.setItem(storageKey, collapsed ? 'true' : 'false');
                 }
             }
 
-            // 아이콘 모드 툴팁용 텍스트 자동 매핑
-            sidebar.querySelectorAll('.menu-btn').forEach((menuBtn) => {
-                const text = (menuBtn.textContent || '').replace(/\s+/g, ' ').trim();
-                if (text) menuBtn.setAttribute('data-tooltip', text.replace('▾', '').trim());
-            });
-
             const saved = localStorage.getItem(storageKey);
-            setCollapsedState(saved === 'true', false);
+            const initialCollapsed = saved === null ? !mqDesktop.matches : saved === 'true';
+            setCollapsedState(initialCollapsed, false);
 
-            toggleBtn.addEventListener('click', function () {
-                const collapsed = !body.classList.contains('sidebar-collapsed');
-                setCollapsedState(collapsed, true);
+            toggleBtns.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const collapsed = !body.classList.contains('sidebar-collapsed');
+                    setCollapsedState(collapsed, true);
+                });
             });
+
+            if (backdrop) {
+                backdrop.addEventListener('click', function () {
+                    if (!mqDesktop.matches && !body.classList.contains('sidebar-collapsed')) {
+                        setCollapsedState(true, true);
+                    }
+                });
+            }
         })();
     </script>
+
+    <!-- 글로벌 학생 선택 모달 -->
+    {% include "components/student_modal_core.html" %}
 </body>
 </html>

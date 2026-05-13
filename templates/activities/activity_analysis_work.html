@@ -15,14 +15,32 @@
 
 <div class="container-fluid px-4 py-3">
     <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-        <i class="bi bi-cpu text-primary me-2"></i> 분석 작업: {{ activity.title }}</h3>
+        <div class="d-flex align-items-center">
+            <i class="bi bi-cpu me-2" style="color: #8E44AD; font-size: 1.5rem;"></i>
+            <h3 class="mb-0" style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: bold; font-size: 1.5rem;">
+                분석 작업: {{ activity.title }}
+            </h3>
+        </div>
         <div class="ms-auto">
-            <a href="{% if activity.category == 'CREATIVE' %}{% url 'creative_list' %}{% else %}{% url 'activity_list' %}{% endif %}" 
+            <a href="{% url 'unified_list' %}?category={{ activity.category }}&sub={{ activity.sub_category }}" 
                class="btn btn-outline-secondary btn-sm shadow-sm">
                 <i class="bi bi-list"></i> 목록으로
             </a>
         </div>
     </div>
+    
+    <!-- Glassmorphism title background -->
+    <!-- <div class="bg-white rounded-4 p-3 mb-4 shadow-sm" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border-radius: 24px;">
+        <div class="text-center">
+            <i class="bi bi-lightbulb-fill text-warning" style="font-size: 2rem;"></i>
+            <p class="mb-0 mt-2 fw-bold" style="color: #8E44AD; font-size: 1.1rem;">
+                AI 분석 설정 페이지
+            </p>
+            <p class="small text-muted mb-0">
+                아래 설정을 통해 학생 답안을 분석하고 결과를 저장할 수 있습니다.
+            </p>
+        </div>
+    </div> -->
 
     <!-- [핵심] 3:7 비율 레이아웃 시작 -->
     <div class="row g-4">
@@ -86,57 +104,107 @@
 
         <!-- [2] 우측 영역: AI 분석 지시 (비율 7) -->
         <div class="col-md-8">
-            <div class="card shadow-sm h-100">
+            <div class="card shadow-sm h-20" style="overflow: visible !important;">
                 <div class="card-header bg-white fw-bold text-success">2. AI 분석 상세 지시 (프롬프트 구성)</div>
-                <div class="card-body">
-                    <!-- 템플릿 불러오기
-                    <div class="mb-4 p-3 bg-warning bg-opacity-10 border border-warning rounded">
-                        <label class="small fw-bold text-warning-emphasis mb-2"><i class="bi bi-magic"></i> 프롬프트 예시 선택</label>
-                        <select class="form-select form-select-sm" id="templateSelect" onchange="applyTemplate()">
-                            <option value="">-- 예시를 선택하면 항목들이 자동으로 채워집니다 --</option>
-                            {% for t in prompt_templates %}<option value="{{ t.id }}">{{ t.title }}</option>{% endfor %}
-                        </select>
-                    </div>
-                    -->
-                    <!-- 활동 맥락 및 AI 역할 (크기 축소) -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-dark">활동의 맥락 및 AI의 역할</label>
-                        <textarea id="p_context" class="form-control" rows="3" placeholder="예: 고등학교 1학년 수업임. 20년 경력의 베테랑 교사 역할."></textarea>
-                    </div>
-
-                    <!-- AI 수행 작업 (크기 대폭 확대) -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-dark">AI가 수행할 작업 (메인 지시사항)</label>
-                        <textarea id="p_task" class="form-control" rows="12" placeholder="예: 학생의 답안을 분석하여 생기부 문구로 변환해줘." style="border: 2px solid #ced4da;"></textarea>
-                    </div>
-
-                    <div class="row">
-                        <!-- 원하는 결과 예시 -->
-                        <div class="col-md-8 mb-3">
-                            <label class="form-label fw-bold small text-dark">원하는 결과 예시</label>
-                            <textarea id="p_example" class="form-control" rows="4" placeholder="예: ~~한 활동을 통해 ~~한 역량을 보여줌."></textarea>
+                <div class="card-body" style="overflow: visible !important;">
+                    <!-- [선택 그룹] 분석 작업명 및 대상 선택 -->
+                    <div class="bg-white rounded-4 p-4 mb-5 border-0 shadow-sm" 
+                         style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px);">
+                                                
+                        <!-- 분석 작업명 입력 -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-dark">
+                                <i class="bi bi-tag-fill me-1" style="color: #8E44AD;"></i>분석 작업명 
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="work_name" id="work_name" 
+                                   class="form-control rounded-pill border-0 shadow-sm" 
+                                   placeholder="결과 테이블의 제목이 됩니다. (예: 1학기 행발용, 진로 상담 기초자료)"
+                                   value="{{ work_name|default:'' }}"
+                                   required>
                         </div>
-                        <!-- 원하는 분량 -->
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold small text-dark">원하는 분량</label>
-                            <select id="p_length" class="form-select">
-                                <option value="">-- 선택 --</option>
-                                {% for opt in length_options %}<option value="{{ opt.value }}">{{ opt.label }}</option>{% endfor %}
-                            </select>
-                            <div class="mt-4">
-                                <label class="form-label fw-bold small text-dark">창의성 (Temp)</label>
-                                <div class="d-flex align-items-center gap-2">
-                                    <input type="range" class="form-range" min="0.1" max="1.0" step="0.1" id="temperature" value="0.7" oninput="tempVal.innerText = this.value">
-                                    <span id="tempVal" class="badge bg-primary">0.7</span>
+
+                        <!-- 학생 선택 컴포넌트 추가 -->
+                        <div style="position: relative; z-index: 1050; overflow: visible !important;">
+                            {% include "components/student_selector.html" with selector_label="분석 대상" %}
+                        </div>
+                    </div>
+                    <!-- [지시 그룹] 프롬프트 입력 영역 -->
+                    <div class="bg-white rounded-4 p-4 mb-5 border-0 shadow-sm" 
+                         style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px);">
+                        <!-- 활동 맥락 및 AI 역할 -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small text-dark">
+                                <i class="bi bi-info-circle-fill me-1" style="color: #8E44AD;"></i>활동의 맥락 및 AI의 역할
+                            </label>
+                            <textarea id="p_context" class="form-control rounded-4" rows="4" 
+                                      placeholder="예: 고등학교 1학년 수업임. 20년 경력의 베테랑 교사 역할." 
+                                      value="{{ request.POST.context|default:'' }}"
+                                      style="background-color: #f8f9fa; transition: all 0.3s ease;"></textarea>
+                        </div>
+
+                        <!-- AI 수행 작업 (강조) -->
+                        <div class="mb-3 border rounded-4 p-3" 
+                             style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                            <label class="form-label fw-bold small text-dark">
+                                <i class="bi bi-lightning-fill me-1" style="color: #8E44AD;"></i>AI가 수행할 작업 (메인 지시사항)
+                            </label>
+                        <textarea id="p_task" class="form-control" rows="15" placeholder="예: 학생의 답안을 분석하여 생기부 문구로 변환해줘." style="border: 2px solid #ced4da;" value="{{ request.POST.task|default:'' }}"></textarea>
+                    </div>
+
+                    <!-- [옵션 바] 분석 설정 및 실행 -->
+                    <div class="bg-white rounded-4 p-4 mb-5 border-0 shadow-sm" 
+                         style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px);">
+                        <div class="row align-items-start g-3">
+                            <!-- 원하는 결과 예시 (넓게) -->
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold small text-dark">
+                                    <i class="bi bi-chat-quote-fill me-1" style="color: #8E44AD;"></i>원하는 결과 예시
+                                </label>
+                                <textarea id="p_example" class="form-control rounded-4" rows="6" 
+                                          placeholder="예: ~~한 활동을 통해 ~~한 역량을 보여줌." 
+                                          value="{{ request.POST.example|default:'' }}"
+                                          style="background-color: #f8f9fa; transition: all 0.3s ease;"></textarea>
+                            </div>
+                            
+                            <!-- 분석 옵션 그룹 (수직 정렬) -->
+                            <div class="col-md-4">
+                                <!-- 원하는 분량 -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small text-dark">
+                                        <i class="bi bi-rulers me-1" style="color: #8E44AD;"></i>원하는 분량
+                                    </label>
+                                    <select id="p_length" class="form-select rounded-4 w-100">
+                                        <option value="" {% if not request.POST.length %}selected{% endif %}>-- 선택 --</option>
+                                        {% for opt in length_options %}<option value="{{ opt.value }}" {% if request.POST.length == opt.value %}selected{% endif %}>{{ opt.label }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <!-- 창의성 (Temp) -->
+                                <div>
+                                    <label class="form-label fw-bold small text-dark">
+                                        <i class="bi bi-thermometer-half me-1" style="color: #8E44AD;"></i>창의성 (Temp)
+                                    </label>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input type="range" class="form-range flex-grow-1" min="0.1" max="1.0" step="0.1" id="temperature" value="{{ request.POST.temperature|default:'0.7' }}" oninput="tempVal.innerText = this.value">
+                                        <span id="tempVal" class="badge bg-primary">0.7</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="d-grid mt-3">
-                        <button type="button" class="btn btn-success btn-lg fw-bold py-3 shadow" onclick="runDBAnalysis()">
-                            <i class="bi bi-play-circle-fill me-2"></i> 분석 실행 및 결과 저장 시작 (대상: {{ submit_count }}명)
-                        </button>
+                    <!-- [실행 버튼] 최종 목적지 -->
+                    <div class="text-center mt-5">
+                        <form method="POST" id="analysisForm">
+                            {% csrf_token %}
+                            <button type="button" class="btn btn-success btn-lg rounded-pill px-5 py-3 fw-bold shadow-lg" 
+                                    onclick="runDBAnalysis()"
+                                    style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border: none; transition: all 0.3s ease;">
+                                <i class="bi bi-play-circle-fill me-2"></i>분석 실행 및 결과 저장 시작
+                                <span class="badge bg-light text-success ms-2">대상: <span id="mainBtnCount">0</span>명</span>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -154,7 +222,7 @@
     try {
         const rawJson = '{{ answer_list_json|escapejs }}';
         answerList = rawJson ? JSON.parse(rawJson) : [];
-        console.log("분석 대상 명단:", answerList);
+        console.log("평가 대상 명단:", answerList);
     } catch (e) {
         console.error("데이터 파싱 에러:", e);
     }
@@ -172,6 +240,7 @@
     }
 
     function loadPromptDraft() {
+        // 1. 기존 저장된 데이터 로드
         const savedData = localStorage.getItem(STORAGE_KEY);
         if (savedData) {
             const data = JSON.parse(savedData);
@@ -182,12 +251,28 @@
             document.getElementById('temperature').value = data.temp || "0.7";
             if(document.getElementById('tempVal')) document.getElementById('tempVal').innerText = data.temp || "0.7";
         }
+        
+        // 2. 분석 후 임시 저장된 데이터 로드 (우선순위)
+        const tempData = localStorage.getItem('temp_analysis_data');
+        if (tempData) {
+            const data = JSON.parse(tempData);
+            document.getElementById('p_context').value = data.context || "";
+            document.getElementById('p_task').value = data.task || "";
+            document.getElementById('p_example').value = data.example || "";
+            document.getElementById('p_length').value = data.length || "";
+            document.getElementById('temperature').value = data.temperature || "0.7";
+            if(document.getElementById('tempVal')) document.getElementById('tempVal').innerText = data.temperature || "0.7";
+            
+            // 임시 데이터 삭제
+            localStorage.removeItem('temp_analysis_data');
+        }
     }
 
     /* 3. 실행 및 이벤트 바인딩 (DOMContentLoaded) */
     document.addEventListener('DOMContentLoaded', function() {
         
         loadPromptDraft(); // 페이지 열자마자 복구
+        updateSummary(); // 초기 선택된 학생 수 표시
 
         const inputs = ['p_context', 'p_task', 'p_example', 'p_length', 'temperature'];
         inputs.forEach(id => {
@@ -197,12 +282,147 @@
                 if (el.tagName === 'SELECT') el.addEventListener('change', savePromptDraft);
             }
         });
+
+        // 학생 선택 체크박스 이벤트 리스너 추가
+        const studentCheckboxes = document.querySelectorAll('input[name="target_students"]');
+        studentCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSummary);
+        });
+
+        // 초기 요약 업데이트
+        updateSummary();
+        
+        // 서버에서 넘어온 saved_target_ids로 체크박스 초기화
+        const savedTargets = JSON.parse('{{ current_targets|safe }}');
+        if (savedTargets && savedTargets.length > 0) {
+            savedTargets.forEach(targetId => {
+                const checkbox = document.querySelector('input[name="target_students"][value="' + targetId + '"]');
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+            updateSummary(); // 초기화 후 다시 카운트 업데이트
+        }
     });
+
+    // 학생 선택 관련 함수들
+    function updateSummary() {
+        const selected = Array.from(document.querySelectorAll('input[name="target_students"]:checked'));
+        const count = selected.length;
+        const summaryText = count > 0 ? `${count}명 선택됨` : '{{ selector_label|default:"평가 대상" }}을 선택하세요 (클릭하여 명단 열기)';
+        document.getElementById('targetSummary').innerText = summaryText;
+        document.getElementById('selectedCount').innerText = count;
+    }
+
+    function toggleAllStudents(checked) {
+        const checkboxes = document.querySelectorAll('input[name="target_students"]');
+        checkboxes.forEach(cb => cb.checked = checked);
+        updateSummary();
+    }
+
+    function toggleGroup(checkbox, selector) {
+        const checkboxes = document.querySelectorAll(selector);
+        checkboxes.forEach(cb => cb.checked = checkbox.checked);
+        updateSummary();
+    }
 
     // 4. AI 분석 실행 함수
     async function runDBAnalysis() {
-        if (!answerList || answerList.length === 0) {
-            alert("분석할 학생 답안이 없습니다.");
+        console.log("=== 분석 실행 시작 ===");
+        
+        // 분석 작업명 필수 검증
+        const workNameInput = document.getElementById('work_name');
+        const workName = workNameInput.value.trim();
+        
+        // 선택된 학생 필터링
+        const selectedCheckboxes = document.querySelectorAll('input[name="target_students"]:checked');
+        const selectedStudentIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        console.log("선택된 학생들:", selectedStudentIds);
+        
+        if (!workName) {
+            alert('분석 작업명을 입력해주세요.');
+            workNameInput.focus();
+            workNameInput.style.borderColor = '#dc3545';
+            workNameInput.style.boxShadow = '0 0 0 0.2rem rgba(220, 53, 69, 0.25)';
+            workNameInput.classList.add('shake');
+            setTimeout(() => {
+                workNameInput.classList.remove('shake');
+                workNameInput.style.borderColor = '';
+                workNameInput.style.boxShadow = '';
+            }, 2000);
+            return;
+        }
+        
+        // 선택된 학생 필터링
+        const selectedIds = Array.from(selectedCheckboxes).map(cb => Number(cb.value));
+        
+        // Step 1: 루프 시작 전, 이번 분석 그룹의 '운명'을 결정하는 단일 판사 역할
+        let batchId = '';
+        const activityId = parseInt('{{ activity.id }}');
+        
+        try {
+            console.log(`[선결정] 배치 판별 요청 - work_name: ${workName}, students: ${selectedIds}`);
+            
+            const batchResponse = await fetch('/activities/api/get-or-create-batch/', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'X-CSRFToken': '{{ csrf_token }}' 
+                },
+                body: JSON.stringify({
+                    'work_name': workName,
+                    'student_ids': selectedIds,
+                    'activity_id': activityId
+                })
+            });
+            
+            const batchResult = await batchResponse.json();
+            
+            if (batchResult.status === 'success') {
+                batchId = batchResult.batch_id;  // 이번 세션에서 사용할 단 하나의 batch_id를 서버로부터 먼저 받아와 변수에 고정
+                console.log(`[선결정 완료] 서버 판별 결과: batch_id='${batchId}', 교집합=${batchResult.has_intersection}, 개수=${batchResult.intersection_count}`);
+            } else {
+                console.error('[선결정 실패]', batchResult.message);
+                const now = new Date();
+                const timestamp = now.getFullYear() + 
+                               String(now.getMonth() + 1).padStart(2, '0') + 
+                               String(now.getDate()).padStart(2, '0') + '_' +
+                               String(now.getHours()).padStart(2, '0') + 
+                               String(now.getMinutes()).padStart(2, '0') + 
+                               String(now.getSeconds()).padStart(2, '0');
+                batchId = `${workName}_${timestamp}`;
+                console.log(`[Fallback] 새 batch_id 생성: ${batchId}`);
+            }
+        } catch (error) {
+            console.error('[선결정 통신 오류]', error);
+            const now = new Date();
+            const timestamp = now.getFullYear() + 
+                           String(now.getMonth() + 1).padStart(2, '0') + 
+                           String(now.getDate()).padStart(2, '0') + '_' +
+                           String(now.getHours()).padStart(2, '0') + 
+                           String(now.getMinutes()).padStart(2, '0') + 
+                           String(now.getSeconds()).padStart(2, '0');
+            batchId = `${workName}_${timestamp}`;
+        }
+        
+        console.log("선택된 체크박스 수:", selectedStudentIds.length);
+        console.log("선택된 학생 IDs:", selectedIds);
+        console.log("전체 답안 리스트:", answerList);
+        
+        let filteredAnswerList = answerList;
+        if (selectedStudentIds.length > 0) {
+            filteredAnswerList = answerList.filter(a => selectedStudentIds.includes(String(a.student_id)));
+        }
+        
+        console.log("최종 필터링된 학생 수:", filteredAnswerList.length);
+        console.log("매칭된 답안 리스트:", filteredAnswerList);
+        
+        if (!filteredAnswerList || filteredAnswerList.length === 0) {
+            if (selectedStudentIds.length > 0) {
+                alert(`선택된 ${selectedStudentIds.length}명 중 답안을 제출한 학생이 없습니다.`);
+            } else {
+                alert("분석할 답안이 없습니다.");
+            }
             return;
         }
         
@@ -219,15 +439,15 @@
 
         const full_instruction = `[맥락]: ${p_context}\n[작업]: ${p_task}\n[예시]: ${p_example}\n[분량]: ${p_length}`;
 
-        if (!confirm(`${answerList.length}명의 분석을 시작하시겠습니까?\n완료될 때까지 브라우저 창을 닫지 마세요.`)) return;
+        if (!confirm(`${filteredAnswerList.length}명의 분석을 시작하시겠습니까?\n완료될 때까지 브라우저 창을 닫지 마세요.`)) return;
 
         document.getElementById('loadingOverlay').classList.remove('d-none');
 
         const BATCH_SIZE = 5; // 한 번에 5명씩 동시에 처리 (가비아 서버 부하 방지용)
     
-        for (let i = 0; i < answerList.length; i += BATCH_SIZE) {
+        for (let i = 0; i < filteredAnswerList.length; i += BATCH_SIZE) {
             // 한 번에 처리할 묶음 생성
-            const chunk = answerList.slice(i, i + BATCH_SIZE);
+            const chunk = filteredAnswerList.slice(i, i + BATCH_SIZE);
             
             // 병렬 실행 (Promise.all 활용)
             await Promise.all(chunk.map(async (current, index) => {
@@ -236,23 +456,45 @@
                 // UI 업데이트는 순차적으로 보이게 처리
                 document.getElementById('currentName').innerText = current.name;
                 document.getElementById('currentCount').innerText = currentIdx;
-                const percent = Math.round((currentIdx / answerList.length) * 100);
+                const percent = Math.round((currentIdx / filteredAnswerList.length) * 100);
                 document.getElementById('progressBar').style.width = percent + '%';
                 document.getElementById('progressBar').innerText = percent + '%';
 
                 try {
+                    // Step 2: 루프를 돌며 개별 학생 분석(api_process_db_row)을 요청할 때, 모든 학생에게 동일한 이 batch_id를 강제로 실어 보냄
+                    const payload = {
+                        'answer_id': current.id,
+                        'prompt_system': full_instruction,
+                        'temperature': temperature,
+                        'ai_model': 'gemini-2.0-flash',
+                        'work_name': workName,
+                        'batch_id': batchId  // Step 1에서 확정된 단 하나의 batch_id를 모든 학생에게 강제 전송
+                    };
+                    console.log(`[후집행] 학생 ${current.id}에 동일한 batch_id(${batchId}) 강제 전송`);
+                    console.log(`${current.name} - 서버로 보내는 실제 데이터:`, payload);
+                    console.log("서버로 보내는 최종 데이터:", payload);
+                    
                     const response = await fetch('/activities/api/process-db-row/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: JSON.stringify({
-                            'answer_id': current.id,
-                            'prompt_system': full_instruction,
-                            'temperature': temperature,
-                            'ai_model': 'gemini-2.0-flash' 
-                        })
+                        body: JSON.stringify(payload)
                     });
 
-                    if (!response.ok) console.error(`${current.name} 처리 실패`);
+                    if (!response.ok) {
+                        console.error(`${current.name} 처리 실패 - 상태: ${response.status}`);
+                        alert(`${current.name} 처리 실패 (HTTP ${response.status})`);
+                    } else {
+                        const data = await response.json();
+                        console.log(`${current.name} 서버 응답:`, data);
+                        if (data.status === 'error') {
+                            console.error(`${current.name} 서버 에러:`, data.message);
+                            alert(`${current.name} 서버 에러: ${data.message}`);
+                        } else if (data.status === 'success') {
+                            console.log(`${current.name} 분석 성공:`, data.message);
+                        } else {
+                            console.warn(`${current.name} 알 수 없는 응답:`, data);
+                        }
+                    }
                     
                 } catch (error) {
                     console.error(`${current.name} 통신 에러:`, error);
@@ -265,6 +507,21 @@
         
         document.getElementById('loadingOverlay').classList.add('d-none');
         alert("✅ 모든 학생의 AI 분석 및 저장이 완료되었습니다.");
+        
+        // 입력값 유지를 위해 폼 데이터를 localStorage에 저장 후 리다이렉트
+        const formData = {
+            context: document.getElementById('p_context').value,
+            task: document.getElementById('p_task').value,
+            example: document.getElementById('p_example').value,
+            length: document.getElementById('p_length').value,
+            temperature: document.getElementById('temperature').value,
+            target_students: Array.from(document.querySelectorAll('input[name="target_students"]:checked')).map(cb => cb.value)
+        };
+        
+        // 임시 저장 후 페이지 새로고침
+        localStorage.setItem('temp_analysis_data', JSON.stringify(formData));
+        
+        // 분석 결과 페이지로 리다이렉트
         window.location.href = "{% url 'activity_analysis' activity.id %}";
     }
 </script>

@@ -160,6 +160,25 @@ class Answer(models.Model):
     # 선생님 특이사항 메모 (비공개)
     note = models.TextField(blank=True, verbose_name="특이사항(교사 메모)")
 
+# AI 분석 결과 모델 (다중 결과 지원)
+class AnalysisResult(models.Model):
+    answer = models.ForeignKey('Answer', on_delete=models.CASCADE, related_name='analysis_results')
+    result_content = models.TextField(verbose_name="AI 분석 결과")
+    prompt_system = models.TextField(verbose_name="사용된 프롬프트")
+    temperature = models.FloatField(default=0.7, verbose_name="창의성 온도")
+    ai_model = models.CharField(max_length=50, default='gemini-2.0-flash', verbose_name="AI 모델")
+    work_name = models.CharField(max_length=100, null=True, blank=True, verbose_name="분석 작업명")
+    batch_id = models.CharField(max_length=50, null=True, blank=True, verbose_name="분석 세션 ID")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="분석 생성일")
+    
+    class Meta:
+        verbose_name = "AI 분석 결과"
+        verbose_name_plural = "AI 분석 결과 목록"
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.answer.student.name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
 # 다중 파일을 저장하기 위한 모델 (ActivityFile)
 class ActivityFile(models.Model):
     # 어떤 활동에 속한 파일인지 연결 (ForeignKey)

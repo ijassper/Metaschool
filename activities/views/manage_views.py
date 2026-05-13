@@ -63,6 +63,36 @@ def unified_create(request):
                 if val: extra_info.append(f"{inp['label']}: {val}")
         extra_str = f" ({', '.join(extra_info)})" if extra_info else ""
 
+        # [데이터 브릿지] 글로벌 모달에서 온 JSON 데이터 수신 및 파싱
+        json_data = request.POST.get('selected_students_json', '')
+        target_ids = []
+        
+        print(f"[DEBUG] 폼 데이터 전체 키 목록: {list(request.POST.keys())}")
+        print(f"[DEBUG] selected_students_json 원본 데이터: '{json_data}'")
+        
+        if json_data:
+            try:
+                import json
+                target_ids = json.loads(json_data)
+                print(f"[브릿지] JSON 파싱 성공 - 학생 ID 목록: {target_ids}")
+                print(f"[브릿지] 학생 수: {len(target_ids)}명")
+            except json.JSONDecodeError as e:
+                print(f"[오류] JSON 파싱 실패: {json_data}")
+                print(f"[오류] 파싱 에러 상세: {str(e)}")
+                target_ids = []
+        else:
+            print(f"[정보] selected_students_json 필드가 비어있음")
+        
+        # 기존 방식도 지원 (호환성)
+        if not target_ids:
+            target_ids = request.POST.getlist('target_students')
+            print(f"[호환성] 기존 방식 학생 ID 목록: {target_ids}")
+            print(f"[호환성] 기존 방식 학생 수: {len(target_ids)}명")
+        
+        # 최종 수신된 학생 ID 목록 확인
+        print(f"[최종 결과] 수신된 학생 ID 목록: {target_ids}")
+        print(f"[최종 결과] 최종 학생 수: {len(target_ids)}명")
+        
         try:
             # --- [Activity 객체 생성] ---
             activity = Activity.objects.create(
@@ -96,6 +126,37 @@ def unified_create(request):
                 is_active=True
             )
 
+            print(f"[생성] Activity 객체 생성 완료 - ID: {activity.id}")
+
+            # --- [즉시 학생 매칭 수술] ---
+            # activity.save() 직후에 selected_students_json 값을 가져와서 즉시 강제 연결
+            json_data = request.POST.get('selected_students_json', '')
+            student_ids = []
+            
+            if json_data:
+                try:
+                    import json
+                    student_ids = json.loads(json_data)
+                    print(f"[수술] JSON에서 즉시 파싱된 학생 ID 목록: {student_ids}")
+                    print(f"[수술] 학생 수: {len(student_ids)}명")
+                except json.JSONDecodeError as e:
+                    print(f"[오류] JSON 파싱 실패: {json_data}")
+                    print(f"[오류] 파싱 에러 상세: {str(e)}")
+                    student_ids = []
+            else:
+                print(f"[정보] selected_students_json 필드가 비어있음")
+            
+            # [즉시 강제 연결] 새로 만들어진 번호에 학생들을 즉시 강제 연결
+            if student_ids:
+                activity.target_students.set(student_ids)
+                print(f"[수술 성공] 즉시 학생 연결 완료: {len(student_ids)}명")
+                # 연결된 학생 목록 확인
+                connected_students = list(activity.target_students.values_list('id', flat=True))
+                print(f"[수술 확인] DB에 연결된 학생 ID 목록: {connected_students}")
+                print(f"[수술 확인] DB에 연결된 학생 수: {len(connected_students)}명")
+            else:
+                print(f"[수술 경고] 학생 데이터 없음 - 연결 생략")
+
             # --- [다중 파일 저장] ---
             files = request.FILES.getlist('attachments')
             for f in files:
@@ -103,25 +164,29 @@ def unified_create(request):
 
             # --- [후속 처리] ---
             # 1. Question 객체 생성 (Answer 모델과의 연결을 위해 필수)
-            from .models import Question
+            from ..models import Question
             Question.objects.create(
                 activity=activity, 
                 content=main_question, # Activity와 동일한 내용 복사
                 conditions=activity.conditions
             )
 
-            # 2. 대상 학생 등록
-            target_ids = request.POST.getlist('target_students')
-            if target_ids:
-                activity.target_students.set(target_ids)
-
             messages.success(request, f"'{sub_menu}' 시트가 성공적으로 생성되었습니다.")
             return redirect(f'/activities/list/?category={cat_code}&sub={sub_menu}')
 
         except Exception as e:
             logger.error(f"생성 에러: {str(e)}")
+            print(f"DEBUG: Form errors: {e}")
             messages.error(request, f"저장 중 오류가 발생했습니다: {str(e)}")
-            return redirect(request.path + f"?category={cat_code}&sub={sub_menu}")
+            # 입력 데이터 복구: request.POST의 값들을 다시 폼에 채워주기
+            return render(request, 'activities/unified_form.html', {
+                'cat_code': cat_code, 
+                'sub_menu': sub_menu, 
+                'config': config,
+                'student_tree': get_student_tree(request.user),
+                'action': '생성',
+                'form_data': request.POST  # 실패한 데이터를 다시 전달
+            })
 
     # 7. GET 요청 시
     return render(request, 'activities/unified_form.html', {
@@ -209,10 +274,29 @@ def unified_update(request, activity_id):
         # 5. 최종 저장
         activity.save()
 
-        # 6. 학생 매칭 업데이트
-        target_ids = request.POST.getlist('target_students')
+        # 6. 학생 매칭 업데이트 (데이터 브릿지 사용)
+        json_data = request.POST.get('selected_students_json', '')
+        target_ids = []
+        
+        if json_data:
+            try:
+                import json
+                target_ids = json.loads(json_data)
+                print(f"[브릿지-수정] JSON에서 파싱된 학생 ID 목록: {target_ids}")
+            except json.JSONDecodeError:
+                print(f"[오류-수정] JSON 파싱 실패: {json_data}")
+                target_ids = []
+        
+        # 기존 방식도 지원 (호환성)
+        if not target_ids:
+            target_ids = request.POST.getlist('target_students')
+            print(f"[호환성-수정] 기존 방식 학생 ID 목록: {target_ids}")
+        
         if target_ids:
             activity.target_students.set(target_ids)
+            print(f"[성공-수정] 대상 학생 업데이트 완료: {len(target_ids)}명")
+        else:
+            print(f"[경고-수정] 대상 학생이 선택되지 않음")
 
         messages.success(request, f"'{activity.title}' 수정이 완료되었습니다.")
         return redirect(f'/activities/list/?category={activity.category}&sub={sub_menu}')
@@ -323,7 +407,7 @@ def creative_create(request):
         )
 
         # 3. 자율활동용 문항(Question) 자동 생성 (답안 제출 에러 방지)
-        from .models import Question
+        from ..models import Question
         Question.objects.create(
             activity=activity,
             content=question,

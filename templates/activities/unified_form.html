@@ -38,6 +38,23 @@
 </style>
 
 <div class="container py-4">
+    <!-- 에러 표시 영역 -->
+    {% if form.errors %}
+    <div class="alert alert-danger border-0 rounded-4 p-4 mb-4" style="background-color: #fff5f5; border-left: 4px solid #dc3545 !important;">
+        <h6 class="fw-bold text-danger mb-3">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>저장 실패 원인
+        </h6>
+        <div class="small">
+            {% for field, errors in form.errors.items %}
+                <div class="mb-2">
+                    <strong class="text-danger">{{ field }}:</strong>
+                    <span class="text-muted">{{ errors|join:", " }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- 상단 헤더 영역 -->
     <div class="d-flex align-items-center justify-content-between mb-4 px-2">
         <div>
@@ -51,6 +68,8 @@
 
     <form method="post" enctype="multipart/form-data" id="unifiedForm">
         {% csrf_token %}
+        <input type="hidden" name="target_students_data" id="target_students_data">
+        <input type="hidden" name="selected_students_json" id="id_selected_students_json">
 
         <!-- [섹션 1] 기본 정보 -->
         <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
@@ -59,14 +78,14 @@
             <div class="row mb-3 align-items-center">
                 <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.basic.section }} *</div>
                 <div class="col-md-9 px-4">
-                    <input type="text" name="section" value="{{ activity.section|default:'' }}" class="form-control border-0 shadow-sm p-3 rounded-3" placeholder="{{ config.basic.section }} 입력" required>
+                    <input type="text" name="section" value="{% if form_data %}{{ form_data.section|default:'' }}{% else %}{{ activity.section|default:'' }}{% endif %}" class="form-control border-0 shadow-sm p-3 rounded-3" placeholder="{{ config.basic.section }} 입력" required>
                 </div>
             </div>
 
             <div class="row mb-3 align-items-center">
                 <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.basic.title }} *</div>
                 <div class="col-md-9 px-4">
-                    <input type="text" name="title" value="{{ activity.title|default:'' }}" class="form-control border-0 shadow-sm p-3 rounded-3" placeholder="{{ config.basic.title }} 입력" required>
+                    <input type="text" name="title" value="{% if form_data %}{{ form_data.title|default:'' }}{% else %}{{ activity.title|default:'' }}{% endif %}" class="form-control border-0 shadow-sm p-3 rounded-3" placeholder="{{ config.basic.title }} 입력" required>
                 </div>
             </div>
 
@@ -203,7 +222,7 @@
 
             <!-- 3. 평가 대상 -->
             <div class="mt-4 bg-white p-3 rounded-4 shadow-sm">
-                {% include 'components/student_selector.html' %}
+                {% include 'components/student_selector.html' with selector_label="평가 대상" %}
             </div>
         </div>
 
@@ -217,7 +236,8 @@
                 <div class="col-md-3 text-center fw-bold text-secondary">항목 {{ i }} 제목</div>
                 <div class="col-md-9 px-4">
                     <input type="text" name="q{{ i }}_title" class="form-control border-0 shadow-sm p-3 bg-white" 
-                        value="{% if i == '1' %}{{ activity.q1_title|default:config.default_q.0 }}{% elif i == '2' %}{{ activity.q2_title|default:config.default_q.1 }}{% else %}{{ activity.q3_title|default:config.default_q.2 }}{% endif %}" required>
+                        value="{% if i == '1' %}{{ activity.q1_title|default:config.default_q.0 }}{% elif i == '2' %}{% if activity.q2_title %}{{ activity.q2_title }}{% else %}{% endif %}{% else %}{% if activity.q3_title %}{{ activity.q3_title }}{% else %}{% endif %}{% endif %}" 
+                        {% if i == '1' %}placeholder="{{ config.default_q.0 }}"{% elif i == '2' %}placeholder="예: 이 기사에 대한 자신의 생각을 한 줄로 써보세요."{% else %}placeholder="예: 앞으로의 다짐을 적어보세요."{% endif %} {% if i != '1' %}{% endif %}>
                 </div>
             </div>
             {% endfor %}
@@ -281,12 +301,29 @@
             });
         }
 
-        // 5. 폼 제출 전 유효성 검사
+        // 5. 폼 제출 전 유효성 검사 및 데이터 브릿지 강제 주입
         if (form) {
             form.onsubmit = function(e) {
+                console.log('[폼 제출] 시작 - 데이터 브릿지 강제 주입');
+                
+                // [강제 주입] 모달의 체크된 ID들을 무조건 JSON으로 변환해서 필드에 쑤셔 넣어
+                const checkboxes = document.querySelectorAll('input[name="target_students"]:checked');
+                const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+                
+                console.log('[폼 제출] 선택된 학생 수:', selectedIds.length);
+                console.log('[폼 제출] 선택된 학생 IDs:', selectedIds);
+                
+                // JSON 필드에 무조건 강제 주입
+                const jsonField = document.getElementById('id_selected_students_json');
+                if (jsonField) {
+                    jsonField.value = JSON.stringify(selectedIds);
+                    console.log('[폼 제출] JSON 필드 강제 주입 완료:', jsonField.value);
+                } else {
+                    console.log('[오류] id_selected_students_json 필드를 찾을 수 없음');
+                }
+                
                 // (1) 학생 선택 여부 체크 (섹션 3 하단 컴포넌트)
-                const selectedStudents = document.querySelectorAll('input[name="target_students"]:checked');
-                if (selectedStudents.length === 0) {
+                if (selectedIds.length === 0) {
                     alert("평가 대상 학생을 최소 한 명 이상 선택해주세요.");
                     const dropdown = document.getElementById('targetDropdown');
                     if(dropdown) dropdown.focus();
@@ -301,17 +338,16 @@
                     return false;
                 }
 
-                // (3) 섹션 4: 문항 제목 커스텀 체크 (HTML required가 있지만 한번 더 체크)
-                const qTitles = document.querySelectorAll('input[name^="q"][name$="_title"]');
-                for (let input of qTitles) {
-                    if (!input.value.trim()) {
-                        alert("학생 답안지 구성의 항목 제목을 입력해주세요.");
-                        input.focus();
-                        e.preventDefault();
-                        return false;
-                    }
+                // (3) 섹션 4: 문항 제목 커스텀 체크 (항목 1만 필수)
+                const q1Title = document.querySelector('input[name="q1_title"]');
+                if (q1Title && !q1Title.value.trim()) {
+                    alert("학생 답안지 구성의 항목 1 제목을 입력해주세요.");
+                    q1Title.focus();
+                    e.preventDefault();
+                    return false;
                 }
                 
+                console.log('[폼 제출] 유효성 검사 통과 - 폼 전송 진행');
                 return true;
             };
         }

@@ -5,14 +5,15 @@ import requests
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Value, F
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 # 커스텀 데코레이터 및 계정 모델 임포트
 from accounts.decorators import teacher_required
 from accounts.models import Student, SystemConfig, PromptTemplate, PromptLengthOption
-from ..models import Activity, Question, Answer
+from ..models import Activity, Question, Answer, AnalysisResult
+from .main_views import get_student_tree
 
 # [1] 결과 분석 페이지 (활동별)
 @login_required
@@ -65,55 +66,240 @@ def activity_analysis(request, activity_id):
     if name_query:
         target_students = target_students.filter(name__contains=name_query)
 
-    # 6. 분석용 데이터 리스트 생성
-    # (제출 현황과 달리, 여기서는 '답안 내용'이 중요합니다)
-    analysis_list = []
+    # 6. 분석용 데이터 리스트 생성 (processed_data 구조)
+    # (제출 현황과 달리, 여기서는 '답안 내용'과 '모든 분석 결과'가 중요합니다)
     
-    for student in target_students:
-        answer = Answer.objects.filter(student=student, question=question).first()
+    # 가장 기본적이고 확실한 방식: 활동에 속한 모든 분석 결과 가져오기
+    print(f"DEBUG: 활동 ID: {activity.id}, 질문 ID: {question.id}")
+    
+    # 해당 활동의 모든 AnalysisResult를 직접 조회
+    all_analysis_results = AnalysisResult.objects.filter(
+        answer__question__activity=activity
+    ).select_related('answer', 'answer__student').order_by('created_at')
+    
+    print(f"DEBUG: 전체 분석 결과 수: {all_analysis_results.count()}")
+    
+    # 테이블을 그릴 때 (work_name, batch_id) 쌍을 기준으로 정확히 열을 나눠야 해
+    # 동일한 작업명 내에서 batch_id가 생성된 시간 순서대로 (1), (2), (3) 번호를 붙여줘
+    filtered_analysis_results = all_analysis_results.filter(
+        work_name__isnull=False
+    ).exclude(
+        Q(work_name='') | Q(work_name__isnull=True)
+    ).order_by('work_name', 'created_at')
+    
+    # (work_name, batch_id) 쌍으로 그룹화하고 생성 순서대로 정렬
+    distinct_combinations = []
+    header_info = []
+    work_name_groups = {}
+    
+    # work_name별로 그룹화하면서 생성 시간 순서대로 batch_id 정렬
+    for result in filtered_analysis_results:
+        work_name = result.work_name or "제목 없는 분석"
+        batch_id = result.batch_id or ""
+        combination_key = f"{work_name}_{batch_id}" if batch_id else work_name
         
-        # 기본값 설정
-        content = ""
-        ans_q1 = ""
-        ans_q2 = ""
-        ans_q3 = ""
-        submitted_at = ""
-        ai_result = ""
-        ai_updated_at = "" # 그리드 뷰에서 사용됨
-        has_answer = False
-
-        if answer:
-            has_answer = True
-            content = answer.content
-            # [핵심] 분리된 개별 답변들을 변수에 담아줍니다.
-            ans_q1 = answer.ans_q1
-            ans_q2 = answer.ans_q2
-            ans_q3 = answer.ans_q3
-            submitted_at = answer.submitted_at
-            ai_result = answer.ai_result
-            ai_updated_at = answer.ai_updated_at
+        if work_name not in work_name_groups:
+            work_name_groups[work_name] = []
         
-        analysis_list.append({
-            'student': student,
-            'has_answer': has_answer,
-            'content': content,
-            'ans_q1': ans_q1, # 템플릿의 {{ item.ans_q1 }}과 연결됨
-            'ans_q2': ans_q2,
-            'ans_q3': ans_q3,
-            'submitted_at': submitted_at,
-            'ai_result': ai_result,
-            'ai_updated_at': ai_updated_at,
+        # 중복 방지
+        if not any(item['batch_id'] == batch_id for item in work_name_groups[work_name]):
+            work_name_groups[work_name].append({
+                'combination': combination_key,
+                'batch_id': batch_id,
+                'created_at': result.created_at
+            })
+    
+    # 헤더 정보 생성 (work_name별로 정렬하고 생성 시간 순서대로 번호 부여)
+    for work_name, group in sorted(work_name_groups.items(), key=lambda x: x[0]):
+        # 생성 시간 순서대로 정렬
+        group_sorted = sorted(group, key=lambda x: x['created_at'])
+        
+        for idx, item in enumerate(group_sorted, 1):
+            if len(group_sorted) > 1:
+                display_name = f"{work_name[:8]}... ({idx})"
+            else:
+                display_name = work_name if len(work_name) <= 10 else f"{work_name[:10]}..."
+            
+            combination_key = item['combination']
+            distinct_combinations.append(combination_key)
+            
+            header_info.append({
+                'combination': combination_key,
+                'work_name': work_name,
+                'batch_id': item['batch_id'],
+                'display_name': display_name,
+                'order': idx
+            })
+    
+    print(f"DEBUG: 추출된 조합들: {distinct_combinations}")
+    print(f"DEBUG: 헤더 정보: {header_info}")
+    
+    # 해당 활동의 모든 답안 가져오기
+    answers = Answer.objects.filter(student__in=target_students, question=question).select_related('student')
+    analysis_results = filtered_analysis_results.filter(answer__in=answers)
+    
+    # [좌표 매칭 기반 렌더링] 헤더(Column)와 데이터(Row) 시스템 구축
+    # 헤더(Column): (work_name, batch_id)의 고유 조합 리스트를 생성 시간 순으로 추출해 header_list로 정의
+    header_list = AnalysisResult.objects.filter(
+        answer__question__activity=activity,
+        work_name__isnull=False
+    ).exclude(
+        Q(work_name='') | Q(work_name__isnull=True)
+    ).values('work_name', 'batch_id').distinct().order_by('created_at')
+    
+    # None/빈값 방어: work_name이 None이거나 빈 문자열인 경우, '제목 없는 분석'으로 보정
+    header_combinations = []
+    for combo in header_list:
+        work_name = combo['work_name'] or "제목 없는 분석"
+        batch_id = combo['batch_id'] or ""
+        combination_key = f"{work_name}_{batch_id}" if batch_id else work_name
+        header_combinations.append({
+            'work_name': work_name,
+            'batch_id': batch_id,
+            'combination_key': combination_key
         })
+    
+    print(f"[헤더] 추출된 조합들: {[h['combination_key'] for h in header_combinations]}")
+    
+    # 데이터(Row): 각 학생의 행을 구성할 때, 해당 학생의 모든 결과를 {batch_id: result_obj} 형태의 딕셔너리로 먼저 가공
+    student_data_dict = {}
+    for result in analysis_results:
+        answer_id = result.answer_id
+        if answer_id not in student_data_dict:
+            student_data_dict[answer_id] = {}
+        
+        work_name = result.work_name or "제목 없는 분석"
+        result_key = f"{work_name}_{result.batch_id}" if result.batch_id else work_name
+        
+        # {batch_id: result_obj} 형태의 딕셔너리로 가공
+        student_data_dict[answer_id][result_key] = {
+            'id': result.id,
+            'content': result.result_content,
+            'created_at': result.created_at,
+            'created_at_formatted': result.created_at.strftime('%m-%d %H:%M'),
+            'work_name': result.work_name,
+            'batch_id': result.batch_id
+        }
+    
+    # 슬롯 채우기: header_list를 기준으로 루프를 돌며, 학생의 딕셔너리에 해당 batch_id가 있으면 데이터 삽입, 없으면 None(빈칸)을 넣어 analysis_slots 완성
+    student_data_list = []
+    
+    for answer in answers:
+        student_id = answer.student.id
+        answer_id = answer.id
+        
+        # 학생 13번 처리 시 증명 로직
+        if student_id == 13:
+            print(f"[학생 13번] 처리 시작 - answer_id: {answer_id}")
+        
+        analysis_slots = []
+        for header in header_info:
+            combination_key = header['combination']
+            
+            # 학생의 딕셔너리에 해당 batch_id가 있는지 확인
+            if combination_key in student_data_dict.get(answer_id, {}):
+                # 데이터 있음 -> 삽입 성공
+                result_obj = student_data_dict[answer_id][combination_key]
+                analysis_slots.append(result_obj)
+                
+                if student_id == 13:
+                    batch_info = f"[{header['batch_id'][:8]}...]" if len(header['batch_id']) > 10 else header['batch_id']
+                    print(f"학생 13번: [{batch_info}] 데이터 있음 -> 삽입 성공")
+            else:
+                # 데이터 없음 -> 빈칸 처리
+                analysis_slots.append(None)
+                
+                if student_id == 13:
+                    batch_info = f"[{header['batch_id'][:8]}...]" if len(header['batch_id']) > 10 else header['batch_id']
+                    print(f"학생 13번: [{batch_info}] 데이터 없음 -> 빈칸 처리")
+        
+        student_data_list.append({
+            'student': answer.student,
+            'answer': answer,
+            'analysis_slots': analysis_slots  # header_list 순서대로 좌표 매칭 완료
+        })
+    
+    # 학생 정렬 (학년/반/번호 순)
+    student_data_list.sort(key=lambda x: (x['student'].grade, x['student'].class_no, x['student'].number))
 
     context = {
         'activity': activity,
         'question': question,
-        'analysis_list': analysis_list,
+        'student_data_list': student_data_list,
         'filter_data': filter_data,
         'selected_targets': selected_targets,
         'current_q': name_query,
+        'unique_combinations': [h['combination_key'] for h in header_combinations],  # 테이블 헤더용 (조합)
+        'header_info': header_info,  # 미리 계산된 헤더 정보
     }
     return render(request, 'activities/activity_analysis.html', context)
+
+# [1-1] 배치 판별 API (수석 엔지니어 확정 설계도)
+@csrf_exempt
+@login_required
+def get_or_create_batch(request):
+    if request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+            work_name = body.get('work_name', '')
+            student_ids = body.get('student_ids', [])
+            activity_id = body.get('activity_id')
+            
+            print(f"[배치 판별] work_name: {work_name}, activity_id: {activity_id}")
+            
+            # 활동 정보 가져오기
+            activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+            
+            # 1) 현재 work_name과 activity_id로 저장된 모든 기존 AnalysisResult 학생 ID 세트(A)를 가져와
+            existing_results = AnalysisResult.objects.filter(
+                work_name=work_name,
+                answer__question__activity=activity
+            ).select_related('answer')
+            
+            # 기존 학생 ID 세트(A) - 반드시 str()로 형변환하여 비교
+            existing_student_ids = set(str(result.answer_id) for result in existing_results)
+            
+            # 2) 이번에 분석할 학생 ID 세트(B)를 가져와 (반드시 str()로 형변환)
+            current_student_ids = set(str(student_id) for student_id in student_ids)
+            
+            # 3) [교집합 확인]: not (A & B) 인지 확인
+            intersection = existing_student_ids & current_student_ids
+            has_intersection = len(intersection) > 0
+            
+            print(f"[세트 분석] 기존(A): {sorted(existing_student_ids)}, 요청(B): {sorted(current_student_ids)}")
+            print(f"[교집합] A ∩ B = {sorted(intersection)}, 크기: {len(intersection)}")
+            
+            if not has_intersection:
+                # 3-1) 교집합이 비어있다면: 기존의 가장 최신 batch_id를 반환해
+                latest_result = existing_results.order_by('-created_at').first()
+                if latest_result and latest_result.batch_id:
+                    batch_id = latest_result.batch_id
+                    print(f"[결정] 교집합 없음 -> 기존 최신 batch_id '{batch_id}' 재사용")
+                else:
+                    # 첫 분석인 경우
+                    from datetime import datetime
+                    batch_suffix = datetime.now().strftime('%m%d_%H%M')
+                    batch_id = f"{work_name}_{batch_suffix}" if work_name else f"분석_{batch_suffix}"
+                    print(f"[결정] 첫 분석 -> 새 batch_id '{batch_id}' 생성")
+            else:
+                # 4) [분리 확인]: 교집합이 있다면 무조건 새로운 batch_id 생성
+                from datetime import datetime
+                batch_suffix = datetime.now().strftime('%m%d_%H%M')
+                batch_id = f"{work_name}_{batch_suffix}" if work_name else f"분석_{batch_suffix}"
+                print(f"[결정] 교집합 존재 -> 새 batch_id '{batch_id}' 생성")
+            
+            return JsonResponse({
+                'status': 'success',
+                'batch_id': batch_id,
+                'has_intersection': has_intersection,
+                'intersection_count': len(intersection),
+                'existing_count': len(existing_student_ids),
+                'current_count': len(current_student_ids)
+            })
+            
+        except Exception as e:
+            print(f"[오류] 배치 판별 실패: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': str(e)})
 
 # [2] 종합 분석 (모든 평가 매트릭스)
 @login_required
@@ -197,28 +383,53 @@ def integrated_analysis(request):
 @login_required
 @teacher_required
 def activity_analysis_work(request, activity_id):
+    # [함수 시작] 변수 초기화 (기본값 설정)
+    selected_student_ids = []
+    work_name = ""
+    answer_list = []
+    
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     question = activity.questions.first()
     
-    answer_list = [] # 기본값은 빈 리스트
+    # [분석 데이터 조회] 해당 활동의 가장 최신 AnalysisResult에서 work_name 가져오기 (GET 진입 시 자동 완성용)
+    latest_result = AnalysisResult.objects.filter(
+        answer__question__activity=activity,
+        work_name__isnull=False
+    ).exclude(work_name='').order_by('-created_at').first()
+    work_name = latest_result.work_name if latest_result else ""
+    print(f"DEBUG: 저장된 마지막 작업명 찾음 -> {work_name}")
     
     # 질문이 존재할 때만 답안을 찾음
     if question:
-        # content가 비어있지 않은(공백 제외) 답안만 가져옵니다.
+        # 활동의 대상 학생들 중에서만 content가 비어있지 않은(공백 제외) 답안만 가져옵니다.
+        target_student_ids = activity.target_students.values_list('id', flat=True)
         answers = Answer.objects.filter(
-            question=question
+            question=question,
+            student_id__in=target_student_ids
         ).exclude(content='').select_related('student') # 실제 내용이 있는 것만!
 
         for a in answers:
             if a.content and a.content.strip():
                 answer_list.append({
                     'id': a.id,
+                    'student_id': a.student.id,  # 명확한 학생 ID 필드 추가
                     'name': a.student.name,
                     'info': f"{a.student.grade}-{a.student.class_no}-{a.student.number}"
                 })
 
     # 만약 answer_list가 비어있다면 명시적으로 '[]' 문자열을 만듦
     answer_list_json = json.dumps(answer_list) if answer_list else "[]"
+
+    print("DEBUG: AI 분석 설정 페이지 진입 성공")
+    
+    # [POST 요청 시] 화면에서 넘어온 work_name과 target_students 리스트를 업데이트
+    if request.method == 'POST':
+        selected_student_ids = request.POST.getlist('target_students')
+        work_name = request.POST.get('work_name', work_name)  # POST 값이 있으면 업데이트, 없으면 기존 값 유지
+        print(f"DEBUG: 현재 선택된 학생들 -> {selected_student_ids}")
+        print(f"DEBUG: 현재 작업명 -> {work_name}")
+    
+    # [마무리] 모든 변수(work_name, selected_student_ids 등)를 context에 담아 템플릿으로 전달
 
     context = {
         'activity': activity,
@@ -227,6 +438,9 @@ def activity_analysis_work(request, activity_id):
         'answer_list_json': answer_list_json, # 이제 무조건 '[]' 라도 나감
         'prompt_templates': PromptTemplate.objects.all(),
         'length_options': PromptLengthOption.objects.all(),
+        'student_tree': get_student_tree(request.user),
+        'current_targets': selected_student_ids, # 템플릿에 전달
+        'work_name': work_name, # 작업명 템플릿에 전달
     }
     return render(request, 'activities/activity_analysis_work.html', context)
 
@@ -236,10 +450,15 @@ def activity_analysis_work(request, activity_id):
 def api_process_db_row(request):
     if request.method == 'POST':
         try:
+            print("DEBUG: 분석 요청 수신 시작")
+            print(f"DEBUG: 수신 데이터 -> {request.body}")
             body = json.loads(request.body)
             answer_id = body.get('answer_id')
             prompt_system = body.get('prompt_system')
             temperature = float(body.get('temperature', 0.7))
+            work_name = body.get('work_name', '')
+            batch_id = body.get('batch_id', '')
+            print(f"DEBUG: 분석 요청 수신 -> answer_id: {answer_id}, work_name: {work_name}, batch_id: {batch_id}")
             
             # 1. 설정 페이지에서 선택된 AI 모델 가져오기
             try:
@@ -252,6 +471,10 @@ def api_process_db_row(request):
             answer = Answer.objects.get(id=answer_id)
             activity = answer.question.activity # 역참조로 활동 정보 획득
             student = answer.student
+            
+            # 3. batch_id 처리 - 프론트엔드에서 결정한 값 그대로 사용
+            print(f"DEBUG: 프론트엔드에서 받은 Batch ID: {batch_id}")
+            print(f"DEBUG: 단일 학생(answer_id: {answer.id}) 분석 시작")
             
             # [방어 로직] 답안이 비어있으면 AI 호출 없이 리턴
             if not answer.content or not answer.content.strip():
@@ -358,15 +581,44 @@ def api_process_db_row(request):
                     result_text = res_data["content"][0]["text"]
 
             # ---------------------------------------------------------
-            # 4. 분석 결과 DB 저장 (공통 처리)
+            # 4. 분석 결과 DB 저장 (다중 결과 지원)
             # ---------------------------------------------------------
             if result_text:
-                answer.ai_result = result_text
-                answer.ai_updated_at = timezone.now()
-                answer.save()
-                return JsonResponse({'status': 'success', 'result': '저장 완료'})
+                try:
+                    print(f"DEBUG: AnalysisResult 저장 시도 - answer_id: {answer.id}, work_name: {work_name}, batch_id: {batch_id}")
+                    print(f"DEBUG: 저장할 데이터 - result_content 길이: {len(result_text)}, ai_model: {ai_model}")
+                    
+                    # AnalysisResult 모델에 단일 학생 결과 저장 (update_or_create 사용)
+                    final_work_name = work_name if work_name else "제목 없는 분석"
+                    created_result, created = AnalysisResult.objects.update_or_create(
+                        answer_id=answer.id,  # 오직 이 answer_id에 대해서만
+                        work_name=final_work_name,
+                        batch_id=batch_id,
+                        defaults={
+                            'result_content': result_text,
+                            'prompt_system': prompt_system,
+                            'temperature': temperature,
+                            'ai_model': ai_model,
+                        }
+                    )
+                    
+                    action = "생성" if created else "업데이트"
+                    print(f"DEBUG: AnalysisResult {action} 성공 - result_id: {created_result.id}, work_name: '{created_result.work_name}'")
+                    
+                    # Answer 모델에도 최신 결과 업데이트 (호환성)
+                    answer.ai_result = result_text
+                    answer.ai_updated_at = timezone.now()
+                    answer.save()
+                    
+                    print(f"DEBUG: 단일 학생(answer_id: {answer.id}) 처리 완료 - result_id: {created_result.id}")
+                    return JsonResponse({'status': 'success', 'result': '저장 완료'})
+                except Exception as e:
+                    print(f"ERROR: AnalysisResult 저장 실패 - {str(e)}")
+                    print(f"ERROR: 실패 상세 - answer_id: {answer.id}, work_name: {work_name}, batch_id: {batch_id}")
+                    return JsonResponse({'status': 'error', 'message': f'데이터 저장 실패: {str(e)}'})
             else:
-                return JsonResponse({'status': 'error', 'message': f'AI 응답 실패: {response.text}'})
+                print(f"DEBUG: AI 응답 없음 - answer_id: {answer.id}")
+                return JsonResponse({'status': 'error', 'message': 'AI 응답이 없습니다.'})
             
         except SystemConfig.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': '관리자 페이지에서 API_KEY를 등록해주세요.'})

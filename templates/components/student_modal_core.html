@@ -1,0 +1,224 @@
+<!-- 학생 선택 모달 (글로벌 공유) -->
+<div class="modal fade" id="studentSelectModal" tabindex="-1" aria-labelledby="studentSelectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content rounded-5" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+            <div class="modal-header border-0 bg-white">
+                <h5 class="modal-title fw-bold" id="studentSelectModalLabel" style="color: #8E44AD;">
+                    <i class="bi bi-people-fill me-2" style="color: #8E44AD;"></i>{{ selector_label|default:"평가 대상" }} 선택
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- 전체 선택/해제 -->
+                <div class="d-flex gap-2 mb-4 border-bottom pb-3">
+                    <button type="button" class="btn btn-sm btn-outline-primary w-50 fw-bold" onclick="toggleAllStudents(true)">
+                        <i class="bi bi-check-all"></i> 전교생 선택
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary w-50" onclick="toggleAllStudents(false)">
+                        <i class="bi bi-x-circle"></i> 선택 해제
+                    </button>
+                </div>
+
+                <!-- 학생 트리 구조 -->
+                {% for grade_info in student_tree %}
+                <div class="mb-3 border rounded p-3">
+                    <!-- 학년 -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="form-check fw-bold text-primary mb-0">
+                            <input class="form-check-input parent-check" type="checkbox" id="g_{{ grade_info.grade }}" 
+                                onchange="toggleGroup(this, '.group-g-{{ grade_info.grade }}')">
+                            <label class="form-check-label" for="g_{{ grade_info.grade }}">
+                                {{ grade_info.grade }}학년
+                            </label>
+                        </div>
+                        <i class="bi bi-caret-down-fill text-muted toggle-btn p-1" 
+                           data-bs-toggle="collapse" data-bs-target="#collapse-grade-{{ grade_info.grade }}"></i>
+                    </div>
+                    
+                    <div class="collapse show ms-2 mt-2 border-top pt-2" id="collapse-grade-{{ grade_info.grade }}">
+                        {% for class_info in grade_info.classes %}
+                        <div class="mb-3">
+                            <!-- 반 -->
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="form-check fw-bold text-dark mb-0">
+                                    <input class="form-check-input group-check group-g-{{ grade_info.grade }}" 
+                                        type="checkbox" id="c_{{ grade_info.grade }}_{{ class_info.class_no }}"
+                                        onchange="toggleGroup(this, '.child-c-{{ grade_info.grade }}-{{ class_info.class_no }}')">
+                                    <label class="form-check-label" for="c_{{ grade_info.grade }}_{{ class_info.class_no }}">
+                                        {{ class_info.class_no }}반 ({{ class_info.students|length }}명)
+                                    </label>
+                                </div>
+                                <i class="bi bi-caret-down text-muted toggle-btn p-1" 
+                                   data-bs-toggle="collapse" data-bs-target="#collapse-class-{{ grade_info.grade }}-{{ class_info.class_no }}"></i>
+                            </div>
+
+                            <!-- 학생 명단 -->
+                            <div class="collapse show ps-2" id="collapse-class-{{ grade_info.grade }}-{{ class_info.class_no }}">
+                                <div class="student-grid-container">
+                                    {% for s in class_info.students %}
+                                    <div class="student-item form-check">
+                                        <!-- name="target_students"는 View에서 받을 이름 -->
+                                        <input class="form-check-input student-check child-c-{{ grade_info.grade }}-{{ class_info.class_no }} group-g-{{ grade_info.grade }}" 
+                                            type="checkbox" name="target_students" value="{{ s.id }}" id="s_{{ s.id }}"
+                                            onchange="updateSummary()"
+                                            {% if s.id|stringformat:"s" in current_targets %}checked{% endif %}>
+                                        <label class="form-check-label small text-secondary" for="s_{{ s.id }}">
+                                            <span class="fw-bold text-dark">{{ s.number|stringformat:"02d" }}</span> {{ s.name }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="modal-footer border-0 bg-white">
+                <button type="button" class="btn btn-success btn-lg rounded-pill px-4 fw-bold" onclick="completeStudentSelection()" data-bs-dismiss="modal">
+                    <i class="bi bi-check-circle me-2"></i>선택 완료
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- [Script] 학생 선택 모달 제어 로직 -->
+<script>
+    // 모든 학생 선택/해제
+    function toggleAllStudents(select) {
+        const checkboxes = document.querySelectorAll('input[name="target_students"]');
+        checkboxes.forEach(cb => {
+            cb.checked = select;
+        });
+        updateSummary();
+        updateParentCheckboxes();
+    }
+
+    // 그룹 토글 (학년/반 단위)
+    function toggleGroup(parentCheckbox, childSelector) {
+        const children = document.querySelectorAll(childSelector);
+        children.forEach(child => {
+            child.checked = parentCheckbox.checked;
+        });
+        updateSummary();
+        updateParentCheckboxes();
+    }
+
+    // 상위 체크박스 상태 업데이트
+    function updateParentCheckboxes() {
+        // 반 단위 체크박스 업데이트
+        document.querySelectorAll('.group-check').forEach(groupCb => {
+            const targetClass = groupCb.getAttribute('onchange').match(/'([^']+)'/)[1];
+            const children = document.querySelectorAll(targetClass);
+            const checkedChildren = document.querySelectorAll(targetClass + ':checked');
+            groupCb.checked = children.length > 0 && children.length === checkedChildren.length;
+        });
+
+        // 학년 단위 체크박스 업데이트
+        document.querySelectorAll('.parent-check').forEach(parentCb => {
+            const targetGrade = parentCb.getAttribute('onchange').match(/'([^']+)'/)[1];
+            const children = document.querySelectorAll(targetGrade);
+            const checkedChildren = document.querySelectorAll(targetGrade + ':checked');
+            parentCb.checked = children.length > 0 && children.length === checkedChildren.length;
+        });
+    }
+
+    // 선택 요약 업데이트 (상단 버튼 + 하단 메인 버튼 동기화)
+    function updateSummary() {
+        const checkedBoxes = document.querySelectorAll('input[name="target_students"]:checked');
+        const count = checkedBoxes.length;
+        
+        // 1. 상단 {{ selector_label|default:"평가 대상" }} 선택 버튼 업데이트
+        const summaryElement = document.getElementById('targetSummary');
+        const button = document.querySelector('[data-bs-target="#studentSelectModal"]');
+        const defaultLabel = button ? button.getAttribute('data-default-label') : '{{ selector_label|default:"평가 대상" }}';
+        
+        if (summaryElement) {
+            if (count > 0) {
+                summaryElement.textContent = `👥 ${defaultLabel} 선택 (${count}명)`;
+            } else {
+                summaryElement.textContent = `👥 ${defaultLabel} 선택`;
+            }
+        }
+        
+        // 2. 하단 메인 분석 버튼 내부 대상 표시 업데이트
+        const mainBtnCount = document.getElementById('mainBtnCount');
+        if (mainBtnCount) {
+            mainBtnCount.textContent = count;
+        }
+    }
+
+    // 선택 완료 시 hidden 필드에 값 설정 (물리적 데이터 전송 브릿지)
+    function completeStudentSelection() {
+        const checkboxes = document.querySelectorAll('input[name="target_students"]:checked');
+        const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+        
+        // 1) 기존 target_students_data 필드에 콤마로 구분하여 설정
+        const hiddenField = document.getElementById('target_students_data');
+        if (hiddenField) {
+            hiddenField.value = selectedIds.join(',');
+        }
+        
+        // 2) [핵심] JSON 형태로 폼에 강제 주입 (물리적 데이터 전송 브릿지)
+        const jsonField = document.getElementById('id_selected_students_json');
+        if (jsonField) {
+            jsonField.value = JSON.stringify(selectedIds);
+            console.log('[브릿지] JSON 필드에 주입된 데이터:', jsonField.value);
+        }
+        
+        console.log('선택된 학생 IDs:', selectedIds);
+        console.log('콤마 필드 값:', selectedIds.join(','));
+        console.log('JSON 필드 값:', JSON.stringify(selectedIds));
+    }
+
+    // 폼 제출 시 데이터 동기화 강제 (글로벌 모달 대응) - 중복 방지를 위해 단일 리스너만 사용
+    document.addEventListener("DOMContentLoaded", function() {
+        const unifiedForm = document.getElementById('unifiedForm');
+        if (unifiedForm) {
+            // 기존 onsubmit 핸들러가 있을 수 있으므로 addEventListener로 추가
+            unifiedForm.addEventListener('submit', function(e) {
+                console.log('[데이터 브릿지] 폼 제출 이벤트 감지됨');
+                
+                // 폼 제출 직전에 모달 데이터를 다시 동기화
+                const checkboxes = document.querySelectorAll('input[name="target_students"]:checked');
+                const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+                
+                console.log('[데이터 브릿지] 선택된 학생 수:', selectedIds.length);
+                console.log('[데이터 브릿지] 선택된 학생 IDs:', selectedIds);
+                
+                const jsonField = document.getElementById('id_selected_students_json');
+                if (jsonField) {
+                    jsonField.value = JSON.stringify(selectedIds);
+                    console.log('[데이터 브릿지] JSON 필드에 주입된 데이터:', jsonField.value);
+                } else {
+                    console.log('[오류] id_selected_students_json 필드를 찾을 수 없음');
+                }
+            });
+        }
+    });
+
+    // 페이지 로드 시 실행
+    document.addEventListener("DOMContentLoaded", function() {
+        // 모달이 열릴 때 체크 상태 복구
+        const studentSelectModal = document.getElementById('studentSelectModal');
+        if (studentSelectModal) {
+            studentSelectModal.addEventListener('show.bs.modal', function () {
+                // 모달이 열릴 때 기존 선택된 학생들 체크 상태 복구
+                {% if current_targets %}
+                    const currentTargets = {{ current_targets|safe }};
+                    if (Array.isArray(currentTargets)) {
+                        currentTargets.forEach(studentId => {
+                            const checkbox = document.getElementById('s_' + studentId);
+                            if (checkbox) {
+                                checkbox.checked = true;
+                            }
+                        });
+                    }
+                {% endif %}
+                updateSummary(); // 상태 업데이트
+            });
+        }
+    });
+</script>

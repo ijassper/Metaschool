@@ -1,0 +1,291 @@
+<!-- 답안 확인 공통 모달 컴포넌트 -->
+<div class="modal fade" id="answerViewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg answer-view-content">
+            <div class="modal-header border-0 p-4 answer-view-header">
+                <h5 class="modal-title fw-bold text-white mb-0">
+                    <i class="bi bi-file-text me-2"></i> <span id="answerModalHeaderTitle">학생 답안지</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 answer-view-body" id="answerPdfCaptureArea">
+                <div class="alert alert-light border answer-meta-bar">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="answer-meta-main">
+                            <span id="modalSchoolName" class="badge rounded-pill text-bg-secondary px-3 py-2">학교명</span>
+                            <span id="modalStudentInfo" class="fs-6 fw-bold text-dark"></span>
+                        </div>
+                        <div class="text-muted small answer-meta-time">
+                            제출일시: <span id="modalSubmittedAt">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4 answer-section" id="modalQuestionSection">
+                    <label class="fw-bold text-secondary mb-2 answer-section-title">평가 문항</label>
+                    <div id="modalQuestionContent" class="p-3 bg-light rounded-4 border answer-question-box"></div>
+                </div>
+
+                <div class="mb-1 answer-section">
+                    <label class="fw-bold text-primary mb-2 answer-section-title" id="answerModalContentLabel">작성한 답안</label>
+                    <div id="ansModalContent" class="p-4 border rounded-4 bg-white text-break answer-content-box">
+                        <!-- 답안 내용 주입 -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3 pt-0 justify-content-center">
+                <button type="button" class="btn px-4 rounded-pill fw-bold answer-pdf-btn" id="answerPdfBtn" onclick="savePdf()">
+                    <i class="bi bi-filetype-pdf me-1"></i> PDF 저장
+                </button>
+                <button type="button" class="btn btn-secondary rounded-pill px-5 answer-view-close-btn" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .answer-view-content {
+        border-radius: 24px !important;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.96);
+    }
+
+    .answer-view-header {
+        background: var(--ingrid-gradient, linear-gradient(135deg, rgba(255, 128, 181, 0.92) 0%, rgba(142, 68, 173, 0.9) 100%));
+        align-items: center;
+    }
+
+    .answer-view-close-btn {
+        border-radius: 999px !important;
+    }
+
+    .answer-meta-bar {
+        border-radius: 16px;
+        margin-bottom: 1rem;
+    }
+
+    .answer-meta-main {
+        display: block;
+        margin-bottom: 0.35rem;
+    }
+
+    .answer-meta-main #modalSchoolName {
+        margin-right: 0.4rem;
+    }
+
+    .answer-meta-time {
+        display: block;
+    }
+
+    .answer-section {
+        display: block;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+    }
+
+    .answer-section-title {
+        display: block;
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
+    .answer-question-box {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        white-space: pre-wrap;
+        margin-bottom: 0.25rem;
+    }
+
+    .answer-content-box {
+        min-height: 300px;
+        font-size: 1.08rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        margin-top: 0.1rem;
+        margin-bottom: 0.4rem;
+        padding: 1rem 1.1rem !important;
+        border-bottom: 1px solid #dee2e6 !important;
+        box-decoration-break: clone;
+        -webkit-box-decoration-break: clone;
+        background-clip: padding-box;
+        orphans: 3;
+        widows: 3;
+    }
+
+    .answer-pdf-btn {
+        color: #fff;
+        background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));
+        border: none;
+        box-shadow: 0 8px 20px rgba(142, 68, 173, 0.35);
+    }
+
+    .answer-pdf-btn:hover {
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 12px 24px rgba(142, 68, 173, 0.42);
+    }
+
+    @media print {
+        .answer-content-box {
+            min-height: 62vh;
+            width: 100%;
+            display: block !important;
+        }
+    }
+</style>
+
+<script>
+    /**
+     * 인그리드 공통 답안/분석 모달 제어 함수
+     * @param {Object} options - 모달 데이터 옵션
+     */
+    function openIngridModal(options) {
+        const {
+            title = '학생 답안지',
+            schoolName = '학교 정보 없음',
+            studentInfo = '',
+            submittedAt = '-',
+            questionContent = '',
+            content = '',
+            contentType = 'answer', // 'answer' or 'ai'
+            showPdfBtn = true,
+            showQuestion = true
+        } = options;
+
+        // 전역 데이터 저장 (PDF 저장 시 사용)
+        window.currentAnswerModalData = {
+            name: options.name || '',
+            grade: options.grade || '',
+            classNo: options.classNo || '',
+            number: options.number || '',
+            submittedAt,
+            questionContent,
+            answerContent: content,
+            schoolName
+        };
+
+        // UI 업데이트
+        document.getElementById('answerModalHeaderTitle').innerText = title;
+        document.getElementById('modalSchoolName').innerText = schoolName;
+        document.getElementById('modalStudentInfo').innerText = studentInfo;
+        document.getElementById('modalSubmittedAt').innerText = submittedAt;
+        
+        // 질문 섹션 제어
+        const qSection = document.getElementById('modalQuestionSection');
+        if (showQuestion) {
+            qSection.style.display = 'block';
+            document.getElementById('modalQuestionContent').innerText = questionContent || "문항 정보가 없습니다.";
+        } else {
+            qSection.style.display = 'none';
+        }
+
+        // 본문 라벨 및 내용
+        const contentLabel = document.getElementById('answerModalContentLabel');
+        if (contentType === 'ai') {
+            contentLabel.innerText = 'AI 분석 결과';
+            contentLabel.classList.replace('text-primary', 'text-success');
+            document.getElementById('answerPdfBtn').style.display = 'none'; // AI 분석은 일단 PDF 비활성화 (필요시 활성화)
+        } else {
+            contentLabel.innerText = '작성한 답안';
+            contentLabel.classList.replace('text-success', 'text-primary');
+            document.getElementById('answerPdfBtn').style.display = showPdfBtn ? 'inline-flex' : 'none';
+        }
+
+        document.getElementById('ansModalContent').innerText = content || "내용이 없습니다.";
+        
+        const modal = new bootstrap.Modal(document.getElementById('answerViewModal'));
+        modal.show();
+    }
+
+    function escapeHtml(value) {
+        return (value || '').toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // PDF 저장 로직 (기존 activity_result.html의 savePdf 함수 통합)
+    function savePdf() {
+        if (!window.currentAnswerModalData) return;
+        const data = window.currentAnswerModalData;
+        
+        const grade = (data.grade || '').toString();
+        const classNo = (data.classNo || '').toString().padStart(2, '0');
+        const number = (data.number || '').toString().padStart(2, '0');
+        const name = (data.name || '').toString().trim();
+        const submittedDate = (data.submittedAt || '').toString().slice(0, 10) || '';
+        const formattedDate = submittedDate ? submittedDate.replace(/-/g, '') : '날짜없음';
+        const safeName = name.replace(/[\\/:*?"<>|]/g, '');
+        const printTitle = `${grade}${classNo}${number}${safeName}_답안지_${formattedDate}`;
+        
+        const originalTitle = document.title;
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.left = '-9999px';
+        iframe.style.top = '-9999px';
+        iframe.style.width = '0px';
+        iframe.style.height = '0px';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+        
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head>
+                <meta charset="UTF-8">
+                <title>${escapeHtml(printTitle)}</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+                    body { font-family: 'Noto Sans KR', sans-serif; padding: 20px; line-height: 1.6; }
+                    .print-sheet { width: 100%; max-width: 190mm; margin: 0 auto; }
+                    .print-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 20px; }
+                    .print-meta { border: 2px solid #000; padding: 15px; margin-bottom: 20px; }
+                    .print-section-title { font-size: 15px; font-weight: 700; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px; }
+                    .print-box { border: 2px solid #000; padding: 15px; white-space: pre-wrap; margin-bottom: 25px; }
+                    .print-answer { min-height: 180mm; }
+                    @media print { body { padding: 0; } .print-sheet { padding: 5mm; } }
+                </style>
+            </head>
+            <body>
+                <div class="print-sheet">
+                    <h1 class="print-title">학 생 답 안 지</h1>
+                    <div class="print-meta">
+                        <div><strong>학교명:</strong> ${escapeHtml(data.schoolName)}</div>
+                        <div><strong>학생:</strong> ${escapeHtml(`${grade}학년 ${data.classNo}반 ${data.number}번 ${name}`)}</div>
+                        <div><strong>제출일시:</strong> ${escapeHtml(data.submittedAt)}</div>
+                    </div>
+                    <div class="print-section">
+                        <h2 class="print-section-title">평가 문항</h2>
+                        <div class="print-box">${escapeHtml(data.questionContent || '문항 정보 없음')}</div>
+                    </div>
+                    <div class="print-section">
+                        <h2 class="print-section-title">작성한 답안</h2>
+                        <div class="print-box print-answer">${escapeHtml(data.answerContent || '내용 없음')}</div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        iframeDoc.open();
+        iframeDoc.write(htmlContent);
+        iframeDoc.close();
+        
+        iframe.onload = function() {
+            document.title = printTitle;
+            setTimeout(function() {
+                iframe.contentWindow.print();
+                setTimeout(function() {
+                    document.title = originalTitle;
+                    document.body.removeChild(iframe);
+                }, 1000);
+            }, 500);
+        };
+    }
+</script>
