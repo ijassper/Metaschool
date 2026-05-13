@@ -1,0 +1,83 @@
+Watching for file changes with StatReloader
+Not Found: /favicon.ico
+[13/May/2026 21:56:14] "GET /favicon.ico HTTP/1.0" 404 2680
+Performing system checks...
+
+System check identified no issues (0 silenced).
+May 13, 2026 - 21:56:11
+Django version 4.1.1, using settings 'config.settings'
+Starting development server at http://0.0.0.0:8080/
+Quit the server with CONTROL-C.
+--- DASHBOARD 진입: 이호석 (Role: ADMIN) ---
+--- [DEBUG] 교사 대시보드 진입: 이호석 (Role: ADMIN) ---
+--- [DEBUG] 총 생성 활동 수: 4건 ---
+--- [DEBUG] 카테고리 매칭 성공: 자율활동 (4건) ---
+--- [DEBUG] 최종 생성된 대시보드 블록 수: 1개 ---
+[13/May/2026 21:56:16] "GET /accounts/dashboard/ HTTP/1.0" 200 50510
+Not Found: /favicon.ico
+[13/May/2026 21:56:16] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:56:20] "GET /activities/list/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 53446
+Not Found: /favicon.ico
+[13/May/2026 21:56:20] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:56:23] "GET /activities/result/33/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 72246
+Not Found: /favicon.ico
+[13/May/2026 21:56:23] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:56:25] "GET /activities/list/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 53446
+Not Found: /favicon.ico
+[13/May/2026 21:56:25] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:56:26] "GET /activities/analysis/33/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 133306
+Not Found: /favicon.ico
+[13/May/2026 21:56:27] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:56:45] "GET /activities/creative/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 45993
+Not Found: /favicon.ico
+[13/May/2026 21:56:46] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:56:47] "GET /activities/result/33/ HTTP/1.0" 200 72163
+Not Found: /favicon.ico
+[13/May/2026 21:56:48] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:56:51] "GET /activities/result/33/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1&target=2_6&q= HTTP/1.0" 200 251321
+Not Found: /favicon.ico
+[13/May/2026 21:56:51] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:57:00] "GET /activities/list/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 53446
+Not Found: /favicon.ico
+[13/May/2026 21:57:00] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:58:12] "GET /activities/result/46/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 72222
+Not Found: /favicon.ico
+[13/May/2026 21:58:12] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:58:16] "GET /activities/result/46/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1&target=2_6&q= HTTP/1.0" 200 140544
+Not Found: /favicon.ico
+[13/May/2026 21:58:16] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:58:26] "GET /activities/list/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 53446
+Not Found: /favicon.ico
+[13/May/2026 21:58:26] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 21:58:34] "POST /accounts/login/ HTTP/1.0" 302 0
+DEBUG: 활동 ID: 33, 질문 ID: 27
+DEBUG: 전체 분석 결과 수: 6
+DEBUG: 추출된 조합들: ['학교생활_학교생활_0513_0028']
+DEBUG: 헤더 정보: [{'combination': '학교생활_학교생활_0513_0028', 'work_name': '학교생활', 'batch_id': '학교생활_0513_0028', 'display_name': '학교생활', 'order': 1}]
+[헤더] 추출된 조합들: ['학교생활_학교생활_0513_0028', '학교생활_학교생활_0513_0028', '학교생활_학교생활_0513_0028', '학교생활_학교생활_0513_0028', '학교생활_학교생활_0513_0028', '학교생활_학교생활_0513_0028']
+--- DASHBOARD 진입: 이호석 (Role: ADMIN) ---
+--- [DEBUG] 교사 대시보드 진입: 이호석 (Role: ADMIN) ---
+--- [DEBUG] 총 생성 활동 수: 4건 ---
+--- [DEBUG] 카테고리 매칭 성공: 자율활동 (4건) ---
+--- [DEBUG] 최종 생성된 대시보드 블록 수: 1개 ---
+[13/May/2026 21:58:34] "GET /accounts/dashboard/ HTTP/1.0" 200 50510
+Not Found: /favicon.ico
+[13/May/2026 21:58:35] "GET /favicon.ico HTTP/1.0" 404 2684
+[13/May/2026 22:01:41] "GET /activities/analysis/33/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 133306
+Not Found: /favicon.ico
+[13/May/2026 22:01:41] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 22:06:07] "GET /activities/creative/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 45993
+Not Found: /favicon.ico
+[13/May/2026 22:06:07] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 22:06:08] "GET /activities/result/33/ HTTP/1.0" 200 72163
+Not Found: /favicon.ico
+[13/May/2026 22:06:09] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 22:06:12] "GET /activities/result/33/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1&target=2_6&q= HTTP/1.0" 200 251321
+Not Found: /favicon.ico
+[13/May/2026 22:06:12] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 22:06:53] "GET /activities/list/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 53446
+Not Found: /favicon.ico
+[13/May/2026 22:06:53] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 22:06:58] "GET /activities/analysis/33/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 133306
+Not Found: /favicon.ico
+[13/May/2026 22:06:59] "GET /favicon.ico HTTP/1.0" 404 2680
