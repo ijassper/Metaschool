@@ -222,7 +222,16 @@
                         <!-- 학생 답안 -->
                         <td class="text-start p-2 pointer-cursor" 
                             style="cursor: pointer; max-width: 400px;" 
-                            onclick="showContentModal('{{ item.student.name }}', '{{ item.answer.content|escapejs }}')">
+                            data-bs-toggle="modal"
+                            data-bs-target="#answerViewModal"
+                            data-school-name="{{ item.student.teacher.school.name }}"
+                            data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
+                            data-submitted-at="{{ item.answer.submitted_at|date:'Y-m-d H:i'|default:'-' }}"
+                            data-question-content="{{ activity.question|default:question.content|escapejs }}"
+                            data-answer-content="{{ item.answer.content|escapejs }}"
+                            data-show-pdf-btn="false"
+                            data-show-question="false"
+                            onclick="openAnswerModal(this)">
                             {% if item.answer.content and item.answer.content.strip %}
                                 <div class="text-truncate">
                                     {{ item.answer.content|truncatechars:200 }}
@@ -238,7 +247,15 @@
                                 <td class="text-start bg-light pointer-cursor" 
                                     style="cursor: pointer; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
                                     title="{{ result.content|escapejs }}"
-                                    onclick="showAIModal('{{ item.student.name }}', '{{ result.content|escapejs }}')">
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#answerViewModal"
+                                    data-modal-title="AI 분석 결과"
+                                    data-content-type="ai"
+                                    data-school-name="{{ item.student.teacher.school.name }}"
+                                    data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
+                                    data-answer-content="{{ result.content|escapejs }}"
+                                    data-show-question="false"
+                                    onclick="openAnswerModal(this)">
                                     {{ result.content|truncatechars:50 }}
                                 </td>
                             {% else %}
@@ -282,7 +299,16 @@
                                 {% if item.answer.content and item.answer.content.strip %}
                                     <div class="small text-secondary" 
                                          style="word-break: break-all; line-height: 1.4; position: relative; z-index: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 120px;"
-                                         onclick="showContentModal('{{ item.student.name }}', '{{ item.answer.content|escapejs }}')">
+                                         data-bs-toggle="modal"
+                                         data-bs-target="#answerViewModal"
+                                         data-school-name="{{ item.student.teacher.school.name }}"
+                                         data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
+                                         data-submitted-at="{{ item.answer.submitted_at|date:'Y-m-d H:i'|default:'-' }}"
+                                         data-question-content="{{ activity.question|default:question.content|escapejs }}"
+                                         data-answer-content="{{ item.answer.content|escapejs }}"
+                                         data-show-pdf-btn="false"
+                                         data-show-question="false"
+                                         onclick="openAnswerModal(this)">
                                         {{ item.answer.content|truncatechars:200 }}
                                     </div>
                                 {% else %}
@@ -300,9 +326,17 @@
                                 {% for analysis in item.analyses %}
                                 <div class="analysis-chip mb-2" 
                                      style="position: relative; z-index: 1;"
-                                     onclick="showAIModal('{{ item.student.name }}', '{{ analysis.content|escapejs }}')">
+                                     data-bs-toggle="modal"
+                                     data-bs-target="#answerViewModal"
+                                     data-modal-title="AI 분석 결과"
+                                     data-content-type="ai"
+                                     data-school-name="{{ item.student.teacher.school.name }}"
+                                     data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
+                                     data-answer-content="{{ analysis.content|escapejs }}"
+                                     data-show-question="false"
+                                     onclick="openAnswerModal(this)">
                                     <div class="bg-light-purple rounded-5 p-3 border border-purple-200" 
-                                         style="position: relative; z-index: 1; box-shadow: 0 4px 12px rgba(0,0,0,0.05); background-color: #faf5ff;">
+                                         style="position: relative; z-index: 1; box-shadow: 0 4px 12px rgba(0,0,0,0.05); background-color: #faf5ff; cursor: pointer;">
                                         <div class="d-flex justify-content-between align-items-start mb-2">
                                             <span class="badge bg-purple-100 text-dark fw-bold" style="font-size: 0.6rem; color: #8E44AD !important;">
                                                 분석 {{ forloop.counter }}
@@ -339,33 +373,6 @@
 <!-- 답안 확인 공통 모달 포함 -->
 {% include 'components/answer_view_modal.html' %}
 
-<script>
-/**
- * 학생 답안 모달 열기 (공통 컴포넌트 활용)
- */
-function showContentModal(studentName, content) {
-    openIngridModal({
-        title: '학생 답안지',
-        studentInfo: studentName + ' 학생',
-        content: content,
-        contentType: 'answer',
-        showQuestion: false, // 분석 페이지에서는 답안 본문만 강조
-        showPdfBtn: false
-    });
-}
-
-/**
- * AI 분석 결과 모달 열기 (공통 컴포넌트 활용)
- */
-function showAIModal(studentName, content) {
-    openIngridModal({
-        title: 'AI 분석 결과',
-        studentInfo: studentName + ' 학생',
-        content: content,
-        contentType: 'ai',
-        showQuestion: false
-    });
-}
 </script>
 {% endblock %}
 

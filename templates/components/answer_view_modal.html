@@ -138,6 +138,37 @@
 
 <script>
     /**
+     * data- 속성을 기반으로 모달을 여는 브릿지 함수
+     * @param {HTMLElement} btnEl - 클릭된 버튼 요소
+     */
+    function openAnswerModal(btnEl) {
+        const d = btnEl.dataset;
+        
+        // 학년, 반, 번호, 이름 등 개별 데이터가 있으면 studentInfo 구성
+        let studentInfo = d.studentInfo;
+        if (!studentInfo && d.name) {
+            studentInfo = `${d.grade || ''}학년 ${d.classNo || ''}반 ${d.number || ''}번 ${d.name}`.trim();
+        }
+
+        openIngridModal({
+            title: d.modalTitle || '학생 답안지',
+            schoolName: d.schoolName || '학교 정보 없음',
+            studentInfo: studentInfo || '학생 정보 없음',
+            submittedAt: d.submittedAt || d.submitted || '-',
+            questionContent: d.questionContent,
+            content: d.answerContent,
+            contentType: d.contentType || 'answer',
+            showPdfBtn: d.showPdfBtn !== 'false',
+            showQuestion: d.showQuestion !== 'false',
+            // PDF 저장용 원본 데이터
+            name: d.name,
+            grade: d.grade,
+            classNo: d.classNo,
+            number: d.number
+        });
+    }
+
+    /**
      * 인그리드 공통 답안/분석 모달 제어 함수
      * @param {Object} options - 모달 데이터 옵션
      */
