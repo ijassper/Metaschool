@@ -34,7 +34,7 @@ urlpatterns = [
     path('result/<int:activity_id>/', activity_result, name='activity_result'),
     path('answer/detail/<int:answer_id>/', answer_detail, name='answer_detail'),
     path('answer/delete/<int:answer_id>/', answer_delete, name='answer_delete'),
-    path('answer/note/<int:answer_id>/', save_note, name='save_note'),
+    path('answer/note/<int:activity_id>/<int:student_id>/', save_note, name='save_note'),
 
     # 5. AI 분석 (ai_views)
     path('analysis/<int:activity_id>/', activity_analysis, name='activity_analysis'),

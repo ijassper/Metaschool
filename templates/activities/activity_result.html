@@ -110,11 +110,13 @@
                         <!-- 상태 -->
                         <td>
                             {% if item.status == '제출 완료' %}
-                                <span class="badge bg-success">제출 완료</span>
+                                <span class="badge rounded-pill px-3 py-2" style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);">제출 완료</span>
+                            {% elif item.status == '백지 제출' %}
+                                <span class="badge rounded-pill px-3 py-2 bg-warning text-dark">백지 제출</span>
                             {% elif item.status == '결시' %}
-                                <span class="badge bg-danger">결시</span>
+                                <span class="badge rounded-pill px-3 py-2 bg-danger-subtle text-danger border border-danger-subtle">결시 ({{ item.absence }})</span>
                             {% else %}
-                                <span class="badge bg-secondary opacity-50">미응시</span>
+                                <span class="badge rounded-pill px-3 py-2 bg-light text-secondary border">미응시</span>
                             {% endif %}
                         </td>
                         
@@ -165,18 +167,14 @@
 
                         <!-- 특이사항 -->
                         <td>
-                            {% if item.answer_id %}
-                                <button class="btn btn-link p-0 text-decoration-none" 
-                                        onclick="openNoteModal('{{ item.answer_id }}', '{{ item.student.name|escapejs }}', '{{ item.note|escapejs }}', '{{ item.activity_log|escapejs }}')">
-                                    {% if item.note %}
-                                        <i class="bi bi-file-earmark-text-fill text-warning fs-5"></i>
-                                    {% else %}
-                                        <i class="bi bi-file-earmark-plus text-muted fs-5 opacity-50"></i>
-                                    {% endif %}
-                                </button>
-                            {% else %}
-                                -
-                            {% endif %}
+                            <button class="btn btn-link p-0 text-decoration-none" 
+                                    onclick="openNoteModal('{{ activity.id }}', '{{ item.student.id }}', '{{ item.student.name|escapejs }}', '{{ item.note|escapejs }}', '{{ item.activity_log|escapejs }}')">
+                                {% if item.note %}
+                                    <i class="bi bi-file-earmark-text-fill text-warning fs-5"></i>
+                                {% else %}
+                                    <i class="bi bi-file-earmark-plus text-muted fs-5 opacity-50"></i>
+                                {% endif %}
+                            </button>
                         </td>
 
                         <!--  폐기 버튼 (제출 완료일 때만 보임) -->
@@ -210,11 +208,8 @@
                 </tbody>
             </table>
         </div>
-    </div>s
+    </div>
 </div>
-
-<!-- 답안 확인 공통 모달 포함 -->
-{% include 'components/answer_view_modal.html' %}
 
 <!-- 특이사항 메모 모달 -->
 <div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
@@ -655,10 +650,11 @@
 
     // 메모 저장 함수 (AJAX 방식)
     function saveNote() {
-        const answerId = window.currentEditingAnswerId;
+        const activityId = window.currentEditingActivityId;
+        const studentId = window.currentEditingStudentId;
         const note = document.getElementById('noteTextArea').value;
 
-        fetch(`/activities/answer/${answerId}/save_note/`, {
+        fetch(`/activities/answer/note/${activityId}/${studentId}/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -677,8 +673,9 @@
     }
 
     // 메모 모달 열기 함수 (테이블의 메모 아이콘 클릭 시 호출)
-    function openNoteModal(answerId, studentName, currentNote, activityLog) {
-        window.currentEditingAnswerId = answerId;
+    function openNoteModal(activityId, studentId, studentName, currentNote, activityLog) {
+        window.currentEditingActivityId = activityId;
+        window.currentEditingStudentId = studentId;
         
         // 학생 이름 및 메모 세팅
         document.getElementById('noteStudentName').innerText = studentName;
@@ -713,4 +710,6 @@
     }
 </script>
 
+<!-- 답안 확인 공통 모달 포함 -->
+{% include 'components/answer_view_modal.html' %}
 {% endblock %}

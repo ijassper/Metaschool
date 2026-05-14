@@ -104,6 +104,7 @@ def unified_create(request):
                 section=request.POST.get('section', sub_menu),
                 title=request.POST.get('title', '제목 없음') + extra_str,
                 exam_mode=request.POST.get('exam_mode', 'CLOSED'),
+                allow_edit_after_submission=request.POST.get('allow_edit_after_submission') == 'True',
                 deadline=parse_dt(request.POST.get('deadline')), # 섹션 1 기한
                 
                 # [섹션 2: 세부 평가 내용]
@@ -227,6 +228,7 @@ def unified_update(request, activity_id):
         activity.section = request.POST.get('section', activity.section)
         activity.title = request.POST.get('title', activity.title)
         activity.exam_mode = request.POST.get('exam_mode', 'CLOSED')
+        activity.allow_edit_after_submission = request.POST.get('allow_edit_after_submission') == 'True'
         
         # [섹션 2: 세부 평가 내용] - 루프 없이 직접 매핑하여 유실 차단
         # HTML의 <textarea name="question"> 값을 직접 가져옴

@@ -190,6 +190,14 @@ def activity_analysis(request, activity_id):
         answer = answer_map.get(student.id)
         answer_id = answer.id if answer else None
         
+        # 상태 판별 로직
+        if not answer:
+            status = "미응시"
+        elif not answer.content.strip():
+            status = "백지 제출"
+        else:
+            status = "제출 완료"
+            
         analysis_slots = []
         for header in header_info:
             combination_key = header['combination']
@@ -206,6 +214,7 @@ def activity_analysis(request, activity_id):
         student_data_list.append({
             'student': student,
             'answer': answer, # 답안이 없으면 None
+            'status': status, # [추가] 상태 정보
             'analysis_slots': analysis_slots  # header_list 순서대로 좌표 매칭 완료
         })
     

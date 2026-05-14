@@ -231,6 +231,28 @@
         modal.show();
     }
 
+    /**
+     * 모달 백드롭 및 바디 스타일 강제 정리 (Safety Script)
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        const modalEl = document.getElementById('answerViewModal');
+        if (modalEl) {
+            modalEl.addEventListener('hidden.bs.modal', function() {
+                // 1. 모든 백드롭 제거
+                document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+                
+                // 2. 바디 스타일 및 클래스 초기화
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+                
+                // 3. 혹시 남아있을 수 있는 인라인 스타일 강제 제거
+                const modalBackdrop = document.querySelector('.modal-backdrop');
+                if (modalBackdrop) modalBackdrop.remove();
+            });
+        }
+    });
+
     function escapeHtml(value) {
         return (value || '').toString()
             .replace(/&/g, '&amp;')

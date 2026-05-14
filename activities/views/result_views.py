@@ -78,14 +78,18 @@ def activity_result(request, activity_id):
             note = answer.note
             absence = answer.absence_type
             log_data = answer.activity_log 
-            content = answer.content  # [추가] 답안 내용을 변수에 저장
-            if answer.content.strip():
+            content = answer.content
+            
+            if absence:
+                status = "결시"
+            elif not answer.content.strip():
+                status = "백지 제출"
+                submitted_at = answer.submitted_at
+            else:
                 status = "제출 완료"
                 submitted_at = answer.submitted_at
-            elif absence:
-                status = "결시"
-            else:
-                status = "미응시"
+        else:
+            status = "미응시"
         
         submission_list.append({
             'student': student,
@@ -137,15 +141,38 @@ def answer_delete(request, answer_id):
 # [4] 선생님 특이사항 메모 저장 (AJAX)
 @login_required
 @teacher_required
-def save_note(request, answer_id):
+def save_note(request, activity_id, student_id):
     if request.method == 'POST':
         try:
-            answer = get_object_or_404(Answer, id=answer_id)
-            # URLSearchParams 방식 혹은 JSON 방식에 따라 처리
+            activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+            student = get_object_or_404(Student, id=student_id)
+            
+            # Answer 객체 조회 또는 생성 (메모 저장을 위해)
+            from ..models import Question
+            question = activity.questions.first()
+            if not question:
+                # Question이 없으면 생성 (생성 시점에 이미 생성되어 있어야 함)
+                question = Question.objects.create(
+                    activity=activity,
+                    content=activity.question,
+                    conditions=activity.conditions
+                )
+
+            answer, created = Answer.objects.get_or_create(
+                student=student,
+                question=question,
+                defaults={'content': ''} # 빈 답안으로 생성
+            )
+            
             note_content = request.POST.get('note', '')
             answer.note = note_content
             answer.save()
-            return JsonResponse({'status': 'success', 'message': '메모가 저장되었습니다.'})
+            
+            return JsonResponse({
+                'status': 'success', 
+                'message': '메모가 저장되었습니다.',
+                'answer_id': answer.id
+            })
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'fail'}, status=405)

@@ -201,6 +201,7 @@
                         <th style="width: 60px;">반</th>
                         <th style="width: 60px;">번호</th>
                         <th style="width: 100px;">이름</th>
+                        <th style="width: 100px;">상태</th>
                         <th>{{ activity.title }} (학생 답안)</th>
                         <!-- 동적 분석 결과 컬럼 생성 (미리 계산된 헤더 정보 사용) -->
                         {% for header in header_info %}
@@ -218,6 +219,17 @@
                         <td class="text-center">{{ item.student.class_no }}</td>
                         <td class="text-center">{{ item.student.number }}</td>
                         <td class="text-center fw-bold">{{ item.student.name }}</td>
+                        
+                        <!-- 상태 -->
+                        <td class="text-center">
+                            {% if item.status == '제출 완료' %}
+                                <span class="badge rounded-pill px-2 py-1" style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); font-size: 0.75rem;">제출 완료</span>
+                            {% elif item.status == '백지 제출' %}
+                                <span class="badge rounded-pill px-2 py-1 bg-warning text-dark" style="font-size: 0.75rem;">백지 제출</span>
+                            {% else %}
+                                <span class="badge rounded-pill px-2 py-1 bg-light text-secondary border" style="font-size: 0.75rem;">미응시</span>
+                            {% endif %}
+                        </td>
                         
                         <!-- 학생 답안 -->
                         <td class="text-start p-2 pointer-cursor" 
@@ -285,6 +297,15 @@
                                 {{ item.student.grade }}-{{ item.student.class_no }} / {{ item.student.number }}
                             </span>
                             <h6 class="fw-bold mb-0 text-truncate" style="font-size: 0.95rem;">{{ item.student.name }}</h6>
+                            <div class="ms-auto">
+                                {% if item.status == '제출 완료' %}
+                                    <span class="badge rounded-pill px-2 py-1" style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); font-size: 0.6rem;">제출 완료</span>
+                                {% elif item.status == '백지 제출' %}
+                                    <span class="badge rounded-pill px-2 py-1 bg-warning text-dark" style="font-size: 0.6rem;">백지 제출</span>
+                                {% else %}
+                                    <span class="badge rounded-pill px-2 py-1 bg-light text-secondary border" style="font-size: 0.6rem;">미응시</span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     

@@ -33,6 +33,19 @@ def take_test(request, activity_id):
         messages.error(request, "본인의 평가 대상이 아닙니다.")
         return redirect('dashboard')
 
+    # 4. [신규] 제출 후 수정 제한 및 기한 체크
+    # (1) 제출 기한이 지났는지 확인
+    if activity.deadline and timezone.now() > activity.deadline:
+        messages.error(request, "제출 기한이 종료되었습니다. 더 이상 수정할 수 없습니다.")
+        return redirect('dashboard')
+
+    # (2) 제출 후 수정 불가 설정인데 이미 제출했는지 확인
+    # Answer 객체를 미리 조회하여 제출 여부 파악
+    existing_answer = Answer.objects.filter(student=student_info, question__activity=activity).first()
+    if not activity.allow_edit_after_submission and existing_answer and existing_answer.submitted_at:
+        messages.error(request, "답안이 이미 제출되었습니다. 제출된 답안은 수정이 불가합니다.")
+        return redirect('dashboard')
+
     # [추가] 데모 모드 설정값 가져오기
     try:
         demo_config = SystemConfig.objects.get(key_name='IS_DEMO_MODE')
