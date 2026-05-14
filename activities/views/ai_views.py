@@ -134,9 +134,11 @@ def activity_analysis(request, activity_id):
     print(f"DEBUG: 추출된 조합들: {distinct_combinations}")
     print(f"DEBUG: 헤더 정보: {header_info}")
     
-    # 해당 활동의 모든 답안 가져오기
-    answers = Answer.objects.filter(student__in=target_students, question=question).select_related('student')
-    analysis_results = filtered_analysis_results.filter(answer__in=answers)
+    # 해당 활동의 모든 답안 가져오기 (성능을 위해 딕셔너리로 가공)
+    answers_qs = Answer.objects.filter(student__in=target_students, question=question).select_related('student')
+    answer_map = {a.student_id: a for a in answers_qs}
+    
+    analysis_results = filtered_analysis_results.filter(answer__in=answers_qs)
     
     # [좌표 매칭 기반 렌더링] 헤더(Column)와 데이터(Row) 시스템 구축
     # 헤더(Column): (work_name, batch_id)의 고유 조합 리스트를 생성 시간 순으로 추출해 header_list로 정의
@@ -184,40 +186,30 @@ def activity_analysis(request, activity_id):
     # 슬롯 채우기: header_list를 기준으로 루프를 돌며, 학생의 딕셔너리에 해당 batch_id가 있으면 데이터 삽입, 없으면 None(빈칸)을 넣어 analysis_slots 완성
     student_data_list = []
     
-    for answer in answers:
-        student_id = answer.student.id
-        answer_id = answer.id
-        
-        # 학생 13번 처리 시 증명 로직
-        if student_id == 13:
-            print(f"[학생 13번] 처리 시작 - answer_id: {answer_id}")
+    for student in target_students:
+        answer = answer_map.get(student.id)
+        answer_id = answer.id if answer else None
         
         analysis_slots = []
         for header in header_info:
             combination_key = header['combination']
             
             # 학생의 딕셔너리에 해당 batch_id가 있는지 확인
-            if combination_key in student_data_dict.get(answer_id, {}):
+            if answer_id and combination_key in student_data_dict.get(answer_id, {}):
                 # 데이터 있음 -> 삽입 성공
                 result_obj = student_data_dict[answer_id][combination_key]
                 analysis_slots.append(result_obj)
-                
-                if student_id == 13:
-                    batch_info = f"[{header['batch_id'][:8]}...]" if len(header['batch_id']) > 10 else header['batch_id']
-                    print(f"학생 13번: [{batch_info}] 데이터 있음 -> 삽입 성공")
             else:
                 # 데이터 없음 -> 빈칸 처리
                 analysis_slots.append(None)
-                
-                if student_id == 13:
-                    batch_info = f"[{header['batch_id'][:8]}...]" if len(header['batch_id']) > 10 else header['batch_id']
-                    print(f"학생 13번: [{batch_info}] 데이터 없음 -> 빈칸 처리")
         
         student_data_list.append({
-            'student': answer.student,
-            'answer': answer,
+            'student': student,
+            'answer': answer, # 답안이 없으면 None
             'analysis_slots': analysis_slots  # header_list 순서대로 좌표 매칭 완료
         })
+    
+    # 학생 정렬 (학년/반/번호 순)
     
     # 학생 정렬 (학년/반/번호 순)
     student_data_list.sort(key=lambda x: (x['student'].grade, x['student'].class_no, x['student'].number))

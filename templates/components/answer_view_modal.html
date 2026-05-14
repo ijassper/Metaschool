@@ -146,8 +146,9 @@
         
         // 학년, 반, 번호, 이름 등 개별 데이터가 있으면 studentInfo 구성
         let studentInfo = d.studentInfo;
-        if (!studentInfo && d.name) {
-            studentInfo = `${d.grade || ''}학년 ${d.classNo || ''}반 ${d.number || ''}번 ${d.name}`.trim();
+        const name = d.studentName || d.name;
+        if (!studentInfo && name) {
+            studentInfo = `${d.grade || ''}학년 ${d.classNo || ''}반 ${d.number || ''}번 ${name}`.trim();
         }
 
         openIngridModal({

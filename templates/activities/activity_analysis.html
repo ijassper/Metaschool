@@ -224,11 +224,11 @@
                             style="cursor: pointer; max-width: 400px;" 
                             data-bs-toggle="modal"
                             data-bs-target="#answerViewModal"
-                            data-school-name="{{ item.student.teacher.school.name }}"
+                            data-school-name="{{ item.student.teacher.school.name|default:'-' }}"
                             data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
                             data-submitted-at="{{ item.answer.submitted_at|date:'Y-m-d H:i'|default:'-' }}"
                             data-question-content="{{ activity.question|default:question.content|escapejs }}"
-                            data-answer-content="{{ item.answer.content|escapejs }}"
+                            data-answer-content="{{ item.answer.content|default:''|escapejs }}"
                             data-show-pdf-btn="false"
                             data-show-question="false"
                             onclick="openAnswerModal(this)">
@@ -251,7 +251,7 @@
                                     data-bs-target="#answerViewModal"
                                     data-modal-title="AI 분석 결과"
                                     data-content-type="ai"
-                                    data-school-name="{{ item.student.teacher.school.name }}"
+                                    data-school-name="{{ item.student.teacher.school.name|default:'-' }}"
                                     data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
                                     data-answer-content="{{ result.content|escapejs }}"
                                     data-show-question="false"
@@ -301,11 +301,11 @@
                                          style="word-break: break-all; line-height: 1.4; position: relative; z-index: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 120px;"
                                          data-bs-toggle="modal"
                                          data-bs-target="#answerViewModal"
-                                         data-school-name="{{ item.student.teacher.school.name }}"
+                                         data-school-name="{{ item.student.teacher.school.name|default:'-' }}"
                                          data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
                                          data-submitted-at="{{ item.answer.submitted_at|date:'Y-m-d H:i'|default:'-' }}"
                                          data-question-content="{{ activity.question|default:question.content|escapejs }}"
-                                         data-answer-content="{{ item.answer.content|escapejs }}"
+                                         data-answer-content="{{ item.answer.content|default:''|escapejs }}"
                                          data-show-pdf-btn="false"
                                          data-show-question="false"
                                          onclick="openAnswerModal(this)">
@@ -330,7 +330,7 @@
                                      data-bs-target="#answerViewModal"
                                      data-modal-title="AI 분석 결과"
                                      data-content-type="ai"
-                                     data-school-name="{{ item.student.teacher.school.name }}"
+                                     data-school-name="{{ item.student.teacher.school.name|default:'-' }}"
                                      data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
                                      data-answer-content="{{ analysis.content|escapejs }}"
                                      data-show-question="false"
@@ -372,8 +372,6 @@
 
 <!-- 답안 확인 공통 모달 포함 -->
 {% include 'components/answer_view_modal.html' %}
-
-</script>
 {% endblock %}
 
 {% block script %}
