@@ -227,8 +227,8 @@
                             data-school-name="{{ item.student.teacher.school.name|default:'-' }}"
                             data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
                             data-submitted-at="{{ item.answer.submitted_at|date:'Y-m-d H:i'|default:'-' }}"
-                            data-question-content="{{ activity.question|default:question.content|escapejs }}"
-                            data-answer-content="{{ item.answer.content|default:''|escapejs }}"
+                            data-question-content="{{ activity.question|default:question.content }}"
+                            data-answer-content="{{ item.answer.content|default:'' }}"
                             data-show-pdf-btn="false"
                             data-show-question="false"
                             onclick="openAnswerModal(this)">
@@ -246,14 +246,14 @@
                             {% if result %}
                                 <td class="text-start bg-light pointer-cursor" 
                                     style="cursor: pointer; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
-                                    title="{{ result.content|escapejs }}"
+                                    title="{{ result.content }}"
                                     data-bs-toggle="modal"
                                     data-bs-target="#answerViewModal"
                                     data-modal-title="AI 분석 결과"
                                     data-content-type="ai"
                                     data-school-name="{{ item.student.teacher.school.name|default:'-' }}"
                                     data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
-                                    data-answer-content="{{ result.content|escapejs }}"
+                                    data-answer-content="{{ result.content }}"
                                     data-show-question="false"
                                     onclick="openAnswerModal(this)">
                                     {{ result.content|truncatechars:50 }}
@@ -304,8 +304,8 @@
                                          data-school-name="{{ item.student.teacher.school.name|default:'-' }}"
                                          data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
                                          data-submitted-at="{{ item.answer.submitted_at|date:'Y-m-d H:i'|default:'-' }}"
-                                         data-question-content="{{ activity.question|default:question.content|escapejs }}"
-                                         data-answer-content="{{ item.answer.content|default:''|escapejs }}"
+                                         data-question-content="{{ activity.question|default:question.content }}"
+                                         data-answer-content="{{ item.answer.content|default:'' }}"
                                          data-show-pdf-btn="false"
                                          data-show-question="false"
                                          onclick="openAnswerModal(this)">
@@ -332,7 +332,7 @@
                                      data-content-type="ai"
                                      data-school-name="{{ item.student.teacher.school.name|default:'-' }}"
                                      data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
-                                     data-answer-content="{{ analysis.content|escapejs }}"
+                                     data-answer-content="{{ analysis.content }}"
                                      data-show-question="false"
                                      onclick="openAnswerModal(this)">
                                     <div class="bg-light-purple rounded-5 p-3 border border-purple-200" 

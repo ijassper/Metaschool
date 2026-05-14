@@ -28,7 +28,7 @@
 
                 <div class="mb-1 answer-section">
                     <label class="fw-bold text-primary mb-2 answer-section-title" id="answerModalContentLabel">작성한 답안</label>
-                    <div id="ansModalContent" class="p-4 border rounded-4 bg-white text-break answer-content-box">
+                    <div id="modalAnswerContent" class="p-4 border rounded-4 bg-white text-break answer-content-box">
                         <!-- 답안 내용 주입 -->
                     </div>
                 </div>
@@ -162,7 +162,7 @@
             showPdfBtn: d.showPdfBtn !== 'false',
             showQuestion: d.showQuestion !== 'false',
             // PDF 저장용 원본 데이터
-            name: d.name,
+            name: d.name || d.studentName,
             grade: d.grade,
             classNo: d.classNo,
             number: d.number
@@ -225,7 +225,7 @@
             document.getElementById('answerPdfBtn').style.display = showPdfBtn ? 'inline-flex' : 'none';
         }
 
-        document.getElementById('ansModalContent').innerText = content || "내용이 없습니다.";
+        document.getElementById('modalAnswerContent').innerText = content || "내용이 없습니다.";
         
         const modal = new bootstrap.Modal(document.getElementById('answerViewModal'));
         modal.show();
