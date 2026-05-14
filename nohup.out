@@ -1,0 +1,222 @@
+Watching for file changes with StatReloader
+[13/May/2026 22:19:21] "GET /activities/creative/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 45993
+Not Found: /favicon.ico
+[13/May/2026 22:19:21] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 22:19:22] "GET /activities/analysis/33/ HTTP/1.0" 200 133230
+Not Found: /favicon.ico
+[13/May/2026 22:19:23] "GET /favicon.ico HTTP/1.0" 404 2680
+[13/May/2026 22:25:14] "GET / HTTP/1.0" 302 0
+[13/May/2026 22:25:14] "GET / HTTP/1.0" 302 0
+[13/May/2026 22:25:14] "GET /accounts/login/ HTTP/1.0" 200 41815
+[13/May/2026 22:25:14] "GET /accounts/login/ HTTP/1.0" 200 41815
+[13/May/2026 22:25:15] "GET / HTTP/1.0" 302 0
+[13/May/2026 22:25:15] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /wp-admin/install.php
+[13/May/2026 22:32:49] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+Not Found: /robots.txt
+[13/May/2026 23:11:17] "GET /robots.txt HTTP/1.0" 404 2678
+[13/May/2026 23:11:20] "GET /activities/find-account/ HTTP/1.0" 200 35698
+[13/May/2026 23:15:16] "GET / HTTP/1.0" 302 0
+[13/May/2026 23:15:17] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /wp-admin/install.php
+[13/May/2026 23:40:24] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 00:05:42] "GET / HTTP/1.0" 302 0
+[14/May/2026 00:05:44] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /robots.txt
+[14/May/2026 00:19:16] "GET /robots.txt HTTP/1.0" 404 2678
+Not Found: /robots.txt
+[14/May/2026 00:19:16] "GET /robots.txt HTTP/1.0" 404 2678
+[14/May/2026 00:19:24] "GET / HTTP/1.0" 302 0
+[14/May/2026 00:19:25] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /robots.txt
+[14/May/2026 00:21:17] "GET /robots.txt HTTP/1.0" 404 2678
+Not Found: /wp-admin/install.php
+[14/May/2026 00:47:50] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 00:57:12] "GET / HTTP/1.0" 302 0
+[14/May/2026 00:57:13] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /robots.txt
+[14/May/2026 01:23:40] "GET /robots.txt HTTP/1.0" 404 2682
+Not Found: /wp-admin/install.php
+[14/May/2026 01:52:58] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+Not Found: /robots.txt
+[14/May/2026 02:56:55] "GET /robots.txt HTTP/1.0" 404 2681
+[14/May/2026 02:57:24] "GET / HTTP/1.0" 302 0
+[14/May/2026 02:57:25] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /wp-admin/install.php
+[14/May/2026 03:03:55] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+Not Found: /wp-admin/install.php
+[14/May/2026 03:07:35] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 03:34:09] "GET / HTTP/1.0" 302 0
+[14/May/2026 03:34:10] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /wp-admin/install.php
+[14/May/2026 04:14:06] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 05:23:04] "GET / HTTP/1.0" 302 0
+[14/May/2026 05:23:05] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /wp-admin/install.php
+[14/May/2026 05:24:29] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 05:45:36] "GET / HTTP/1.0" 302 0
+[14/May/2026 05:45:37] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /wp-admin/install.php
+[14/May/2026 06:31:11] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 07:28:58] "GET / HTTP/1.0" 302 0
+[14/May/2026 07:28:58] "GET /accounts/login/ HTTP/1.0" 200 41815
+[14/May/2026 07:28:59] "GET /activities/find-account/ HTTP/1.0" 200 35698
+[14/May/2026 07:29:00] "GET /accounts/signup/ HTTP/1.0" 200 46921
+[14/May/2026 07:29:01] "GET / HTTP/1.0" 302 0
+[14/May/2026 07:29:01] "GET /accounts/login/ HTTP/1.0" 200 41815
+[14/May/2026 07:29:02] "GET /activities/find-account/ HTTP/1.0" 200 35698
+[14/May/2026 07:29:03] "GET /accounts/signup/ HTTP/1.0" 200 46921
+Not Found: /wp-admin/install.php
+[14/May/2026 07:37:01] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+Not Found: /robots.txt
+[14/May/2026 08:41:29] "GET /robots.txt HTTP/1.0" 404 2677
+[14/May/2026 08:41:31] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /wp-admin/install.php
+[14/May/2026 08:46:57] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 08:56:54] "GET / HTTP/1.0" 302 0
+[14/May/2026 08:56:55] "GET /accounts/login/ HTTP/1.0" 200 41815
+[14/May/2026 09:21:23] "GET / HTTP/1.0" 302 0
+[14/May/2026 09:21:23] "GET /accounts/login/ HTTP/1.0" 200 41815
+[14/May/2026 09:21:23] "GET / HTTP/1.0" 302 0
+[14/May/2026 09:21:24] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /secrets.json
+[14/May/2026 09:21:24] "GET /secrets.json HTTP/1.0" 404 2683
+Not Found: /api/.env
+Not Found: /.env
+[14/May/2026 09:21:24] "GET /api/.env HTTP/1.0" 404 2671
+Not Found: /app/.env
+[14/May/2026 09:21:24] "GET /.env HTTP/1.0" 404 2659
+[14/May/2026 09:21:24] "GET /app/.env HTTP/1.0" 404 2671
+Not Found: /service-account.json
+Not Found: /.env.production
+Not Found: /firebase-service-account.json
+[14/May/2026 09:21:24] "GET /service-account.json HTTP/1.0" 404 2707
+Not Found: /credentials.json
+[14/May/2026 09:21:24] "GET /.env.production HTTP/1.0" 404 2692
+Not Found: /google-service-account.json
+Not Found: /.env.local
+[14/May/2026 09:21:24] "GET /firebase-service-account.json HTTP/1.0" 404 2734
+[14/May/2026 09:21:24] "GET /.env.local HTTP/1.0" 404 2677
+[14/May/2026 09:21:24] "GET /google-service-account.json HTTP/1.0" 404 2728
+Not Found: /serviceAccountKey.json
+[14/May/2026 09:21:24] "GET /credentials.json HTTP/1.0" 404 2695
+Not Found: /backend/.env
+[14/May/2026 09:21:24] "GET /serviceAccountKey.json HTTP/1.0" 404 2713
+[14/May/2026 09:21:24] "GET /backend/.env HTTP/1.0" 404 2683
+Not Found: /.aws/credentials
+[14/May/2026 09:21:24] "GET /.aws/credentials HTTP/1.0" 404 2695
+[14/May/2026 09:21:25] "GET / HTTP/1.0" 302 0
+[14/May/2026 09:21:25] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /config/settings.py
+[14/May/2026 09:21:26] "GET /config/settings.py HTTP/1.0" 404 2701
+Not Found: /local_settings.py
+Not Found: /settings.py
+[14/May/2026 09:21:26] "GET /local_settings.py HTTP/1.0" 404 2698
+[14/May/2026 09:21:26] "GET /settings.py HTTP/1.0" 404 2680
+[14/May/2026 09:21:27] "GET / HTTP/1.0" 302 0
+[14/May/2026 09:21:27] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /robots.txt
+[14/May/2026 09:25:09] "GET /robots.txt HTTP/1.0" 404 2678
+Not Found: /wp-admin/install.php
+[14/May/2026 09:52:42] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 10:10:35] "GET / HTTP/1.0" 302 0
+[14/May/2026 10:10:37] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /wp-admin/install.php
+[14/May/2026 10:41:33] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 10:56:39] "GET / HTTP/1.0" 302 0
+[14/May/2026 10:56:40] "GET /accounts/login/ HTTP/1.0" 200 41815
+[14/May/2026 11:04:55] "GET / HTTP/1.0" 302 0
+[14/May/2026 11:04:56] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /wp-admin/install.php
+[14/May/2026 11:47:03] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+Not Found: /wp-admin/install.php
+[14/May/2026 12:53:35] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+Not Found: /wp-admin/install.php
+[14/May/2026 14:03:01] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 14:14:00] "GET / HTTP/1.0" 302 0
+[14/May/2026 14:14:02] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /robots.txt
+[14/May/2026 14:49:52] "GET /robots.txt HTTP/1.0" 404 2681
+[14/May/2026 14:49:54] "GET /accounts/signup/ HTTP/1.0" 200 46921
+Not Found: /wp-admin/install.php
+[14/May/2026 15:09:51] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 15:29:32] "GET / HTTP/1.0" 302 0
+[14/May/2026 15:29:32] "GET / HTTP/1.0" 302 0
+Not Found: /wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:32] "GET /wp-includes/wlwmanifest.xml HTTP/1.0" 404 2728
+Not Found: /xmlrpc.php
+[14/May/2026 15:29:33] "GET /xmlrpc.php?rsd HTTP/1.0" 404 2681
+[14/May/2026 15:29:33] "GET / HTTP/1.0" 302 0
+Not Found: /blog/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:33] "GET /blog/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2743
+Not Found: /web/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:33] "GET /web/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2740
+Not Found: /wordpress/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:34] "GET /wordpress/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2758
+Not Found: /website/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:34] "GET /website/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2752
+Not Found: /wp/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:34] "GET /wp/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2737
+Not Found: /news/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:34] "GET /news/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2743
+Not Found: /2018/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:34] "GET /2018/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2743
+Not Found: /2019/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:35] "GET /2019/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2743
+Not Found: /shop/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:35] "GET /shop/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2743
+Not Found: /wp1/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:35] "GET /wp1/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2740
+Not Found: /test/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:35] "GET /test/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2743
+Not Found: /media/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:36] "GET /media/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2945
+Not Found: /wp2/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:36] "GET /wp2/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2740
+Not Found: /site/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:36] "GET /site/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2743
+Not Found: /cms/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:36] "GET /cms/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2740
+Not Found: /sito/wp-includes/wlwmanifest.xml
+[14/May/2026 15:29:36] "GET /sito/wp-includes/wlwmanifest.xml HTTP/1.0" 404 2743
+[14/May/2026 15:51:45] "GET / HTTP/1.0" 302 0
+[14/May/2026 16:02:27] "GET / HTTP/1.0" 302 0
+[14/May/2026 16:02:29] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /favicon.ico
+[14/May/2026 16:03:47] "GET /favicon.ico HTTP/1.0" 404 2680
+[14/May/2026 16:03:50] "GET /activities/creative/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 45993
+Not Found: /favicon.ico
+[14/May/2026 16:03:50] "GET /favicon.ico HTTP/1.0" 404 2680
+[14/May/2026 16:03:55] "GET /activities/list/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 53446
+Not Found: /favicon.ico
+[14/May/2026 16:03:55] "GET /favicon.ico HTTP/1.0" 404 2680
+Not Found: /favicon.ico
+[14/May/2026 16:05:41] "GET /favicon.ico HTTP/1.0" 404 2680
+Not Found: /wp-admin/install.php
+[14/May/2026 16:13:11] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+Not Found: /wp-admin/install.php
+[14/May/2026 17:21:50] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+Not Found: /wp-admin/install.php
+[14/May/2026 18:26:49] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 19:12:15] "GET / HTTP/1.0" 302 0
+[14/May/2026 19:12:16] "GET /accounts/login/ HTTP/1.0" 200 41815
+Not Found: /wp-admin/install.php
+[14/May/2026 19:31:37] "GET /wp-admin/install.php?step=1 HTTP/1.0" 404 2714
+[14/May/2026 19:50:09] "GET /activities/detail/46/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 60959
+Not Found: /favicon.ico
+[14/May/2026 19:50:09] "GET /favicon.ico HTTP/1.0" 404 2680
+[14/May/2026 19:50:13] "GET /activities/update/46/ HTTP/1.0" 200 89600
+Not Found: /favicon.ico
+[14/May/2026 19:50:13] "GET /favicon.ico HTTP/1.0" 404 2680
+[14/May/2026 19:50:48] "POST /activities/update/46/ HTTP/1.0" 302 0
+[14/May/2026 19:50:48] "GET /activities/list/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 53446
+Not Found: /favicon.ico
+[14/May/2026 19:50:48] "GET /favicon.ico HTTP/1.0" 404 2680
+[14/May/2026 19:50:50] "GET /activities/detail/46/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 60964
+Not Found: /favicon.ico
+[14/May/2026 19:50:50] "GET /favicon.ico HTTP/1.0" 404 2680
+[14/May/2026 19:50:57] "GET /activities/list/?category=CREATIVE&sub=%EB%B2%94%EA%B5%90%EA%B3%BC%EA%B5%90%EC%9C%A1 HTTP/1.0" 200 53446
+Not Found: /favicon.ico
+[14/May/2026 19:50:57] "GET /favicon.ico HTTP/1.0" 404 2680
+[14/May/2026 20:11:25] "HEAD / HTTP/1.0" 302 0
+[14/May/2026 20:11:27] "HEAD /accounts/login/ HTTP/1.0" 200 41815
