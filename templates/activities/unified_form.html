@@ -136,7 +136,7 @@
             <div class="row mb-0 align-items-center">
                 <div class="col-md-3 text-center fw-bold text-secondary border-end">제출 기한 *</div>
                 <div class="col-md-9 px-4">
-                    <input type="text" name="deadline" id="deadline_picker" value="{{ activity.deadline|date:'Y. m. d. A h:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" readonly required>
+                    <input type="text" name="deadline" id="deadline_picker" value="{{ activity.deadline|date:'Y. m. d. H:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="24시간 형식으로 선택 (예: 14:00)" readonly required>
                 </div>
             </div>
         </div>
@@ -147,9 +147,9 @@
             
             <!-- 1. 수업 일시 -->
             <div class="row mb-3 align-items-center">
-                <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.detail.date }} *</div>
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.detail.date }}</div>
                 <div class="col-md-9 px-4">
-                    <input type="text" name="activity_date" id="activity_date" value="{{ activity.activity_date|date:'Y. m. d. A h:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker" placeholder="일시 선택" readonly required>
+                    <input type="text" name="activity_date" id="activity_date" value="{{ activity.activity_date|date:'Y. m. d. H:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker" placeholder="24시간 형식으로 선택 (예: 14:00)" readonly>
                 </div>
             </div>
 
@@ -259,11 +259,11 @@
             
             {% for i in "123" %}
             <div class="row mb-3 align-items-center">
-                <div class="col-md-3 text-center fw-bold text-secondary">항목 {{ i }} 제목</div>
+                <div class="col-md-3 text-center fw-bold text-secondary">항목 {{ i }} 제목{% if i == '1' %} <span class="text-danger">*</span>{% endif %}</div>
                 <div class="col-md-9 px-4">
                     <input type="text" name="q{{ i }}_title" class="form-control border-0 shadow-sm p-3 bg-white" 
                         value="{% if i == '1' %}{{ activity.q1_title|default:config.default_q.0 }}{% elif i == '2' %}{% if activity.q2_title %}{{ activity.q2_title }}{% else %}{% endif %}{% else %}{% if activity.q3_title %}{{ activity.q3_title }}{% else %}{% endif %}{% endif %}" 
-                        {% if i == '1' %}placeholder="{{ config.default_q.0 }}"{% elif i == '2' %}placeholder="예: 이 기사에 대한 자신의 생각을 한 줄로 써보세요."{% else %}placeholder="예: 앞으로의 다짐을 적어보세요."{% endif %} {% if i != '1' %}{% endif %}>
+                        {% if i == '1' %}placeholder="예: 평가문항에 대한 답안을 작성하세요." required{% elif i == '2' %}placeholder="예: 이 기사에 대한 자신의 생각을 한 줄로 써보세요."{% else %}placeholder="예: 앞으로의 다짐을 적어보세요."{% endif %}>
                 </div>
             </div>
             {% endfor %}
@@ -284,19 +284,46 @@
 
 <!-- 날짜 선택기 (Flatpickr) 및 유효성 검사 스크립트 -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/confirmDate/confirmDate.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/confirmDate/confirmDate.js"></script>
+
+<style>
+    /* Flatpickr 확인 버튼 커스텀 스타일 */
+    .flatpickr-confirm {
+        background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%)) !important;
+        color: white !important;
+        padding: 8px 20px !important;
+        border-radius: 24px !important;
+        font-weight: bold !important;
+        cursor: pointer !important;
+        border: none !important;
+        margin: 10px auto !important;
+        display: block !important;
+        width: 90% !important;
+        text-align: center !important;
+    }
+</style>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // 1. 날짜+시간 통합 설정
         const dateTimeConfig = {
             enableTime: true,
-            dateFormat: "Y. m. d. K h:i",
+            dateFormat: "Y. m. d. H:i",
             locale: "ko",
-            time_24hr: false,
+            time_24hr: true, // 24시간제 적용
             minDate: "today",
             disableMobile: true,
             minuteIncrement: 1,
+            plugins: [
+                new confirmDatePlugin({
+                    confirmText: "입력 완료",
+                    showAlways: true,
+                    theme: "light"
+                })
+            ]
         };
 
         // 2. 입력 요소 확보 (에러 방지를 위해 변수를 미리 선언)
@@ -357,9 +384,9 @@
                     return false;
                 }
                 
-                // (2) 필수 날짜 입력값 체크
-                if (!startInput.value || !endInput.value) {
-                    alert("수업 일시와 제출 기한을 모두 입력해주세요.");
+                // (2) 필수 날짜 입력값 체크 (제출 기한만 필수)
+                if (!endInput.value) {
+                    alert("제출 기한을 입력해주세요.");
                     e.preventDefault();
                     return false;
                 }

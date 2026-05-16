@@ -193,6 +193,8 @@ def activity_analysis(request, activity_id):
         # 상태 판별 로직
         if not answer:
             status = "미응시"
+        elif not answer.submitted_at:
+            status = "응시 중"
         elif not answer.content.strip():
             status = "백지 제출"
         else:

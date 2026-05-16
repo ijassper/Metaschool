@@ -47,6 +47,19 @@ def unified_create(request):
         # 루프 방식 대신 HTML의 name="question"에서 직접 가져와 유실을 방지합니다.
         main_question = request.POST.get('question', '').strip()
         
+        # [신규] 유효성 검사 (항목 1 제목 필수)
+        q1_title = request.POST.get('q1_title', '').strip()
+        if not q1_title:
+            messages.error(request, "학생 답안지 구성의 '항목 1 제목'은 필수 입력 사항입니다.")
+            return render(request, 'activities/unified_form.html', {
+                'cat_code': cat_code, 
+                'sub_menu': sub_menu, 
+                'config': config,
+                'student_tree': get_student_tree(request.user),
+                'action': '생성',
+                'form_data': request.POST
+            })
+        
         # 만약 루프 방식(q1, q2...)을 병행해야 한다면 아래 로직을 사용하지만, 
         # 현재 설계도대로라면 위 코드가 가장 확실합니다.
         if not main_question:
@@ -250,7 +263,21 @@ def unified_update(request, activity_id):
         activity.evaluation_elements = request.POST.get('evaluation_elements', '')
 
         # [섹션 4: 학생 답안지 구성 제목] - 교사가 설정한 제목들
-        activity.q1_title = request.POST.get('q1_title', activity.q1_title)
+        new_q1_title = request.POST.get('q1_title', '').strip()
+        if not new_q1_title:
+            messages.error(request, "학생 답안지 구성의 '항목 1 제목'은 필수 입력 사항입니다.")
+            return render(request, 'activities/unified_form.html', {
+                'activity': activity,
+                'cat_code': activity.category,
+                'sub_menu': sub_menu,
+                'config': config,
+                'category_name': category_name,
+                'current_targets': list(activity.target_students.values_list('id', flat=True)),
+                'student_tree': get_student_tree(request.user),
+                'action': '수정'
+            })
+        
+        activity.q1_title = new_q1_title
         activity.q2_title = request.POST.get('q2_title', activity.q2_title)
         activity.q3_title = request.POST.get('q3_title', activity.q3_title)
         

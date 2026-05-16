@@ -224,6 +224,8 @@
                         <td class="text-center">
                             {% if item.status == '제출 완료' %}
                                 <span class="badge rounded-pill px-2 py-1" style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); font-size: 0.75rem;">제출 완료</span>
+                            {% elif item.status == '응시 중' %}
+                                <span class="badge rounded-pill px-2 py-1 bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.75rem;">응시 중</span>
                             {% elif item.status == '백지 제출' %}
                                 <span class="badge rounded-pill px-2 py-1 bg-warning text-dark" style="font-size: 0.75rem;">백지 제출</span>
                             {% else %}

@@ -111,6 +111,8 @@
                         <td>
                             {% if item.status == '제출 완료' %}
                                 <span class="badge rounded-pill px-3 py-2" style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);">제출 완료</span>
+                            {% elif item.status == '응시 중' %}
+                                <span class="badge rounded-pill px-3 py-2 bg-primary-subtle text-primary border border-primary-subtle">응시 중</span>
                             {% elif item.status == '백지 제출' %}
                                 <span class="badge rounded-pill px-3 py-2 bg-warning text-dark">백지 제출</span>
                             {% elif item.status == '결시' %}

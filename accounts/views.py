@@ -118,41 +118,47 @@ def dashboard(request):
 
         if student_profile:
             # 1. 나에게 배정된 모든 활성화된 평가 가져오기
-            base_query = Activity.objects.filter(target_students=student_profile, is_active=True).order_by('-created_at')
+            # .select_related() 등을 사용하여 성능 최적화 권장
+            activities_list = list(Activity.objects.filter(target_students=student_profile, is_active=True).order_by('-created_at'))
             
             # 완료된 개수를 세기 위한 변수 초기화
             completed_count = 0 
 
             # 2. 개별 활동 데이터 매핑 (답변 객체 및 제출 여부)
-            for activity in base_query:
-                ans = activity.get_student_answer(student_profile)
+            now = timezone.now()
+            for activity in activities_list:
+                # 4대 상태 로직을 위한 정밀 매칭
+                ans = Answer.objects.filter(student=student_profile, question__activity=activity).first()
                 activity.my_answer = ans
                 activity.has_submitted = bool(ans and ans.submitted_at)
-
+                
+                # 디버깅 로그 추가
+                print(f"[DASHBOARD] 학생 {student_profile.name} - 활동 {activity.id} 매칭 결과: {ans}", flush=True)
+                
                 if activity.has_submitted:
                     completed_count += 1
             
-            # 3. [개편] 표준 카테고리 기준 블록 생성 (seen_categories 제거)
+            # 3. [개편] 표준 카테고리 기준 블록 생성
             category_blocks = []
             
             # 모델에 정의된 7대 카테고리 표준 리스트를 순회합니다.
             for cat_code, cat_name in Activity.CATEGORY_CHOICES:
-                # base_query(나에게 할당된 것들) 내에서 해당 카테고리만 필터링
-                # .strip()과 icontains로 데이터 부정합(공백 등) 방지
-                items = base_query.filter(category__icontains=cat_code.strip())
+                # 이미 매칭이 완료된 activities_list에서 필터링하여 속성을 유지함
+                items = [a for a in activities_list if cat_code.strip().lower() in a.category.strip().lower()]
                 
-                if items.exists():
+                if items:
                     category_blocks.append({
                         'name': cat_name,
                         'items': items
                     })
 
             context.update({
-                'student': student_profile,  # student 라는 이름으로 객체 전달
-                'category_blocks': category_blocks, # 정렬 및 누락 방지된 데이터
-                'activities': base_query,           # 전체 카운트용
-                'completed_count': completed_count, # 완료된 개수
-                'ongoing_count': base_query.count() - completed_count # 진행 중 개수 계산
+                'student': student_profile,
+                'category_blocks': category_blocks,
+                'activities': activities_list,
+                'completed_count': completed_count,
+                'ongoing_count': len(activities_list) - completed_count,
+                'now': now
             })
 
         # 학생 전용 템플릿 반환
@@ -201,11 +207,13 @@ def dashboard(request):
         # 템플릿으로 데이터 전달
         context['category_blocks'] = category_blocks
         context['total_activity_count'] = my_activities.count()
+        context['now'] = timezone.now()  # [추가] 500 에러 방지를 위한 현재 시간 전달
 
         print(f"--- [DEBUG] 최종 생성된 대시보드 블록 수: {len(category_blocks)}개 ---", flush=True)
         return render(request, 'dashboard.html', context)
 
     # 3. 그 외 권한 (관리자 등) 처리
+    context['now'] = timezone.now()  # [추가] 500 에러 방지
     return render(request, 'dashboard.html', context)
 
 # 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)

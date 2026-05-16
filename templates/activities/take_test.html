@@ -64,19 +64,21 @@
         background-color: #fff !important;
     }
 
-    /* 보안 모드 안내 스타일 */
+    /* 보안 모드 안내 스타일 - 직관적인 경고용 레드로 변경 */
     .security-notice {
-        background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);
-        color: white;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: 600;
+        color: #dc3545; /* 강렬한 레드 */
+        background-color: #fff5f5; /* 아주 옅은 붉은 배경 */
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        font-weight: 700;
         text-align: center;
-        margin-bottom: 16px;
-        box-shadow: 0 4px 15px rgba(142, 68, 173, 0.2);
-        animation: pulse 2s infinite;
-        padding: 10px 15px;
+        margin-bottom: 24px;
+        border: 1px solid #ffc9c9;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
     }
 </style>
 <!-- 1. 시험 시작 전 가림막 (전체 화면 유도용) -->
@@ -158,7 +160,7 @@
                     <h5 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i> 답안 작성 ({{ user.name }})</h5>
                     <div class="d-flex align-items-center gap-3">
                         <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {{ activity.char_limit }}자 이내</span>
-                        <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" onclick="confirmExit()">나가기</button>
+                        <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#exitConfirmModal">나가기</button>
                         <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#submitModal">답안 제출</button>
                     </div>
                 </div>
@@ -605,6 +607,9 @@
             window.location.href = "{% url 'dashboard' %}";
         });
     }
+
+    // confirmExit 함수 제거 (모달로 대체됨)
+    // function confirmExit() { ... }
 
     /* 8. 첨부파일 미리보기 통합 함수 */
     function previewFile(url, filename) {

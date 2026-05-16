@@ -82,6 +82,8 @@ def activity_result(request, activity_id):
             
             if absence:
                 status = "결시"
+            elif not answer.submitted_at:
+                status = "응시 중"
             elif not answer.content.strip():
                 status = "백지 제출"
                 submitted_at = answer.submitted_at
