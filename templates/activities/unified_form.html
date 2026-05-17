@@ -262,7 +262,7 @@
                 <div class="col-md-3 text-center fw-bold text-secondary">항목 {{ i }} 제목{% if i == '1' %} <span class="text-danger">*</span>{% endif %}</div>
                 <div class="col-md-9 px-4">
                     <input type="text" name="q{{ i }}_title" class="form-control border-0 shadow-sm p-3 bg-white" 
-                        value="{% if i == '1' %}{{ activity.q1_title|default:config.default_q.0 }}{% elif i == '2' %}{% if activity.q2_title %}{{ activity.q2_title }}{% else %}{% endif %}{% else %}{% if activity.q3_title %}{{ activity.q3_title }}{% else %}{% endif %}{% endif %}" 
+                        value="{% if i == '1' %}{% if activity.q1_title %}{{ activity.q1_title }}{% endif %}{% elif i == '2' %}{% if activity.q2_title %}{{ activity.q2_title }}{% endif %}{% else %}{% if activity.q3_title %}{{ activity.q3_title }}{% endif %}{% endif %}" 
                         {% if i == '1' %}
                             placeholder="예: 평가문항에 대한 답안을 작성하세요." required
                         {% elif i == '2' %}
