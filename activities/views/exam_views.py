@@ -36,7 +36,7 @@ def take_test(request, activity_id):
     # 4. [신규] 제출 후 수정 제한 및 기한 체크
     # (1) 제출 기한이 지났는지 확인
     if activity.deadline and timezone.now() > activity.deadline:
-        messages.warning(request, "제출 기한이 종료되었습니다. 더 이상 수정할 수 없습니다.")
+        messages.warning(request, "제출 기한이 종료되었습니다. 수정을 원하시면 선생님께 문의하세요.")
         return redirect('dashboard')
 
     # (2) 제출 후 수정 불가 설정인데 이미 제출했는지 확인

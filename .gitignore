@@ -1,0 +1,16 @@
+# Python 찌꺼기 파일들
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 가상환경
+.venv/
+
+# 로컬 설정 파일
+.env
+.vscode/
+
+# 운영체제 관련
+.DS_Store
+Thumbs.db
