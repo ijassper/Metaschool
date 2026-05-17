@@ -155,6 +155,10 @@
                         <span class="info-value text-danger">{{ activity.deadline|date:"Y-m-d H:i"|default:"-" }}</span>
                     </div>
                     <div class="mb-4">
+                        <span class="info-label">수정 허용</span>
+                        <span class="info-value">{% if activity.allow_edit_after_submission %}<span class="text-primary fw-bold">허용</span>{% else %}<span class="text-danger fw-bold">불가</span>{% endif %}</span>
+                    </div>
+                    <div class="mb-4">
                         <span class="info-label">권장 분량</span>
                         <span class="info-value">{{ activity.char_limit|default:0 }}자 이상</span>
                     </div>

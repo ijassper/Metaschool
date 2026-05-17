@@ -21,6 +21,21 @@ from accounts.decorators import teacher_required
 
 logger = logging.getLogger(__name__)
 
+def sync_status_on_deadline_extension(activity, old_deadline, new_deadline):
+    """
+    제출 기한이 연장되었을 때, 기존 답안 중 아직 최종 제출하지 않은(submitted_at is null) 
+    학생들의 activity_log에 기한 연장 메시지를 추가하여 상태가 복구되었음을 기록합니다.
+    """
+    now = timezone.now()
+    if old_deadline and new_deadline:
+        if new_deadline > old_deadline and new_deadline > now:
+            answers = Answer.objects.filter(question__activity=activity, submitted_at__isnull=True)
+            for answer in answers:
+                timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+                log_msg = f"[{timestamp}] 선생님의 기한 연장으로 재응시 가능 상태로 복구됨\n"
+                answer.activity_log = (answer.activity_log or "") + log_msg
+                answer.save(update_fields=['activity_log'])
+
 # 통합 생성 페이지 (카테고리와 소메뉴에 따라 유동적으로 필드 라벨과 저장 방식 결정)
 @login_required
 @teacher_required
@@ -293,11 +308,15 @@ def unified_update(request, activity_id):
         activity.q2_title = request.POST.get('q2_title', activity.q2_title)
         activity.q3_title = request.POST.get('q3_title', activity.q3_title)
         
+        old_deadline = activity.deadline
         # 날짜 업데이트
         if request.POST.get('activity_date'):
             activity.activity_date = parse_dt(request.POST.get('activity_date'))
         if request.POST.get('deadline'):
             activity.deadline = parse_dt(request.POST.get('deadline'))
+
+        # 기한 연장 동기화 로직
+        sync_status_on_deadline_extension(activity, old_deadline, activity.deadline)
 
         # ------------------------------------------------
         # 4. 다중 파일 관리 로직
@@ -504,6 +523,7 @@ def creative_update(request, pk):
         if request.FILES.get('attachment'):
             activity.attachment = request.FILES.get('attachment')
             
+        old_deadline = activity.deadline
         # 날짜 처리
         deadline_str = request.POST.get('deadline')
         if deadline_str:
@@ -513,6 +533,9 @@ def creative_update(request, pk):
                 activity.deadline = datetime.strptime(temp_str, "%Y. %m. %d. %p %I:%M")
             except:
                 pass
+
+        # 기한 연장 동기화 로직
+        sync_status_on_deadline_extension(activity, old_deadline, activity.deadline)
 
         # 시험 모드 설정
         activity.exam_mode = request.POST.get('exam_mode', 'CLOSED')
