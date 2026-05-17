@@ -1,0 +1,6 @@
+# .prettierignore
+**/*.html
+**/*.py
+templates/**/*.html
+static/**/*.css
+static/**/*.js

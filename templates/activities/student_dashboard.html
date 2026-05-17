@@ -1,306 +1,424 @@
-{% extends 'base.html' %}
-{% load static %}
-
-{% block content %}
+{% extends 'base.html' %} {% load static %} {% block content %}
 <style>
-    /* 1. 전체 배경 및 초기화 */
-    body { background-color: #F8F9FA !important; font-family: 'Pretendard', sans-serif; }
+  /* 1. 전체 배경 및 초기화 */
+  body {
+    background-color: #f8f9fa !important;
+    font-family: "Pretendard", sans-serif;
+  }
 
-    /* 2. 상단 히어로 배너 (Ingrid 핑크-보라 그라데이션) */
-    .student-hero {
-        background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);
-        border-radius: 28px; padding: 40px 50px; color: white; margin-bottom: 30px;
-        box-shadow: 0 15px 35px rgba(142, 68, 173, 0.2);
-        display: flex; justify-content: space-between; align-items: center;
-    }
-    .profile-info h2 { font-weight: 800; font-size: 2rem; margin-bottom: 5px; }
-    .profile-info p { opacity: 0.9; font-size: 1.1rem; }
+  /* 2. 상단 히어로 배너 (Ingrid 핑크-보라 그라데이션) */
+  .student-hero {
+    background: linear-gradient(135deg, #ff80b5 0%, #8e44ad 100%);
+    border-radius: 28px;
+    padding: 40px 50px;
+    color: white;
+    margin-bottom: 30px;
+    box-shadow: 0 15px 35px rgba(142, 68, 173, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .profile-info h2 {
+    font-weight: 800;
+    font-size: 2rem;
+    margin-bottom: 5px;
+  }
+  .profile-info p {
+    opacity: 0.9;
+    font-size: 1.1rem;
+  }
 
-    /* 3. 통계 박스 스타일 */
-    .quick-stats { display: flex; gap: 15px; }
-    .stat-box {
-        background: white; padding: 15px; width: 100px; border-radius: 20px;
-        text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,0.05); color: #512DA8;
-    }
-    .stat-box .num { display: block; font-size: 1.8rem; font-weight: 900; line-height: 1; }
-    .stat-box .lab { font-size: 0.75rem; font-weight: 700; color: #adb5bd; }
+  /* 3. 통계 박스 스타일 */
+  .quick-stats {
+    display: flex;
+    gap: 15px;
+  }
+  .stat-box {
+    background: white;
+    padding: 15px;
+    width: 100px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    color: #512da8;
+  }
+  .stat-box .num {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .stat-box .lab {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #adb5bd;
+  }
 
-    /* 4. 4열 대시보드 그리드 레이아웃 */
+  /* 4. 4열 대시보드 그리드 레이아웃 */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 무조건 4열 */
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* 5. 카테고리 블록 디자인 (높이 고정) */
+  .category-block {
+    border-radius: 24px;
+    padding: 20px;
+    height: 620px;
+    display: flex;
+    flex-direction: column;
+    border: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+  }
+
+  /* 톤다운 파스텔 컬러 (교사용과 동일) */
+  .pastel-purple {
+    background-color: #e9e2ff !important;
+  }
+  .pastel-blue {
+    background-color: #ddebff !important;
+  }
+  .pastel-green {
+    background-color: #d3f9e8 !important;
+  }
+  .pastel-yellow {
+    background-color: #fff3bf !important;
+  }
+  .pastel-orange {
+    background-color: #ffe8cc !important;
+  }
+  .pastel-red {
+    background-color: #ffe3e3 !important;
+  }
+  .pastel-pink {
+    background-color: #ffdeeb !important;
+  }
+
+  .block-title {
+    font-weight: 800;
+    color: #495057;
+    font-size: 1rem;
+    margin-bottom: 15px;
+  }
+
+  /* 6. 학생용 평가 카드 내부 레이아웃 */
+  .eval-item-card {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(10px);
+    border-radius: 18px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 2px solid transparent;
+    transition: 0.2s ease;
+    cursor: pointer;
+  }
+  .eval-item-card:hover {
+    background: #ffffff;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.05);
+  }
+
+  /* 블록별 호버 색상 */
+  .pastel-purple .eval-item-card:hover {
+    border-color: #b292ff !important;
+  }
+  .pastel-blue .eval-item-card:hover {
+    border-color: #74c0fc !important;
+  }
+  .pastel-green .eval-item-card:hover {
+    border-color: #63e6be !important;
+  }
+  .pastel-yellow .eval-item-card:hover {
+    border-color: #ffd43b !important;
+  }
+  .pastel-orange .eval-item-card:hover {
+    border-color: #ff922b !important;
+  }
+  .pastel-red .eval-item-card:hover {
+    border-color: #ff8787 !important;
+  }
+  .pastel-pink .eval-item-card:hover {
+    border-color: #faa2c1 !important;
+  }
+
+  /* 카드 텍스트 정렬 */
+  .card-row-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    margin-bottom: 8px;
+  }
+
+  /* 1. 상단 소메뉴 태그 스타일 */
+  .sub-cat-label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #8e44ad; /* 인그리드 퍼플 */
+    background-color: rgba(142, 68, 173, 0.1);
+    padding: 2px 8px;
+    border-radius: 6px;
+    letter-spacing: -0.5px;
+  }
+
+  .teacher-label {
+    color: #4a4e52;
+  }
+
+  /* 2. 중앙 타이틀 영역 */
+  .item-title {
+    margin: 12px 0;
+    line-height: 1.4;
+  }
+  .main-title-text {
+    display: block; /* 줄바꿈 처리로 가독성 확보 */
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #111;
+    letter-spacing: -0.8px;
+    margin-bottom: 2px;
+  }
+  .section-sub-text {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #6c757d; /* 과목명/영역명은 보조 색상으로 */
+    font-style: italic;
+    margin-bottom: 2px;
+  }
+
+  /* 하단 메타 정보 영역 - 3분할 그리드 적용 */
+  .card-row-bottom {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr; /* 좌(1):중(auto):우(1) 비율로 정중앙 보장 */
+    align-items: center;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px dashed #eee;
+  }
+
+  /* 기한 (왼쪽 정렬) */
+  .meta-deadline {
+    font-size: 0.75rem;
+    color: #868e96;
+    text-align: left;
+  }
+
+  /* 선생님 성함 (중앙 강조) */
+  .meta-teacher-center {
+    font-size: 0.8rem;
+    font-weight: 400; /* 아주 진하게 */
+    color: #444b52; /* 깊은 검정색 */
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background-color: #f8f9ff; /* 살짝 배경을 주어 돋보이게 함 */
+    padding: 2px 10px;
+    border-radius: 8px;
+  }
+
+  /* --- Ingrid 학생 대시보드 전용 버튼 시스템 --- */
+  /* 1. 공통 버튼 베이스 */
+  .btn-student-action {
+    padding: 4px 12px !important;
+    font-size: 0.72rem !important;
+    border-radius: 50px !important;
+    font-weight: 700 !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    border: none !important;
+    color: white !important;
+    transition: all 0.2s ease;
+    text-decoration: none !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .btn-student-action:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* 2. 상태별 색상 강제 지정 */
+  /* [응시 가능] - 시그니처 핑크/보라 그라데이션 */
+  .state-ready {
+    background: linear-gradient(135deg, #ff80b5 0%, #8e44ad 100%) !important;
+  }
+
+  /* [작성 중] - 오렌지 그라데이션 */
+  .state-working {
+    background: linear-gradient(135deg, #ffb169 0%, #ff922b 100%) !important;
+  }
+
+  /* [제출 완료 / 기한 종료] - 회색 배경, 비활성화 스타일 */
+  .state-submitted,
+  .state-expired {
+    background: #ced4da !important;
+    color: #6c757d !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+  }
+  .state-submitted:hover,
+  .state-expired:hover {
+    transform: none !important;
+    filter: none !important;
+  }
+
+  /* 아이콘 간격 */
+  .btn-student-action i,
+  .badge-submitted i {
+    margin-left: 4px;
+    font-size: 0.8rem;
+  }
+
+  .scroll-area {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 5px;
+    max-height: 520px;
+  }
+  .scroll-area::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scroll-area::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+  }
+
+  /* 1400px 이하일 때 2열로 조정 (반응형) */
+  @media (max-width: 1400px) {
     .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr); /* 무조건 4열 */
-        gap: 20px;
-        align-items: start;
+      grid-template-columns: repeat(2, 1fr);
     }
-
-    /* 5. 카테고리 블록 디자인 (높이 고정) */
-    .category-block {
-        border-radius: 24px; padding: 20px; height: 620px;
-        display: flex; flex-direction: column; border: none;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.02);
-    }
-
-    /* 톤다운 파스텔 컬러 (교사용과 동일) */
-    .pastel-purple { background-color: #E9E2FF !important; }
-    .pastel-blue   { background-color: #DDEBFF !important; }
-    .pastel-green  { background-color: #D3F9E8 !important; }
-    .pastel-yellow { background-color: #FFF3BF !important; }
-    .pastel-orange { background-color: #FFE8CC !important; }
-    .pastel-red    { background-color: #FFE3E3 !important; }
-    .pastel-pink   { background-color: #FFDEEB !important; }
-
-    .block-title { font-weight: 800; color: #495057; font-size: 1rem; margin-bottom: 15px; }
-
-    /* 6. 학생용 평가 카드 내부 레이아웃 */
-    .eval-item-card {
-        background: rgba(255, 255, 255, 0.75);
-        backdrop-filter: blur(10px); border-radius: 18px;
-        padding: 10px; margin-bottom: 10px; border: 2px solid transparent;
-        transition: 0.2s ease; cursor: pointer;
-    }
-    .eval-item-card:hover {
-        background: #ffffff; transform: translateY(-3px);
-        box-shadow: 0 6px 15px rgba(0,0,0,0.05);
-    }
-    
-    /* 블록별 호버 색상 */
-    .pastel-purple .eval-item-card:hover { border-color: #B292FF !important; }
-    .pastel-blue .eval-item-card:hover   { border-color: #74C0FC !important; }
-    .pastel-green .eval-item-card:hover  { border-color: #63E6BE !important; }
-    .pastel-yellow .eval-item-card:hover { border-color: #FFD43B !important; }
-    .pastel-orange .eval-item-card:hover { border-color: #FF922B !important; }
-    .pastel-red .eval-item-card:hover    { border-color: #FF8787 !important; }
-    .pastel-pink .eval-item-card:hover   { border-color: #FAA2C1 !important; }
-
-    /* 카드 텍스트 정렬 */
-    .card-row-top { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 8px; }
-    
-    /* 1. 상단 소메뉴 태그 스타일 */
-    .sub-cat-label {
-        font-size: 0.75rem;
-        font-weight: 800;
-        color: #8E44AD; /* 인그리드 퍼플 */
-        background-color: rgba(142, 68, 173, 0.1);
-        padding: 2px 8px;
-        border-radius: 6px;
-        letter-spacing: -0.5px;
-    }
-
-    .teacher-label { color: #4a4e52; }
-
-    /* 2. 중앙 타이틀 영역 */
-    .item-title {
-        margin: 12px 0;
-        line-height: 1.4;
-    }
-    .main-title-text {
-        display: block; /* 줄바꿈 처리로 가독성 확보 */
-        font-size: 1.2rem;
-        font-weight: 800;
-        color: #111;
-        letter-spacing: -0.8px;
-        margin-bottom: 2px;
-    }
-    .section-sub-text {
-        font-size: 1.0rem;
-        font-weight: 500;
-        color: #6c757d; /* 과목명/영역명은 보조 색상으로 */
-        font-style: italic;
-        margin-bottom: 2px;
-    }
-
-    /* 하단 메타 정보 영역 - 3분할 그리드 적용 */
-    .card-row-bottom {
-        display: grid;
-        grid-template-columns: 1fr auto 1fr; /* 좌(1):중(auto):우(1) 비율로 정중앙 보장 */
-        align-items: center;
-        margin-top: 4px;
-        padding-top: 4px;
-        border-top: 1px dashed #eee;
-    }
-
-    /* 기한 (왼쪽 정렬) */
-    .meta-deadline {
-        font-size: 0.75rem;
-        color: #868e96;
-        text-align: left;
-    }
-
-    /* 선생님 성함 (중앙 강조) */
-    .meta-teacher-center {
-        font-size: 0.80rem;
-        font-weight: 400; /* 아주 진하게 */
-        color: #444b52;   /* 깊은 검정색 */
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        background-color: #f8f9ff; /* 살짝 배경을 주어 돋보이게 함 */
-        padding: 2px 10px;
-        border-radius: 8px;
-    }
-
-    /* --- Ingrid 학생 대시보드 전용 버튼 시스템 --- */
-    /* 1. 공통 버튼 베이스 */
-    .btn-student-action {
-        padding: 4px 12px !important;
-        font-size: 0.72rem !important;
-        border-radius: 50px !important;
-        font-weight: 700 !important;
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        min-width: 80px;
-        border: none !important;
-        color: white !important;
-        transition: all 0.2s ease;
-        text-decoration: none !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-
-    .btn-student-action:hover {
-        transform: translateY(-1px);
-        filter: brightness(1.1);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-    }
-
-    /* 2. 상태별 색상 강제 지정 */
-    /* [응시 가능] - 시그니처 핑크/보라 그라데이션 */
-    .state-ready {
-        background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%) !important;
-    }
-
-    /* [작성 중] - 오렌지 그라데이션 */
-    .state-working {
-        background: linear-gradient(135deg, #FFB169 0%, #FF922B 100%) !important;
-    }
-
-    /* [제출 완료 / 기한 종료] - 회색 배경, 비활성화 스타일 */
-    .state-submitted, .state-expired {
-        background: #ced4da !important;
-        color: #6c757d !important;
-        cursor: not-allowed !important;
-        box-shadow: none !important;
-    }
-    .state-submitted:hover, .state-expired:hover {
-        transform: none !important;
-        filter: none !important;
-    }
-
-    /* 아이콘 간격 */
-    .btn-student-action i, .badge-submitted i {
-        margin-left: 4px;
-        font-size: 0.8rem;
-    }
-
-    .scroll-area { flex-grow: 1; overflow-y: auto; padding: 5px; max-height: 520px; }
-    .scroll-area::-webkit-scrollbar { width: 4px; }
-    .scroll-area::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
-
-    /* 1400px 이하일 때 2열로 조정 (반응형) */
-    @media (max-width: 1400px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
+  }
 </style>
 
 <div class="container-fluid px-4 py-4">
-    <!-- 1. 상단 히어로 배너 -->
-    <div class="student-hero">
-        <div class="profile-info">
-            <h2>안녕하세요, {{ user.name }} 학생 👋</h2>
-            <p>{{ user.school.name }} | {{ student.grade }}학년 {{ student.class_no }}반</p>
-            <div class="mt-4 d-flex gap-2">
-                <a href="{% url 'profile_settings' %}?tab=security" class="btn btn-sm border-white text-white rounded-pill px-3" style="background: rgba(255,255,255,0.2);">비밀번호 변경</a>
-                <form action="{% url 'logout' %}" method="post" class="m-0">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm border-white text-white rounded-pill px-3" style="background: rgba(255,255,255,0.2);">로그아웃</button>
-                </form>
-            </div>
-        </div>
-        <div class="quick-stats">
-            <div class="stat-box">
-                <span class="num">{{ activities|length }}</span>
-                <span class="lab">진행 중</span>
-            </div>
-            <div class="stat-box">
-                <span class="num text-success">{{ completed_count }}</span>
-                <span class="lab">완료</span>
-            </div>
-        </div>
+  <!-- 1. 상단 히어로 배너 -->
+  <div class="student-hero">
+    <div class="profile-info">
+      <h2>안녕하세요, {{ user.name }} 학생 👋</h2>
+      <p>
+        {{ request.user.student.teacher.school.name }} | {{
+        request.user.student.grade }}학년 {{ request.user.student.class_no }}반
+      </p>
+      <div class="mt-4 d-flex gap-2">
+        <a
+          href="{% url 'profile_settings' %}?tab=security"
+          class="btn btn-sm border-white text-white rounded-pill px-3"
+          style="background: rgba(255, 255, 255, 0.2)"
+          >비밀번호 변경</a
+        >
+        <form action="{% url 'logout' %}" method="post" class="m-0">
+          {% csrf_token %}
+          <button
+            type="submit"
+            class="btn btn-sm border-white text-white rounded-pill px-3"
+            style="background: rgba(255, 255, 255, 0.2)"
+          >
+            로그아웃
+          </button>
+        </form>
+      </div>
     </div>
+    <div class="quick-stats">
+      <div class="stat-box">
+        <span class="num">{{ activities|length }}</span>
+        <span class="lab">진행 중</span>
+      </div>
+      <div class="stat-box">
+        <span class="num text-success">{{ completed_count }}</span>
+        <span class="lab">완료</span>
+      </div>
+    </div>
+  </div>
 
-    <!-- 2. 4열 카테고리 그리드 -->
-    <div class="dashboard-grid">
-        {% for block in category_blocks %}
-        <div class="category-block shadow-sm {% cycle 'pastel-purple' 'pastel-blue' 'pastel-green' 'pastel-yellow' 'pastel-orange' 'pastel-red' 'pastel-pink' %}">
-            <div class="block-title">{{ block.name }}</div>
-            
-            <div class="scroll-area">
-                {% for act in block.items %}
-                <div class="eval-item-card">
-                    <!-- 1행: 소메뉴 (태그 형태) -->
-                    <div class="card-row-top">
-                        <span class="sub-cat-label">
-                            {{ act.sub_category|default:act.get_category_display }}
-                        </span>
-                    </div>
+  <!-- 2. 4열 카테고리 그리드 -->
+  <div class="dashboard-grid">
+    {% for block in category_blocks %}
+    <div
+      class="category-block shadow-sm {% cycle 'pastel-purple' 'pastel-blue' 'pastel-green' 'pastel-yellow' 'pastel-orange' 'pastel-red' 'pastel-pink' %}"
+    >
+      <div class="block-title">{{ block.name }}</div>
 
-                    <!-- 중앙: 주제 및 상세 영역 (위계 분리) -->
-                    <div class="item-title">
-                        <span class="main-title-text">{{ act.section|default:"일반 활동" }}</span>
-                        <span class="section-sub-text">
-                            <i class="bi bi-tag-fill small me-1">{{ act.title }}</i>
-                        </span>
-                    </div>
+      <div class="scroll-area">
+        {% for act in block.items %}
+        <div class="eval-item-card">
+          <!-- 1행: 소메뉴 (태그 형태) -->
+          <div class="card-row-top">
+            <span class="sub-cat-label">
+              {{ act.sub_category|default:act.get_category_display }}
+            </span>
+          </div>
 
-                    <!-- 2행: 기한 | 선생님 | 상태 -->
-                    <div class="card-row-bottom">
-                        <!-- 기한 정보 -->
-                        <div class="meta-deadline">
-                            <i class="bi bi-clock me-1"></i>
-                            {{ act.deadline|date:"m/d H:i"|default:"기한없음" }}
-                        </div>
+          <!-- 중앙: 주제 및 상세 영역 (위계 분리) -->
+          <div class="item-title">
+            <span class="main-title-text"
+              >{{ act.section|default:"일반 활동" }}</span
+            >
+            <span class="section-sub-text">
+              <i class="bi bi-tag-fill small me-1">{{ act.title }}</i>
+            </span>
+          </div>
 
-                        <!-- 선생님 정보 -->
-                        <div class="meta-teacher-center">
-                            <i class="bi bi-person-fill"></i>
-                            <span>{{ act.teacher.name }} 선생님</span>
-                        </div>
-
-                        <!-- 상태 버튼 영역 (우측 정렬) -->
-                        <div class="status-area text-end">
-                            <!-- 활동ID: {{ act.id }}, 답안존재: {{ act.my_answer|yesno:"Y,N" }} -->
-                            {% if act.my_answer %}
-                                {% if act.my_answer.submitted_at %}
-                                    <!-- 제출 완료 상태 (기한 내 수정 허용 여부에 따라 분기) -->
-                                    {% if not act.deadline or now <= act.deadline %}
-                                        {% if act.allow_edit_after_submission %}
-                                            <a href="{% url 'take_test' act.id %}" class="btn-student-action state-ready">답안 수정하기</a>
-                                        {% else %}
-                                            <span class="badge bg-success rounded-pill px-3 py-2 fw-bold" style="font-size: 0.72rem; min-width: 80px;">제출 완료</span>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="badge bg-success rounded-pill px-3 py-2 fw-bold" style="font-size: 0.72rem; min-width: 80px;">제출 완료</span>
-                                    {% endif %}
-                                {% else %}
-                                    <!-- 응시 중 상태 (제출 버튼 안 누름) -->
-                                    <a href="{% url 'take_test' act.id %}" class="btn-student-action state-ready" style="background: linear-gradient(135deg, #8E44AD 0%, #6C3483 100%) !important;">응시 계속하기</a>
-                                {% endif %}
-                            {% elif act.deadline and now > act.deadline %}
-                                <!-- 미응시인데 기한 종료 -->
-                                <span class="badge bg-secondary rounded-pill px-3 py-2 fw-bold" style="font-size: 0.72rem; min-width: 80px;">제출 기한 종료</span>
-                            {% else %}
-                                <!-- 완전 신규 응시 -->
-                                <a href="{% url 'take_test' act.id %}" class="btn-student-action state-ready">응시 가능</a>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
+          <!-- 2행: 기한 | 선생님 | 상태 -->
+          <div class="card-row-bottom">
+            <!-- 기한 정보 -->
+            <div class="meta-deadline">
+              <i class="bi bi-clock me-1"></i>
+              {{ act.deadline|date:"m/d H:i"|default:"기한없음" }}
             </div>
-        </div>
-        {% empty %}
-        <div class="col-12 text-center py-5">
-            <p class="text-muted">진행 중인 활동이 없습니다.</p>
+
+            <!-- 선생님 정보 -->
+            <div class="meta-teacher-center">
+              <i class="bi bi-person-fill"></i>
+              <span>{{ act.teacher.name }} 선생님</span>
+            </div>
+
+            <!-- 상태 버튼 영역 (우측 정렬) -->
+            <div class="status-area">
+              {% if act.my_answer and act.my_answer.submitted_at %}
+              <!-- 1순위: 제출 완료 -->
+              <span
+                class="badge bg-success rounded-pill px-3 py-2 fw-bold"
+                style="font-size: 0.72rem; min-width: 80px"
+                >제출 완료</span
+              >
+              {% elif act.deadline and now > act.deadline %}
+              <!-- 2순위: 기한 종료 (미제출 시) -->
+              <span
+                class="badge bg-secondary rounded-pill px-3 py-2 fw-bold"
+                style="font-size: 0.72rem; min-width: 80px"
+                >제출 기한 종료</span
+              >
+              {% elif act.my_answer %}
+              <!-- 3순위: 작성 중 (미제출, 기한 남음) -->
+              <a
+                href="{% url 'take_test' act.id %}"
+                class="btn-student-action state-working"
+                >이어 쓰기</a
+              >
+              {% else %}
+              <!-- 4순위: 신규 응시 (기한 남음) -->
+              <a
+                href="{% url 'take_test' act.id %}"
+                class="btn-student-action state-ready"
+                >응시 하기</a
+              >
+              {% endif %}
+            </div>
+          </div>
         </div>
         {% endfor %}
+      </div>
     </div>
+    {% empty %}
+    <div class="col-12 text-center py-5">
+      <p class="text-muted">진행 중인 활동이 없습니다.</p>
+    </div>
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}
