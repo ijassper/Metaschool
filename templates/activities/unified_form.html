@@ -263,7 +263,13 @@
                 <div class="col-md-9 px-4">
                     <input type="text" name="q{{ i }}_title" class="form-control border-0 shadow-sm p-3 bg-white" 
                         value="{% if i == '1' %}{{ activity.q1_title|default:config.default_q.0 }}{% elif i == '2' %}{% if activity.q2_title %}{{ activity.q2_title }}{% else %}{% endif %}{% else %}{% if activity.q3_title %}{{ activity.q3_title }}{% else %}{% endif %}{% endif %}" 
-                        {% if i == '1' %}placeholder="예: 평가문항에 대한 답안을 작성하세요." required{% elif i == '2' %}placeholder="예: 이 기사에 대한 자신의 생각을 한 줄로 써보세요."{% else %}placeholder="예: 앞으로의 다짐을 적어보세요."{% endif %}>
+                        {% if i == '1' %}
+                            placeholder="예: 평가문항에 대한 답안을 작성하세요." required
+                        {% elif i == '2' %}
+                            placeholder="예: 이 기사에 대한 자신의 생각을 한 줄로 써보세요."
+                        {% else %}
+                            placeholder="예: 앞으로의 다짐을 적어보세요."
+                        {% endif %}>
                 </div>
             </div>
             {% endfor %}
