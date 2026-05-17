@@ -38,10 +38,16 @@ def unified_create(request):
         def parse_dt(dt_str):
             if not dt_str: return None
             try:
-                clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
-                naive_dt = datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
+                # 24시간 형식 파싱 (예: 2026. 05. 17. 14:00)
+                naive_dt = datetime.strptime(dt_str, "%Y. %m. %d. %H:%M")
                 return make_aware(naive_dt)
-            except: return None
+            except ValueError:
+                try:
+                    # 기존 12시간 형식(오전/오후) 호환성 유지
+                    clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
+                    naive_dt = datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
+                    return make_aware(naive_dt)
+                except: return None
 
         # [수정: 섹션 2 평가 문항 처리] 
         # 루프 방식 대신 HTML의 name="question"에서 직접 가져와 유실을 방지합니다.
@@ -228,10 +234,16 @@ def unified_update(request, activity_id):
         def parse_dt(dt_str):
             if not dt_str: return None
             try:
-                clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
-                naive_dt = datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
+                # 24시간 형식 파싱 (예: 2026. 05. 17. 14:00)
+                naive_dt = datetime.strptime(dt_str, "%Y. %m. %d. %H:%M")
                 return make_aware(naive_dt)
-            except: return None
+            except ValueError:
+                try:
+                    # 기존 12시간 형식(오전/오후) 호환성 유지
+                    clean_dt = dt_str.replace('오후', 'PM').replace('오전', 'AM')
+                    naive_dt = datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
+                    return make_aware(naive_dt)
+                except: return None
 
         # ------------------------------------------------
         # 3. [핵심 수정] 데이터 업데이트 (실제 DB 반영)
