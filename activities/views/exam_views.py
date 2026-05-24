@@ -110,7 +110,7 @@ def take_test(request, activity_id):
         'question': question,  # [추가] 템플릿에서 문항 정보를 쉽게 쓰기 위해
         'answer': answer,
         'answer_id': answer.id,
-        'is_demo': is_demo,    # [추가] 시연 모드 여부 전달 (복붙 허용 로직용)
+        'is_demo': 'true' if is_demo else 'false',    # [추가] 시연 모드 여부 전달 (복붙 허용 로직용)
     })
 
 # [2] 보안 및 활동 로그 저장 API

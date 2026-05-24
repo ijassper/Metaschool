@@ -1,10 +1,60 @@
 <!-- 학생 선택 모달 (글로벌 공유) -->
+<style>
+    /* ===== 학생 선택 모달 전용 그리드 스타일 ===== */
+    /* 학생 명단: 5열 세로 흐름 배치 (CSS Columns) */
+    .student-grid-container {
+        column-count: 5;
+        column-gap: 1rem;
+        column-rule: 1px solid #eee;
+    }
+    /* 반응형: 화면이 좁아질 때 열 수 축소 */
+    @media (max-width: 1200px) {
+        .student-grid-container { column-count: 4; }
+    }
+    @media (max-width: 992px) {
+        .student-grid-container { column-count: 3; }
+    }
+    @media (max-width: 576px) {
+        .student-grid-container { column-count: 2; }
+    }
+    /* 학생 아이템: 열 경계에서 잘리지 않게 */
+    #studentSelectModal .student-item {
+        break-inside: avoid;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-bottom: 0.4rem;
+        padding: 2px 4px;
+        border-radius: 6px;
+        transition: background 0.15s;
+    }
+    #studentSelectModal .student-item:hover {
+        background: rgba(142, 68, 173, 0.06);
+    }
+    /* form-check 정렬 보정 */
+    #studentSelectModal .student-item.form-check {
+        padding-left: 0;
+    }
+    #studentSelectModal .student-item .form-check-input {
+        flex-shrink: 0;
+        margin-top: 0;
+    }
+    /* 접기/펼치기 버튼 */
+    #studentSelectModal .toggle-btn {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    #studentSelectModal .toggle-btn:hover {
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+</style>
 <div class="modal fade" id="studentSelectModal" tabindex="-1" aria-labelledby="studentSelectModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content rounded-5" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
             <div class="modal-header border-0 bg-white">
                 <h5 class="modal-title fw-bold" id="studentSelectModalLabel" style="color: #8E44AD;">
-                    <i class="bi bi-people-fill me-2" style="color: #8E44AD;"></i>{{ selector_label|default:"평가 대상" }} 선택
+                    <i class="bi bi-people-fill me-2" style="color: #8E44AD;"></i>{{ modal_title|default:"평가 대상 선택" }}
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -18,10 +68,19 @@
                         <i class="bi bi-x-circle"></i> 선택 해제
                     </button>
                 </div>
+                <!-- 실시간 검색바 추가 -->
+                <div class="mb-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 rounded-start-pill">
+                            <i class="bi bi-search text-muted"></i>
+                        </span>
+                        <input type="text" id="modalStudentSearch" class="form-control border-start-0 rounded-end-pill" placeholder="학년, 반, 또는 학생 이름 검색..." style="box-shadow: none;">
+                    </div>
+                </div>
 
                 <!-- 학생 트리 구조 -->
                 {% for grade_info in student_tree %}
-                <div class="mb-3 border rounded p-3">
+                <div class="mb-3 border rounded p-3 grade-section">
                     <!-- 학년 -->
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="form-check fw-bold text-primary mb-0">
@@ -37,7 +96,7 @@
                     
                     <div class="collapse show ms-2 mt-2 border-top pt-2" id="collapse-grade-{{ grade_info.grade }}">
                         {% for class_info in grade_info.classes %}
-                        <div class="mb-3">
+                        <div class="mb-3 class-section">
                             <!-- 반 -->
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <div class="form-check fw-bold text-dark mb-0">
@@ -171,6 +230,10 @@
         console.log('선택된 학생 IDs:', selectedIds);
         console.log('콤마 필드 값:', selectedIds.join(','));
         console.log('JSON 필드 값:', JSON.stringify(selectedIds));
+
+        // 3) [추가] 선택 완료 시 커스텀 이벤트 전송 (학생 명렬표 페이지 등에서 활용)
+        const event = new CustomEvent('studentSelectionCompleted', { detail: { selectedIds: selectedIds } });
+        document.dispatchEvent(event);
     }
 
     // 폼 제출 시 데이터 동기화 강제 (글로벌 모달 대응) - 중복 방지를 위해 단일 리스너만 사용
@@ -205,19 +268,76 @@
         const studentSelectModal = document.getElementById('studentSelectModal');
         if (studentSelectModal) {
             studentSelectModal.addEventListener('show.bs.modal', function () {
-                // 모달이 열릴 때 기존 선택된 학생들 체크 상태 복구
+                // 1️⃣ Reset all checkboxes
+                document.querySelectorAll('#studentSelectModal input[type="checkbox"]').forEach(cb => cb.checked = false);
+                // 2️⃣ Clear search input & show all items
+                const searchInput = document.getElementById('modalStudentSearch');
+                if (searchInput) { searchInput.value = ''; }
+                document.querySelectorAll('#studentSelectModal .student-item').forEach(item => item.style.display = 'flex');
+                // 3️⃣ Restore previously selected students if any
                 {% if current_targets %}
                     const currentTargets = {{ current_targets|safe }};
                     if (Array.isArray(currentTargets)) {
                         currentTargets.forEach(studentId => {
                             const checkbox = document.getElementById('s_' + studentId);
-                            if (checkbox) {
-                                checkbox.checked = true;
-                            }
+                            if (checkbox) { checkbox.checked = true; }
                         });
                     }
                 {% endif %}
-                updateSummary(); // 상태 업데이트
+                // 4️⃣ Update summary UI
+                updateSummary();
+            });
+        }
+    });
+
+    // 실시간 모달 내 검색 기능
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById('modalStudentSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                const query = e.target.value.trim().toLowerCase();
+                const gradeSections = document.querySelectorAll('.grade-section');
+                
+                gradeSections.forEach(gradeSec => {
+                    const gradeLabelEl = gradeSec.querySelector('.parent-check + label');
+                    const gradeLabel = gradeLabelEl ? gradeLabelEl.textContent.toLowerCase() : '';
+                    const gradeMatches = gradeLabel.includes(query);
+                    let gradeVisible = gradeMatches;
+                    
+                    const classSections = gradeSec.querySelectorAll('.class-section');
+                    classSections.forEach(classSec => {
+                        const classLabelEl = classSec.querySelector('.group-check + label');
+                        const classLabel = classLabelEl ? classLabelEl.textContent.toLowerCase() : '';
+                        const classMatches = classLabel.includes(query);
+                        let classVisible = classMatches || gradeMatches;
+                        
+                        const studentItems = classSec.querySelectorAll('.student-item');
+                        studentItems.forEach(item => {
+                            const studentLabel = item.textContent.toLowerCase();
+                            const studentMatches = studentLabel.includes(query);
+                            
+                            if (studentMatches || classMatches || gradeMatches) {
+                                item.style.setProperty('display', 'flex', 'important');
+                                classVisible = true;
+                            } else {
+                                item.style.setProperty('display', 'none', 'important');
+                            }
+                        });
+                        
+                        if (classVisible) {
+                            classSec.style.setProperty('display', 'block', 'important');
+                            gradeVisible = true;
+                        } else {
+                            classSec.style.setProperty('display', 'none', 'important');
+                        }
+                    });
+                    
+                    if (gradeVisible) {
+                        gradeSec.style.setProperty('display', 'block', 'important');
+                    } else {
+                        gradeSec.style.setProperty('display', 'none', 'important');
+                    }
+                });
             });
         }
     });

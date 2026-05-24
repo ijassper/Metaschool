@@ -3,17 +3,18 @@
 
 {% block content %}
 <style>
-    /* Ingrid 전용 학생 관리 스타일 */
-    .student-mgmt-wrapper { padding: 20px; }
-    .content-card {
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
-        border-radius: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+    /* ===== unified_form.html 디자인 시스템 동기화 ===== */
+
+    /* 섭션 카드 공통 스타일 (유니파이드 폼과 동일) */
+    .form-section-card {
+        border: 1px solid rgba(0,0,0,0.05);
+        border-radius: 24px !important;
+        transition: 0.3s;
     }
+
+    /* 테이블 헤더 */
     .table thead th { 
-        background-color: #f8f9fa; 
+        background-color: rgba(142, 68, 173, 0.06); 
         color: #64748b; 
         font-weight: 700; 
         border-top: none;
@@ -21,7 +22,7 @@
         padding: 15px;
     }
     .student-row:hover { background-color: #fcfaff !important; }
-    
+
     /* 일괄 작업 플로팅 바 */
     #bulkActionBar {
         display: none; position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
@@ -30,15 +31,9 @@
         animation: slideUp 0.3s ease-out;
     }
     @keyframes slideUp { from { bottom: -100px; } to { bottom: 40px; } }
-
     .btn-action-pill { border-radius: 50px; padding: 5px 15px; font-weight: 600; font-size: 0.8rem; }
 
-    /* 1. 학급 선택 드롭다운 최상위 고정 */
-    .dropdown-menu {
-        z-index: 1060 !important; /* 부트스트랩 모달급 우선순위 */
-    }
-
-    /* 2. 학생 등록 센터 버튼 인그리드 컬러 */
+    /* 학생 등록 센터 버튼 인그리드 켼러 */
     .btn-ingrid-main {
         background: var(--ingrid-gradient) !important;
         color: white !important;
@@ -46,135 +41,148 @@
         box-shadow: 0 4px 15px rgba(142, 68, 173, 0.3);
         transition: 0.3s;
     }
-    .btn-ingrid-main:hover {
-        transform: translateY(-2px);
-        filter: brightness(1.1);
-    }
+    .btn-ingrid-main:hover { transform: translateY(-2px); filter: brightness(1.1); }
 
-    /* 3. 로그인 상태 점 스타일 */
-    .status-dot {
-        width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px;
-    }
+    /* 로그인 상태 점 */
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
     .status-online { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
     .status-offline { background-color: #bdc3c7; }
+
+    /* 입력츽 포커스 (unified_form과 동일) */
+    .form-control:focus {
+        border-color: #8E44AD !important;
+        box-shadow: 0 0 0 0.25rem rgba(142, 68, 173, 0.1) !important;
+    }
 </style>
 
-<div class="student-mgmt-wrapper">
-    <!-- 상단 헤더 -->
-    <div class="d-flex justify-content-between align-items-end mb-4 px-2">
+<div class="container py-4">
+
+    <!-- 상단 헤더 (유니파이드 폼과 동일한 레이아웃) -->
+    <div class="d-flex align-items-center justify-content-between mb-4 px-2">
         <div>
-            <h2 class="fw-bold" style="letter-spacing: -1px; color: #1e293b;">학생 명렬표 관리</h2>
-            <p class="text-muted small mb-0">현재 등록된 우리 학교 학생들을 확인하고 일괄 관리합니다.</p>
+            <h2 class="fw-bold" style="color: var(--ingrid-primary); letter-spacing: -1.5px;">
+                <i class="bi bi-people-fill me-2"></i>학생 명렬표 관리
+            </h2>
+            <p class="text-muted mb-0">등록된 학생을 확인하고 일괄 관리합니다.</p>
         </div>
-        <div class="d-flex gap-2">
-            <!-- 학생 등록 허브로 이동하는 버튼 -->
+        
+    </div>
+
+    <!-- [섹션 1] 필터 도구 모음 -->
+    <div class="card form-section-card p-4 mb-4" style="background-color: #E9E2FF;">
+        <h5 class="fw-bold mb-3" style="color: #495057;">
+            <i class="bi bi-funnel-fill me-2" style="color: #8E44AD;"></i> 학급 / 학생 필터
+        </h5>
+        <form method="get" id="filterForm" class="d-flex align-items-center gap-2 flex-wrap">
+            <!-- 모달에서 선택 완료된 학생 ID 저장 -->
+            <div id="hiddenSelectedStudents">
+                {% for s_id in selected_student_ids %}
+                    <input type="hidden" name="student_id" value="{{ s_id }}">
+                {% endfor %}
+            </div>
+            <input type="hidden" id="target_students_data" name="target_students_data">
+            <input type="hidden" id="id_selected_students_json" name="selected_students_json">
+
+            <!-- 학급/학생 선택 버튼 -->
+            <button type="button"
+                    class="btn rounded-pill px-4 fw-bold d-flex align-items-center gap-2 shadow-sm bg-white"
+                    data-bs-toggle="modal" data-bs-target="#studentSelectModal"
+                    style="border: 2px solid #8E44AD; color: #8E44AD; white-space: nowrap;">
+                <i class="bi bi-people-fill"></i>
+                학급 / 학생 선택{% if students %} <span class="badge rounded-pill" style="background: #8E44AD;">{{ students|length }}명</span>{% endif %}
+            </button>
+
+            <!-- 이름 검색 -->
+            <div class="input-group shadow-sm" style="width: 220px;">
+                <input type="text" name="q"
+                       class="form-control rounded-start-pill border-end-0 bg-white border-0"
+                       placeholder="학생 이름 검색" value="{{ current_q }}">
+                <button type="submit" class="btn bg-white border border-start-0 rounded-end-pill px-3">
+                    <i class="bi bi-search" style="color: #8E44AD;"></i>
+                </button>
+            </div>
+
+            <!-- 필터 초기화 -->
+            <a href="{% url 'student_list' %}" class="btn bg-white rounded-pill border-0 shadow-sm px-3 text-muted" title="필터 초기화">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> 초기화
+            </a>
+
+            <!-- 오른쪽 액션 버튼 그룹 -->
+            <div class="d-flex gap-2 ms-auto">
             <a href="{% url 'student_create_hub' %}" class="btn btn-ingrid-main rounded-pill px-4 shadow-sm fw-bold">
                 <i class="bi bi-person-plus-fill me-1"></i> 학생 등록 센터
             </a>
-
-            <!-- 엑셀 내보내기 버튼 (onclick 함수와 연결) -->
-            <button class="btn btn-outline-success rounded-pill px-4 shadow-sm fw-bold" onclick="exportExcel()">
+            
+            <button class="btn btn-outline-success rounded-pill px-4 shadow-sm fw-bold" onclick="exportExcel()" type="button">
                 <i class="bi bi-file-earmark-excel me-1"></i> 명단 내보내기
             </button>
         </div>
-    </div>
-
-    <!-- 1. 필터 및 검색 영역 -->
-    <div class="content-card mb-4 p-3">
-        <form method="get" id="filterForm" class="row g-2 align-items-center">
-            <div class="col-auto">
-                <div class="dropdown">
-                    <button class="btn btn-white border dropdown-toggle rounded-pill px-3 shadow-sm bg-white" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                        <i class="bi bi-filter-circle me-1 text-primary"></i> 학급 선택
-                    </button>
-                    <div class="dropdown-menu p-3 shadow-lg border-0 rounded-4" style="min-width: 280px; max-height: 450px; overflow-y: auto;">
-                        <h6 class="dropdown-header fw-bold mb-3 border-bottom pb-2">조회 대상 필터링</h6>
-                        {% for item in filter_data %}
-                        <div class="mb-3 px-2">
-                            <div class="form-check fw-bold text-primary">
-                                <input class="form-check-input parent-check" type="checkbox" id="g_{{ item.grade }}" onchange="toggleGrade('{{ item.grade }}')">
-                                <label class="form-check-label" for="g_{{ item.grade }}">{{ item.grade }}학년 전체</label>
-                            </div>
-                            <div class="ms-3 border-start ps-3 mt-2">
-                                {% for c in item.classes %}
-                                <div class="form-check mb-1">
-                                    <input class="form-check-input child-check child-g-{{ item.grade }}" type="checkbox" name="target" 
-                                           value="{{ item.grade }}_{{ c }}" id="c_{{ item.grade }}_{{ c }}"
-                                           {% if selected_targets %}{% for t in selected_targets %}{% if t == item.grade|stringformat:"s"|add:"_"|add:c|stringformat:"s" %}checked{% endif %}{% endfor %}{% endif %}>
-                                    <label class="form-check-label text-dark" for="c_{{ item.grade }}_{{ c }}">{{ c }}반</label>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                        <div class="d-grid mt-3"><button type="submit" class="btn btn-primary rounded-pill">필터 적용</button></div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-auto ms-auto">
-                <div class="input-group">
-                    <input type="text" name="q" class="form-control rounded-start-pill border-end-0 bg-white" style="width: 200px;" placeholder="이름으로 검색" value="{{ current_q }}">
-                    <button type="submit" class="btn btn-white border border-start-0 rounded-end-pill px-3 shadow-sm bg-white"><i class="bi bi-search text-primary"></i></button>
-                </div>
-            </div>
-            <div class="col-auto">
-                <a href="{% url 'student_list' %}" class="btn btn-light rounded-circle shadow-sm"><i class="bi bi-arrow-counterclockwise"></i></a>
-            </div>
         </form>
     </div>
 
-    <!-- 2. 학생 목록 테이블 -->
-    <div class="content-card">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle text-center mb-0" id="studentTable">
-                    <thead>
-                        <tr>
-                            <th style="width: 60px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
-                            <th>연번</th>
-                            <th>학년-반-번호</th>
-                            <th>이름</th>
-                            <th>접속상태</th>
-                            <th>아이디(이메일)</th>
-                            <th>소속 학교</th>
-                            <th>관리</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for student in students %}
-                        <tr class="student-row">
-                            <td><input type="checkbox" name="student_ids" value="{{ student.id }}" class="form-check-input student-check" data-name="{{ student.name }}"></td>
-                            <td class="text-muted">{{ forloop.counter }}</td>
-                            <td class="fw-bold text-dark">{{ student.grade }} - {{ student.class_no }} - {{ student.number }}</td>
-                            <td class="fw-extrabold text-primary">{{ student.name }}</td>
-                            <td>
-                                {% if student.user.last_login %}
-                                    {% if student.user.last_login|date:"Ymd" == today|date:"Ymd" %}
-                                        <span class="status-dot status-online"></span> <span class="small">오늘 접속</span>
-                                    {% else %}
-                                        <span class="status-dot status-offline"></span> <span class="small text-muted">{{ student.user.last_login|date:"m-d" }}</span>
-                                    {% endif %}
+    <!-- [섹션 2] 학생 목록 테이블 -->
+    <div class="card form-section-card p-0 mb-4 bg-white shadow-sm">
+        <div class="px-4 pt-4 pb-2 border-bottom" style="background-color: #f8f7ff; border-radius: 24px 24px 0 0;">
+            <h5 class="fw-bold mb-0" style="color: #495057;">
+                <i class="bi bi-table me-2 text-primary"></i> 선택된 학생 목록
+                {% if students %}<span class="badge rounded-pill ms-2" style="background: #8E44AD; font-size: 0.8rem;">{{ students|length }}명</span>{% endif %}
+            </h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle text-center mb-0" id="studentTable">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
+                        <th>연번</th>
+                        <th>학년-반-번호</th>
+                        <th>이름</th>
+                        <th>접속상태</th>
+                        <th>아이디(이메일)</th>
+                        <th>소속 학교</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr class="student-row">
+                        <td><input type="checkbox" name="student_ids" value="{{ student.id }}" class="form-check-input student-check" data-name="{{ student.name }}"></td>
+                        <td class="text-muted">{{ forloop.counter }}</td>
+                        <td class="fw-bold text-dark">{{ student.grade }} - {{ student.class_no }} - {{ student.number }}</td>
+                        <td class="fw-extrabold text-primary">{{ student.name }}</td>
+                        <td>
+                            {% if student.user.last_login %}
+                                {% if student.user.last_login|date:"Ymd" == today|date:"Ymd" %}
+                                    <span class="status-dot status-online"></span> <span class="small">오늘 접속</span>
                                 {% else %}
-                                    <span class="status-dot status-offline"></span> <span class="small text-muted">미접속</span>
+                                    <span class="status-dot status-offline"></span> <span class="small text-muted">{{ student.user.last_login|date:"m-d" }}</span>
                                 {% endif %}
-                            </td>
-                            <td class="small font-monospace">{{ student.email }}</td>
-                            <td class="small text-muted">{{ student.teacher.school.name }}</td>
-                            <td>
-                                <div class="d-flex justify-content-center gap-1">
-                                    <a href="{% url 'reset_student_password' student.id %}" class="btn btn-light btn-action-pill border text-warning" onclick="return confirm('{{ student.name }} 학생의 비밀번호를 초기화하시겠습니까?');">초기화</a>
-                                    <a href="{% url 'student_delete' student.id %}" class="btn btn-light btn-action-pill border text-danger" onclick="return confirm('정말 삭제하시겠습니까? 계정도 영구 삭제됩니다.');"><i class="bi bi-trash"></i></a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                            {% else %}
+                                <span class="status-dot status-offline"></span> <span class="small text-muted">미접속</span>
+                            {% endif %}
+                        </td>
+                        <td class="small font-monospace">{{ student.email }}</td>
+                        <td class="small text-muted">{{ student.teacher.school.name }}</td>
+                        <td>
+                            <div class="d-flex justify-content-center gap-1">
+                                <a href="{% url 'reset_student_password' student.id %}" class="btn btn-light btn-action-pill border text-warning" onclick="return confirm('{{ student.name }} 학생의 비밀번호를 초기화하시겠습니까?');">초기화</a>
+                                <a href="{% url 'student_delete' student.id %}" class="btn btn-light btn-action-pill border text-danger" onclick="return confirm('정말 삭제하시겠습니까? 계정도 영구 삭제됩니다.')"><i class="bi bi-trash"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            조건에 해당하는 학생이 없습니다.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
+
 
 <!-- 학년/반 일괄 진급 처리 모달 -->
 <div class="modal fade" id="promoteModal" tabindex="-1" aria-hidden="true">
@@ -329,10 +337,38 @@
         location.href = "{% url 'student_export_excel' %}";
     }
 
-    function toggleGrade(grade) {
-        const parent = document.getElementById('g_' + grade);
-        const children = document.querySelectorAll('.child-g-' + grade);
-        children.forEach(cb => cb.checked = parent.checked);
-    }
+    // 모달 선택 완료 이벤트 핸들러 연동
+    document.addEventListener('studentSelectionCompleted', function(e) {
+        const selectedIds = e.detail.selectedIds;
+        const container = document.getElementById('hiddenSelectedStudents');
+        if (container) {
+            container.innerHTML = '';
+            selectedIds.forEach(id => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'student_id';
+                input.value = id;
+                container.appendChild(input);
+            });
+            // 필터링 적용을 위해 폼 제출
+            document.getElementById('filterForm').submit();
+        }
+    });
+
+    // 이 페이지에서 모달 오픈 시 타이틀 동적 변경
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('studentSelectModal');
+        if (modal) {
+            modal.addEventListener('show.bs.modal', function () {
+                const titleEl = document.getElementById('studentSelectModalLabel');
+                if (titleEl) {
+                    // 아이콘은 유지하고 텍스트만 변경
+                    const icon = titleEl.querySelector('i');
+                    titleEl.textContent = '학급/학생 선택';
+                    if (icon) titleEl.prepend(icon);
+                }
+            });
+        }
+    });
 </script>
 {% endblock %}

@@ -87,7 +87,7 @@
             height: auto; 
             vertical-align: top; 
             text-align: left; 
-            padding: 20px; 
+            padding: 5px 20px; 
             line-height: 1.8; 
             font-size: 11pt;
             background-color: #f8f9fa !important;
@@ -141,7 +141,7 @@
 
     <div class="no-print-bar">
         <!-- 1. 저장 버튼: 누르면 안내 메시지 후 인쇄창 -->
-        <button onclick="savePdf()" class="btn-save">💾 PDF 저장</button>
+        <!-- <button onclick="savePdf()" class="btn-save">💾 PDF 저장</button> -->
         <!-- 2. 인쇄 버튼: 즉시 인쇄창 -->
         <button onclick="window.print()" class="btn-print">🖨️ PDF 인쇄</button>
     </div>
@@ -175,8 +175,8 @@
                         {% if s.my_answer and s.my_answer.content %}
                             <div class="student-answer-section answer-box-content">{{ s.my_answer.content }}</div>
                         {% else %}
-                            <div class="student-answer-section is-empty">
-                                <div class="answer-box-empty">미제출</div>
+                            <div class="student-answer-section is-empty d-flex align-items-center justify-content-center" style="min-height: 40px; padding: 5px 0;">
+                                <span class="answer-box-empty text-secondary fw-bold">미제출</span>
                             </div>
                         {% endif %}
                     </td>

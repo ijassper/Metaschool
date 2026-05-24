@@ -25,6 +25,7 @@ from .models import Student, CustomUser, School # 학교 모델 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate # AI 생성기 관련 모델 가져오기
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import Activity, Student, Answer  # 평가관리, 학생, 답안 모델 가져오기
+from activities.views.main_views import get_student_tree
 
 # 로그인 유지 기능이 포함된 커스텀 로그인 함수
 def login_view(request):
@@ -335,11 +336,12 @@ def student_list(request):
 
     # 3. 검색 조건 가져오기
     selected_targets = request.GET.getlist('target') 
+    selected_student_ids = request.GET.getlist('student_id')
     name_query = request.GET.get('q', '')
 
     # 4. 초기 진입 시 기본값 설정 (1학년 1반)
     # (검색어도 없고, 선택도 안 했을 때 데이터가 너무 많으면 느리므로 첫 반만 보여줌)
-    if not selected_targets and not name_query:
+    if not selected_targets and not selected_student_ids and not name_query:
         if filter_data:
             g = filter_data[0]['grade']
             c = filter_data[0]['classes'][0]
@@ -356,13 +358,22 @@ def student_list(request):
                 q_objects |= Q(grade=g, class_no=c)
         students = students.filter(q_objects)
 
+    if selected_student_ids:
+        students = students.filter(id__in=selected_student_ids)
+
     if name_query:
         students = students.filter(name__contains=name_query)
+
+    # 6. 현재 활성화된(화면에 보이는) 학생 IDs (모달 체크박스 상태 동기화용)
+    current_targets = list(map(str, students.values_list('id', flat=True)))
 
     context = {
         'students': students,
         'filter_data': filter_data,       # ★ 트리 데이터 전달
+        'student_tree': get_student_tree(request.user), # ★ 글로벌 모달 트리 데이터 전달
         'selected_targets': selected_targets, # ★ 선택 상태 유지
+        'selected_student_ids': selected_student_ids,
+        'current_targets': current_targets,
         'current_q': name_query,
     }
     

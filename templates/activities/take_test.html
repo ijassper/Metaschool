@@ -80,24 +80,220 @@
         justify-content: center;
         width: 100%;
     }
+
+    .text-2xl {
+        font-size: 1.5rem !important;
+    }
+    /* 평가 준비 페이지 2-Column 관련 스타일 (개편: 좌측 50%, 우측 50% 독립 스크롤) */
+    @media (min-width: 768px) {
+        .start-sidebar-col {
+            flex: 0 0 50% !important;
+            max-width: 50% !important;
+        }
+        .start-sidebar-col-inner {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 1.5rem !important;
+        }
+        .start-content-col {
+            flex: 0 0 50% !important;
+            max-width: 50% !important;
+            overflow: hidden !important; /* 데스크탑 전용: 컬럼 자체 스크롤 방지하여 카드 독립 스크롤 작동 */
+        }
+        /* 우측 평가문항 & 참고자료 각각 독립 스크롤 */
+        .start-content-col .card-scrollable {
+            flex-grow: 1 !important;
+            overflow-y: auto !important;
+            min-height: 0 !important; /* flexbox child scroll fix */
+        }
+        .start-sidebar-col::-webkit-scrollbar,
+        .start-content-col .card-scrollable::-webkit-scrollbar {
+            width: 6px;
+        }
+        .start-sidebar-col::-webkit-scrollbar-thumb,
+        .start-content-col .card-scrollable::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 10px;
+        }
+        
+        /* Tailwind-style Responsive Classes */
+        .md\:h-screen {
+            height: 100vh !important;
+        }
+        .md\:overflow-hidden {
+            overflow: hidden !important;
+        }
+        .md\:flex-row {
+            flex-direction: row !important;
+        }
+        .md\:h-full {
+            height: 100% !important;
+        }
+        .md\:overflow-y-auto {
+            overflow-y: auto !important;
+        }
+    }
+    @media (max-width: 767.98px) {
+        .start-sidebar-col {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        .start-sidebar-col-inner {
+            position: relative !important;
+            top: 0 !important;
+            height: auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 1.5rem !important;
+        }
+        .start-content-col {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin-top: 1.5rem;
+        }
+        #startOverlay {
+            overflow-y: auto !important;
+            height: 100% !important;
+        }
+    }
 </style>
-<!-- 1. 시험 시작 전 가림막 (전체 화면 유도용) -->
-<div id="startOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-white d-flex flex-column justify-content-center align-items-center" style="z-index: 9999;">
-    <div class="text-center">
-        <h1 class="fw-bold text-primary mb-4"><i class="bi bi-pencil-square"></i> 평가 준비</h1>
-        <div class="alert alert-warning text-start d-inline-block p-4 shadow-sm">
-            <h5 class="fw-bold border-bottom pb-2 mb-3">⚠️ 응시 주의사항</h5>
-            <ul class="mb-0">
-                <li><strong>전체 화면</strong>으로 시험이 진행됩니다.</li>
-                <li><strong>복사, 붙여넣기, 마우스 우클릭</strong>이 금지됩니다.</li>
-                <li>화면을 벗어나거나 다른 창을 띄우면(Alt+Tab) <strong>부정행위로 간주</strong>될 수 있습니다.</li>
-                <li>작성 중 <strong>임시 저장</strong>은 되지 않으니 주의하세요.</li>
-            </ul>
+<!-- 1. 시험 시작 전 가림막 (전체 화면 유도용) - Ingrid 2-Column Layout (5:5 분할) -->
+<div id="startOverlay" class="position-fixed top-0 start-0 w-100 md:h-screen md:overflow-hidden" style="z-index: 9999; background-color: #F3F0FF; box-sizing: border-box; padding: 2.5rem;">
+    <!-- Main Flex Row Container -->
+    <div class="d-flex flex-column md:flex-row md:h-full w-100 gap-4" style="box-sizing: border-box;">
+        
+        <!-- 좌측: Sidebar & Header (50% 분할) -->
+        <div class="start-sidebar-col d-flex flex-column md:h-full md:overflow-y-auto">
+            <!-- Inner Container -->
+            <div class="start-sidebar-col-inner">
+                
+                <!-- 상단 그룹 (활동 헤더 + 분량/수정 + 작성조건 + 응시 주의사항) -->
+                <div class="d-flex flex-column gap-3">
+                    <!-- 1. 활동 제목/주제 (헤더) -->
+                    <div class="card border border-1 border-secondary border-opacity-25" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 24px;">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <span class="badge rounded-pill px-3 py-2 fw-bold text-white" style="background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));">
+                                    <i class="bi bi-tag-fill me-1"></i> {{ activity.get_category_display }}
+                                </span>
+                                {% if activity.sub_category %}
+                                <span class="badge rounded-pill bg-light text-secondary border px-3 py-2 fw-bold">
+                                    {{ activity.sub_category }}
+                                </span>
+                                {% endif %}
+                                {% if activity.section %}
+                                <span class="badge rounded-pill bg-light text-secondary border px-3 py-2 fw-bold">
+                                    {{ activity.section }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <h2 class="fw-bold text-dark mb-0" style="letter-spacing: -1.5px; font-size: 1.8rem; line-height: 1.3;">
+                                {{ activity.title }}
+                            </h2>
+                        </div>
+                    </div>
+
+                    <!-- 2. 분량 제한, 수정 허용 (한 줄 Row 정렬) -->
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="card border border-1 border-secondary border-opacity-25 h-100" style="background: rgba(255, 255, 255, 0.8); border-radius: 16px;">
+                                <div class="card-body p-3 text-center">
+                                    <div class="text-secondary fw-bold" style="font-size: 0.95rem;">
+                                        <i class="bi bi-file-earmark-text me-1 text-success"></i> 분량 제한
+                                    </div>
+                                    <div class="text-dark fw-bold mt-1" style="font-size: 0.95rem;">
+                                        {% if activity.char_limit > 0 %}{{ activity.char_limit }}자 이내{% else %}무제한{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card border border-1 border-secondary border-opacity-25 h-100" style="background: rgba(255, 255, 255, 0.8); border-radius: 16px;">
+                                <div class="card-body p-3 text-center">
+                                    <div class="text-secondary fw-bold" style="font-size: 0.95rem;">
+                                        <i class="bi {% if activity.allow_edit_after_submission %}bi-check-circle text-info{% else %}bi-slash-circle text-danger{% endif %} me-1"></i> 수정 허용
+                                    </div>
+                                    <div class="text-dark fw-bold mt-1" style="font-size: 0.95rem;">
+                                        {% if activity.allow_edit_after_submission %}제출 후 수정 가능{% else %}최종 제출 후 불가{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. 작성 조건 상세 내용 (전체 표시) -->
+                    <div class="card border border-1 border-secondary border-opacity-25" style="background: rgba(255, 255, 255, 0.8); border-radius: 24px; min-height: 100px;">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold text-dark mb-2" style="font-size: 1.25rem;">
+                                <i class="bi bi-card-checklist me-1 text-primary"></i> 작성 조건
+                            </h6>
+                            <div class="text-secondary" style="font-size: 1.1rem; line-height: 2; white-space: pre-wrap;">
+                                {{ activity.conditions|default:"특별한 조건 없음" }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. 응시 주의사항 -->
+                    <div class="card border border-1 border-secondary border-opacity-25" style="border-radius: 24px; background-color: #FFF9DB; border-left: 5px solid #FFC107 !important;">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold text-dark mb-3" style="font-size: 1.05rem;"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> 응시 주의사항</h6>
+                            <ul class="mb-0 text-dark small" style="line-height: 1.8; padding-left: 1.25rem; font-size: 0.95rem;">
+                                <li><strong>전체 화면</strong>으로 시험이 진행되며 화면 이탈 기록이 남습니다.</li>
+                                <li><strong>복사, 붙여넣기, 마우스 우클릭</strong>이 금지됩니다.</li>
+                                <li>화면을 벗어나거나 다른 탭(창)으로 이동을 시도하면 부정행위로 간주될 수 있습니다.</li>
+                                <li>모든 특이사항은 선생님께 실시간 로그로 전송됩니다.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. 하단 버튼 영역 (고정) -->
+                <div class="card border border-1 border-secondary border-opacity-25" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 24px;">
+                    <div class="card-body p-4 d-flex flex-column gap-3">
+                        <button class="btn btn-lg px-5 py-3 rounded-pill fw-bold text-white w-100" 
+                                style="background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%)); border: none; font-size: 1.1rem; transition: transform 0.2s;" 
+                                onclick="startTest()"
+                                onmouseover="this.style.transform='scale(1.02)'" 
+                                onmouseout="this.style.transform='scale(1)'">
+                            <i class="bi bi-play-circle-fill me-2"></i> 네, 확인했습니다. 시험 시작하기
+                        </button>
+                        
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-lg w-100 py-3 rounded-pill fw-bold" style="border-width: 2px; font-size: 1.05rem; border-color: #adb5bd; color: #495057; background-color: rgba(255,255,255,0.5);">
+                            <i class="bi bi-arrow-left-circle me-2"></i> 대시보드로 돌아가기
+                        </a>
+                    </div>
+                </div>
+
+            </div>
         </div>
-        <br>
-        <button class="btn btn-primary btn-lg px-5 py-3 mt-4 fw-bold shadow" onclick="startTest()">
-            네, 확인했습니다. 시험 시작하기
-        </button>
+        
+        <!-- 우측: Main Content (50% 분할) -->
+        <div class="start-content-col d-flex flex-column gap-4 pe-lg-2 md:h-full">
+            
+            <!-- 섹션 2: 평가 문항 카드 -->
+            <div class="card border border-1 border-secondary border-opacity-25 card-scrollable" style="background: #F8F7FF; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 24px;">
+                <div class="card-body p-4 p-md-5">
+                    <h4 class="fw-bold mb-4 text-primary d-flex align-items-center">
+                        <i class="bi bi-pencil-square me-2 fs-4"></i> 평가 문항
+                    </h4>
+                    <div class="text-dark bg-white rounded-4 p-4 border border-light" style="white-space: pre-wrap; line-height: 1.8; font-size: 0.95rem; min-height: 200px;">{{ activity.question }}</div>
+                </div>
+            </div>
+
+            <!-- 섹션 3: 참고 자료 카드 -->
+            {% if activity.reference_material %}
+            <div class="card border border-1 border-secondary border-opacity-25 card-scrollable" style="background: #F8F7FF; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 24px; border: 2px solid #E3F2FD !important;">
+                <div class="card-body p-4 p-md-5">
+                    <h4 class="fw-bold mb-4 text-primary d-flex align-items-center">
+                        <i class="bi bi-journal-text me-2 fs-4"></i> 참고 자료
+                    </h4>
+                    <div class="text-dark bg-white rounded-4 p-4 border border-light" style="white-space: pre-wrap; line-height: 1.8; font-size: 0.95rem; min-height: 150px;">{{ activity.reference_material }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
     </div>
 </div>
 
@@ -314,6 +510,10 @@
 
 <!-- ★ 통합 보안 및 응시 기능 스크립트 -->
 <script>
+    //[긴급 시연 패치] 보안 로직 강제 무력화
+    var IS_DEMO = 'true'; 
+    console.log("시연 모드 강제 활성화됨");
+    
     /**
      * [Ingrid Student Exam System - 보안 및 응시 제어 스크립트]
      */
@@ -323,7 +523,7 @@
     const charLimit = parseInt("{{ activity.char_limit|default:0 }}");
     const answerId = "{{ answer_id }}"; 
     const csrfToken = '{{ csrf_token }}';
-    const IS_DEMO = "{{ is_demo|yesno:'true,false' }}"; // 서버에서 온 데모 모드 여부
+    //const IS_DEMO = "{{ is_demo|yesno:'true,false' }}"; // 서버에서 온 데모 모드 여부
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
@@ -334,6 +534,9 @@
 
     /* 1.5. 클립보드 보안 기능 (보안 모드 전용) */
     function initSecurityMode() {
+        // [긴급 시연 패치] 데모 모드면 이 함수를 즉시 종료합니다.
+        if (IS_DEMO === 'true') return; 
+        
         if (EXAM_MODE !== 'CLOSED') return;
         
         const textareas = document.querySelectorAll('textarea.answer-input');
@@ -451,7 +654,7 @@
         testStarted = true;
         if (document.getElementById('startOverlay').classList.contains('d-none') === false) {
             // 보안 경고로 인해 다시 들어온 경우에만 로그 기록
-            sendLog('RE-ENTRY'); 
+            sendLog('재입장'); // [기록] 보안 경고 후 재입장
         }
         document.getElementById('startOverlay').classList.add('d-none');
         const container = document.getElementById('testContainer');

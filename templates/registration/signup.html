@@ -1,5 +1,35 @@
 {% extends 'registration/auth_base.html' %}
 
+{% block extra_css %}
+<style>
+    /* 1. 페이지 전체를 화면 높이에 맞춤 */
+    body {
+        height: 100vh;
+        width: 100vw;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        align-items: center;    /* 수직 중앙 정렬 핵심 */
+        justify-content: center; /* 수평 중앙 정렬 */
+        overflow: hidden !important; 
+    }
+
+    /* 2. 전체를 감싸는 래퍼를 화면에 꽉 차게 조절 */
+    .container {
+        height: 90vh; /* 화면 높이의 90%로 제한 */
+        display: flex;
+        align-items: center;
+        margin-top: 0 !important; /* 강사님 말씀대로 마진 제거 */
+    }
+
+    /* 3. 회원정보 입력 폼의 마진 제거 */
+    .form-container {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+    }
+</style>
+{% endblock %}
+
 {% block brand_title %}새로운 교육의 시작,<br>교사 회원가입{% endblock %}
 
 {% block auth_form %}
