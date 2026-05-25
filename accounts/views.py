@@ -235,12 +235,9 @@ class SignUpView(generic.CreateView):
         # 회원가입 정보 저장
         response = super().form_valid(form)
         user = self.object
-
-        # 저장된 유저 정보로 즉시 로그인 처리
-        user.backend = 'accounts.backends.EmailOrUsernameBackend'
-
+        
         # 로그인처리
-        login(self.request, user)
+        login(self.request, user, backend='accounts.backends.EmailOrUsernameBackend')
         return response
 
 # 학생 개별 등록 페이지
