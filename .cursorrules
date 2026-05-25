@@ -1,37 +1,25 @@
-# Ingrid Project Rules & Guidelines
+# [Task] 학생 관리 시스템 구조 개편(Multi-tenancy) 작업 재개
 
-## 1. Project Context
-- **Name**: Ingrid (AI-based School Evaluation Platform)
-- **Role**: You are a Senior Django/Frontend Engineer working on the Ingrid project.
-- **Mission**: Always prioritize Data Integrity, UX consistency, and Scalability.
+## 1. 개요
+이전에 서버 환경 제약(Antigravity Quota 제한)으로 중단되었던 '학교-선생님-학생(School-Teacher-Student)' 계층 구조 개편 작업을 수행합니다. 
+기존에 `Implementation Plan`을 통해 설계한 로직을 로컬 환경에서 안전하게 적용하겠습니다.
 
-## 2. Technology Stack
-- **Backend**: Python 3.11+, Django 6.0+
-- **Frontend**: Bootstrap 5, Vanilla JavaScript, HTML5/CSS3
-- **Database**: MySQL (via pymysql)
-- **Design System**: Glassmorphism (backdrop-filter: blur(14px)), rounded-24px corners.
+## 2. 작업 지시사항 (@Codebase)
+1. **상태 진단**: 
+   - 현재 `accounts/models.py`의 `CustomUser`와 `Student` 모델이 수정되어 있는지 확인하세요.
+   - 아직 수정되지 않았다면, 계획했던 `is_representative`와 `school` 외래키 추가 작업을 시작하세요.
 
-## 3. Core Architectural Principles
-- **Unified Engine**: All activity creation/update flows must go through `manage_views.py` (unified_create/update). Use `get_form_config` for dynamic forms.
-- **Data Bridge**: All UI-to-Model communication must use the JSON Data Bridge pattern (hidden inputs).
-- **State Logic**: Adhere to the 4-stage student status: [Not Started, In-Progress, Blank Submission, Submitted].
-- **Batch Analysis**: Use `batch_id` and `work_name` for all AI analysis results to prevent duplication.
+2. **데이터 안전 보호**:
+   - `Student` 모델의 기존 `teacher` 외래키는 `null=True`로 수정하여 데이터를 보존하세요.
+   - 마이그레이션 적용 전, 반드시 기존 데이터를 백업(또는 덤프)할 수 있는 가이드를 제시해주세요.
 
-## 4. Design Guidelines (Ingrid Theme)
-- **Rounded**: Every card, input, and button must use `rounded-24px` (or `rounded-pill`).
-- **Colors**:
-  - Primary Gradient: `#FF80B5` → `#8E44AD` (135 deg).
-  - Background: `#F3F0FF` (Light Purple).
-- **Cards**: All dynamic cards must apply Glassmorphism (`backdrop-filter: blur(14px)`, `bg-white/80`).
-- **Accent**: Use `.pastel-*` classes (purple, blue, green, yellow, orange, red, pink) for academic group differentiation.
+3. **구현 우선순위**:
+   - [Step 1] 모델 수정 및 마이그레이션 생성 (`makemigrations`).
+   - [Step 2] `migrate` 적용 전, 임시 학교 생성 로직이 포함된 데이터 마이그레이션 파일 작성.
+   - [Step 3] `activities/views/*.py`의 학생 필터링 로직을 `teacher` 기반에서 `school` 기반으로 교체.
+   - [Step 4] UI(템플릿)에서 `is_representative` 권한에 따른 버튼 노출 제어.
 
-## 5. Coding Conventions
-- **Data Binding**: Use `data-*` attributes for DOM-JS interaction.
-- **Separation of Concerns**: Avoid inline JS. Use `{% block extra_js %}` for scripts.
-- **Security**: Always sanitize inputs. Ensure PDF/Export features don't crash the server.
-- **Modularity**: Keep views split by function (manage_views.py, exam_views.py, etc.).
-
-## 6. Interaction
-- When asked to create or modify UI, prioritize the 5:5 2-Column Split-pane layout for complex information pages.
-- Always apply `p-4`, `rounded-24px` to cards.
-- When generating code, follow the existing project structure and standard Django patterns.
+## 3. 요구사항
+- 절대 데이터가 유실되지 않도록 하십시오.
+- `migration` 파일 작성 시 반드시 `transaction.atomic`을 사용하여 안전성을 확보하십시오.
+- 코드 수정 전, 현재 데이터베이스의 상태를 확인하고 필요한 경우 백업을 수행하세요.
