@@ -39,6 +39,11 @@ class CustomUser(AbstractUser):
         LEADER = 'LEADER', '학교 대표 교사'       # 중간 관리자
         ADMIN = 'ADMIN', '최고 관리자'           # 시스템 운영자 (superuser와 별개로 표시용)
 
+    class ApprovalStatus(models.TextChoices):
+        PENDING = 'PENDING', '승인 대기'
+        APPROVED = 'APPROVED', '승인 완료'
+        DENIED = 'DENIED', '승인 거절'
+
     # 이메일 필드를 명시적으로 선언하고 유일한 값(unique)으로 설정
     email = models.EmailField(verbose_name='아이디(이메일)', max_length=255, unique=True)
     
@@ -63,6 +68,13 @@ class CustomUser(AbstractUser):
 
     # 대표 교사 권한 (학생 등록/삭제 등 관리 권한)
     is_representative = models.BooleanField(default=False, verbose_name="대표 교사 여부")
+    is_approved = models.BooleanField(default=True, verbose_name="승인 여부")
+    approval_status = models.CharField(
+        max_length=20,
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.APPROVED,
+        verbose_name="승인 상태",
+    )
 
     REQUIRED_FIELDS = ['email', 'name']
 

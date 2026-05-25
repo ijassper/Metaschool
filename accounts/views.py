@@ -30,9 +30,12 @@ from activities.views.main_views import get_accessible_students, get_student_tre
 
 def can_manage_students(user):
     return bool(
-        getattr(user, "is_representative", False)
-        or getattr(user, "role", None) in ["LEADER", "ADMIN"]
-        or getattr(user, "is_superuser", False)
+        getattr(user, "is_approved", False)
+        and (
+            getattr(user, "is_representative", False)
+            or getattr(user, "role", None) in ["LEADER", "ADMIN"]
+            or getattr(user, "is_superuser", False)
+        )
     )
 
 # 로그인 유지 기능이 포함된 커스텀 로그인 함수
@@ -86,6 +89,13 @@ def login_view(request):
                 request.session.set_expiry(0)
             # --- [로그인 유지 로직 끝] ---
             
+            if user.role != 'STUDENT':
+                if user.approval_status == CustomUser.ApprovalStatus.DENIED:
+                    messages.error(request, "대표 교사가 승인을 거절했습니다. 내 정보 수정에서 학교 정보를 확인한 뒤 승인을 재요청하세요.")
+                    return redirect('/accounts/profile-settings/?tab=profile')
+                if user.approval_status == CustomUser.ApprovalStatus.PENDING or not user.is_approved:
+                    messages.warning(request, "승인 대기 중입니다. 대표 교사의 승인 후 교사 전용 기능을 사용할 수 있습니다.")
+
             return redirect('dashboard')
         else:
             # [인증 실패 로직] 원인 분석 로직
@@ -179,7 +189,10 @@ def dashboard(request):
 
         # [2-1] 학교 대표(LEADER) 전용 데이터 처리 (기존 기능 100% 유지)
         if user.role in ['LEADER', 'ADMIN'] and user.school:
-            guest_teachers = CustomUser.objects.filter(school=user.school, role='GUEST')
+            guest_teachers = CustomUser.objects.filter(
+                school=user.school,
+                approval_status=CustomUser.ApprovalStatus.PENDING,
+            )
             school_students = Student.objects.filter(school=user.school)
             context['guest_teachers'] = guest_teachers
             context['school_students'] = school_students
@@ -232,13 +245,34 @@ class SignUpView(generic.CreateView):
     template_name = 'registration/signup.html'
 
     def form_valid(self, form):
-        # 회원가입 정보 저장
-        response = super().form_valid(form)
-        user = self.object
+        user = form.save(commit=False)
+        representative_exists = CustomUser.objects.filter(
+            school=user.school,
+            is_representative=True,
+            is_approved=True,
+        ).exists()
+
+        if representative_exists:
+            user.role = CustomUser.Role.GUEST
+            user.is_representative = False
+            user.is_approved = False
+            user.approval_status = CustomUser.ApprovalStatus.PENDING
+            signup_message = "게스트 교사로 가입되었습니다. 대표 교사에게 승인을 요청하세요."
+        else:
+            user.role = CustomUser.Role.LEADER
+            user.is_representative = True
+            user.is_approved = True
+            user.approval_status = CustomUser.ApprovalStatus.APPROVED
+            signup_message = "해당 학교의 첫 교사로 가입되어 대표 교사 권한이 부여되었습니다."
+
+        user.save()
+        form.save_m2m()
+        self.object = user
         
         # 로그인처리
         login(self.request, user, backend='accounts.backends.EmailOrUsernameBackend')
-        return response
+        messages.info(self.request, signup_message)
+        return redirect(self.get_success_url())
 
 # 학생 개별 등록 페이지
 @login_required
@@ -296,12 +330,27 @@ def profile_settings(request):
         active_tab = request.GET.get('tab', 'profile')
     
     if request.method == 'POST':
+        if 'request_approval' in request.POST and user.role != 'STUDENT':
+            user.is_approved = False
+            user.approval_status = CustomUser.ApprovalStatus.PENDING
+            user.role = CustomUser.Role.GUEST
+            user.save(update_fields=['is_approved', 'approval_status', 'role'])
+            messages.success(request, "승인 재요청이 접수되었습니다. 대표 교사의 승인을 기다려 주세요.")
+            return redirect('/accounts/profile-settings/?tab=profile')
+
         # 1. 정보 수정 (교사 전용)
         if 'update_profile' in request.POST and user.role != 'STUDENT':
             profile_form = UserUpdateForm(request.POST, instance=user)
             if profile_form.is_valid():
-                profile_form.save()
-                messages.success(request, "정보가 수정되었습니다.")
+                updated_user = profile_form.save(commit=False)
+                if user.approval_status == CustomUser.ApprovalStatus.DENIED:
+                    updated_user.is_approved = False
+                    updated_user.approval_status = CustomUser.ApprovalStatus.PENDING
+                    updated_user.role = CustomUser.Role.GUEST
+                    messages.success(request, "정보가 수정되었고 승인 재요청이 접수되었습니다.")
+                else:
+                    messages.success(request, "정보가 수정되었습니다.")
+                updated_user.save()
                 return redirect('/accounts/profile-settings/?tab=profile')
 
         # 2. 비밀번호 변경 (공통)
@@ -324,6 +373,7 @@ def profile_settings(request):
         'profile_form': profile_form,
         'password_form': password_form,
         'active_tab': active_tab,
+        'can_request_approval': user.approval_status == CustomUser.ApprovalStatus.DENIED,
     })
 
 @login_required
@@ -806,13 +856,31 @@ def approve_teacher(request, user_id):
     # [보안 검사]
     # 1. 요청한 사람이 '학교 대표(LEADER)'인가?
     # 2. 요청한 사람과 대상 교사가 '같은 학교'인가?
-    if request.user.role == 'LEADER' and request.user.school == target_user.school:
-        target_user.role = 'TEACHER' # 일반 교사로 승급
-        target_user.save()
+    if can_manage_students(request.user) and request.user.school == target_user.school:
+        target_user.role = CustomUser.Role.TEACHER
+        target_user.is_approved = True
+        target_user.approval_status = CustomUser.ApprovalStatus.APPROVED
+        target_user.save(update_fields=['role', 'is_approved', 'approval_status'])
         messages.success(request, f"{target_user.name} 선생님을 승인했습니다.")
     else:
         messages.error(request, "권한이 없거나 다른 학교 선생님입니다.")
     
+    return redirect('dashboard')
+
+
+@login_required
+def deny_teacher(request, user_id):
+    target_user = get_object_or_404(CustomUser, id=user_id)
+
+    if can_manage_students(request.user) and request.user.school == target_user.school:
+        target_user.role = CustomUser.Role.GUEST
+        target_user.is_approved = False
+        target_user.approval_status = CustomUser.ApprovalStatus.DENIED
+        target_user.save(update_fields=['role', 'is_approved', 'approval_status'])
+        messages.success(request, f"{target_user.name} 선생님의 승인을 거절했습니다.")
+    else:
+        messages.error(request, "권한이 없거나 다른 학교 선생님입니다.")
+
     return redirect('dashboard')
 
 # 비밀번호 초기화 로직

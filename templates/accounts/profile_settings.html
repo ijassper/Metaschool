@@ -101,6 +101,15 @@
                 {% csrf_token %}
                 <input type="hidden" name="update_profile" value="1">
                 <h4 class="fw-bold mb-4">기본 정보 수정</h4>
+                {% if user.approval_status == 'DENIED' %}
+                <div class="alert alert-warning rounded-4 border-0 mb-4">
+                    대표 교사가 승인을 거절했습니다. 소속 학교 정보를 확인한 뒤 승인을 재요청할 수 있습니다.
+                </div>
+                {% elif user.approval_status == 'PENDING' %}
+                <div class="alert alert-info rounded-4 border-0 mb-4">
+                    승인 대기 중입니다. 대표 교사의 승인 후 교사 전용 기능을 사용할 수 있습니다.
+                </div>
+                {% endif %}
                 
                 <div class="mb-4">
                     <label class="form-label">이름</label>
@@ -129,6 +138,13 @@
 
                 <button type="submit" class="btn-ingrid-save w-100 shadow">정보 수정 완료</button>
             </form>
+            {% if can_request_approval %}
+            <form method="post" class="mt-3">
+                {% csrf_token %}
+                <input type="hidden" name="request_approval" value="1">
+                <button type="submit" class="btn btn-ingrid-outline w-100 py-3">승인 재요청</button>
+            </form>
+            {% endif %}
 
             {% elif active_tab == 'security' %}
             <!-- 2. 비밀번호 변경 폼 -->

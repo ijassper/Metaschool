@@ -158,8 +158,30 @@
             <h2 class="fw-bold" style="color: var(--ingrid-primary); letter-spacing: -1px;">Dashboard</h2>
             <p class="text-muted small mb-0">안녕하세요, {{ user.name }} 선생님! 오늘의 평가 현황입니다.</p>
         </div>
+        {% if user.is_approved %}
         <a href="{% url 'unified_create' %}?category={{ cat_code }}&sub={{ sub_menu }}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">+ 새 평가 생성</a>
+        {% endif %}
     </div>
+
+    {% if guest_teachers %}
+    <div class="mb-4 p-4 bg-white shadow-sm" style="border-radius: 18px;">
+        <h5 class="fw-bold mb-3">승인 대기 교사</h5>
+        <div class="d-flex flex-column gap-2">
+            {% for teacher in guest_teachers %}
+            <div class="d-flex align-items-center justify-content-between border rounded-3 p-3">
+                <div>
+                    <div class="fw-bold">{{ teacher.name }}</div>
+                    <div class="text-muted small">{{ teacher.email }}</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'approve_teacher' teacher.id %}" class="btn btn-sm btn-success rounded-pill px-3">승인</a>
+                    <a href="{% url 'deny_teacher' teacher.id %}" class="btn btn-sm btn-outline-danger rounded-pill px-3">거절</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- 4열 대시보드 그리드 -->
     <div class="dashboard-grid">
