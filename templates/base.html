@@ -293,7 +293,7 @@
     <div class="container-fluid p-0">
         <div class="row g-0">
             <!-- [왼쪽 확장형 사이드바] -->
-            {% if user.is_authenticated %}
+            {% if user.is_authenticated and user.role != 'STUDENT' %}
             <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
             <nav id="sidebarMenu" class="sidebar shadow-sm">
                 <div class="brand-area">
@@ -535,8 +535,8 @@
             {% endif %}
 
             <!-- [오른쪽 메인 콘텐츠 영역] -->
-            <div class="col main-wrapper {% if request.resolver_match.url_name == 'login' %}no-sidebar{% endif %}">
-                {% if user.is_authenticated %}
+            <div class="{% if user.role == 'STUDENT' %}col-12{% else %}col{% endif %} main-wrapper {% if request.resolver_match.url_name == 'login' or user.role == 'STUDENT' %}no-sidebar{% endif %}">
+                {% if user.is_authenticated and user.role != 'STUDENT' %}
                 <button type="button" id="sidebarToggleBtnFloating" class="sidebar-toggle-btn sidebar-toggle-floating" aria-label="메뉴 열기" aria-expanded="false">
                     <i class="bi bi-list"></i>
                 </button>
