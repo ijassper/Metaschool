@@ -36,6 +36,7 @@
     <h2 class="fw-bold mb-5">회원정보 입력</h2>
     <form method="post" action="{% url 'signup' %}" id="signupForm" onsubmit="return combineEmail()">
         {% csrf_token %}
+        {{ form.is_representative }}
                 <!-- 에러 메시지 표시 (숨겨진 에러 확인용) -->
                     {% if form.errors %}
                         <div class="alert alert-danger p-2 small">
@@ -90,7 +91,7 @@
                                 <!-- [추가] 실시간 일치 여부를 보여줄 공간 -->
                                 <div id="pwCheckResult" class="mt-1 small" style="font-size: 0.8rem;"></div>
                             </div>
-                        {% elif field.name != 'email' and field.name != 'name' and field.name != 'phone' and field.name != 'subject' and field.name != 'school' %}
+                        {% elif field.name != 'email' and field.name != 'name' and field.name != 'phone' and field.name != 'subject' and field.name != 'school' and field.name != 'is_representative' %}
                             <div class="mb-4">
                                 <label class="fw-bold small text-muted mb-2 d-block">{{ field.label }}</label>
                                 {{ field }}

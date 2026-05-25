@@ -4,10 +4,16 @@ from .models import CustomUser, Student, Subject
 
 # 교사 회원가입 폼
 class CustomUserCreationForm(UserCreationForm):
+    is_representative = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.HiddenInput(),
+    )
+
     class Meta(UserCreationForm.Meta):
         model = CustomUser
         # 필드 순서 중요: 이메일을 가장 먼저 입력받음 (username 제외)
-        fields = ('email', 'name', 'phone', 'school', 'subject')
+        fields = ('email', 'name', 'phone', 'school', 'subject', 'is_representative')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -48,6 +54,7 @@ class CustomUserCreationForm(UserCreationForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.username = user.email  # 이메일을 아이디로 사용
+        user.is_representative = bool(self.cleaned_data.get('is_representative', False))
         if commit:
             user.save()
         return user
