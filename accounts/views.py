@@ -225,7 +225,7 @@ def dashboard(request):
     context['now'] = timezone.now()  # [추가] 500 에러 방지
     return render(request, 'dashboard.html', context)
 
-# 1. 회원가입 뷰 (수정됨: 가입 후 자동 로그인 & 마이페이지 이동)
+# 1. 회원가입 뷰
 class SignUpView(generic.CreateView):
     form_class = CustomUserCreationForm
     success_url = reverse_lazy('dashboard')  # 가입 성공 시 이동할 곳
@@ -234,8 +234,12 @@ class SignUpView(generic.CreateView):
     def form_valid(self, form):
         # 회원가입 정보 저장
         response = super().form_valid(form)
-        # 저장된 유저 정보로 즉시 로그인 처리
         user = self.object
+
+        # 저장된 유저 정보로 즉시 로그인 처리
+        user.backend = 'accounts.backends.EmailOrUsernameBackend'
+
+        # 로그인처리
         login(self.request, user)
         return response
 
