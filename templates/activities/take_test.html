@@ -509,11 +509,7 @@
 </div>
 
 <!-- ★ 통합 보안 및 응시 기능 스크립트 -->
-<script>
-    //[긴급 시연 패치] 보안 로직 강제 무력화
-    var IS_DEMO = 'true'; 
-    console.log("시연 모드 강제 활성화됨");
-    
+<script>    
     /**
      * [Ingrid Student Exam System - 보안 및 응시 제어 스크립트]
      */
@@ -523,7 +519,7 @@
     const charLimit = parseInt("{{ activity.char_limit|default:0 }}");
     const answerId = "{{ answer_id }}"; 
     const csrfToken = '{{ csrf_token }}';
-    //const IS_DEMO = "{{ is_demo|yesno:'true,false' }}"; // 서버에서 온 데모 모드 여부
+    const IS_DEMO = "{{ is_demo|yesno:'true,false' }}"; // 서버에서 온 데모 모드 여부
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
@@ -534,8 +530,6 @@
 
     /* 1.5. 클립보드 보안 기능 (보안 모드 전용) */
     function initSecurityMode() {
-        // [긴급 시연 패치] 데모 모드면 이 함수를 즉시 종료합니다.
-        if (IS_DEMO === 'true') return; 
         
         if (EXAM_MODE !== 'CLOSED') return;
         

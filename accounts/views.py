@@ -195,6 +195,7 @@ def dashboard(request):
             )
             school_students = Student.objects.filter(school=user.school)
             context['guest_teachers'] = guest_teachers
+            context['pending_teachers'] = guest_teachers
             context['school_students'] = school_students
             context['student_count'] = school_students.count()
 
