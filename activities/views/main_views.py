@@ -10,8 +10,23 @@ from accounts.decorators import teacher_required
 
 
 # [공통 함수] 학생 선택용 트리 데이터 생성 (학년-반-학생 구조)
+def get_accessible_students(teacher):
+    students = Student.objects.all()
+    if getattr(teacher, "school_id", None):
+        return students.filter(school_id=teacher.school_id).order_by('grade', 'class_no', 'number')
+    return students.filter(teacher=teacher).order_by('grade', 'class_no', 'number')
+
+
+def get_accessible_student_ids(teacher, student_ids):
+    return list(
+        get_accessible_students(teacher)
+        .filter(id__in=student_ids)
+        .values_list('id', flat=True)
+    )
+
+
 def get_student_tree(teacher):
-    students = Student.objects.filter(teacher=teacher).order_by('grade', 'class_no', 'number')
+    students = get_accessible_students(teacher)
     
     tree = {}
     for s in students:

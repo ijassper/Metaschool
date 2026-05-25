@@ -109,9 +109,11 @@
 
             <!-- 오른쪽 액션 버튼 그룹 -->
             <div class="d-flex gap-2 ms-auto">
+            {% if can_manage_students %}
             <a href="{% url 'student_create_hub' %}" class="btn btn-ingrid-main rounded-pill px-4 shadow-sm fw-bold">
                 <i class="bi bi-person-plus-fill me-1"></i> 학생 등록 센터
             </a>
+            {% endif %}
             
             <button class="btn btn-outline-success rounded-pill px-4 shadow-sm fw-bold" onclick="exportExcel()" type="button">
                 <i class="bi bi-file-earmark-excel me-1"></i> 명단 내보내기
@@ -132,20 +134,20 @@
             <table class="table table-hover align-middle text-center mb-0" id="studentTable">
                 <thead>
                     <tr>
-                        <th style="width: 60px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>
+                        {% if can_manage_students %}<th style="width: 60px;"><input type="checkbox" id="selectAll" class="form-check-input"></th>{% endif %}
                         <th>연번</th>
                         <th>학년-반-번호</th>
                         <th>이름</th>
                         <th>접속상태</th>
                         <th>아이디(이메일)</th>
                         <th>소속 학교</th>
-                        <th>관리</th>
+                        {% if can_manage_students %}<th>관리</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for student in students %}
                     <tr class="student-row">
-                        <td><input type="checkbox" name="student_ids" value="{{ student.id }}" class="form-check-input student-check" data-name="{{ student.name }}"></td>
+                        {% if can_manage_students %}<td><input type="checkbox" name="student_ids" value="{{ student.id }}" class="form-check-input student-check" data-name="{{ student.name }}"></td>{% endif %}
                         <td class="text-muted">{{ forloop.counter }}</td>
                         <td class="fw-bold text-dark">{{ student.grade }} - {{ student.class_no }} - {{ student.number }}</td>
                         <td class="fw-extrabold text-primary">{{ student.name }}</td>
@@ -161,17 +163,19 @@
                             {% endif %}
                         </td>
                         <td class="small font-monospace">{{ student.email }}</td>
-                        <td class="small text-muted">{{ student.teacher.school.name }}</td>
+                        <td class="small text-muted">{{ student.school.name|default:"-" }}</td>
+                        {% if can_manage_students %}
                         <td>
                             <div class="d-flex justify-content-center gap-1">
                                 <a href="{% url 'reset_student_password' student.id %}" class="btn btn-light btn-action-pill border text-warning" onclick="return confirm('{{ student.name }} 학생의 비밀번호를 초기화하시겠습니까?');">초기화</a>
                                 <a href="{% url 'student_delete' student.id %}" class="btn btn-light btn-action-pill border text-danger" onclick="return confirm('정말 삭제하시겠습니까? 계정도 영구 삭제됩니다.')"><i class="bi bi-trash"></i></a>
                             </div>
                         </td>
+                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="py-5 text-muted">
+                        <td colspan="{% if can_manage_students %}8{% else %}6{% endif %}" class="py-5 text-muted">
                             <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                             조건에 해당하는 학생이 없습니다.
                         </td>
@@ -210,6 +214,7 @@
 </div>
 
 <!-- 일괄 작업 플로팅 바 -->
+{% if can_manage_students %}
 <div id="bulkActionBar" class="d-flex">
     <div class="d-flex align-items-center me-3">
         <i class="bi bi-check2-circle fs-4 me-2 text-success"></i>
@@ -223,6 +228,7 @@
     </div>
     <button class="btn btn-sm btn-outline-light border-0 rounded-circle ms-2" onclick="clearSelection()"><i class="bi bi-x-lg"></i></button>
 </div>
+{% endif %}
 
 
 <script>
@@ -242,10 +248,12 @@
         }
     }
 
-    selectAll.addEventListener('change', (e) => {
-        studentChecks.forEach(cb => cb.checked = e.target.checked);
-        updateBulkBar();
-    });
+    if (selectAll) {
+        selectAll.addEventListener('change', (e) => {
+            studentChecks.forEach(cb => cb.checked = e.target.checked);
+            updateBulkBar();
+        });
+    }
 
     studentChecks.forEach(cb => {
         cb.addEventListener('change', updateBulkBar);

@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from accounts.decorators import teacher_required
 from accounts.models import Student, SystemConfig, PromptTemplate, PromptLengthOption
 from ..models import Activity, Question, Answer, AnalysisResult
-from .main_views import get_student_tree
+from .main_views import get_accessible_students, get_student_tree
 
 # [1] 결과 분석 페이지 (활동별)
 @login_required
@@ -27,7 +27,7 @@ def activity_analysis(request, activity_id):
     
     # 대상이 없으면 선생님 전체 학생으로 대체 (호환성)
     if not all_students.exists():
-        all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+        all_students = get_accessible_students(request.user)
 
     # 2. 필터 데이터 생성 (학년/반 트리)
     temp_dict = {}
@@ -309,7 +309,7 @@ def get_or_create_batch(request):
 @teacher_required
 def integrated_analysis(request):
     # 1. 필터링을 위한 전체 학생 가져오기 (기존 로직 재사용)
-    all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    all_students = get_accessible_students(request.user)
     
     # --- 필터 데이터 생성 (기존과 동일) ---
     temp_dict = {}

@@ -61,6 +61,9 @@ class CustomUser(AbstractUser):
     # 등급 필드 (기본값: 게스트 교사)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.GUEST, verbose_name="회원 등급")
 
+    # 대표 교사 권한 (학생 등록/삭제 등 관리 권한)
+    is_representative = models.BooleanField(default=False, verbose_name="대표 교사 여부")
+
     REQUIRED_FIELDS = ['email', 'name']
 
     def __str__(self):
@@ -68,7 +71,8 @@ class CustomUser(AbstractUser):
 
 # 3. 학생 모델
 class Student(models.Model):
-    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="담당 교사 (레거시)")
+    school = models.ForeignKey(School, on_delete=models.CASCADE, null=True, blank=True, verbose_name="소속 학교")
     grade = models.IntegerField(verbose_name="학년")
     class_no = models.IntegerField(verbose_name="반")
     number = models.IntegerField(verbose_name="번호")

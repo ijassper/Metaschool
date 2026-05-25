@@ -11,7 +11,7 @@ from django.utils.timezone import make_aware
 from django.http import JsonResponse
 
 # [핵심] 같은 폴더(views) 내의 main_views에서 공통 함수 가져오기
-from .main_views import get_form_config, get_student_tree
+from .main_views import get_accessible_student_ids, get_form_config, get_student_tree
 
 # [핵심] 상위 폴더(..)의 models.py에서 모델들 가져오기
 from ..models import Activity, Question, Answer, ActivityFile
@@ -183,7 +183,7 @@ def unified_create(request):
             
             # [즉시 강제 연결] 새로 만들어진 번호에 학생들을 즉시 강제 연결
             if student_ids:
-                activity.target_students.set(student_ids)
+                activity.target_students.set(get_accessible_student_ids(request.user, student_ids))
                 print(f"[수술 성공] 즉시 학생 연결 완료: {len(student_ids)}명")
                 # 연결된 학생 목록 확인
                 connected_students = list(activity.target_students.values_list('id', flat=True))
@@ -353,7 +353,7 @@ def unified_update(request, activity_id):
             print(f"[호환성-수정] 기존 방식 학생 ID 목록: {target_ids}")
         
         if target_ids:
-            activity.target_students.set(target_ids)
+            activity.target_students.set(get_accessible_student_ids(request.user, target_ids))
             print(f"[성공-수정] 대상 학생 업데이트 완료: {len(target_ids)}명")
         else:
             print(f"[경고-수정] 대상 학생이 선택되지 않음")
@@ -477,7 +477,7 @@ def creative_create(request):
         # 4. 학생 등록
         target_ids = request.POST.getlist('target_students')
         if target_ids:
-            activity.target_students.set(target_ids)
+            activity.target_students.set(get_accessible_student_ids(request.user, target_ids))
             
         return redirect('creative_list')
 
@@ -552,7 +552,7 @@ def creative_update(request, pk):
         # 학생 재설정
         target_ids = request.POST.getlist('target_students')
         if target_ids:
-            activity.target_students.set(target_ids)
+            activity.target_students.set(get_accessible_student_ids(request.user, target_ids))
             
         # 수정 완료 후 상세 페이지로 이동
         return redirect('creative_detail', pk=activity.pk)

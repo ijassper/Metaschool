@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from accounts.decorators import teacher_required
 from accounts.models import Student
 from ..models import Activity, Answer
+from .main_views import get_accessible_students
 
 # [1] 제출 현황(답안) 목록 페이지
 @login_required
@@ -21,7 +22,7 @@ def activity_result(request, activity_id):
     # 1. [항상 실행] 필터 메뉴 구성을 위한 '전체 대상 학생' 가져오기
     all_students_for_filter = activity.target_students.all().order_by('grade', 'class_no', 'number')
     if not all_students_for_filter.exists():
-        all_students_for_filter = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+        all_students_for_filter = get_accessible_students(request.user)
 
     # 2. [항상 실행] filter_data 변수 초기화 및 생성
     # 이 부분이 if문 밖에 있어야 NameError가 나지 않습니다.
@@ -147,7 +148,7 @@ def save_note(request, activity_id, student_id):
     if request.method == 'POST':
         try:
             activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
-            student = get_object_or_404(Student, id=student_id)
+            student = get_object_or_404(get_accessible_students(request.user), id=student_id)
             
             # Answer 객체 조회 또는 생성 (메모 저장을 위해)
             from ..models import Question

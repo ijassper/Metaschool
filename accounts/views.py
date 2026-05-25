@@ -25,7 +25,15 @@ from .models import Student, CustomUser, School # 학교 모델 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate # AI 생성기 관련 모델 가져오기
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import Activity, Student, Answer  # 평가관리, 학생, 답안 모델 가져오기
-from activities.views.main_views import get_student_tree
+from activities.views.main_views import get_accessible_students, get_student_tree
+
+
+def can_manage_students(user):
+    return bool(
+        getattr(user, "is_representative", False)
+        or getattr(user, "role", None) in ["LEADER", "ADMIN"]
+        or getattr(user, "is_superuser", False)
+    )
 
 # 로그인 유지 기능이 포함된 커스텀 로그인 함수
 def login_view(request):
@@ -172,7 +180,7 @@ def dashboard(request):
         # [2-1] 학교 대표(LEADER) 전용 데이터 처리 (기존 기능 100% 유지)
         if user.role in ['LEADER', 'ADMIN'] and user.school:
             guest_teachers = CustomUser.objects.filter(school=user.school, role='GUEST')
-            school_students = Student.objects.filter(teacher__school=user.school)        
+            school_students = Student.objects.filter(school=user.school)
             context['guest_teachers'] = guest_teachers
             context['school_students'] = school_students
             context['student_count'] = school_students.count()
@@ -235,6 +243,10 @@ class SignUpView(generic.CreateView):
 @login_required
 @teacher_required
 def student_create(request):
+    if not can_manage_students(request.user):
+        messages.error(request, "학생 관리 권한이 없습니다.")
+        return redirect('student_list')
+
     if request.method == 'POST':
         form = StudentForm(request.POST)
         # (학교 코드 받는 로직 삭제함)
@@ -242,6 +254,7 @@ def student_create(request):
         if form.is_valid():
             student = form.save(commit=False)
             student.teacher = request.user
+            student.school = request.user.school
             
             # 입력받은 이메일을 아이디로 사용
             student_email = form.cleaned_data['email']
@@ -316,7 +329,7 @@ def profile_settings(request):
 @teacher_required
 def student_list(request):
     # 1. 내 학생들 전체 가져오기 (기본)
-    all_students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    all_students = get_accessible_students(request.user)
 
     # 2. 필터용 계층 데이터 만들기 (학년 -> 반)
     # (activity_result와 동일한 안전한 로직 사용)
@@ -375,6 +388,7 @@ def student_list(request):
         'selected_student_ids': selected_student_ids,
         'current_targets': current_targets,
         'current_q': name_query,
+        'can_manage_students': can_manage_students(request.user),
     }
     
     return render(request, 'accounts/student_list.html', context)
@@ -383,6 +397,10 @@ def student_list(request):
 @login_required
 @teacher_required
 def student_upload(request):
+    if not can_manage_students(request.user):
+        messages.error(request, "학생 관리 권한이 없습니다.")
+        return redirect('student_list')
+
     if request.method == 'POST' and request.FILES.get('excel_file'):
         excel_file = request.FILES['excel_file']
         try:
@@ -433,13 +451,14 @@ def student_upload(request):
                     # 4. 학생 명부(Student) 저장
                     # ★ Student 테이블에도 email을 저장해야 명렬표에 나옵니다.
                     Student.objects.update_or_create(
-                        teacher=request.user,
+                        school=request.user.school,
                         grade=grade, 
                         class_no=class_no, 
                         number=number,
                         defaults={
                             'name': name,
-                            'email': email 
+                            'email': email,
+                            'teacher': request.user,
                         }
                     )
                     count += 1
@@ -799,9 +818,13 @@ def approve_teacher(request, user_id):
 @login_required
 @teacher_required
 def reset_student_password(request, student_id):
+    if not can_manage_students(request.user):
+        messages.error(request, "학생 관리 권한이 없습니다.")
+        return redirect('student_list')
+
     try:
         # 학생 찾기
-        student = Student.objects.get(id=student_id, teacher=request.user)
+        student = get_accessible_students(request.user).get(id=student_id)
         
         # User 계정 찾기 (학생 명부와 이름/학년/반이 일치하는 유저)
         # (주의: 이메일 기반이라 Student 모델과 User 모델 연결이 약할 수 있음.
@@ -837,9 +860,13 @@ def reset_student_password(request, student_id):
 @login_required
 @teacher_required
 def student_delete(request, student_id):
+    if not can_manage_students(request.user):
+        messages.error(request, "학생 관리 권한이 없습니다.")
+        return redirect('student_list')
+
     try:
         # 1. 지울 학생 명부 찾기 (내 학생인지 확인)
-        student = Student.objects.get(id=student_id, teacher=request.user)
+        student = get_accessible_students(request.user).get(id=student_id)
         target_email = student.email
         student_name = student.name
         
@@ -882,6 +909,10 @@ def profile_update(request):
 @login_required
 @teacher_required
 def student_create_hub(request):
+    if not can_manage_students(request.user):
+        messages.error(request, "학생 관리 권한이 없습니다.")
+        return redirect('student_list')
+
     # 개별 등록용 폼 준비
     form = StudentForm()
     return render(request, 'accounts/student_create_hub.html', {'form': form})
@@ -891,6 +922,9 @@ def student_create_hub(request):
 @login_required
 @teacher_required
 def student_bulk_action(request):
+    if not can_manage_students(request.user):
+        return JsonResponse({'status': 'error', 'message': '학생 관리 권한이 없습니다.'}, status=403)
+
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -898,7 +932,7 @@ def student_bulk_action(request):
             action = data.get('action')
             
             # 내 학생들만 필터링 (보안)
-            target_students = Student.objects.filter(id__in=student_ids, teacher=request.user)
+            target_students = get_accessible_students(request.user).filter(id__in=student_ids)
             count = target_students.count()
 
             if action == 'delete':
@@ -936,7 +970,7 @@ def student_bulk_action(request):
 @login_required
 @teacher_required
 def student_export_excel(request):
-    students = Student.objects.filter(teacher=request.user).order_by('grade', 'class_no', 'number')
+    students = get_accessible_students(request.user)
     
     wb = Workbook()
     ws = wb.active

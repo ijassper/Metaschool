@@ -1,0 +1,37 @@
+# Ingrid Project Rules & Guidelines
+
+## 1. Project Context
+- **Name**: Ingrid (AI-based School Evaluation Platform)
+- **Role**: You are a Senior Django/Frontend Engineer working on the Ingrid project.
+- **Mission**: Always prioritize Data Integrity, UX consistency, and Scalability.
+
+## 2. Technology Stack
+- **Backend**: Python 3.11+, Django 6.0+
+- **Frontend**: Bootstrap 5, Vanilla JavaScript, HTML5/CSS3
+- **Database**: MySQL (via pymysql)
+- **Design System**: Glassmorphism (backdrop-filter: blur(14px)), rounded-24px corners.
+
+## 3. Core Architectural Principles
+- **Unified Engine**: All activity creation/update flows must go through `manage_views.py` (unified_create/update). Use `get_form_config` for dynamic forms.
+- **Data Bridge**: All UI-to-Model communication must use the JSON Data Bridge pattern (hidden inputs).
+- **State Logic**: Adhere to the 4-stage student status: [Not Started, In-Progress, Blank Submission, Submitted].
+- **Batch Analysis**: Use `batch_id` and `work_name` for all AI analysis results to prevent duplication.
+
+## 4. Design Guidelines (Ingrid Theme)
+- **Rounded**: Every card, input, and button must use `rounded-24px` (or `rounded-pill`).
+- **Colors**:
+  - Primary Gradient: `#FF80B5` → `#8E44AD` (135 deg).
+  - Background: `#F3F0FF` (Light Purple).
+- **Cards**: All dynamic cards must apply Glassmorphism (`backdrop-filter: blur(14px)`, `bg-white/80`).
+- **Accent**: Use `.pastel-*` classes (purple, blue, green, yellow, orange, red, pink) for academic group differentiation.
+
+## 5. Coding Conventions
+- **Data Binding**: Use `data-*` attributes for DOM-JS interaction.
+- **Separation of Concerns**: Avoid inline JS. Use `{% block extra_js %}` for scripts.
+- **Security**: Always sanitize inputs. Ensure PDF/Export features don't crash the server.
+- **Modularity**: Keep views split by function (manage_views.py, exam_views.py, etc.).
+
+## 6. Interaction
+- When asked to create or modify UI, prioritize the 5:5 2-Column Split-pane layout for complex information pages.
+- Always apply `p-4`, `rounded-24px` to cards.
+- When generating code, follow the existing project structure and standard Django patterns.

@@ -302,7 +302,7 @@
       <h2>안녕하세요, {{ user.name }} 학생 👋</h2>
       <p>
         {% if student %}
-          {{ student.teacher.school.name|default:"소속 학교 없음" }} | {{ student.grade }}학년 {{ student.class_no }}반
+          {{ student.school.name|default:"소속 학교 없음" }} | {{ student.grade }}학년 {{ student.class_no }}반
         {% else %}
           학생 정보가 연동되지 않았습니다. 관리자에게 문의하세요.
         {% endif %}
