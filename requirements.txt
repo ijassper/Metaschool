@@ -1,3 +1,4 @@
+urllib3<2.0
 Django
 gunicorn
 pymysql
