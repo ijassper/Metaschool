@@ -148,6 +148,27 @@
     /* 브랜드 컬러 클래스 추가 (설정 아이콘용) */
     .text-ingrid { color: #8E44AD !important; }
 
+    .rounded-24px { border-radius: 24px !important; }
+
+    .approval-teacher-section {
+        border-left-width: 6px !important;
+        backdrop-filter: blur(14px);
+        font-size: 1rem;
+    }
+
+    .approval-teacher-section.pastel-purple { border-left-color: #B292FF !important; }
+    .approval-teacher-section.pastel-blue   { border-left-color: #74C0FC !important; }
+    .approval-teacher-section.pastel-green  { border-left-color: #63E6BE !important; }
+    .approval-teacher-section.pastel-yellow { border-left-color: #FFD43B !important; }
+    .approval-teacher-section.pastel-orange { border-left-color: #FF922B !important; }
+    .approval-teacher-section.pastel-red    { border-left-color: #FF8787 !important; }
+    .approval-teacher-section.pastel-pink   { border-left-color: #FAA2C1 !important; }
+
+    .approval-teacher-row {
+        background: rgba(255, 255, 255, 0.72);
+        border-radius: 18px;
+    }
+
     @media (max-width: 1400px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
 
@@ -164,14 +185,14 @@
     </div>
 
     {% if guest_teachers %}
-    <div class="mb-4 p-4 bg-white shadow-sm" style="border-radius: 18px;">
-        <h5 class="fw-bold mb-3">승인 대기 교사</h5>
+    <div id="approvalTeacherSection" class="class-group-wrapper card rounded-24px border p-4 mb-4 approval-teacher-section">
+        <h5 class="fw-bold mb-3 fs-5">승인 대기 교사</h5>
         <div class="d-flex flex-column gap-2">
             {% for teacher in guest_teachers %}
-            <div class="d-flex align-items-center justify-content-between border rounded-3 p-3">
+            <div class="approval-teacher-row d-flex align-items-center justify-content-between border p-4">
                 <div>
-                    <div class="fw-bold">{{ teacher.name }}</div>
-                    <div class="text-muted small">{{ teacher.email }}</div>
+                    <div class="fw-bold fs-5">{{ teacher.name }}</div>
+                    <div class="text-muted" style="font-size: 1rem;">{{ teacher.email }}</div>
                 </div>
                 <div class="d-flex gap-2">
                     <a href="{% url 'approve_teacher' teacher.id %}" class="btn btn-sm btn-success rounded-pill px-3">승인</a>
@@ -239,4 +260,22 @@
         {% endfor %}
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const approvalSection = document.getElementById('approvalTeacherSection');
+        if (!approvalSection) return;
+
+        const pastelClasses = [
+            'pastel-purple',
+            'pastel-blue',
+            'pastel-green',
+            'pastel-yellow',
+            'pastel-orange',
+            'pastel-red',
+            'pastel-pink'
+        ];
+        approvalSection.classList.remove(...pastelClasses);
+        approvalSection.classList.add(pastelClasses[Math.floor(Math.random() * pastelClasses.length)]);
+    });
+</script>
 {% endblock %}
