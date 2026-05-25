@@ -12,6 +12,78 @@
         width: 100%;
     }
 
+    .teacher-hero {
+        background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);
+        border-radius: 28px;
+        padding: 40px 50px;
+        color: #fff;
+        margin-bottom: 30px;
+        box-shadow: 0 15px 35px rgba(142, 68, 173, 0.2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 28px;
+    }
+
+    .teacher-hero-title {
+        font-weight: 800;
+        font-size: 2rem;
+        margin-bottom: 5px;
+        color: #fff;
+    }
+
+    .teacher-hero-meta {
+        opacity: 0.9;
+        font-size: 1.1rem;
+        margin-bottom: 0;
+    }
+
+    .teacher-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 24px;
+    }
+
+    .teacher-hero-btn {
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: rgba(255, 255, 255, 0.75) !important;
+        color: #fff !important;
+        font-weight: 700;
+    }
+
+    .teacher-stats {
+        display: flex;
+        gap: 15px;
+        flex-shrink: 0;
+    }
+
+    .teacher-stat-box {
+        background: rgba(255, 255, 255, 0.92);
+        border-radius: 20px;
+        width: 120px;
+        height: 105px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .teacher-stat-box .num {
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 900;
+        color: var(--ingrid-primary);
+    }
+
+    .teacher-stat-box .lab {
+        margin-top: 8px;
+        color: #64748b;
+        font-weight: 800;
+        font-size: 0.85rem;
+    }
+
     /* 2. 카테고리 블록 (파스텔 박스) */
     .category-block {
         border-radius: 24px;
@@ -168,14 +240,56 @@
     }
 
     @media (max-width: 1400px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 991.98px) {
+        .teacher-hero {
+            padding: 30px 24px;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .teacher-stats {
+            width: 100%;
+        }
+
+        .teacher-stat-box {
+            flex: 1;
+            width: auto;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .teacher-hero-title { font-size: 1.55rem; }
+        .teacher-hero-actions { width: 100%; }
+        .teacher-hero-actions .btn,
+        .teacher-hero-actions form { flex: 1 1 100%; }
+        .teacher-hero-actions .btn { width: 100%; }
+        .teacher-stats { flex-direction: column; }
+    }
 </style>
 
 <div class="container-fluid px-4 py-2">
-    <!-- 상단 헤더 -->
-    <div class="d-flex align-items-center mb-5">
+    <div class="teacher-hero">
         <div>
-            <h2 class="fw-bold" style="color: var(--ingrid-primary); letter-spacing: -1px;">Dashboard</h2>
-            <p class="text-muted small mb-0">안녕하세요, {{ user.name }} 선생님! 오늘의 평가 현황입니다.</p>
+            <h2 class="teacher-hero-title">안녕하세요, {{ user.name }} 선생님</h2>
+            <p class="teacher-hero-meta">{{ user.school.name|default:"소속 학교 없음" }} | {{ user.get_role_display }}</p>
+            <div class="teacher-hero-actions">
+                <a href="{% url 'profile_settings' %}?tab=profile" class="btn btn-sm border-white rounded-pill px-3 teacher-hero-btn">내 정보 수정</a>
+                <a href="{% url 'profile_settings' %}?tab=security" class="btn btn-sm border-white rounded-pill px-3 teacher-hero-btn">비밀번호 변경</a>
+                <form action="{% url 'logout' %}" method="post" class="m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm border-white rounded-pill px-3 teacher-hero-btn">로그아웃</button>
+                </form>
+            </div>
+        </div>
+        <div class="teacher-stats">
+            <div class="teacher-stat-box">
+                <span class="num">{{ total_activity_count|default:0 }}</span>
+                <span class="lab">평가/활동</span>
+            </div>
+            <div class="teacher-stat-box">
+                <span class="num">{{ completed_count|default:0 }}</span>
+                <span class="lab">완료</span>
+            </div>
         </div>
     </div>
 

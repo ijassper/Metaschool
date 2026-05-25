@@ -201,6 +201,10 @@ def dashboard(request):
 
         # [2-2] 모든 활동 가져오기
         my_activities = Activity.objects.filter(teacher=user).order_by('-created_at')
+        now = timezone.now()
+        completed_count = my_activities.filter(
+            Q(deadline__lt=now) | Q(is_active=False)
+        ).distinct().count()
         print(f"--- [DEBUG] 총 생성 활동 수: {my_activities.count()}건 ---", flush=True)
 
         # [2-3] 7대 카테고리 블록 생성 로직 (버그 수정 및 기능 통합)
@@ -230,7 +234,8 @@ def dashboard(request):
         # 템플릿으로 데이터 전달
         context['category_blocks'] = category_blocks
         context['total_activity_count'] = my_activities.count()
-        context['now'] = timezone.now()  # [추가] 500 에러 방지를 위한 현재 시간 전달
+        context['completed_count'] = completed_count
+        context['now'] = now  # [추가] 500 에러 방지를 위한 현재 시간 전달
 
         print(f"--- [DEBUG] 최종 생성된 대시보드 블록 수: {len(category_blocks)}개 ---", flush=True)
         return render(request, 'dashboard.html', context)
