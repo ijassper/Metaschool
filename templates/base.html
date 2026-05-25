@@ -293,7 +293,7 @@
     <div class="container-fluid p-0">
         <div class="row g-0">
             <!-- [왼쪽 확장형 사이드바] -->
-            {% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}
+            {% if user.is_authenticated %}
             <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
             <nav id="sidebarMenu" class="sidebar shadow-sm">
                 <div class="brand-area">
@@ -328,10 +328,12 @@
                                 </a>
 
                                 <!-- 2. 학생 등록 센터 (일괄/개별 통합 페이지) -->
+                                {% if user.is_representative or user.role == 'LEADER' or user.role == 'ADMIN' or user.is_superuser %}
                                 <a href="{% url 'student_create_hub' %}" 
                                 class="sub-menu-item {% if request.resolver_match.url_name == 'student_create_hub' %}active{% endif %}">
                                 학생 등록 센터
                                 </a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -534,8 +536,8 @@
             {% endif %}
 
             <!-- [오른쪽 메인 콘텐츠 영역] -->
-            <div class="col main-wrapper {% if request.resolver_match.url_name == 'login' or user.role == 'STUDENT' %}no-sidebar{% endif %}">
-                {% if user.is_authenticated and user.role != 'STUDENT' and user.role != 'GUEST' %}
+            <div class="col main-wrapper {% if request.resolver_match.url_name == 'login' %}no-sidebar{% endif %}">
+                {% if user.is_authenticated %}
                 <button type="button" id="sidebarToggleBtnFloating" class="sidebar-toggle-btn sidebar-toggle-floating" aria-label="메뉴 열기" aria-expanded="false">
                     <i class="bi bi-list"></i>
                 </button>
