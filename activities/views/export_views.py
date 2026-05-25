@@ -9,11 +9,12 @@ from django.db.models import Q
 
 # 엑셀 및 워드 라이브러리
 from openpyxl import Workbook
+'''
 from docx import Document
 from docx.shared import Pt, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
-
+'''
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
 from ..models import Activity, Answer
