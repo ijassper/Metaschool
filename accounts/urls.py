@@ -1,36 +1,60 @@
-from django.contrib.auth.views import LoginView
 from django.urls import path
-from .forms import CustomAuthenticationForm # 교사, 학생 로그인
+
 from .views import (
-    SignUpView, login_view, student_export_excel, student_bulk_action, student_list, profile_settings, student_upload, student_create, search_school, dashboard, approve_teacher, deny_teacher,
-    student_create_hub,check_email_duplicate, ai_generator_step1, ai_generator_step2, # 추가
-    api_process_one_row, api_download_excel, # 추가
-    reset_student_password, student_delete, profile_update, admin_system_settings   
+    SignUpView,
+    admin_system_settings,
+    admin_teacher_list,
+    admin_teacher_update,
+    ai_generator_step1,
+    ai_generator_step2,
+    api_download_excel,
+    api_process_one_row,
+    approve_teacher,
+    check_email_duplicate,
+    dashboard,
+    deny_teacher,
+    login_view,
+    profile_settings,
+    profile_update,
+    reset_student_password,
+    search_school,
+    student_bulk_action,
+    student_create,
+    student_create_hub,
+    student_delete,
+    student_export_excel,
+    student_list,
+    student_upload,
 )
 
 urlpatterns = [
-    path("login/", login_view, name="login"), # 커스텀 로그인 뷰로 변경
-    path('signup/', SignUpView.as_view(), name='signup'),   # 회원가입 URL
-    path("dashboard/", dashboard, name="dashboard"),    # 대시보드 URL
-    path('profile-settings/', profile_settings, name='profile_settings'), # 프로필 설정 URL
+    path("login/", login_view, name="login"),
+    path("signup/", SignUpView.as_view(), name="signup"),
+    path("dashboard/", dashboard, name="dashboard"),
+    path("profile-settings/", profile_settings, name="profile_settings"),
+    path("profile/update/", profile_update, name="profile_update"),
+
     path("student-list/", student_list, name="student_list"),
-    path("student/upload/", student_upload, name="student_upload"), # 엑셀 업로드 URL
-    path("student/create/", student_create, name="student_create"), # 학생 개별 등록 URL
-    path("search/school/", search_school, name="search_school"), # 학교 검색 URL
-    path('check-email/', check_email_duplicate, name='check_email'), # 이메일 중복 체크 URL
-    path('approve-teacher/<int:user_id>/', approve_teacher, name='approve_teacher'),    # 교사 승인 URL
-    path('deny-teacher/<int:user_id>/', deny_teacher, name='deny_teacher'),
-    path('ai/step1/', ai_generator_step1, name='ai_generator_step1'),   # AI 엑셀 업로드 URL
-    path('ai/step2/', ai_generator_step2, name='ai_generator_step2'),   # AI 열 선택 및 실행 URL
-    path('ai/step1/', ai_generator_step1, name='ai_generator_step1'),   # AI 엑셀 업로드 URL
-    path('ai/step2/', ai_generator_step2, name='ai_generator_step2'),   # AI 열 선택 및 실행 URL
-    path('api/process-row/', api_process_one_row, name='api_process_one_row'),  # 한 줄씩 AI 처리하는 API
-    path('api/download-excel/', api_download_excel, name='api_download_excel'), # 최종 엑셀 다운로드
-    path('student/reset-pw/<int:student_id>/', reset_student_password, name='reset_student_password'),  # 비밀번호 초기화 
-    path('student/delete/<int:student_id>/', student_delete, name='student_delete'), # 학생 삭제
-    path('profile/update/', profile_update, name='profile_update'), # 프로필 수정
-    path('student/export-excel/', student_export_excel, name='student_export_excel'), # 학생 명단 엑셀 내보내기 URL
-    path('student/bulk-action/', student_bulk_action, name='student_bulk_action'), # 학생 일괄 처리 API (삭제, 초기화, 진급 통합) URL
-    path('student/create-hub/', student_create_hub, name='student_create_hub'), # 학생 등록 허브 URL
-    path('system-settings/', admin_system_settings, name='admin_system_settings'), # 시스템 설정 URL
+    path("student/upload/", student_upload, name="student_upload"),
+    path("student/create/", student_create, name="student_create"),
+    path("student/create-hub/", student_create_hub, name="student_create_hub"),
+    path("student/export-excel/", student_export_excel, name="student_export_excel"),
+    path("student/bulk-action/", student_bulk_action, name="student_bulk_action"),
+    path("student/reset-pw/<int:student_id>/", reset_student_password, name="reset_student_password"),
+    path("student/delete/<int:student_id>/", student_delete, name="student_delete"),
+
+    path("search/school/", search_school, name="search_school"),
+    path("check-email/", check_email_duplicate, name="check_email"),
+
+    path("approve-teacher/<int:user_id>/", approve_teacher, name="approve_teacher"),
+    path("deny-teacher/<int:user_id>/", deny_teacher, name="deny_teacher"),
+
+    path("ai/step1/", ai_generator_step1, name="ai_generator_step1"),
+    path("ai/step2/", ai_generator_step2, name="ai_generator_step2"),
+    path("api/process-row/", api_process_one_row, name="api_process_one_row"),
+    path("api/download-excel/", api_download_excel, name="api_download_excel"),
+
+    path("system-settings/", admin_system_settings, name="admin_system_settings"),
+    path("admin/teachers/", admin_teacher_list, name="admin_teacher_list"),
+    path("admin/teachers/<int:user_id>/update/", admin_teacher_update, name="admin_teacher_update"),
 ]

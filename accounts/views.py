@@ -6,6 +6,8 @@ from django.views.decorators.csrf import csrf_exempt    # API 뷰에서 CSRF 예
 from django.shortcuts import render, redirect, get_object_or_404 # 리다이렉트 및 객체 가져오기
 from django.contrib.auth import login, update_session_auth_hash  # 자동 로그인을 위해 필요, 비밀번호 변경 후 세션 유지 위해 필요
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.views.decorators.http import require_POST
 from django.contrib import messages  # 알림 메시지(성공/실패)를 위해 필요
 from django.contrib.auth.hashers import make_password  # 비밀번호 암호화
 from django.db import transaction   # 트랜잭션 처리를 위해 필요
@@ -14,6 +16,7 @@ from django.contrib.auth import authenticate,login as auth_login # 로그인 처
 from django.utils import timezone
 import requests
 import random
+import logging
 from activities.views import get_form_config
 import openai
 import io
@@ -26,6 +29,8 @@ from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemp
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import Activity, Student, Answer  # 평가관리, 학생, 답안 모델 가져오기
 from activities.views.main_views import get_accessible_students, get_student_tree
+
+logger = logging.getLogger(__name__)
 
 
 def can_manage_students(user):
@@ -380,6 +385,159 @@ def profile_settings(request):
         'password_form': password_form,
         'active_tab': active_tab,
         'can_request_approval': user.approval_status == CustomUser.ApprovalStatus.DENIED,
+    })
+
+
+@login_required
+def admin_teacher_list(request):
+    if request.user.role != CustomUser.Role.ADMIN:
+        messages.error(request, "최고관리자만 접근할 수 있습니다.")
+        return redirect('dashboard')
+
+    q = request.GET.get('q', '').strip()
+    school_id = request.GET.get('school', '').strip()
+    sort = request.GET.get('sort', '-date_joined')
+
+    teachers = CustomUser.objects.exclude(
+        role=CustomUser.Role.STUDENT
+    ).select_related('school', 'subject')
+
+    if q:
+        teachers = teachers.filter(
+            Q(name__icontains=q)
+            | Q(email__icontains=q)
+            | Q(username__icontains=q)
+            | Q(school__name__icontains=q)
+        )
+
+    if school_id and school_id.isdigit():
+        teachers = teachers.filter(school_id=school_id)
+    elif school_id:
+        school_id = ''
+
+    sort_map = {
+        'school': ('school__name', 'name', '-date_joined'),
+        'name': ('name', 'email'),
+        'date_joined': ('date_joined', 'name'),
+        '-date_joined': ('-date_joined', 'name'),
+    }
+    teachers = teachers.order_by(*sort_map.get(sort, sort_map['-date_joined']))
+
+    paginator = Paginator(teachers, 25)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    school_ids = CustomUser.objects.exclude(
+        role=CustomUser.Role.STUDENT
+    ).exclude(
+        school__isnull=True
+    ).values_list('school_id', flat=True).distinct()
+    schools = School.objects.filter(id__in=school_ids).order_by('name')
+
+    teacher_pool = CustomUser.objects.exclude(role=CustomUser.Role.STUDENT)
+    summary = {
+        'total': teacher_pool.count(),
+        'approved': teacher_pool.filter(approval_status=CustomUser.ApprovalStatus.APPROVED).count(),
+        'pending': teacher_pool.filter(approval_status=CustomUser.ApprovalStatus.PENDING).count(),
+        'denied': teacher_pool.filter(approval_status=CustomUser.ApprovalStatus.DENIED).count(),
+        'representative': teacher_pool.filter(is_representative=True).count(),
+    }
+
+    return render(request, 'accounts/admin_teacher_list.html', {
+        'page_obj': page_obj,
+        'teachers': page_obj.object_list,
+        'schools': schools,
+        'summary': summary,
+        'q': q,
+        'selected_school': school_id,
+        'sort': sort,
+    })
+
+
+@login_required
+@require_POST
+def admin_teacher_update(request, user_id):
+    if request.user.role != CustomUser.Role.ADMIN:
+        return JsonResponse({'status': 'error', 'message': '최고관리자만 변경할 수 있습니다.'}, status=403)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': '요청 데이터 형식이 올바르지 않습니다.'}, status=400)
+
+    action = payload.get('action')
+
+    with transaction.atomic():
+        target_user = get_object_or_404(
+            CustomUser.objects.select_for_update().select_related('school'),
+            id=user_id,
+        )
+
+        if target_user.role == CustomUser.Role.STUDENT:
+            return JsonResponse({'status': 'error', 'message': '학생 계정은 이 화면에서 관리할 수 없습니다.'}, status=400)
+
+        if target_user.id == request.user.id:
+            return JsonResponse({'status': 'error', 'message': '현재 로그인한 본인 계정은 이 화면에서 변경할 수 없습니다.'}, status=400)
+
+        before = {
+            'role': target_user.role,
+            'is_approved': target_user.is_approved,
+            'approval_status': target_user.approval_status,
+            'is_representative': target_user.is_representative,
+        }
+
+        if action == 'approve':
+            target_user.is_approved = True
+            target_user.approval_status = CustomUser.ApprovalStatus.APPROVED
+            target_user.role = CustomUser.Role.LEADER if target_user.is_representative else CustomUser.Role.TEACHER
+        elif action == 'deny':
+            target_user.is_approved = False
+            target_user.approval_status = CustomUser.ApprovalStatus.DENIED
+            target_user.is_representative = False
+            target_user.role = CustomUser.Role.GUEST
+        elif action == 'toggle_representative':
+            make_representative = payload.get('is_representative')
+            if make_representative is None:
+                make_representative = not target_user.is_representative
+            make_representative = bool(make_representative)
+
+            target_user.is_representative = make_representative
+            if make_representative:
+                target_user.is_approved = True
+                target_user.approval_status = CustomUser.ApprovalStatus.APPROVED
+                target_user.role = CustomUser.Role.LEADER
+            elif target_user.role == CustomUser.Role.LEADER:
+                target_user.role = CustomUser.Role.TEACHER if target_user.is_approved else CustomUser.Role.GUEST
+        else:
+            return JsonResponse({'status': 'error', 'message': '지원하지 않는 작업입니다.'}, status=400)
+
+        target_user.save(update_fields=['role', 'is_approved', 'approval_status', 'is_representative'])
+
+    logger.info(
+        "ADMIN_TEACHER_UPDATE admin=%s target=%s action=%s before=%s after=%s",
+        request.user.id,
+        target_user.id,
+        action,
+        before,
+        {
+            'role': target_user.role,
+            'is_approved': target_user.is_approved,
+            'approval_status': target_user.approval_status,
+            'is_representative': target_user.is_representative,
+        },
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'{target_user.name} 선생님의 권한이 변경되었습니다.',
+        'teacher': {
+            'id': target_user.id,
+            'role': target_user.role,
+            'role_label': target_user.get_role_display(),
+            'approval_status': target_user.approval_status,
+            'approval_label': target_user.get_approval_status_display(),
+            'is_approved': target_user.is_approved,
+            'is_representative': target_user.is_representative,
+        },
     })
 
 @login_required

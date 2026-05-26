@@ -476,6 +476,29 @@
                     </div>
 
                 <!-- 하단 프로필 영역 -->
+                    {% if user.role == 'ADMIN' %}
+                    <div class="menu-group mt-2">
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if 'admin/teachers' not in request.path and 'system-settings' not in request.path %}collapsed{% endif %}"
+                            data-bs-toggle="collapse" href="#systemAdminMenu" role="button"
+                            aria-expanded="{% if 'admin/teachers' in request.path or 'system-settings' in request.path %}true{% else %}false{% endif %}">
+                            <span><i class="bi bi-shield-lock-fill me-2"></i> 시스템 관리자</span>
+                            <i class="bi bi-chevron-down arrow-icon"></i>
+                        </div>
+                        <div class="collapse {% if 'admin/teachers' in request.path or 'system-settings' in request.path %}show{% endif %}" id="systemAdminMenu">
+                            <div class="sub-menu-list">
+                                <a href="{% url 'admin_teacher_list' %}"
+                                class="sub-menu-item {% if request.resolver_match.url_name == 'admin_teacher_list' %}active{% endif %}">
+                                교사 명렬표 관리
+                                </a>
+                                <a href="{% url 'admin_system_settings' %}"
+                                class="sub-menu-item {% if request.resolver_match.url_name == 'admin_system_settings' %}active{% endif %}">
+                                시스템 설정 센터
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                 <div class="sidebar-footer">
                     <div class="profile-card d-flex align-items-center justify-content-between dropup">
                         <div class="d-flex align-items-center gap-2 overflow-hidden">

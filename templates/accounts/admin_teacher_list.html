@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .admin-teacher-page {
+        max-width: 1320px;
+        margin: 0 auto;
+    }
+
+    .rounded-24px {
+        border-radius: 24px !important;
+    }
+
+    .teacher-toolbar,
+    .teacher-table-card,
+    .teacher-summary-card {
+        border: 1px solid rgba(142, 68, 173, 0.14) !important;
+        box-shadow: none !important;
+    }
+
+    .teacher-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(120px, 1fr));
+        gap: 12px;
+    }
+
+    .teacher-summary-card {
+        background: #fff;
+        padding: 18px;
+    }
+
+    .teacher-summary-card .num {
+        display: block;
+        color: #8E44AD;
+        font-size: 1.7rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .teacher-summary-card .lab {
+        color: #6c757d;
+        font-size: 0.86rem;
+        font-weight: 700;
+    }
+
+    .teacher-row {
+        border-left: 5px solid transparent;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .teacher-row.pastel-purple { background: #F5EFFF; border-left-color: #8E44AD; }
+    .teacher-row.pastel-blue { background: #EEF7FF; border-left-color: #4C8DFF; }
+    .teacher-row.pastel-green { background: #F0FBF4; border-left-color: #3BA66B; }
+    .teacher-row.pastel-yellow { background: #FFF9E8; border-left-color: #F2B705; }
+    .teacher-row.pastel-pink { background: #FFF0F6; border-left-color: #FF80B5; }
+    .teacher-row.pastel-orange { background: #FFF4EA; border-left-color: #FF9F43; }
+    .teacher-row.pastel-mint { background: #ECFBF8; border-left-color: #20C997; }
+
+    .teacher-table-card .table {
+        vertical-align: middle;
+    }
+
+    .teacher-table-card th {
+        color: #6c757d;
+        font-size: 0.82rem;
+        white-space: nowrap;
+    }
+
+    .teacher-table-card td {
+        font-size: 0.94rem;
+    }
+
+    .teacher-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: flex-end;
+    }
+
+    .teacher-status {
+        min-width: 82px;
+    }
+
+    @media (max-width: 992px) {
+        .teacher-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .teacher-actions {
+            justify-content: flex-start;
+        }
+    }
+</style>
+
+<div class="admin-teacher-page py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: #8E44AD;">교사 명렬표 관리</h2>
+            <p class="text-muted mb-0">학교별, 이름별, 가입일순으로 교사 계정과 승인 권한을 관리합니다.</p>
+        </div>
+    </div>
+
+    <div class="teacher-summary-grid mb-4">
+        <div class="teacher-summary-card rounded-24px">
+            <span class="num">{{ summary.total }}</span>
+            <span class="lab">전체 교사</span>
+        </div>
+        <div class="teacher-summary-card rounded-24px">
+            <span class="num">{{ summary.approved }}</span>
+            <span class="lab">승인 완료</span>
+        </div>
+        <div class="teacher-summary-card rounded-24px">
+            <span class="num">{{ summary.pending }}</span>
+            <span class="lab">승인 대기</span>
+        </div>
+        <div class="teacher-summary-card rounded-24px">
+            <span class="num">{{ summary.denied }}</span>
+            <span class="lab">승인 거절</span>
+        </div>
+        <div class="teacher-summary-card rounded-24px">
+            <span class="num">{{ summary.representative }}</span>
+            <span class="lab">대표 교사</span>
+        </div>
+    </div>
+
+    <form method="get" class="teacher-toolbar card rounded-24px p-4 mb-4 bg-white">
+        <div class="row g-3 align-items-end">
+            <div class="col-lg-4">
+                <label class="form-label small fw-bold text-muted">검색</label>
+                <input type="search" name="q" value="{{ q }}" class="form-control rounded-pill" placeholder="이름, 이메일, 학교명">
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label small fw-bold text-muted">학교</label>
+                <select name="school" class="form-select rounded-pill">
+                    <option value="">전체 학교</option>
+                    {% for school in schools %}
+                    <option value="{{ school.id }}" {% if selected_school == school.id|stringformat:"s" %}selected{% endif %}>{{ school.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-3">
+                <label class="form-label small fw-bold text-muted">정렬</label>
+                <select name="sort" class="form-select rounded-pill">
+                    <option value="-date_joined" {% if sort == '-date_joined' %}selected{% endif %}>가입일 최신순</option>
+                    <option value="date_joined" {% if sort == 'date_joined' %}selected{% endif %}>가입일 오래된순</option>
+                    <option value="school" {% if sort == 'school' %}selected{% endif %}>학교명순</option>
+                    <option value="name" {% if sort == 'name' %}selected{% endif %}>이름순</option>
+                </select>
+            </div>
+            <div class="col-lg-2 d-grid">
+                <button type="submit" class="btn btn-primary rounded-pill fw-bold" style="background: linear-gradient(135deg, #FF80B5, #8E44AD); border: 0;">
+                    <i class="bi bi-search me-1"></i> 조회
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <div class="teacher-table-card card rounded-24px p-4 bg-white">
+        {% csrf_token %}
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>연번</th>
+                        <th>소속학교</th>
+                        <th>성함</th>
+                        <th>아이디(이메일)</th>
+                        <th>현재권한</th>
+                        <th>승인상태</th>
+                        <th>가입일시</th>
+                        <th class="text-end">관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for teacher in teachers %}
+                    <tr class="teacher-row" data-school-key="{% if teacher.school_id %}{{ teacher.school_id }}{% else %}none{% endif %}" data-teacher-id="{{ teacher.id }}">
+                        <td class="fw-bold text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                        <td>
+                            <div class="fw-bold">{{ teacher.school.name|default:"소속 학교 없음" }}</div>
+                            {% if teacher.subject %}<div class="small text-muted">{{ teacher.subject.name }}</div>{% endif %}
+                        </td>
+                        <td class="fw-bold">{{ teacher.name|default:teacher.username }}</td>
+                        <td>
+                            <div>{{ teacher.email|default:teacher.username }}</div>
+                            {% if teacher.phone %}<div class="small text-muted">{{ teacher.phone }}</div>{% endif %}
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill text-bg-light border role-label">{{ teacher.get_role_display }}</span>
+                            {% if teacher.is_representative %}
+                            <span class="badge rounded-pill text-bg-primary rep-label">대표</span>
+                            {% else %}
+                            <span class="badge rounded-pill text-bg-secondary rep-label">일반</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill teacher-status approval-label {% if teacher.approval_status == 'APPROVED' %}text-bg-success{% elif teacher.approval_status == 'PENDING' %}text-bg-warning{% else %}text-bg-danger{% endif %}">
+                                {{ teacher.get_approval_status_display }}
+                            </span>
+                        </td>
+                        <td class="text-muted">{{ teacher.date_joined|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            {% if teacher.id == user.id %}
+                            <div class="text-end small fw-bold text-muted">현재 계정</div>
+                            {% else %}
+                            <div class="teacher-actions">
+                                <button type="button" class="btn btn-sm btn-outline-success rounded-pill teacher-action-btn" data-url="{% url 'admin_teacher_update' teacher.id %}" data-action="approve">
+                                    승인
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill teacher-action-btn" data-url="{% url 'admin_teacher_update' teacher.id %}" data-action="deny">
+                                    거절
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill teacher-action-btn rep-toggle-btn" data-url="{% url 'admin_teacher_update' teacher.id %}" data-action="toggle_representative" data-next-representative="{% if teacher.is_representative %}false{% else %}true{% endif %}">
+                                    {% if teacher.is_representative %}대표 해제{% else %}대표 지정{% endif %}
+                                </button>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-5">조건에 맞는 교사가 없습니다.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="d-flex justify-content-center gap-2 mt-4">
+            {% if page_obj.has_previous %}
+            <a class="btn btn-sm btn-outline-secondary rounded-pill" href="?q={{ q }}&school={{ selected_school }}&sort={{ sort }}&page={{ page_obj.previous_page_number }}">이전</a>
+            {% endif %}
+            <span class="btn btn-sm btn-light rounded-pill disabled">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+            <a class="btn btn-sm btn-outline-secondary rounded-pill" href="?q={{ q }}&school={{ selected_school }}&sort={{ sort }}&page={{ page_obj.next_page_number }}">다음</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const pastelClasses = [
+            'pastel-purple',
+            'pastel-blue',
+            'pastel-green',
+            'pastel-yellow',
+            'pastel-pink',
+            'pastel-orange',
+            'pastel-mint'
+        ];
+        const schoolColorMap = {};
+        let colorIndex = 0;
+
+        document.querySelectorAll('.teacher-row').forEach(function (row) {
+            const key = row.dataset.schoolKey || 'none';
+            if (!schoolColorMap[key]) {
+                schoolColorMap[key] = pastelClasses[colorIndex % pastelClasses.length];
+                colorIndex += 1;
+            }
+            row.classList.add(schoolColorMap[key]);
+        });
+
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        document.querySelectorAll('.teacher-action-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const payload = { action: button.dataset.action };
+                if (button.dataset.action === 'toggle_representative') {
+                    payload.is_representative = button.dataset.nextRepresentative === 'true';
+                }
+
+                button.disabled = true;
+                fetch(button.dataset.url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                })
+                    .then(function (response) {
+                        return response.json().then(function (data) {
+                            if (!response.ok) {
+                                throw new Error(data.message || '처리 중 오류가 발생했습니다.');
+                            }
+                            return data;
+                        });
+                    })
+                    .then(function (data) {
+                        const row = button.closest('.teacher-row');
+                        const teacher = data.teacher;
+                        const roleLabel = row.querySelector('.role-label');
+                        const repLabel = row.querySelector('.rep-label');
+                        const approvalLabel = row.querySelector('.approval-label');
+                        const repButton = row.querySelector('.rep-toggle-btn');
+
+                        roleLabel.textContent = teacher.role_label;
+                        repLabel.textContent = teacher.is_representative ? '대표' : '일반';
+                        repLabel.classList.toggle('text-bg-primary', teacher.is_representative);
+                        repLabel.classList.toggle('text-bg-secondary', !teacher.is_representative);
+
+                        approvalLabel.textContent = teacher.approval_label;
+                        approvalLabel.classList.remove('text-bg-success', 'text-bg-warning', 'text-bg-danger');
+                        if (teacher.approval_status === 'APPROVED') {
+                            approvalLabel.classList.add('text-bg-success');
+                        } else if (teacher.approval_status === 'PENDING') {
+                            approvalLabel.classList.add('text-bg-warning');
+                        } else {
+                            approvalLabel.classList.add('text-bg-danger');
+                        }
+
+                        repButton.dataset.nextRepresentative = teacher.is_representative ? 'false' : 'true';
+                        repButton.textContent = teacher.is_representative ? '대표 해제' : '대표 지정';
+                    })
+                    .catch(function (error) {
+                        alert(error.message);
+                    })
+                    .finally(function () {
+                        button.disabled = false;
+                    });
+            });
+        });
+    });
+</script>
+{% endblock %}
