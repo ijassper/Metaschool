@@ -527,6 +527,9 @@
     // 보안 모드 변수
     let pasteAttempts = 0;
     let securityLogs = [];
+    const ABNORMAL_INPUT_THRESHOLD = 100;
+    const INPUT_GRACE_MS = 1000;
+    const ANSWER_BACKUP_PREFIX = `ingrid-answer-backup-${answerId || 'new'}-`;
 
     /* 1.5. 클립보드 보안 기능 (보안 모드 전용) */
     function initSecurityMode() {
@@ -536,16 +539,58 @@
         const textareas = document.querySelectorAll('textarea.answer-input');
         
         textareas.forEach(textarea => {
+            initializeInputGuard(textarea);
+
             // 클립보드 이벤트 차단
             textarea.addEventListener('paste', handlePasteAttempt);
             textarea.addEventListener('copy', handleClipboardBlock);
             textarea.addEventListener('cut', handleClipboardBlock);
             textarea.addEventListener('drop', handleDropBlock);
             textarea.addEventListener('contextmenu', handleContextMenuBlock);
+            textarea.addEventListener('focus', handleInputFocusGrace);
             
             // 비정상 입력 감지
             textarea.addEventListener('input', handleAbnormalInput);
         });
+    }
+    
+    function getTextareaBackupKey(textarea) {
+        return `${ANSWER_BACKUP_PREFIX}${textarea.name || textarea.id || 'answer'}`;
+    }
+
+    function backupNormalAnswer(textarea, value) {
+        try {
+            localStorage.setItem(getTextareaBackupKey(textarea), value);
+            textarea.dataset.lastNormalValue = value;
+        } catch (error) {
+            textarea.dataset.lastNormalValue = value;
+        }
+    }
+
+    function initializeInputGuard(textarea) {
+        const currentValue = textarea.value || '';
+        const now = Date.now();
+        textarea.dataset.previousValue = currentValue;
+        textarea.dataset.lastLength = String(currentValue.length);
+        textarea.dataset.lastInputAt = String(now);
+        textarea.dataset.securityReadyAt = String(now + INPUT_GRACE_MS);
+        textarea.dataset.focusGraceUntil = String(now + INPUT_GRACE_MS);
+        textarea.dataset.focusInitialized = 'false';
+        backupNormalAnswer(textarea, currentValue);
+    }
+
+    function handleInputFocusGrace(e) {
+        const textarea = e.target;
+        const now = Date.now();
+
+        textarea.dataset.previousValue = textarea.value || '';
+        textarea.dataset.lastLength = String((textarea.value || '').length);
+        textarea.dataset.lastInputAt = String(now);
+
+        if (textarea.dataset.focusInitialized !== 'true') {
+            textarea.dataset.focusGraceUntil = String(now + INPUT_GRACE_MS);
+            textarea.dataset.focusInitialized = 'true';
+        }
     }
     
     function handlePasteAttempt(e) {
@@ -577,32 +622,95 @@
         const textarea = e.target;
         const currentValue = textarea.value;
         const previousValue = textarea.dataset.previousValue || '';
+        const now = Date.now();
+        const securityReadyAt = parseInt(textarea.dataset.securityReadyAt || '0', 10);
+        const focusGraceUntil = parseInt(textarea.dataset.focusGraceUntil || '0', 10);
+        const lastInputAt = parseInt(textarea.dataset.lastInputAt || String(now), 10);
+        const delta = currentValue.length - previousValue.length;
+        const elapsed = now - lastInputAt;
+        
+        if (e.isTrusted === false || now < securityReadyAt || now < focusGraceUntil) {
+            textarea.dataset.previousValue = currentValue;
+            textarea.dataset.lastLength = String(currentValue.length);
+            textarea.dataset.lastInputAt = String(now);
+            backupNormalAnswer(textarea, currentValue);
+            return;
+        }
         
         // 단시간에 대량의 텍스트가 주입된 경우 감지
-        if (currentValue.length - previousValue.length > 100) {
+        if (delta >= ABNORMAL_INPUT_THRESHOLD && elapsed < INPUT_GRACE_MS) {
             e.preventDefault();
+            backupNormalAnswer(textarea, previousValue);
             textarea.value = previousValue; // 이전 값으로 복원
-            logSecurityEvent('abnormal_input', currentValue.length - previousValue.length);
+            textarea.dataset.previousValue = previousValue;
+            textarea.dataset.lastLength = String(previousValue.length);
+            textarea.dataset.lastInputAt = String(now);
+            logSecurityEvent('abnormal_input', delta);
+            window.ingridLastAnswerRestore = {
+                restoreKey: getTextareaBackupKey(textarea),
+                textarea: textarea,
+                createdAt: Date.now()
+            };
             showSecurityWarning('비정상적인 입력이 감지되었습니다. 직접 입력해주세요.');
+            updateCharCount();
             return;
         }
         
         textarea.dataset.previousValue = currentValue;
+        textarea.dataset.lastLength = String(currentValue.length);
+        textarea.dataset.lastInputAt = String(now);
+        backupNormalAnswer(textarea, currentValue);
     }
     
     function showSecurityWarning(message) {
         // 부드러운 인그리드 스타일의 경고창
+        const restoreInfo = window.ingridLastAnswerRestore;
+        const canRestore = restoreInfo && Date.now() - restoreInfo.createdAt < 1500;
         const toast = document.createElement('div');
-        toast.className = 'position-fixed top-50 start-50 translate-middle bg-danger text-white px-4 py-3 rounded-3 shadow-lg';
-        toast.style.cssText = 'z-index: 9999; animation: slideDown 0.3s ease;';
-        toast.innerHTML = `<i class="bi bi-shield-exclamation me-2"></i>${message}`;
+        toast.className = 'position-fixed top-50 start-50 translate-middle text-white px-4 py-3 shadow-lg';
+        toast.style.cssText = 'z-index: 9999; animation: slideDown 0.3s ease; background: rgba(220, 53, 69, 0.92); border: 1px solid rgba(255,255,255,0.3); border-radius: 24px; backdrop-filter: blur(14px); max-width: min(92vw, 520px);';
+        toast.innerHTML = `
+            <div class="d-flex align-items-start gap-2">
+                <i class="bi bi-shield-exclamation fs-5"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold mb-1">${message}</div>
+                    ${canRestore ? '<button type="button" class="btn btn-light btn-sm rounded-pill fw-bold px-3 mt-2" data-restore-answer="true">직전 답안 복구</button>' : ''}
+                </div>
+            </div>
+        `;
         
         document.body.appendChild(toast);
+
+        const restoreButton = toast.querySelector('[data-restore-answer="true"]');
+        if (restoreButton) {
+            restoreButton.addEventListener('click', function () {
+                restoreAnswerFromBackup(restoreInfo.textarea, restoreInfo.restoreKey);
+                toast.remove();
+            });
+        }
         
         setTimeout(() => {
             toast.style.animation = 'slideUp 0.3s ease';
-            setTimeout(() => document.body.removeChild(toast), 300);
-        }, 2000);
+            setTimeout(() => {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 300);
+        }, canRestore ? 6000 : 2200);
+    }
+
+    function restoreAnswerFromBackup(textarea, restoreKey) {
+        if (!textarea || !restoreKey) return;
+
+        let backupValue = textarea.dataset.lastNormalValue || '';
+        try {
+            backupValue = localStorage.getItem(restoreKey) || backupValue;
+        } catch (error) {}
+
+        textarea.value = backupValue;
+        textarea.dataset.previousValue = backupValue;
+        textarea.dataset.lastLength = String(backupValue.length);
+        textarea.dataset.lastInputAt = String(Date.now());
+        textarea.focus();
+        updateCharCount();
     }
     
     function logSecurityEvent(eventType, data) {
