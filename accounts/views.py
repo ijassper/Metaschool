@@ -409,6 +409,9 @@ def admin_teacher_list(request):
     q = request.GET.get('q', '').strip()
     school_id = request.GET.get('school', '').strip()
     sort = request.GET.get('sort', '-date_joined')
+    per_page = request.GET.get('per_page', '10')
+    if per_page not in ('10', '20', '30'):
+        per_page = '10'
 
     teachers = CustomUser.objects.exclude(
         role=CustomUser.Role.STUDENT
@@ -439,8 +442,11 @@ def admin_teacher_list(request):
     }
     teachers = teachers.order_by(*sort_map.get(sort, sort_map['-date_joined']))
 
-    paginator = Paginator(teachers, 25)
-    page_obj = paginator.get_page(request.GET.get('page'))
+    paginator = Paginator(teachers, int(per_page))
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
+    query_string = query_params.urlencode()
 
     if is_admin:
         school_ids = CustomUser.objects.exclude(
@@ -471,6 +477,8 @@ def admin_teacher_list(request):
         'q': q,
         'selected_school': school_id,
         'sort': sort,
+        'per_page': per_page,
+        'query_string': query_string,
         'is_admin_teacher_manager': is_admin,
     })
 
