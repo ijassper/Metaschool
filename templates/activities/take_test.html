@@ -107,6 +107,21 @@
         font-weight: 800;
         white-space: nowrap;
     }
+    .exam-header-left {
+        min-width: 0;
+    }
+    .exam-header-title {
+        font-size: 1.25rem;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+    .exam-student-identity {
+        font-size: clamp(1.35rem, 2.4vw, 1.875rem);
+        line-height: 1.12;
+        color: var(--ingrid-primary, #8E44AD);
+        word-break: keep-all;
+        overflow-wrap: anywhere;
+    }
     .floating-submit-bar {
         position: fixed;
         left: 0;
@@ -239,7 +254,7 @@
             padding: 1.25rem 1rem 130px !important;
         }
         .exam-sticky-header {
-            align-items: flex-start !important;
+            align-items: center !important;
             gap: 0.75rem;
         }
         .floating-submit-bar .container-fluid {
@@ -435,14 +450,16 @@
                 <!-- 응시 계속하기 로그 기록 -->
                 <input type="hidden" name="is_submit" id="isSubmitField" value="false">
                 <!-- 상단 헤더 고정 -->
-                <div class="exam-sticky-header p-3 d-flex justify-content-between align-items-center flex-wrap">
-                    <div>
-                        <h5 class="mb-1 fw-bold text-primary"><i class="bi bi-pencil-square me-2"></i> 답안 작성</h5>
-                        <div class="small fw-bold text-secondary">
+                <div class="exam-sticky-header p-3 d-flex align-items-center flex-wrap">
+                    <div class="exam-header-left d-flex align-items-center flex-wrap gap-2">
+                        <h5 class="exam-header-title mb-0 fw-bold text-primary">
+                            <i class="bi bi-pencil-square me-2"></i> 답안 작성
+                        </h5>
+                        <div class="exam-student-identity fw-bold ms-md-4">
                             {{ user.name }}{% if user.school %} · {{ user.school.name }}{% endif %}
                         </div>
                     </div>
-                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end ms-auto">
                         <span id="remainingTime" class="exam-status-pill">
                             <i class="bi bi-clock-history"></i> 남은 시간 확인 중
                         </span>
