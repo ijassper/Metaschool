@@ -95,8 +95,8 @@
 <div class="admin-teacher-page py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
         <div>
-            <h2 class="fw-bold mb-1" style="color: #8E44AD;">교사 명렬표 관리</h2>
-            <p class="text-muted mb-0">학교별, 이름별, 가입일순으로 교사 계정과 승인 권한을 관리합니다.</p>
+            <h2 class="fw-bold mb-1" style="color: #8E44AD;">교사 관리</h2>
+            <p class="text-muted mb-0">{% if is_admin_teacher_manager %}전체 학교{% else %}{{ user.school.name }}{% endif %}의 교사 계정과 승인 권한을 관리합니다.</p>
         </div>
     </div>
 
@@ -129,6 +129,7 @@
                 <label class="form-label small fw-bold text-muted">검색</label>
                 <input type="search" name="q" value="{{ q }}" class="form-control rounded-pill" placeholder="이름, 이메일, 학교명">
             </div>
+            {% if is_admin_teacher_manager %}
             <div class="col-lg-3">
                 <label class="form-label small fw-bold text-muted">학교</label>
                 <select name="school" class="form-select rounded-pill">
@@ -138,6 +139,7 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
             <div class="col-lg-3">
                 <label class="form-label small fw-bold text-muted">정렬</label>
                 <select name="sort" class="form-select rounded-pill">

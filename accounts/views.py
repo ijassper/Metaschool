@@ -43,6 +43,17 @@ def can_manage_students(user):
         )
     )
 
+
+def can_manage_teachers(user):
+    return bool(
+        getattr(user, "role", None) == CustomUser.Role.ADMIN
+        or (
+            getattr(user, "is_approved", False)
+            and getattr(user, "is_representative", False)
+            and getattr(user, "school_id", None)
+        )
+    )
+
 # 로그인 유지 기능이 포함된 커스텀 로그인 함수
 def login_view(request):
     # 이미 로그인된 상태라면 대시보드로 보냄
@@ -390,10 +401,11 @@ def profile_settings(request):
 
 @login_required
 def admin_teacher_list(request):
-    if request.user.role != CustomUser.Role.ADMIN:
-        messages.error(request, "최고관리자만 접근할 수 있습니다.")
+    if not can_manage_teachers(request.user):
+        messages.error(request, "교사 관리 권한이 없습니다.")
         return redirect('dashboard')
 
+    is_admin = request.user.role == CustomUser.Role.ADMIN
     q = request.GET.get('q', '').strip()
     school_id = request.GET.get('school', '').strip()
     sort = request.GET.get('sort', '-date_joined')
@@ -401,6 +413,10 @@ def admin_teacher_list(request):
     teachers = CustomUser.objects.exclude(
         role=CustomUser.Role.STUDENT
     ).select_related('school', 'subject')
+
+    if not is_admin:
+        teachers = teachers.filter(school=request.user.school)
+        school_id = str(request.user.school_id)
 
     if q:
         teachers = teachers.filter(
@@ -410,9 +426,9 @@ def admin_teacher_list(request):
             | Q(school__name__icontains=q)
         )
 
-    if school_id and school_id.isdigit():
+    if is_admin and school_id and school_id.isdigit():
         teachers = teachers.filter(school_id=school_id)
-    elif school_id:
+    elif is_admin and school_id:
         school_id = ''
 
     sort_map = {
@@ -426,14 +442,19 @@ def admin_teacher_list(request):
     paginator = Paginator(teachers, 25)
     page_obj = paginator.get_page(request.GET.get('page'))
 
-    school_ids = CustomUser.objects.exclude(
-        role=CustomUser.Role.STUDENT
-    ).exclude(
-        school__isnull=True
-    ).values_list('school_id', flat=True).distinct()
-    schools = School.objects.filter(id__in=school_ids).order_by('name')
+    if is_admin:
+        school_ids = CustomUser.objects.exclude(
+            role=CustomUser.Role.STUDENT
+        ).exclude(
+            school__isnull=True
+        ).values_list('school_id', flat=True).distinct()
+        schools = School.objects.filter(id__in=school_ids).order_by('name')
+    else:
+        schools = School.objects.filter(id=request.user.school_id)
 
     teacher_pool = CustomUser.objects.exclude(role=CustomUser.Role.STUDENT)
+    if not is_admin:
+        teacher_pool = teacher_pool.filter(school=request.user.school)
     summary = {
         'total': teacher_pool.count(),
         'approved': teacher_pool.filter(approval_status=CustomUser.ApprovalStatus.APPROVED).count(),
@@ -450,14 +471,15 @@ def admin_teacher_list(request):
         'q': q,
         'selected_school': school_id,
         'sort': sort,
+        'is_admin_teacher_manager': is_admin,
     })
 
 
 @login_required
 @require_POST
 def admin_teacher_update(request, user_id):
-    if request.user.role != CustomUser.Role.ADMIN:
-        return JsonResponse({'status': 'error', 'message': '최고관리자만 변경할 수 있습니다.'}, status=403)
+    if not can_manage_teachers(request.user):
+        return JsonResponse({'status': 'error', 'message': '교사 관리 권한이 없습니다.'}, status=403)
 
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
@@ -477,6 +499,9 @@ def admin_teacher_update(request, user_id):
 
         if target_user.id == request.user.id:
             return JsonResponse({'status': 'error', 'message': '현재 로그인한 본인 계정은 이 화면에서 변경할 수 없습니다.'}, status=400)
+
+        if request.user.role != CustomUser.Role.ADMIN and target_user.school_id != request.user.school_id:
+            return JsonResponse({'status': 'error', 'message': '소속 학교 교사만 관리할 수 있습니다.'}, status=403)
 
         before = {
             'role': target_user.role,
