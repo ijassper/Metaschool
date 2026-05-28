@@ -3,7 +3,7 @@
 {% block content %}
 <style>
     .admin-teacher-page {
-        max-width: 1320px;
+        max-width: 1360px;
         margin: 0 auto;
     }
 
@@ -11,119 +11,265 @@
         border-radius: 24px !important;
     }
 
+    .teacher-hero,
     .teacher-toolbar,
-    .teacher-table-card,
-    .teacher-summary-card {
-        border: 1px solid rgba(142, 68, 173, 0.14) !important;
+    .teacher-list-shell,
+    .teacher-summary-card,
+    .teacher-card {
+        border: 1px solid rgba(142, 68, 173, 0.16) !important;
         box-shadow: none !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+
+    .teacher-hero {
+        background: linear-gradient(135deg, rgba(255, 128, 181, 0.92), rgba(142, 68, 173, 0.92));
+        color: #fff;
+        padding: 28px;
+    }
+
+    .teacher-hero .eyebrow {
+        opacity: 0.85;
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+    }
+
+    .teacher-hero h2 {
+        font-weight: 800;
+        letter-spacing: 0;
     }
 
     .teacher-summary-grid {
         display: grid;
         grid-template-columns: repeat(5, minmax(120px, 1fr));
-        gap: 12px;
+        gap: 14px;
     }
 
     .teacher-summary-card {
-        background: #fff;
-        padding: 18px;
+        position: relative;
+        overflow: hidden;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.72);
+        border-left: 7px solid var(--accent-color, #8E44AD) !important;
     }
 
     .teacher-summary-card .num {
         display: block;
-        color: #8E44AD;
-        font-size: 1.7rem;
-        font-weight: 800;
+        color: var(--ingrid-primary);
+        font-size: 1.8rem;
+        font-weight: 900;
         line-height: 1;
     }
 
     .teacher-summary-card .lab {
-        color: #6c757d;
-        font-size: 0.86rem;
-        font-weight: 700;
+        color: #4f5560;
+        font-size: 0.88rem;
+        font-weight: 800;
     }
 
-    .teacher-row {
-        border-left: 5px solid transparent;
-        transition: background-color 0.2s ease, border-color 0.2s ease;
+    .teacher-summary-card .icon {
+        position: absolute;
+        right: 18px;
+        bottom: 14px;
+        color: rgba(142, 68, 173, 0.22);
+        font-size: 2.2rem;
     }
 
-    .teacher-row.pastel-purple { background: #F5EFFF; border-left-color: #8E44AD; }
-    .teacher-row.pastel-blue { background: #EEF7FF; border-left-color: #4C8DFF; }
-    .teacher-row.pastel-green { background: #F0FBF4; border-left-color: #3BA66B; }
-    .teacher-row.pastel-yellow { background: #FFF9E8; border-left-color: #F2B705; }
-    .teacher-row.pastel-pink { background: #FFF0F6; border-left-color: #FF80B5; }
-    .teacher-row.pastel-orange { background: #FFF4EA; border-left-color: #FF9F43; }
-    .teacher-row.pastel-mint { background: #ECFBF8; border-left-color: #20C997; }
-
-    .teacher-table-card .table {
-        vertical-align: middle;
+    .teacher-toolbar {
+        background: rgba(255, 255, 255, 0.82);
     }
 
-    .teacher-table-card th {
-        color: #6c757d;
-        font-size: 0.82rem;
+    .teacher-list-shell {
+        background: rgba(255, 255, 255, 0.72);
+    }
+
+    .teacher-card-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .teacher-card {
+        position: relative;
+        min-height: 214px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.76);
+        border-left: 8px solid var(--accent-color, #8E44AD) !important;
+        transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+    }
+
+    .teacher-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .teacher-card-header,
+    .teacher-card-meta,
+    .teacher-actions {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .teacher-avatar {
+        width: 48px;
+        height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--accent-color, #8E44AD);
+        border: 1px solid rgba(255, 255, 255, 0.85);
+        font-weight: 900;
+        font-size: 1.08rem;
+    }
+
+    .teacher-name,
+    .teacher-school {
+        color: var(--ingrid-primary) !important;
+        font-weight: 800 !important;
+    }
+
+    .teacher-name {
+        font-size: 1.15rem;
+    }
+
+    .teacher-school {
+        font-size: 0.98rem;
+    }
+
+    .teacher-email {
+        color: #5c6470;
+        word-break: break-all;
+    }
+
+    .teacher-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: auto;
+    }
+
+    .teacher-detail-pill {
+        min-height: 52px;
+        padding: 10px 12px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.78);
+        background: rgba(255, 255, 255, 0.56);
+    }
+
+    .teacher-detail-pill .label {
+        display: block;
+        color: #7a828d;
+        font-size: 0.74rem;
+        font-weight: 800;
+    }
+
+    .teacher-detail-pill .value {
+        display: block;
+        color: #2e3138;
+        font-size: 0.9rem;
+        font-weight: 800;
         white-space: nowrap;
-    }
-
-    .teacher-table-card td {
-        font-size: 0.94rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .teacher-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
         justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .teacher-actions .btn {
+        font-weight: 800;
+        border-width: 1px;
+        background: rgba(255, 255, 255, 0.64);
     }
 
     .teacher-status {
         min-width: 82px;
     }
 
-    @media (max-width: 992px) {
+    .pastel-purple { --accent-color: #8E44AD; background: rgba(233, 226, 255, 0.72) !important; }
+    .pastel-blue { --accent-color: #4C8DFF; background: rgba(221, 235, 255, 0.72) !important; }
+    .pastel-green { --accent-color: #2FA66A; background: rgba(211, 249, 232, 0.72) !important; }
+    .pastel-yellow { --accent-color: #D9A400; background: rgba(255, 243, 191, 0.72) !important; }
+    .pastel-orange { --accent-color: #FF922B; background: rgba(255, 232, 204, 0.72) !important; }
+    .pastel-red { --accent-color: #F05A63; background: rgba(255, 227, 227, 0.72) !important; }
+    .pastel-pink { --accent-color: #FF80B5; background: rgba(255, 222, 235, 0.72) !important; }
+
+    @media (max-width: 1100px) {
+        .teacher-summary-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .teacher-card-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
         .teacher-summary-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
+        .teacher-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
         .teacher-actions {
-            justify-content: flex-start;
+            justify-content: stretch;
+        }
+
+        .teacher-actions .btn {
+            flex: 1 1 100%;
         }
     }
 </style>
 
 <div class="admin-teacher-page py-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
-        <div>
-            <h2 class="fw-bold mb-1" style="color: #8E44AD;">교사 관리</h2>
-            <p class="text-muted mb-0">{% if is_admin_teacher_manager %}전체 학교{% else %}{{ user.school.name }}{% endif %}의 교사 계정과 승인 권한을 관리합니다.</p>
-        </div>
+    <div class="teacher-hero rounded-24px mb-4">
+        <div class="eyebrow mb-2">SCHOOL MANAGEMENT</div>
+        <h2 class="mb-2">교사 관리</h2>
+        <p class="mb-0">
+            {% if is_admin_teacher_manager %}전체 학교{% else %}{{ user.school.name }}{% endif %}의 교사 계정과 승인 권한을 한 화면에서 관리합니다.
+        </p>
     </div>
 
     <div class="teacher-summary-grid mb-4">
-        <div class="teacher-summary-card rounded-24px">
+        <div class="teacher-summary-card rounded-24px" data-summary-color="total">
             <span class="num">{{ summary.total }}</span>
             <span class="lab">전체 교사</span>
+            <i class="bi bi-people-fill icon"></i>
         </div>
-        <div class="teacher-summary-card rounded-24px">
+        <div class="teacher-summary-card rounded-24px" data-summary-color="approved">
             <span class="num">{{ summary.approved }}</span>
             <span class="lab">승인 완료</span>
+            <i class="bi bi-person-check-fill icon"></i>
         </div>
-        <div class="teacher-summary-card rounded-24px">
+        <div class="teacher-summary-card rounded-24px" data-summary-color="pending">
             <span class="num">{{ summary.pending }}</span>
             <span class="lab">승인 대기</span>
+            <i class="bi bi-hourglass-split icon"></i>
         </div>
-        <div class="teacher-summary-card rounded-24px">
+        <div class="teacher-summary-card rounded-24px" data-summary-color="denied">
             <span class="num">{{ summary.denied }}</span>
             <span class="lab">승인 거절</span>
+            <i class="bi bi-person-x-fill icon"></i>
         </div>
-        <div class="teacher-summary-card rounded-24px">
+        <div class="teacher-summary-card rounded-24px" data-summary-color="representative">
             <span class="num">{{ summary.representative }}</span>
             <span class="lab">대표 교사</span>
+            <i class="bi bi-award-fill icon"></i>
         </div>
     </div>
 
-    <form method="get" class="teacher-toolbar card rounded-24px p-4 mb-4 bg-white">
+    <form method="get" class="teacher-toolbar card rounded-24px p-4 mb-4">
         <div class="row g-3 align-items-end">
             <div class="col-lg-4">
                 <label class="form-label small fw-bold text-muted">검색</label>
@@ -157,74 +303,70 @@
         </div>
     </form>
 
-    <div class="teacher-table-card card rounded-24px p-4 bg-white">
+    <div class="teacher-list-shell card rounded-24px p-4">
         {% csrf_token %}
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>연번</th>
-                        <th>소속학교</th>
-                        <th>성함</th>
-                        <th>아이디(이메일)</th>
-                        <th>현재권한</th>
-                        <th>승인상태</th>
-                        <th>가입일시</th>
-                        <th class="text-end">관리</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for teacher in teachers %}
-                    <tr class="teacher-row" data-school-key="{% if teacher.school_id %}{{ teacher.school_id }}{% else %}none{% endif %}" data-teacher-id="{{ teacher.id }}">
-                        <td class="fw-bold text-muted">{{ page_obj.start_index|add:forloop.counter0 }}</td>
-                        <td>
-                            <div class="fw-bold">{{ teacher.school.name|default:"소속 학교 없음" }}</div>
-                            {% if teacher.subject %}<div class="small text-muted">{{ teacher.subject.name }}</div>{% endif %}
-                        </td>
-                        <td class="fw-bold">{{ teacher.name|default:teacher.username }}</td>
-                        <td>
-                            <div>{{ teacher.email|default:teacher.username }}</div>
-                            {% if teacher.phone %}<div class="small text-muted">{{ teacher.phone }}</div>{% endif %}
-                        </td>
-                        <td>
-                            <span class="badge rounded-pill text-bg-light border role-label">{{ teacher.get_role_display }}</span>
+
+        <div class="teacher-card-grid">
+            {% for teacher in teachers %}
+            <article class="teacher-card rounded-24px shadow-none" data-school-key="{% if teacher.school_id %}{{ teacher.school_id }}{% else %}none{% endif %}" data-teacher-id="{{ teacher.id }}">
+                <div class="teacher-card-header">
+                    <div class="teacher-avatar">{{ teacher.name|default:teacher.username|slice:":1" }}</div>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                            <h3 class="teacher-name mb-0">{{ teacher.name|default:teacher.username }}</h3>
                             {% if teacher.is_representative %}
                             <span class="badge rounded-pill text-bg-primary rep-label">대표</span>
                             {% else %}
                             <span class="badge rounded-pill text-bg-secondary rep-label">일반</span>
                             {% endif %}
-                        </td>
-                        <td>
-                            <span class="badge rounded-pill teacher-status approval-label {% if teacher.approval_status == 'APPROVED' %}text-bg-success{% elif teacher.approval_status == 'PENDING' %}text-bg-warning{% else %}text-bg-danger{% endif %}">
-                                {{ teacher.get_approval_status_display }}
-                            </span>
-                        </td>
-                        <td class="text-muted">{{ teacher.date_joined|date:"Y-m-d H:i" }}</td>
-                        <td>
-                            {% if teacher.id == user.id %}
-                            <div class="text-end small fw-bold text-muted">현재 계정</div>
-                            {% else %}
-                            <div class="teacher-actions">
-                                <button type="button" class="btn btn-sm btn-outline-success rounded-pill teacher-action-btn" data-url="{% url 'admin_teacher_update' teacher.id %}" data-action="approve">
-                                    승인
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill teacher-action-btn" data-url="{% url 'admin_teacher_update' teacher.id %}" data-action="deny">
-                                    거절
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill teacher-action-btn rep-toggle-btn" data-url="{% url 'admin_teacher_update' teacher.id %}" data-action="toggle_representative" data-next-representative="{% if teacher.is_representative %}false{% else %}true{% endif %}">
-                                    {% if teacher.is_representative %}대표 해제{% else %}대표 지정{% endif %}
-                                </button>
-                            </div>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="8" class="text-center text-muted py-5">조건에 맞는 교사가 없습니다.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                        <div class="teacher-school">{{ teacher.school.name|default:"소속 학교 없음" }}</div>
+                        <div class="teacher-email small">{{ teacher.email|default:teacher.username }}</div>
+                    </div>
+                </div>
+
+                <div class="teacher-detail-grid">
+                    <div class="teacher-detail-pill">
+                        <span class="label">현재 권한</span>
+                        <span class="value role-label" data-role="{{ teacher.role }}">{{ teacher.get_role_display }}</span>
+                    </div>
+                    <div class="teacher-detail-pill">
+                        <span class="label">승인 상태</span>
+                        <span class="badge rounded-pill teacher-status approval-label {% if teacher.approval_status == 'APPROVED' %}text-bg-success{% elif teacher.approval_status == 'PENDING' %}text-bg-warning{% else %}text-bg-danger{% endif %}" data-status="{{ teacher.approval_status }}">
+                            {% if teacher.approval_status == 'APPROVED' %}승인 완료{% elif teacher.approval_status == 'PENDING' %}승인 대기{% else %}승인 거절{% endif %}
+                        </span>
+                    </div>
+                    <div class="teacher-detail-pill">
+                        <span class="label">담당 과목</span>
+                        <span class="value">{{ teacher.subject.name|default:"미지정" }}</span>
+                    </div>
+                    <div class="teacher-detail-pill">
+                        <span class="label">가입일시</span>
+                        <span class="value">{{ teacher.date_joined|date:"Y-m-d H:i" }}</span>
+                    </div>
+                </div>
+
+                {% if teacher.id == user.id %}
+                <div class="text-end small fw-bold text-muted">현재 로그인 계정</div>
+                {% else %}
+                <div class="teacher-actions">
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill teacher-action-btn" data-url="{% url 'admin_teacher_update' teacher.id %}" data-action="approve">
+                        승인
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill teacher-action-btn" data-url="{% url 'admin_teacher_update' teacher.id %}" data-action="deny">
+                        거절
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill teacher-action-btn rep-toggle-btn" data-url="{% url 'admin_teacher_update' teacher.id %}" data-action="toggle_representative" data-next-representative="{% if teacher.is_representative %}false{% else %}true{% endif %}">
+                        {% if teacher.is_representative %}대표 해제{% else %}대표 지정{% endif %}
+                    </button>
+                </div>
+                {% endif %}
+            </article>
+            {% empty %}
+            <div class="teacher-card rounded-24px pastel-purple shadow-none">
+                <div class="text-center text-muted py-4">조건에 맞는 교사가 없습니다.</div>
+            </div>
+            {% endfor %}
         </div>
 
         {% if page_obj.has_other_pages %}
@@ -248,23 +390,42 @@
             'pastel-blue',
             'pastel-green',
             'pastel-yellow',
-            'pastel-pink',
             'pastel-orange',
-            'pastel-mint'
+            'pastel-red',
+            'pastel-pink'
         ];
+        const shuffledPastels = pastelClasses
+            .map(function (name) { return { name: name, sort: Math.random() }; })
+            .sort(function (a, b) { return a.sort - b.sort; })
+            .map(function (item) { return item.name; });
         const schoolColorMap = {};
         let colorIndex = 0;
 
-        document.querySelectorAll('.teacher-row').forEach(function (row) {
-            const key = row.dataset.schoolKey || 'none';
+        document.querySelectorAll('.teacher-card[data-school-key]').forEach(function (card) {
+            const key = card.dataset.schoolKey || 'none';
             if (!schoolColorMap[key]) {
-                schoolColorMap[key] = pastelClasses[colorIndex % pastelClasses.length];
+                schoolColorMap[key] = shuffledPastels[colorIndex % shuffledPastels.length];
                 colorIndex += 1;
             }
-            row.classList.add(schoolColorMap[key]);
+            card.classList.add(schoolColorMap[key]);
+        });
+
+        document.querySelectorAll('.teacher-summary-card').forEach(function (card, index) {
+            card.classList.add(shuffledPastels[index % shuffledPastels.length]);
         });
 
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const roleLabels = {
+            GUEST: '게스트 교사',
+            TEACHER: '일반 교사',
+            LEADER: '학교 대표 교사',
+            ADMIN: '최고 관리자'
+        };
+        const approvalLabels = {
+            APPROVED: '승인 완료',
+            PENDING: '승인 대기',
+            DENIED: '승인 거절'
+        };
 
         document.querySelectorAll('.teacher-action-btn').forEach(function (button) {
             button.addEventListener('click', function () {
@@ -291,19 +452,22 @@
                         });
                     })
                     .then(function (data) {
-                        const row = button.closest('.teacher-row');
+                        const card = button.closest('.teacher-card');
                         const teacher = data.teacher;
-                        const roleLabel = row.querySelector('.role-label');
-                        const repLabel = row.querySelector('.rep-label');
-                        const approvalLabel = row.querySelector('.approval-label');
-                        const repButton = row.querySelector('.rep-toggle-btn');
+                        const roleLabel = card.querySelector('.role-label');
+                        const repLabel = card.querySelector('.rep-label');
+                        const approvalLabel = card.querySelector('.approval-label');
+                        const repButton = card.querySelector('.rep-toggle-btn');
 
-                        roleLabel.textContent = teacher.role_label;
+                        roleLabel.textContent = roleLabels[teacher.role] || teacher.role_label;
+                        roleLabel.dataset.role = teacher.role;
+
                         repLabel.textContent = teacher.is_representative ? '대표' : '일반';
                         repLabel.classList.toggle('text-bg-primary', teacher.is_representative);
                         repLabel.classList.toggle('text-bg-secondary', !teacher.is_representative);
 
-                        approvalLabel.textContent = teacher.approval_label;
+                        approvalLabel.textContent = approvalLabels[teacher.approval_status] || teacher.approval_label;
+                        approvalLabel.dataset.status = teacher.approval_status;
                         approvalLabel.classList.remove('text-bg-success', 'text-bg-warning', 'text-bg-danger');
                         if (teacher.approval_status === 'APPROVED') {
                             approvalLabel.classList.add('text-bg-success');
