@@ -77,7 +77,15 @@
     }
 
     .teacher-toolbar {
-        background: rgba(255, 255, 255, 0.82);
+        background-color: #E9E2FF !important;
+    }
+
+    .teacher-filter-search {
+        width: 260px;
+    }
+
+    .teacher-filter-select {
+        width: 210px;
     }
 
     .teacher-list-shell {
@@ -269,39 +277,51 @@
         </div>
     </div>
 
-    <form method="get" class="teacher-toolbar card rounded-24px p-4 mb-4">
-        <div class="row g-3 align-items-end" style="background-color: #E9E2FF;">
-            <div class="col-lg-4">
-                <label class="form-label small fw-bold text-muted">검색</label>
-                <input type="search" name="q" value="{{ q }}" class="form-control rounded-pill" placeholder="이름, 이메일, 학교명">
-            </div>
-            {% if is_admin_teacher_manager %}
-            <div class="col-lg-3">
-                <label class="form-label small fw-bold text-muted">학교</label>
-                <select name="school" class="form-select rounded-pill">
-                    <option value="">전체 학교</option>
-                    {% for school in schools %}
-                    <option value="{{ school.id }}" {% if selected_school == school.id|stringformat:"s" %}selected{% endif %}>{{ school.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
-            <div class="col-lg-3">
-                <label class="form-label small fw-bold text-muted">정렬</label>
-                <select name="sort" class="form-select rounded-pill">
-                    <option value="-date_joined" {% if sort == '-date_joined' %}selected{% endif %}>가입일 최신순</option>
-                    <option value="date_joined" {% if sort == 'date_joined' %}selected{% endif %}>가입일 오래된순</option>
-                    <option value="school" {% if sort == 'school' %}selected{% endif %}>학교명순</option>
-                    <option value="name" {% if sort == 'name' %}selected{% endif %}>이름순</option>
-                </select>
-            </div>
-            <div class="col-lg-2 d-grid">
-                <button type="submit" class="btn btn-primary rounded-pill fw-bold" style="background: linear-gradient(135deg, #FF80B5, #8E44AD); border: 0;">
-                    <i class="bi bi-search me-1"></i> 조회
+    <div class="card border-0 rounded-24px shadow-sm p-4 mb-4 teacher-toolbar" style="background-color: #E9E2FF !important;">
+        <form method="get" id="teacherFilterForm" class="d-flex flex-wrap align-items-center gap-2">
+            <button type="button"
+                    class="btn rounded-pill px-4 fw-bold d-flex align-items-center gap-2 shadow-sm bg-white"
+                    style="border: 2px solid #8E44AD; color: #8E44AD; white-space: nowrap;"
+                    disabled>
+                <i class="bi bi-building-fill"></i>
+                {% if is_admin_teacher_manager %}?? ??{% else %}{{ user.school.name }}{% endif %}
+                <span class="badge rounded-pill" style="background: #8E44AD;">{{ summary.total }}?</span>
+            </button>
+
+            <div class="input-group shadow-sm teacher-filter-search">
+                <input type="search" name="q" value="{{ q }}"
+                       class="form-control rounded-start-pill border-end-0 bg-white border-0"
+                       placeholder="?? ?? ??">
+                <button type="submit" class="btn bg-white border border-start-0 rounded-end-pill px-3" title="??">
+                    <i class="bi bi-search" style="color: #8E44AD;"></i>
                 </button>
             </div>
-        </div>
-    </form>
+
+            <a href="{% url 'admin_teacher_list' %}" class="btn bg-white rounded-pill border-0 shadow-sm px-3 text-muted" title="?? ???">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> ???
+            </a>
+
+            {% if is_admin_teacher_manager %}
+            <select name="school" class="form-select rounded-pill bg-white border-0 shadow-sm teacher-filter-select">
+                <option value="">?? ??</option>
+                {% for school in schools %}
+                <option value="{{ school.id }}" {% if selected_school == school.id|stringformat:"s" %}selected{% endif %}>{{ school.name }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+
+            <select name="sort" class="form-select rounded-pill bg-white border-0 shadow-sm teacher-filter-select">
+                <option value="-date_joined" {% if sort == '-date_joined' %}selected{% endif %}>??? ???</option>
+                <option value="date_joined" {% if sort == 'date_joined' %}selected{% endif %}>??? ????</option>
+                <option value="school" {% if sort == 'school' %}selected{% endif %}>????</option>
+                <option value="name" {% if sort == 'name' %}selected{% endif %}>???</option>
+            </select>
+
+            <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" style="background: linear-gradient(135deg, #FF80B5, #8E44AD); border: 0; white-space: nowrap;">
+                <i class="bi bi-search me-1"></i> ??
+            </button>
+        </form>
+    </div>
 
     <div class="teacher-list-shell card rounded-24px p-4">
         {% csrf_token %}
