@@ -225,6 +225,16 @@
         color: #a6acb5;
         background: rgba(255, 255, 255, 0.56);
     }
+    
+    /* 버튼에 마우스를 올렸을 때 글자색을 검정으로 강제 고정 */
+    .teacher-action-btn:hover {
+        color: #212529 !important; /* 부트스트랩 표준 검정색 */
+    }
+
+    /* 만약 아이콘 색상도 같이 검정으로 바꾸고 싶다면 아래 내용도 추가하세요 */
+    .teacher-action-btn:hover i {
+        color: #212529 !important;
+    }
 
     .pastel-purple { --accent-color: #8E44AD; background: rgba(233, 226, 255, 0.72) !important; }
     .pastel-blue { --accent-color: #4C8DFF; background: rgba(221, 235, 255, 0.72) !important; }

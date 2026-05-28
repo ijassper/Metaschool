@@ -8,7 +8,7 @@
     
     /* 전체 컨테이너 여백 제거 및 높이 확보 */
     body { padding-top: 0 !important; background-color: #f8f9fa; }
-    .container-fluid { margin-top: 0 !important; padding: 10px; height: 100vh; }
+    .container-fluid { margin-top: 0 !important; padding: 10px; height: 100dvh; }
     
     /* 카드 높이 꽉 채우기 */
     .full-height-card { height: 95vh; }
@@ -23,7 +23,7 @@
 
     /* 2. 메인 컨테이너 설정 */
     #testContainer {
-        height: 100vh !important;
+        height: 100dvh !important;
         overflow: hidden !important;
         display: flex !important;
         flex-direction: column !important;
@@ -36,7 +36,7 @@
 
     /* 3. 좌우 패널 독립 스크롤 설정 */
     .scroll-panel {
-        height: calc(100vh - 60px); /* 헤더 높이를 제외한 나머지 전체 */
+        height: calc(100dvh - 60px); /* 헤더 높이를 제외한 나머지 전체 */
         overflow-y: auto !important;
         overflow-x: hidden !important;
     }
@@ -83,6 +83,48 @@
 
     .text-2xl {
         font-size: 1.5rem !important;
+    }
+    .exam-sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 1040;
+        min-height: 72px;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border-bottom: 1px solid rgba(142, 68, 173, 0.16);
+        color: #2e3138;
+    }
+    .exam-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(243, 240, 255, 0.9);
+        border: 1px solid rgba(142, 68, 173, 0.14);
+        color: #8E44AD;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+    .floating-submit-bar {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        z-index: 1035;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border-top: 1px solid rgba(142, 68, 173, 0.18);
+        box-shadow: none;
+        padding: 0.75rem max(1rem, env(safe-area-inset-left)) calc(0.75rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-right));
+    }
+    .floating-submit-bar .btn {
+        min-height: 44px;
+    }
+    .exam-answer-scroll {
+        padding-bottom: 120px !important;
     }
     .prep-glass-card {
         background: rgba(255, 255, 255, 0.8) !important;
@@ -141,7 +183,7 @@
         
         /* Tailwind-style Responsive Classes */
         .md\:h-screen {
-            height: 100vh !important;
+            height: 100dvh !important;
         }
         .md\:overflow-hidden {
             overflow: hidden !important;
@@ -177,6 +219,32 @@
         #startOverlay {
             overflow-y: auto !important;
             height: 100% !important;
+        }
+        #testContainer {
+            overflow-y: auto !important;
+        }
+        #testContainer .row {
+            height: auto !important;
+            min-height: 100dvh;
+        }
+        .scroll-panel {
+            height: auto !important;
+            max-height: none !important;
+        }
+        .exam-answer-panel {
+            min-height: 100dvh;
+        }
+        .exam-answer-scroll {
+            overflow-y: visible !important;
+            padding: 1.25rem 1rem 130px !important;
+        }
+        .exam-sticky-header {
+            align-items: flex-start !important;
+            gap: 0.75rem;
+        }
+        .floating-submit-bar .container-fluid {
+            height: auto !important;
+            padding: 0 !important;
         }
     }
 </style>
@@ -361,24 +429,31 @@
         </div>
 
         <!-- [우측 영역: 답안지 - 동적 생성] -->
-        <div class="col-md-9 d-flex flex-column bg-white h-100">
+        <div class="col-md-9 d-flex flex-column bg-white h-100 exam-answer-panel">
             <form id="answerForm" method="post" class="h-100 d-flex flex-column">
                 {% csrf_token %}
                 <!-- 응시 계속하기 로그 기록 -->
                 <input type="hidden" name="is_submit" id="isSubmitField" value="false">
                 <!-- 상단 헤더 고정 -->
-                 <div class="p-3 d-flex justify-content-between align-items-center shadow-sm text-white" 
-                    style="background: var(--ingrid-gradient); z-index: 10; height: 65px;">
-                    <h5 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i> 답안 작성 ({{ user.name }})</h5>
-                    <div class="d-flex align-items-center gap-3">
-                        <span id="charCount" class="badge bg-white text-primary px-3 py-2">0자 / {{ activity.char_limit }}자 이내</span>
-                        <button type="button" class="btn btn-outline-light btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#exitConfirmModal">나가기</button>
-                        <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold shadow" data-bs-toggle="modal" data-bs-target="#submitModal">답안 제출</button>
+                <div class="exam-sticky-header p-3 d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h5 class="mb-1 fw-bold text-primary"><i class="bi bi-pencil-square me-2"></i> 답안 작성</h5>
+                        <div class="small fw-bold text-secondary">
+                            {{ user.name }}{% if user.school %} · {{ user.school.name }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                        <span id="remainingTime" class="exam-status-pill">
+                            <i class="bi bi-clock-history"></i> 남은 시간 확인 중
+                        </span>
+                        <span id="charCount" class="exam-status-pill">0자 / {{ activity.char_limit }}자 이내</span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#exitConfirmModal">나가기</button>
+                        <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">답안 제출</button>
                     </div>
                 </div>
 
                 <!-- 답안 영역만 별도 스크롤 -->
-                <div class="flex-grow-1 scroll-panel p-5 bg-light-subtle">
+                <div class="flex-grow-1 scroll-panel p-5 bg-light-subtle exam-answer-scroll">
                     <div class="w-100">
                         <!-- 보안 모드 안내 -->
                         {% if activity.exam_mode == 'CLOSED' %}
@@ -412,6 +487,22 @@
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<div id="floatingSubmitBar" class="floating-submit-bar">
+    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+        <span id="floatingCharCount" class="exam-status-pill">
+            <i class="bi bi-type"></i> 0자 / {{ activity.char_limit }}자 이내
+        </span>
+        <div class="d-flex align-items-center gap-2 ms-auto">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-bold" onclick="saveDraft()">
+                <i class="bi bi-cloud-check me-1"></i> 임시 저장
+            </button>
+            <button type="button" class="btn rounded-pill px-4 fw-bold text-white" style="background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%)); border: 0;" data-bs-toggle="modal" data-bs-target="#submitModal">
+                <i class="bi bi-send-check-fill me-1"></i> 최종 제출하기
+            </button>
         </div>
     </div>
 </div>
@@ -533,6 +624,8 @@
     /* 1. 환경 변수 및 초기 설정 */
     const EXAM_MODE = "{{ activity.exam_mode }}"; 
     const charLimit = parseInt("{{ activity.char_limit|default:0 }}");
+    const deadlineValue = "{{ activity.deadline|date:'c' }}";
+    const deadlineAt = deadlineValue ? new Date(deadlineValue) : null;
     const answerId = "{{ answer_id }}"; 
     const csrfToken = '{{ csrf_token }}';
     const IS_DEMO = "{{ is_demo|yesno:'true,false' }}"; // 서버에서 온 데모 모드 여부
@@ -893,17 +986,49 @@
         const allInputs = document.querySelectorAll('.answer-input');
         let totalLength = 0;
         allInputs.forEach(input => { totalLength += input.value.length; });
+        const label = charLimit > 0 ? `${totalLength}자 / ${charLimit}자 이내` : `${totalLength}자 / 제한 없음`;
         
         const charCountElement = document.getElementById('charCount');
         if (charCountElement) {
-            charCountElement.textContent = `${totalLength}자 / ${charLimit}자 이내`;
+            charCountElement.textContent = label;
         }
+
+        const floatingCharCount = document.getElementById('floatingCharCount');
+        if (floatingCharCount) {
+            floatingCharCount.innerHTML = `<i class="bi bi-type"></i> ${label}`;
+        }
+    }
+
+    function updateRemainingTime() {
+        const remainingTimeElement = document.getElementById('remainingTime');
+        if (!remainingTimeElement) return;
+
+        if (!deadlineAt || Number.isNaN(deadlineAt.getTime())) {
+            remainingTimeElement.innerHTML = '<i class="bi bi-clock-history"></i> 기한 없음';
+            return;
+        }
+
+        const diff = deadlineAt.getTime() - Date.now();
+        if (diff <= 0) {
+            remainingTimeElement.innerHTML = '<i class="bi bi-exclamation-circle"></i> 마감됨';
+            remainingTimeElement.classList.add('text-danger');
+            return;
+        }
+
+        const totalMinutes = Math.floor(diff / 60000);
+        const days = Math.floor(totalMinutes / 1440);
+        const hours = Math.floor((totalMinutes % 1440) / 60);
+        const minutes = totalMinutes % 60;
+        const display = days > 0 ? `${days}일 ${hours}시간 남음` : `${hours}시간 ${minutes}분 남음`;
+        remainingTimeElement.innerHTML = `<i class="bi bi-clock-history"></i> ${display}`;
     }
 
     // 보안 모드 초기화 호출
     document.addEventListener('DOMContentLoaded', function() {
         initSecurityMode();
         updateCharCount(); // 초기 글자 수 계산
+        updateRemainingTime();
+        setInterval(updateRemainingTime, 60000);
         
         // 실시간 글자 수 업데이트
         const textareas = document.querySelectorAll('textarea.answer-input');
@@ -927,6 +1052,43 @@
         }).catch(() => {
             window.location.href = "{% url 'dashboard' %}";
         });
+    }
+
+    function backupAllAnswers() {
+        document.querySelectorAll('textarea.answer-input').forEach(function (textarea) {
+            backupNormalAnswer(textarea, textarea.value || '');
+        });
+    }
+
+    function saveDraft() {
+        const form = document.getElementById('answerForm');
+        const submitField = document.getElementById('isSubmitField');
+        const floatingBar = document.getElementById('floatingSubmitBar');
+        const previousSubmitValue = submitField.value;
+
+        submitField.value = 'false';
+        backupAllAnswers();
+        if (floatingBar) floatingBar.classList.add('opacity-75');
+
+        fetch(window.location.href, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function (response) {
+                if (!response.ok) throw new Error('임시 저장에 실패했습니다.');
+                return response;
+            })
+            .then(function () {
+                alert('임시 저장되었습니다.');
+            })
+            .catch(function (error) {
+                alert(error.message || '임시 저장 중 오류가 발생했습니다.');
+            })
+            .finally(function () {
+                submitField.value = previousSubmitValue;
+                if (floatingBar) floatingBar.classList.remove('opacity-75');
+            });
     }
 
     // confirmExit 함수 제거 (모달로 대체됨)
