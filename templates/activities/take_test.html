@@ -356,10 +356,22 @@
                             <i class="bi bi-exclamation-triangle-fill me-2"></i> 응시 주의사항
                         </h6>
                         <ul class="mb-0 text-dark prep-body-text" style="padding-left: 1.25rem;">
-                            <li><strong>전체 화면</strong>으로 응시가 진행되며 화면 이탈 기록이 남습니다.</li>
-                            <li><strong>복사, 붙여넣기, 마우스 우클릭</strong>은 금지됩니다.</li>
-                            <li>다른 탭이나 창으로 이동하면 부정행위로 간주될 수 있습니다.</li>
-                            <li>모든 특이사항은 선생님께 실시간 로그로 전송됩니다.</li>
+                            {% if is_demo %}
+                            <li>시연 모드에서는 화면 이탈 감지와 복사 제한이 비활성화됩니다.</li>
+                            {% else %}
+                                {% if enable_exit_detection %}
+                                <li><strong>전체 화면</strong>으로 응시가 진행되며 화면 이탈 기록이 남습니다.</li>
+                                <li>다른 탭이나 창으로 이동하면 부정행위로 간주될 수 있습니다.</li>
+                                {% else %}
+                                <li>다른 탭이나 창으로 자유롭게 이동할 수 있습니다.</li>
+                                {% endif %}
+                                {% if enable_copy_protection %}
+                                <li><strong>복사, 붙여넣기, 마우스 우클릭</strong>은 금지됩니다.</li>
+                                {% else %}
+                                <li>복사와 붙여넣기를 사용할 수 있습니다.</li>
+                                {% endif %}
+                                <li>설정된 응시 환경에 따른 특이사항은 선생님께 기록될 수 있습니다.</li>
+                            {% endif %}
                         </ul>
                     </div>
                 </div>
@@ -473,9 +485,16 @@
                 <div class="flex-grow-1 scroll-panel p-5 bg-light-subtle exam-answer-scroll">
                     <div class="w-100">
                         <!-- 보안 모드 안내 -->
-                        {% if activity.exam_mode == 'CLOSED' %}
+                        {% if enable_exit_detection or enable_copy_protection %}
                         <div class="security-notice">
-                            <i class="bi bi-shield-fill me-2"></i>현재 붙여넣기 및 외부 입력이 차단된 상태입니다
+                            <i class="bi bi-shield-fill me-2"></i>
+                            {% if enable_exit_detection and enable_copy_protection %}
+                                화면 이탈 감지와 복사/붙여넣기 차단이 활성화되어 있습니다
+                            {% elif enable_exit_detection %}
+                                화면 이탈 감지가 활성화되어 있습니다
+                            {% elif enable_copy_protection %}
+                                복사/붙여넣기 차단이 활성화되어 있습니다
+                            {% endif %}
                         </div>
                         {% endif %}
                         <!-- 항목 1 답변창 -->
@@ -639,13 +658,15 @@
      */
 
     /* 1. 환경 변수 및 초기 설정 */
-    const EXAM_MODE = "{{ activity.exam_mode }}"; 
+    const EXAM_MODE = "{{ exam_mode }}";
+    const IS_DEMO = {{ is_demo|yesno:"true,false" }};
+    const ENABLE_EXIT_DETECTION = {{ enable_exit_detection|yesno:"true,false" }};
+    const ENABLE_COPY_PROTECTION = {{ enable_copy_protection|yesno:"true,false" }};
     const charLimit = parseInt("{{ activity.char_limit|default:0 }}");
     const deadlineValue = "{{ activity.deadline|date:'c' }}";
     const deadlineAt = deadlineValue ? new Date(deadlineValue) : null;
     const answerId = "{{ answer_id }}"; 
     const csrfToken = '{{ csrf_token }}';
-    const IS_DEMO = "{{ is_demo|yesno:'true,false' }}"; // 서버에서 온 데모 모드 여부
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
@@ -657,26 +678,37 @@
     const INPUT_GRACE_MS = 1000;
     const ANSWER_BACKUP_PREFIX = `ingrid-answer-backup-${answerId || 'new'}-`;
 
-    /* 1.5. 클립보드 보안 기능 (보안 모드 전용) */
+    /* 1.5. 복사 제어 기능 (_LOCK 계열 전용, 데모 모드에서는 항상 비활성) */
     function initSecurityMode() {
-        
-        if (EXAM_MODE !== 'CLOSED') return;
+        if (!ENABLE_COPY_PROTECTION || IS_DEMO) return;
         
         const textareas = document.querySelectorAll('textarea.answer-input');
         
         textareas.forEach(textarea => {
             initializeInputGuard(textarea);
-
-            // 클립보드 이벤트 차단
-            textarea.addEventListener('paste', handlePasteAttempt);
-            textarea.addEventListener('copy', handleClipboardBlock);
-            textarea.addEventListener('cut', handleClipboardBlock);
             textarea.addEventListener('drop', handleDropBlock);
-            textarea.addEventListener('contextmenu', handleContextMenuBlock);
             textarea.addEventListener('focus', handleInputFocusGrace);
             
             // 비정상 입력 감지
             textarea.addEventListener('input', handleAbnormalInput);
+        });
+
+        document.addEventListener('paste', handlePasteAttempt);
+        document.addEventListener('copy', handleClipboardBlock);
+        document.addEventListener('cut', handleClipboardBlock);
+        document.addEventListener('contextmenu', handleContextMenuBlock);
+        document.addEventListener('selectstart', function(e) {
+            if (!testStarted || isSubmitting || IS_DEMO) return;
+            e.preventDefault();
+        });
+        document.addEventListener('keydown', function(e) {
+            if (!testStarted || isSubmitting || IS_DEMO) return;
+            const key = e.key.toLowerCase();
+            if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'a', 'x'].includes(key)) {
+                e.preventDefault();
+                sendLog(key === 'c' ? 'COPY' : 'PASTE');
+                showSecurityWarning('복사/붙여넣기가 차단된 응시 환경입니다.');
+            }
         });
     }
     
@@ -720,26 +752,33 @@
     }
     
     function handlePasteAttempt(e) {
+        if (!testStarted || isSubmitting || !ENABLE_COPY_PROTECTION || IS_DEMO) return;
         e.preventDefault();
         pasteAttempts++;
+        sendLog('PASTE');
         logSecurityEvent('paste_attempt', pasteAttempts);
         showSecurityWarning('보안 모드에서는 붙여넣기가 금지되어 있습니다.');
     }
     
     function handleClipboardBlock(e) {
+        if (!testStarted || isSubmitting || !ENABLE_COPY_PROTECTION || IS_DEMO) return;
         e.preventDefault();
+        sendLog(e.type === 'paste' ? 'PASTE' : 'COPY');
         logSecurityEvent('clipboard_block', 1);
         showSecurityWarning('보안 모드에서는 복사/잘라내기가 금지되어 있습니다.');
     }
     
     function handleDropBlock(e) {
+        if (!testStarted || isSubmitting || !ENABLE_COPY_PROTECTION || IS_DEMO) return;
         e.preventDefault();
         logSecurityEvent('drop_block', 1);
         showSecurityWarning('보안 모드에서는 파일 드롭이 금지되어 있습니다.');
     }
     
     function handleContextMenuBlock(e) {
+        if (!testStarted || isSubmitting || !ENABLE_COPY_PROTECTION || IS_DEMO) return;
         e.preventDefault();
+        sendLog('RIGHT_CLICK');
         logSecurityEvent('contextmenu_block', 1);
         showSecurityWarning('보안 모드에서는 우클릭 메뉴가 금지되어 있습니다.');
     }
@@ -862,7 +901,7 @@
     /* 2. 응시 시작 로직 (가림막 제거 및 전체화면) */
     function startTest() {
         const elem = document.documentElement;
-        if (EXAM_MODE === 'CLOSED') {
+        if (ENABLE_EXIT_DETECTION) {
             if (elem.requestFullscreen) {
                 elem.requestFullscreen().then(() => completeStart()).catch(err => {
                     alert("전체 화면 모드를 허용해야 응시가 가능합니다.");
@@ -879,10 +918,10 @@
      * 보안 경고창에서 '응시 계속하기' 클릭 시 실행
      */
     function completeStart() {
+        const wasStarted = testStarted;
         testStarted = true;
-        if (document.getElementById('startOverlay').classList.contains('d-none') === false) {
-            // 보안 경고로 인해 다시 들어온 경우에만 로그 기록
-            sendLog('재입장'); // [기록] 보안 경고 후 재입장
+        if (wasStarted && ENABLE_EXIT_DETECTION) {
+            sendLog('IN'); // [기록] 보안 경고 후 재입장
         }
         document.getElementById('startOverlay').classList.add('d-none');
         const container = document.getElementById('testContainer');
@@ -900,19 +939,22 @@
 
     /* 3. 보안 제어: 화면 잠금(가림막) 함수 (Native Alert 대체) */
     const lockScreen = (message) => {
-        if (isSubmitting || !testStarted) return;
+        if (!ENABLE_EXIT_DETECTION || isSubmitting || !testStarted || IS_DEMO) return;
         
         const overlay = document.getElementById('startOverlay');
         const btn = overlay.querySelector('button');
-        const title = overlay.querySelector('h1');
-        const alertBox = overlay.querySelector('.alert');
+        const title = overlay.querySelector('h1, h2');
+        const alertBox = overlay.querySelector('.alert') || overlay.querySelector('.prep-caution-card .card-body');
         
-        title.innerHTML = '<i class="bi bi-shield-lock-fill text-danger"></i> 보안 경고';
-        btn.innerText = "전체 화면으로 복귀하여 응시 계속하기";
-        btn.classList.replace('btn-primary', 'btn-danger');
+        if (title) title.innerHTML = '<i class="bi bi-shield-lock-fill text-danger"></i> 보안 경고';
+        if (btn) {
+            btn.innerText = "전체 화면으로 복귀하여 응시 계속하기";
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-danger');
+        }
         
-        alertBox.innerHTML = `
-            <h5 class="fw-bold mb-2">⚠️ 보안 정책 위반 감지</h5>
+        if (alertBox) alertBox.innerHTML = `
+            <h5 class="fw-bold mb-2">보안 정책 위반 감지</h5>
             <p class="mb-0">${message}</p>
             <small class="text-muted mt-2 d-block">해당 이탈 기록은 감독 선생님께 실시간으로 전송되었습니다.</small>
         `;
@@ -921,12 +963,15 @@
         document.getElementById('testContainer').style.filter = "blur(20px)";
     };
 
-    // 1. [폐쇄형(CLOSED)] : 모든 보안 장치 가동 + 실시간 로그 기록
-    if (EXAM_MODE === 'CLOSED') {
-        
-        // (1) 화면 이탈 및 창 전환 감시 (Alt+Tab, 탭 이동 등)
+    // 1. [CLOSED_ 계열] : 화면 이탈 및 창 전환 감시
+    function initExitDetection() {
+        if (!ENABLE_EXIT_DETECTION || IS_DEMO) {
+            console.log("이탈 감지 비활성화:", EXAM_MODE);
+            return;
+        }
+
         const checkSecurity = () => {
-            if (!testStarted || isSubmitting || IS_DEMO === 'true') return;
+            if (!testStarted || isSubmitting || IS_DEMO) return;
             
             const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
             const isTabActive = !document.hidden;
@@ -945,43 +990,10 @@
         
         // [Alt+Tab 및 외부 프로그램 사용 감지]
         window.addEventListener('blur', () => {
-            if (!testStarted || isSubmitting || IS_DEMO === 'true') return;
+            if (!testStarted || isSubmitting || IS_DEMO) return;
             sendLog('OUT'); // [기록] 포커스 이탈
             lockScreen("브라우저 포커스가 이탈되었습니다. 다른 프로그램 사용이 감지되었습니다.");
         });
-
-        // (2) 복사하기/붙여넣기/우클릭 차단 (복사하기 금지 정의 반영)
-        document.addEventListener('keydown', (e) => {
-            if (!testStarted || IS_DEMO === 'true') return;
-            
-            // Ctrl+C, Ctrl+V, Ctrl+A, Ctrl+X 등 모든 복사/붙여넣기 단축키 차단
-            if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'a', 'x'].includes(e.key.toLowerCase())) {
-                e.preventDefault();
-                sendLog(e.key.toUpperCase() === 'C' ? 'COPY' : 'PASTE');
-                // alert 대신 하단에 작게 토스트 알림을 띄우거나 콘솔 경고만 남김 (전체화면 유지 위해)
-                console.warn("복사/붙여넣기가 금지된 환경입니다.");
-            }
-        });
-
-        document.addEventListener('contextmenu', (e) => { 
-            if (IS_DEMO === 'false') {
-                e.preventDefault(); 
-                sendLog('RIGHT_CLICK'); // [기록] 우클릭 시도
-            }
-        });
-
-        // 드래그(범위 지정) 차단
-        document.addEventListener('selectstart', (e) => { 
-            if (IS_DEMO === 'false') e.preventDefault(); 
-        });
-
-    } 
-    // 2. [개방형(OPEN)] : 자유로운 환경 + 로그 기록 중단
-    else {
-        console.log("개방형 응시 모드: 참고자료 확인이 허용되며, 이탈 로그를 기록하지 않습니다.");
-        
-        // 개방형에서는 모든 단축키 및 화면 이탈이 자유로우므로 
-        // 아무런 이벤트 리스너를 등록하지 않습니다.
     }
 
     /**
@@ -991,7 +1003,7 @@
     history.pushState(null, null, location.href);
     window.onpopstate = function () {
         history.pushState(null, null, location.href);
-        if (EXAM_MODE === 'CLOSED') {
+        if (ENABLE_EXIT_DETECTION && !IS_DEMO) {
             sendLog('BACK_BUTTON'); // 폐쇄형일 때만 로그 기록
         }
         const backModal = new bootstrap.Modal(document.getElementById('backButtonModal'));
@@ -1043,6 +1055,7 @@
     // 보안 모드 초기화 호출
     document.addEventListener('DOMContentLoaded', function() {
         initSecurityMode();
+        initExitDetection();
         updateCharCount(); // 초기 글자 수 계산
         updateRemainingTime();
         setInterval(updateRemainingTime, 60000);

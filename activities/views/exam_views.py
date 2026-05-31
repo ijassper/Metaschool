@@ -104,13 +104,25 @@ def take_test(request, activity_id):
         else:
             return JsonResponse({'status': 'success', 'message': '임시 저장 완료'})
 
-    # 7. 화면에 데이터 전달
+    # 7. 응시 환경 보안 플래그 구성
+    exam_mode = activity.exam_mode
+    is_closed_mode = exam_mode.startswith('CLOSED_') or exam_mode == 'CLOSED'
+    is_copy_locked = exam_mode.endswith('_LOCK') or exam_mode == 'CLOSED'
+    enable_exit_detection = is_closed_mode and not is_demo
+    enable_copy_protection = is_copy_locked and not is_demo
+
+    # 8. 화면에 데이터 전달
     return render(request, 'activities/take_test.html', {
         'activity': activity,
         'question': question,  # [추가] 템플릿에서 문항 정보를 쉽게 쓰기 위해
         'answer': answer,
         'answer_id': answer.id,
-        'is_demo': 'true' if is_demo else 'false',    # [추가] 시연 모드 여부 전달 (복붙 허용 로직용)
+        'exam_mode': exam_mode,
+        'is_closed_mode': is_closed_mode,
+        'is_copy_locked': is_copy_locked,
+        'enable_exit_detection': enable_exit_detection,
+        'enable_copy_protection': enable_copy_protection,
+        'is_demo': is_demo,
     })
 
 # [2] 보안 및 활동 로그 저장 API

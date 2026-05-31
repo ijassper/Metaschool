@@ -137,7 +137,7 @@ def unified_create(request):
                 # [섹션 1: 기본 정보]
                 section=request.POST.get('section', sub_menu),
                 title=request.POST.get('title', '제목 없음') + extra_str,
-                exam_mode=request.POST.get('exam_mode', 'CLOSED'),
+                exam_mode=request.POST.get('exam_mode', 'CLOSED_LOCK'),
                 allow_edit_after_submission=request.POST.get('allow_edit_after_submission') == 'True',
                 deadline=parse_dt(request.POST.get('deadline')), # 섹션 1 기한
                 
@@ -267,7 +267,7 @@ def unified_update(request, activity_id):
         # [섹션 1: 기본 정보]
         activity.section = request.POST.get('section', activity.section)
         activity.title = request.POST.get('title', activity.title)
-        activity.exam_mode = request.POST.get('exam_mode', 'CLOSED')
+        activity.exam_mode = request.POST.get('exam_mode', 'CLOSED_LOCK')
         activity.allow_edit_after_submission = request.POST.get('allow_edit_after_submission') == 'True'
         
         # [섹션 2: 세부 평가 내용] - 루프 없이 직접 매핑하여 유실 차단
@@ -434,7 +434,7 @@ def creative_create(request):
         char_limit = int(char_limit_raw) if char_limit_raw else 0
         
         # 응시 환경 유형
-        exam_mode = request.POST.get('exam_mode', 'CLOSED')
+        exam_mode = request.POST.get('exam_mode', 'CLOSED_LOCK')
         
         # 파일 업로드
         attachment = request.FILES.get('attachment')
@@ -538,7 +538,7 @@ def creative_update(request, pk):
         sync_status_on_deadline_extension(activity, old_deadline, activity.deadline)
 
         # 시험 모드 설정
-        activity.exam_mode = request.POST.get('exam_mode', 'CLOSED')
+        activity.exam_mode = request.POST.get('exam_mode', 'CLOSED_LOCK')
             
         # 데이터 저장
         activity.save()

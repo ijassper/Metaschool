@@ -222,7 +222,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                {% if activity.exam_mode == 'CLOSED' %}
+                {% if activity.exam_mode == 'CLOSED_LOCK' or activity.exam_mode == 'CLOSED_FREE' or activity.exam_mode == 'CLOSED' %}
                 <div id="logSection" class="mb-4">
                     <label class="fw-bold mb-2 text-danger small"><i class="bi bi-shield-exclamation me-1"></i> 출입관리 기록 (부정행위 의심 로그)</label>
                     <!-- [수정] pre 태그를 사용하여 줄바꿈을 유지합니다 -->

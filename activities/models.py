@@ -34,10 +34,12 @@ class Activity(models.Model):
     
     # --- [4. 응시 및 제한 설정] ---
     EXAM_MODE_CHOICES = [
-        ('OPEN', '개방형 (자료참고 허용)'),
-        ('CLOSED', '폐쇄형 (보안모드 적용)'),
+        ('CLOSED_LOCK', '폐쇄형 + 복사금지'),
+        ('CLOSED_FREE', '폐쇄형 + 복사허용'),
+        ('OPEN_LOCK', '개방형 + 복사금지'),
+        ('OPEN_FREE', '개방형 + 복사허용'),
     ]
-    exam_mode = models.CharField(max_length=10, choices=EXAM_MODE_CHOICES, default='CLOSED', verbose_name="응시 환경")
+    exam_mode = models.CharField(max_length=11, choices=EXAM_MODE_CHOICES, default='CLOSED_LOCK', verbose_name="응시 환경")
     allow_edit_after_submission = models.BooleanField(default=True, verbose_name="제출 후 수정 허용")
     char_limit = models.IntegerField(default=0, verbose_name="분량 제한(자)") # 0은 무제한
     result = models.TextField(blank=True, verbose_name="평가 결과/피드백", help_text="학생에게 보여줄 피드백")
