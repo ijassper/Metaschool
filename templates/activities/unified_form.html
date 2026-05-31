@@ -37,9 +37,8 @@
     }
 
     .exam-mode-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 14px;
+        --bs-gutter-x: 0.85rem;
+        --bs-gutter-y: 0.85rem;
     }
 
     .exam-mode-input {
@@ -49,7 +48,7 @@
     }
 
     .exam-mode-card {
-        min-height: 168px;
+        min-height: 96px;
         cursor: pointer;
         border: 1px solid rgba(142, 68, 173, 0.16);
         border-radius: 24px;
@@ -74,12 +73,12 @@
     }
 
     .exam-mode-icon {
-        width: 44px;
-        height: 44px;
+        width: 40px;
+        height: 40px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 18px;
+        border-radius: 16px;
         color: #fff;
         background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));
         flex: 0 0 auto;
@@ -88,21 +87,30 @@
     .exam-mode-feature {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 10px;
+        justify-content: center;
+        gap: 4px;
+        padding: 4px 8px;
         border-radius: 999px;
-        font-size: 0.78rem;
+        font-size: 0.72rem;
         font-weight: 800;
         background: rgba(248, 249, 250, 0.88);
         border: 1px solid rgba(0, 0, 0, 0.06);
         white-space: nowrap;
     }
 
-    @media (max-width: 767.98px) {
-        .exam-mode-grid {
-            grid-template-columns: 1fr;
-        }
+    .exam-mode-copy {
+        min-width: 0;
     }
+
+    .exam-mode-copy small,
+    .exam-mode-copy strong {
+        overflow-wrap: anywhere;
+    }
+
+    .exam-mode-badges {
+        flex: 0 0 auto;
+    }
+
 </style>
 
 <div class="container py-4">
@@ -161,70 +169,70 @@
             <div class="row mb-3 align-items-center">
                 <div class="col-md-3 text-center fw-bold text-secondary border-end">응시 환경 유형</div>
                 <div class="col-md-9 px-4">
-                    <div class="exam-mode-grid">
-                        <div class="position-relative">
+                    <div class="row exam-mode-grid">
+                        <div class="col-12 col-md-6 position-relative">
                             <input class="exam-mode-input" type="radio" name="exam_mode" id="mode_closed_lock" value="CLOSED_LOCK"
                                 {% if form_data.exam_mode == 'CLOSED_LOCK' or form_data.exam_mode == 'CLOSED' or activity.exam_mode == 'CLOSED_LOCK' or activity.exam_mode == 'CLOSED' or not activity and not form_data %}checked{% endif %}>
-                            <label class="exam-mode-card d-flex flex-column p-4 h-100" for="mode_closed_lock">
-                                <span class="d-flex align-items-center gap-3 mb-3">
+                            <label class="exam-mode-card d-flex align-items-center justify-content-between gap-3 p-3 h-100" for="mode_closed_lock">
+                                <span class="d-flex align-items-center gap-3 exam-mode-copy">
                                     <span class="exam-mode-icon"><i class="bi bi-shield-lock-fill fs-5"></i></span>
                                     <span>
                                         <span class="d-block fw-bold text-dark">폐쇄형 + 복사금지</span>
                                         <small class="text-muted fw-bold">엄격한 평가 환경</small>
                                     </span>
                                 </span>
-                                <span class="d-flex flex-wrap gap-2 mt-auto">
+                                <span class="exam-mode-badges d-flex flex-column gap-1">
                                     <span class="exam-mode-feature text-danger"><i class="bi bi-door-closed-fill"></i> 이동 감지</span>
                                     <span class="exam-mode-feature text-danger"><i class="bi bi-clipboard-x-fill"></i> 복사 차단</span>
                                 </span>
                             </label>
                         </div>
-                        <div class="position-relative">
+                        <div class="col-12 col-md-6 position-relative">
                             <input class="exam-mode-input" type="radio" name="exam_mode" id="mode_closed_free" value="CLOSED_FREE"
                                 {% if form_data.exam_mode == 'CLOSED_FREE' or activity.exam_mode == 'CLOSED_FREE' %}checked{% endif %}>
-                            <label class="exam-mode-card d-flex flex-column p-4 h-100" for="mode_closed_free">
-                                <span class="d-flex align-items-center gap-3 mb-3">
+                            <label class="exam-mode-card d-flex align-items-center justify-content-between gap-3 p-3 h-100" for="mode_closed_free">
+                                <span class="d-flex align-items-center gap-3 exam-mode-copy">
                                     <span class="exam-mode-icon"><i class="bi bi-shield-check fs-5"></i></span>
                                     <span>
                                         <span class="d-block fw-bold text-dark">폐쇄형 + 복사허용</span>
                                         <small class="text-muted fw-bold">이탈만 관리하는 환경</small>
                                     </span>
                                 </span>
-                                <span class="d-flex flex-wrap gap-2 mt-auto">
+                                <span class="exam-mode-badges d-flex flex-column gap-1">
                                     <span class="exam-mode-feature text-danger"><i class="bi bi-door-closed-fill"></i> 이동 감지</span>
                                     <span class="exam-mode-feature text-success"><i class="bi bi-clipboard-check-fill"></i> 복사 허용</span>
                                 </span>
                             </label>
                         </div>
-                        <div class="position-relative">
+                        <div class="col-12 col-md-6 position-relative">
                             <input class="exam-mode-input" type="radio" name="exam_mode" id="mode_open_lock" value="OPEN_LOCK"
                                 {% if form_data.exam_mode == 'OPEN_LOCK' or activity.exam_mode == 'OPEN_LOCK' %}checked{% endif %}>
-                            <label class="exam-mode-card d-flex flex-column p-4 h-100" for="mode_open_lock">
-                                <span class="d-flex align-items-center gap-3 mb-3">
+                            <label class="exam-mode-card d-flex align-items-center justify-content-between gap-3 p-3 h-100" for="mode_open_lock">
+                                <span class="d-flex align-items-center gap-3 exam-mode-copy">
                                     <span class="exam-mode-icon"><i class="bi bi-unlock-fill fs-5"></i></span>
                                     <span>
                                         <span class="d-block fw-bold text-dark">개방형 + 복사금지</span>
                                         <small class="text-muted fw-bold">자료 이동은 허용, 복사는 제한</small>
                                     </span>
                                 </span>
-                                <span class="d-flex flex-wrap gap-2 mt-auto">
+                                <span class="exam-mode-badges d-flex flex-column gap-1">
                                     <span class="exam-mode-feature text-success"><i class="bi bi-door-open-fill"></i> 이동 자유</span>
                                     <span class="exam-mode-feature text-danger"><i class="bi bi-clipboard-x-fill"></i> 복사 차단</span>
                                 </span>
                             </label>
                         </div>
-                        <div class="position-relative">
+                        <div class="col-12 col-md-6 position-relative">
                             <input class="exam-mode-input" type="radio" name="exam_mode" id="mode_open_free" value="OPEN_FREE"
                                 {% if form_data.exam_mode == 'OPEN_FREE' or form_data.exam_mode == 'OPEN' or activity.exam_mode == 'OPEN_FREE' or activity.exam_mode == 'OPEN' %}checked{% endif %}>
-                            <label class="exam-mode-card d-flex flex-column p-4 h-100" for="mode_open_free">
-                                <span class="d-flex align-items-center gap-3 mb-3">
+                            <label class="exam-mode-card d-flex align-items-center justify-content-between gap-3 p-3 h-100" for="mode_open_free">
+                                <span class="d-flex align-items-center gap-3 exam-mode-copy">
                                     <span class="exam-mode-icon"><i class="bi bi-journal-check fs-5"></i></span>
                                     <span>
                                         <span class="d-block fw-bold text-dark">개방형 + 복사허용</span>
                                         <small class="text-muted fw-bold">참고자료 활용 환경</small>
                                     </span>
                                 </span>
-                                <span class="d-flex flex-wrap gap-2 mt-auto">
+                                <span class="exam-mode-badges d-flex flex-column gap-1">
                                     <span class="exam-mode-feature text-success"><i class="bi bi-door-open-fill"></i> 이동 자유</span>
                                     <span class="exam-mode-feature text-success"><i class="bi bi-clipboard-check-fill"></i> 복사 허용</span>
                                 </span>
