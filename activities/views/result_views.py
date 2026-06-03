@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
+from django.utils import timezone
 
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
@@ -63,6 +64,7 @@ def activity_result(request, activity_id):
     # 6. 제출 현황 정리
     submission_list = []
     question = activity.questions.first()
+    is_deadline_passed = bool(activity.deadline and timezone.now() > activity.deadline)
 
     for student in target_students:
         answer = Answer.objects.filter(student=student, question=question).first()
@@ -81,16 +83,17 @@ def activity_result(request, activity_id):
             log_data = answer.activity_log 
             content = answer.content
             
+            has_content = bool((answer.content or "").strip())
+
             if absence:
                 status = "결시"
-            elif not answer.submitted_at:
-                status = "응시 중"
-            elif not answer.content.strip():
-                status = "백지 제출"
-                submitted_at = answer.submitted_at
-            else:
+            elif answer.submitted_at:
                 status = "제출 완료"
                 submitted_at = answer.submitted_at
+            elif is_deadline_passed and not has_content:
+                status = "백지 제출"
+            else:
+                status = "응시 중"
         else:
             status = "미응시"
         
