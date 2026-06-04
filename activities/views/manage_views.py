@@ -157,8 +157,6 @@ def unified_create(request):
                 q1_title=request.POST.get('q1_title', config.get('default_q', [''])[0]),
                 q2_title=request.POST.get('q2_title', config.get('default_q', ['',''])[1]),
                 q3_title=request.POST.get('q3_title', config.get('default_q', ['','',''])[2]),
-                
-                is_active=True
             )
 
             print(f"[생성] Activity 객체 생성 완료 - ID: {activity.id}")
@@ -482,7 +480,6 @@ def creative_create(request):
             attachment=attachment,
             char_limit=char_limit,
             exam_mode=exam_mode,
-            is_active=True
         )
 
         # 3. 자율활동용 문항(Question) 자동 생성 (답안 제출 에러 방지)
