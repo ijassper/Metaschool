@@ -401,16 +401,35 @@ def unified_delete(request, activity_id):
 @teacher_required
 def toggle_activity_status(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
-    
-    # 상태 뒤집기 (True <-> False)
-    activity.is_active = not activity.is_active
-    activity.save()
 
-    status_msg = "평가가 [시작]되었습니다." if activity.is_active else "평가가 [마감]되었습니다."
+    if activity.is_active:
+        activity.is_active = False
+        status_msg = "평가가 [마감]되었습니다."
+        update_fields = ['is_active']
+    else:
+        activity.is_active = True
+        activity.allow_edit_after_submission = True
+        status_msg = "평가가 [시작]되었습니다."
+        update_fields = ['is_active', 'allow_edit_after_submission']
+
+    activity.save(update_fields=update_fields)
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({
+            'status': 'success',
+            'activity_id': activity.id,
+            'is_active': activity.is_active,
+            'allow_edit_after_submission': activity.allow_edit_after_submission,
+            'status_code': activity.status_code,
+            'status_text': activity.status_text,
+            'deadline': activity.deadline.isoformat() if activity.deadline else '',
+            'deadline_display': timezone.localtime(activity.deadline).strftime('%Y-%m-%d %H:%M') if activity.deadline else '기한 없음',
+            'message': status_msg,
+        })
+
     messages.success(request, status_msg)
-
-    # 활동의 카테고리에 따라 원래 목록 페이지로 리다이렉트
-    return redirect(f'/activities/list/?category={activity.category}&sub={activity.sub_category}')
+    fallback_url = f'/activities/list/?category={activity.category}&sub={activity.sub_category}'
+    return redirect(request.META.get('HTTP_REFERER', fallback_url))
 
 # 창의적체험활동 생성
 @login_required

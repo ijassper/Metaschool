@@ -1,0 +1,138 @@
+<style>
+    .activity-status-toggle {
+        position: relative;
+        width: 58px;
+        height: 32px;
+        border: 1px solid rgba(134, 142, 150, 0.18);
+        border-radius: 24px;
+        padding: 0;
+        cursor: pointer;
+        background: rgba(173, 181, 189, 0.55);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    .activity-status-toggle:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    .activity-status-toggle.is-on {
+        background: rgba(8, 127, 91, 0.9);
+        border-color: rgba(8, 127, 91, 0.2);
+    }
+
+    .activity-status-toggle.is-off {
+        background: rgba(173, 181, 189, 0.65);
+        border-color: rgba(108, 117, 125, 0.18);
+    }
+
+    .activity-status-knob {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
+        transition: transform 0.2s ease;
+    }
+
+    .activity-status-toggle.is-on .activity-status-knob {
+        transform: translateX(26px);
+    }
+
+    .activity-status-toast {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 1080;
+        max-width: min(360px, calc(100vw - 48px));
+        padding: 14px 18px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.94);
+        color: #343a40;
+        border: 1px solid rgba(142, 68, 173, 0.16);
+        box-shadow: 0 18px 42px rgba(38, 29, 54, 0.14);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        opacity: 0;
+        transform: translateY(12px);
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .activity-status-toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+</style>
+
+<div id="activityStatusToast" class="activity-status-toast fw-bold"></div>
+
+<script>
+    if (!window.ingridActivityStatusToggleReady) {
+        window.ingridActivityStatusToggleReady = true;
+        window.ingridActivityStatusCsrfToken = '{{ csrf_token }}';
+
+        window.getIngridCookie = function(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        };
+
+        window.showActivityStatusToast = function(message) {
+            const toast = document.getElementById('activityStatusToast');
+            if (!toast) return;
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(window.ingridActivityStatusToastTimer);
+            window.ingridActivityStatusToastTimer = setTimeout(function() {
+                toast.classList.remove('show');
+            }, 2800);
+        };
+
+        window.applyActivityStatus = function(button, isOn) {
+            button.classList.toggle('is-on', isOn);
+            button.classList.toggle('is-off', !isOn);
+            button.setAttribute('aria-checked', isOn ? 'true' : 'false');
+            button.setAttribute('aria-label', isOn ? '활동 상태 끄기' : '활동 상태 켜기');
+            button.setAttribute('title', isOn ? 'On' : 'Off');
+        };
+
+        document.addEventListener('click', function(event) {
+            const button = event.target.closest('[data-activity-status-toggle]');
+            if (!button || button.dataset.loading === 'true') return;
+
+            event.preventDefault();
+            button.dataset.loading = 'true';
+            button.style.opacity = '0.68';
+
+            fetch(button.dataset.url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': window.getIngridCookie('csrftoken') || window.ingridActivityStatusCsrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(function(response) {
+                    if (!response.ok) throw new Error('상태 변경에 실패했습니다.');
+                    return response.json();
+                })
+                .then(function(data) {
+                    window.applyActivityStatus(button, data.is_active);
+                    window.showActivityStatusToast(data.message);
+                })
+                .catch(function(error) {
+                    window.showActivityStatusToast(error.message || '상태 변경 중 오류가 발생했습니다.');
+                })
+                .finally(function() {
+                    button.dataset.loading = 'false';
+                    button.style.opacity = '';
+                });
+        });
+    }
+</script>

@@ -35,19 +35,16 @@
                     <!-- 2. 상태 토글 버튼 (클릭하면 즉시 시작/마감) -->
                     <td class="text-center">
                         <!-- 클릭 시 views.py의 toggle_activity_status 함수 호출 -->
-                        <a href="{% url 'toggle_activity_status' activity.id %}" class="text-decoration-none">
-                            {% if activity.is_active %}
-                                <!-- 진행중일 때: 초록색 버튼 형태 -->
-                                <span class="badge bg-success rounded-pill px-3 py-2 shadow-sm" style="cursor: pointer;">
-                                    <i class="bi bi-play-fill"></i> 진행중
-                                </span>
-                            {% else %}
-                                <!-- 대기중일 때: 회색 버튼 형태 (약간 투명하게) -->
-                                <span class="badge bg-secondary rounded-pill px-3 py-2 opacity-75 shadow-sm" style="cursor: pointer;">
-                                    <i class="bi bi-pause-fill"></i> 대기중
-                                </span>
-                            {% endif %}
-                        </a>
+                        <button type="button"
+                                class="activity-status-toggle {% if activity.is_active %}is-on{% else %}is-off{% endif %}"
+                                role="switch"
+                                aria-checked="{% if activity.is_active %}true{% else %}false{% endif %}"
+                                aria-label="{% if activity.is_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
+                                title="{% if activity.is_active %}On{% else %}Off{% endif %}"
+                                data-activity-status-toggle
+                                data-url="{% url 'toggle_activity_status' activity.id %}">
+                            <span class="activity-status-knob"></span>
+                        </button>
                     </td>
                     <td>{{ activity.created_at|date:"Y-m-d" }}</td>
                     <!-- 3. 제출 현황(답안 보기) -->
@@ -78,4 +75,5 @@
         </table>
     </div>
 </div>
+{% include 'components/activity_status_toggle_assets.html' %}
 {% endblock %}

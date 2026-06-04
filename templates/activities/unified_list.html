@@ -71,13 +71,16 @@
 
                             <!-- 상태 토글 -->
                             <td>
-                                <a href="{% url 'toggle_activity_status' act.id %}" class="text-decoration-none">
-                                    {% if act.is_active %}
-                                        <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">진행중</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-2">대기중</span>
-                                    {% endif %}
-                                </a>
+                                <button type="button"
+                                        class="activity-status-toggle {% if act.is_active %}is-on{% else %}is-off{% endif %}"
+                                        role="switch"
+                                        aria-checked="{% if act.is_active %}true{% else %}false{% endif %}"
+                                        aria-label="{% if act.is_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
+                                        title="{% if act.is_active %}On{% else %}Off{% endif %}"
+                                        data-activity-status-toggle
+                                        data-url="{% url 'toggle_activity_status' act.id %}">
+                                    <span class="activity-status-knob"></span>
+                                </button>
                             </td>
 
                             <!-- 제출 기한 -->
@@ -122,6 +125,7 @@
         </div>
     </div>
 </div>
+{% include 'components/activity_status_toggle_assets.html' %}
 
 <style>
     :root { --ingrid-primary: #8E44AD; }
