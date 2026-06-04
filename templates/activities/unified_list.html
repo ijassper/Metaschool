@@ -40,7 +40,7 @@
                     </thead>
                     <tbody>
                         {% for act in activities %}
-                        <tr class="text-center">
+                        <tr class="text-center {% if act.status_code == 'CLOSED' %}opacity-75{% endif %}">
                             <!-- 번호 -->
                             <td class="text-secondary small">{{ forloop.revcounter }}</td>
                             
@@ -72,21 +72,25 @@
                             <!-- 상태 토글 -->
                             <td>
                                 <button type="button"
-                                        class="activity-status-toggle {% if act.is_active %}is-on{% else %}is-off{% endif %}"
+                                        class="activity-status-toggle {% if act.is_effectively_active %}is-on{% else %}is-off{% endif %}"
                                         role="switch"
-                                        aria-checked="{% if act.is_active %}true{% else %}false{% endif %}"
-                                        aria-label="{% if act.is_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
-                                        title="{% if act.is_active %}On{% else %}Off{% endif %}"
+                                        aria-checked="{% if act.is_effectively_active %}true{% else %}false{% endif %}"
+                                        aria-label="{% if act.is_effectively_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
+                                        title="{% if act.is_effectively_active %}On{% else %}Off{% endif %}"
                                         data-activity-status-toggle
-                                        data-url="{% url 'toggle_activity_status' act.id %}">
+                                        data-url="{% url 'toggle_activity_status' act.id %}"
+                                        data-deadline-target="#activity-deadline-{{ act.id }}">
                                     <span class="activity-status-knob"></span>
                                 </button>
+                                {% if act.status_code == 'CLOSED' %}
+                                    <span class="activity-expired-badge badge rounded-pill bg-secondary-subtle text-secondary border ms-2">기한 만료</span>
+                                {% endif %}
                             </td>
 
                             <!-- 제출 기한 -->
                             <td class="text-secondary small">
                                 <i class="bi bi-clock-history me-1"></i>
-                                {{ act.deadline|date:"Y-m-d H:i"|default:"기한 없음" }}
+                                <span id="activity-deadline-{{ act.id }}">{{ act.deadline|date:"Y-m-d H:i"|default:"기한 없음" }}</span>
                             </td>
 
                             <!-- 제출 숫자 -->

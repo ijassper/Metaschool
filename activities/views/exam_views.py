@@ -17,9 +17,13 @@ from ..models import Activity, Question, Answer
 def take_test(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id)
 
-    # 1. 학생 권한 및 활성화 체크
-    if request.user.role != 'STUDENT' or not activity.is_active:
+    # 1. 학생 권한 및 실질 활성화 체크
+    if request.user.role != 'STUDENT':
         messages.error(request, "접근할 수 없는 평가입니다.")
+        return redirect('dashboard')
+
+    if not activity.is_effectively_active:
+        messages.warning(request, "제출 기한이 만료되어 더 이상 응시할 수 없습니다.")
         return redirect('dashboard')
 
     # 2. 내 학생 정보 가져오기
@@ -36,7 +40,7 @@ def take_test(request, activity_id):
     # 4. [신규] 제출 후 수정 제한 및 기한 체크
     # (1) 제출 기한이 지났는지 확인
     if activity.deadline and timezone.now() > activity.deadline:
-        messages.warning(request, "제출 기한이 종료되었습니다. 수정을 원하시면 선생님께 문의하세요.")
+        messages.warning(request, "제출 기한이 만료되어 더 이상 응시할 수 없습니다.")
         return redirect('dashboard')
 
     # (2) 제출 후 수정 불가 설정인데 이미 제출했는지 확인

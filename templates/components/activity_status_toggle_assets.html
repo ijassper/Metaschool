@@ -123,8 +123,23 @@
                     return response.json();
                 })
                 .then(function(data) {
-                    window.applyActivityStatus(button, data.is_active);
-                    window.showActivityStatusToast(data.message);
+                    window.applyActivityStatus(button, data.is_effectively_active);
+
+                    if (button.dataset.deadlineTarget && data.deadline_display) {
+                        const deadlineTarget = document.querySelector(button.dataset.deadlineTarget);
+                        if (deadlineTarget) deadlineTarget.textContent = data.deadline_display;
+                    }
+
+                    const row = button.closest('tr');
+                    const expiredBadge = row ? row.querySelector('.activity-expired-badge') : null;
+                    if (row && data.status_code !== 'CLOSED') {
+                        row.classList.remove('opacity-75');
+                    }
+                    if (expiredBadge && data.status_code !== 'CLOSED') {
+                        expiredBadge.remove();
+                    }
+
+                    window.showActivityStatusToast(data.deadline_extended ? '기한이 1개월 연장되었습니다.' : data.message);
                 })
                 .catch(function(error) {
                     window.showActivityStatusToast(error.message || '상태 변경 중 오류가 발생했습니다.');

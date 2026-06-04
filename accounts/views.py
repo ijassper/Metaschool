@@ -154,7 +154,8 @@ def dashboard(request):
         if student_profile:
             # 1. 나에게 배정된 모든 활성화된 평가 가져오기
             # .select_related() 등을 사용하여 성능 최적화 권장
-            activities_list = list(Activity.objects.filter(target_students=student_profile, is_active=True).order_by('-created_at'))
+            activity_candidates = Activity.objects.filter(target_students=student_profile, is_active=True).order_by('-created_at')
+            activities_list = [activity for activity in activity_candidates if activity.is_effectively_active]
             
             # 완료된 개수를 세기 위한 변수 초기화
             completed_count = 0 

@@ -24,7 +24,7 @@
             </thead>
             <tbody>
                 {% for activity in activities %}
-                <tr>
+                <tr class="{% if activity.status_code == 'CLOSED' %}opacity-75{% endif %}">
                     <td class="text-center">{{ forloop.counter }}</td>
                     <td class="fw-bold">
                         <a href="{% url 'creative_detail' activity.id %}" class="text-decoration-none text-dark">
@@ -36,15 +36,18 @@
                     <td class="text-center">
                         <!-- 클릭 시 views.py의 toggle_activity_status 함수 호출 -->
                         <button type="button"
-                                class="activity-status-toggle {% if activity.is_active %}is-on{% else %}is-off{% endif %}"
+                                class="activity-status-toggle {% if activity.is_effectively_active %}is-on{% else %}is-off{% endif %}"
                                 role="switch"
-                                aria-checked="{% if activity.is_active %}true{% else %}false{% endif %}"
-                                aria-label="{% if activity.is_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
-                                title="{% if activity.is_active %}On{% else %}Off{% endif %}"
+                                aria-checked="{% if activity.is_effectively_active %}true{% else %}false{% endif %}"
+                                aria-label="{% if activity.is_effectively_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
+                                title="{% if activity.is_effectively_active %}On{% else %}Off{% endif %}"
                                 data-activity-status-toggle
                                 data-url="{% url 'toggle_activity_status' activity.id %}">
                             <span class="activity-status-knob"></span>
                         </button>
+                        {% if activity.status_code == 'CLOSED' %}
+                            <span class="activity-expired-badge badge rounded-pill bg-secondary-subtle text-secondary border ms-2">기한 만료</span>
+                        {% endif %}
                     </td>
                     <td>{{ activity.created_at|date:"Y-m-d" }}</td>
                     <!-- 3. 제출 현황(답안 보기) -->

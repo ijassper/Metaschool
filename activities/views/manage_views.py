@@ -1,5 +1,6 @@
 # 생성/수정/삭제/상태변경 (unified_create, delete 등)
 
+import calendar
 import json
 import logging
 from datetime import datetime
@@ -400,15 +401,33 @@ def unified_delete(request, activity_id):
 def toggle_activity_status(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
 
-    if activity.is_active:
+    def add_one_month(dt):
+        year = dt.year + (1 if dt.month == 12 else 0)
+        month = 1 if dt.month == 12 else dt.month + 1
+        day = min(dt.day, calendar.monthrange(year, month)[1])
+        return dt.replace(year=year, month=month, day=day)
+
+    now = timezone.now()
+    old_deadline = activity.deadline
+    is_deadline_passed = bool(activity.deadline and now > activity.deadline)
+    deadline_extended = False
+
+    if activity.is_effectively_active:
         activity.is_active = False
         status_msg = "평가가 [마감]되었습니다."
         update_fields = ['is_active']
     else:
         activity.is_active = True
         activity.allow_edit_after_submission = True
-        status_msg = "평가가 [시작]되었습니다."
-        update_fields = ['is_active', 'allow_edit_after_submission']
+        if is_deadline_passed:
+            activity.deadline = add_one_month(now)
+            deadline_extended = True
+            sync_status_on_deadline_extension(activity, old_deadline, activity.deadline)
+            status_msg = "평가가 [시작]되었고 제출 기한이 1개월 연장되었습니다."
+            update_fields = ['is_active', 'allow_edit_after_submission', 'deadline']
+        else:
+            status_msg = "평가가 [시작]되었습니다."
+            update_fields = ['is_active', 'allow_edit_after_submission']
 
     activity.save(update_fields=update_fields)
 
@@ -417,11 +436,13 @@ def toggle_activity_status(request, activity_id):
             'status': 'success',
             'activity_id': activity.id,
             'is_active': activity.is_active,
+            'is_effectively_active': activity.is_effectively_active,
             'allow_edit_after_submission': activity.allow_edit_after_submission,
             'status_code': activity.status_code,
             'status_text': activity.status_text,
             'deadline': activity.deadline.isoformat() if activity.deadline else '',
             'deadline_display': timezone.localtime(activity.deadline).strftime('%Y-%m-%d %H:%M') if activity.deadline else '기한 없음',
+            'deadline_extended': deadline_extended,
             'message': status_msg,
         })
 
