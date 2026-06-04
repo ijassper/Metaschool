@@ -22,7 +22,7 @@ def take_test(request, activity_id):
         messages.error(request, "접근할 수 없는 평가입니다.")
         return redirect('dashboard')
 
-    if not activity.is_effectively_active:
+    if not activity.is_attainable:
         messages.warning(request, "제출 기한이 만료되어 더 이상 응시할 수 없습니다.")
         return redirect('dashboard')
 

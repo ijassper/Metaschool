@@ -412,7 +412,7 @@ def toggle_activity_status(request, activity_id):
     is_deadline_passed = bool(activity.deadline and now > activity.deadline)
     deadline_extended = False
 
-    if activity.is_effectively_active:
+    if activity.is_active:
         activity.is_active = False
         status_msg = "평가가 [마감]되었습니다."
         update_fields = ['is_active']
@@ -436,6 +436,7 @@ def toggle_activity_status(request, activity_id):
             'status': 'success',
             'activity_id': activity.id,
             'is_active': activity.is_active,
+            'is_attainable': activity.is_attainable,
             'is_effectively_active': activity.is_effectively_active,
             'allow_edit_after_submission': activity.allow_edit_after_submission,
             'status_code': activity.status_code,

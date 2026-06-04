@@ -123,7 +123,7 @@
                     return response.json();
                 })
                 .then(function(data) {
-                    window.applyActivityStatus(button, data.is_effectively_active);
+                    window.applyActivityStatus(button, data.is_active);
 
                     if (button.dataset.deadlineTarget && data.deadline_display) {
                         const deadlineTarget = document.querySelector(button.dataset.deadlineTarget);

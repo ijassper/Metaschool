@@ -103,6 +103,10 @@ class Activity(models.Model):
     # 상태를 실시간으로 판단하는 프로퍼티
     @property
     def is_effectively_active(self):
+        return self.is_attainable
+
+    @property
+    def is_attainable(self):
         if not self.is_active:
             return False
         if self.deadline and timezone.now() > self.deadline:
@@ -110,10 +114,14 @@ class Activity(models.Model):
         return True
 
     @property
+    def is_viewable(self):
+        return self.is_active
+
+    @property
     def status_text(self):
         if self.deadline and timezone.now() > self.deadline:
             return "마감됨"
-        if self.is_effectively_active:
+        if self.is_attainable:
             return "진행중"
         return "대기중"
 
@@ -121,7 +129,7 @@ class Activity(models.Model):
     def status_code(self):
         if self.deadline and timezone.now() > self.deadline:
             return "CLOSED"
-        if self.is_effectively_active:
+        if self.is_attainable:
             return "ONGOING"
         return "READY"
 

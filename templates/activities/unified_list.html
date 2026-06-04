@@ -72,11 +72,11 @@
                             <!-- 상태 토글 -->
                             <td>
                                 <button type="button"
-                                        class="activity-status-toggle {% if act.is_effectively_active %}is-on{% else %}is-off{% endif %}"
+                                        class="activity-status-toggle {% if act.is_active %}is-on{% else %}is-off{% endif %}"
                                         role="switch"
-                                        aria-checked="{% if act.is_effectively_active %}true{% else %}false{% endif %}"
-                                        aria-label="{% if act.is_effectively_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
-                                        title="{% if act.is_effectively_active %}On{% else %}Off{% endif %}"
+                                        aria-checked="{% if act.is_active %}true{% else %}false{% endif %}"
+                                        aria-label="{% if act.is_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
+                                        title="{% if act.is_active %}On{% else %}Off{% endif %}"
                                         data-activity-status-toggle
                                         data-url="{% url 'toggle_activity_status' act.id %}"
                                         data-deadline-target="#activity-deadline-{{ act.id }}">

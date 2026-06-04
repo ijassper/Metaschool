@@ -383,14 +383,14 @@
             <!-- 상태 버튼 영역 (우측 정렬) -->
             <div class="status-area">
               {% if act.my_answer and act.my_answer.submitted_at %}
-                {% if act.allow_edit_after_submission and act.deadline and now <= act.deadline %}
+                {% if act.allow_edit_after_submission and act.is_attainable %}
                   <!-- 1-1순위: 제출 완료되었으나 수정 허용됨 (기한 내) -->
                   <a href="{% url 'take_test' act.id %}" class="btn-student-action state-working">수정 하기</a>
                 {% else %}
                   <!-- 1-2순위: 제출 완료 (수정 불가 또는 기한 종료) -->
                   <span class="badge bg-success rounded-pill px-3 py-2 fw-bold" style="font-size: 0.72rem; min-width: 80px">제출 완료</span>
                 {% endif %}
-              {% elif act.deadline and now > act.deadline %}
+              {% elif not act.is_attainable %}
               <!-- 2순위: 기한 종료 (미제출 시) -->
               <span class="badge bg-secondary rounded-pill px-3 py-2 fw-bold" style="font-size: 0.72rem; min-width: 80px">제출 기한 종료</span>
               {% elif act.my_answer %}
