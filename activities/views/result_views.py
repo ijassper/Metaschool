@@ -1,6 +1,7 @@
 # 제출 현황 및 답안 관리 (activity_result, answer_detail 등)
 
 import json
+import re
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -83,10 +84,20 @@ def activity_result(request, activity_id):
             log_data = answer.activity_log 
             content = answer.content
             
-            has_content = bool((answer.content or "").strip())
+            structured_text = " ".join([
+                answer.ans_q1 or "",
+                answer.ans_q2 or "",
+                answer.ans_q3 or "",
+            ])
+            fallback_text = re.sub(r'^\s*\[.*?\]\s*$', '', answer.content or "", flags=re.MULTILINE)
+            answer_text = structured_text if structured_text.strip() else fallback_text
+            has_content = bool(answer_text.strip())
 
             if absence:
                 status = "결시"
+            elif answer.submitted_at and not has_content:
+                status = "백지 제출"
+                submitted_at = answer.submitted_at
             elif answer.submitted_at:
                 status = "제출 완료"
                 submitted_at = answer.submitted_at

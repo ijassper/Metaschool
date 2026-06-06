@@ -17,13 +17,9 @@ from ..models import Activity, Question, Answer
 def take_test(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id)
 
-    # 1. 학생 권한 및 실질 활성화 체크
+    # 1. 학생 권한 체크
     if request.user.role != 'STUDENT':
         messages.error(request, "접근할 수 없는 평가입니다.")
-        return redirect('dashboard')
-
-    if not activity.is_attainable:
-        messages.warning(request, "제출 기한이 만료되어 더 이상 응시할 수 없습니다.")
         return redirect('dashboard')
 
     # 2. 내 학생 정보 가져오기
@@ -37,17 +33,14 @@ def take_test(request, activity_id):
         messages.error(request, "본인의 평가 대상이 아닙니다.")
         return redirect('dashboard')
 
-    # 4. [신규] 제출 후 수정 제한 및 기한 체크
-    # (1) 제출 기한이 지났는지 확인
-    if activity.deadline and timezone.now() > activity.deadline:
-        messages.warning(request, "제출 기한이 만료되어 더 이상 응시할 수 없습니다.")
+    # 4. 제출 후 수정 제한 및 입장 가능 여부 체크
+    existing_answer = Answer.objects.filter(student=student_info, question__activity=activity).first()
+    if existing_answer and existing_answer.submitted_at and not activity.allow_edit_after_submission:
+        messages.warning(request, "제출 완료된 평가 활동은 재입장할 수 없습니다")
         return redirect('dashboard')
 
-    # (2) 제출 후 수정 불가 설정인데 이미 제출했는지 확인
-    # Answer 객체를 미리 조회하여 제출 여부 파악
-    existing_answer = Answer.objects.filter(student=student_info, question__activity=activity).first()
-    if not activity.allow_edit_after_submission and existing_answer and existing_answer.submitted_at:
-        messages.error(request, "답안이 이미 제출되었습니다. 제출된 답안은 수정이 불가합니다.")
+    if not activity.is_attainable:
+        messages.warning(request, "현재 응시할 수 없는 평가 활동입니다.")
         return redirect('dashboard')
 
     # [추가] 데모 모드 설정값 가져오기
@@ -83,7 +76,8 @@ def take_test(request, activity_id):
 
     if request.method == 'POST':
         # 제출인지 임시저장인지 구분 (hidden 필드 'is_submit' 기준)
-        is_final_submit = request.POST.get('is_submit') == 'true'
+        is_exit_submit = request.POST.get('is_exit') == 'true'
+        is_final_submit = request.POST.get('is_submit') == 'true' or is_exit_submit
 
         # 6. 답안 제출 처리 (이미 생성된 객체에 내용만 업데이트)
         # 6-1. 항목별 답변 가져오기
@@ -92,13 +86,20 @@ def take_test(request, activity_id):
         answer.ans_q3 = request.POST.get('ans_q3', '').strip()
         
         # 합본 생성 로직
-        answer.content = f"[{activity.q1_title}]\n{answer.ans_q1}\n\n[{activity.q2_title}]\n{answer.ans_q2}\n\n[{activity.q3_title}]\n{answer.ans_q3}"
+        has_written_content = any([answer.ans_q1, answer.ans_q2, answer.ans_q3])
+        if has_written_content:
+            answer.content = f"[{activity.q1_title}]\n{answer.ans_q1}\n\n[{activity.q2_title}]\n{answer.ans_q2}\n\n[{activity.q3_title}]\n{answer.ans_q3}"
+        else:
+            answer.content = ""
         
         # 최종 제출일 때만 제출 시간 기록 및 로그 남기기
         if is_final_submit:
             answer.submitted_at = timezone.now()
             timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
-            answer.activity_log += f"[{timestamp}] 답안 최종 제출 완료\n"
+            if is_exit_submit:
+                answer.activity_log += f"[{timestamp}] 중도 이탈로 자동 제출 처리\n"
+            else:
+                answer.activity_log += f"[{timestamp}] 답안 최종 제출 완료\n"
 
         answer.save()
         
@@ -159,7 +160,12 @@ def log_activity(request):
             
             new_entry = f"[{timestamp}] {log_messages.get(log_type, log_type)}\n"
             answer.activity_log = current_log + new_entry
-            answer.save()
+            if log_type in ['OUT', 'EXIT', 'BACK_BUTTON'] and not answer.submitted_at:
+                answer.submitted_at = timezone.now()
+                answer.activity_log += f"[{timestamp}] 이탈 감지로 자동 제출 처리\n"
+                answer.save(update_fields=['activity_log', 'submitted_at'])
+            else:
+                answer.save(update_fields=['activity_log'])
             
             return JsonResponse({'status': 'success'})
         except Exception as e:

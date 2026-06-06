@@ -1010,6 +1010,16 @@
         backModal.show();
     };
 
+    window.addEventListener('pagehide', function () {
+        if (!testStarted || isSubmitting || IS_DEMO || !answerId || answerId === "None" || answerId === "") return;
+        fetch('/activities/api/log/', {
+            method: 'POST',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ 'answer_id': answerId, 'type': 'EXIT' })
+        }).catch(function () {});
+    });
+
     /* 6. 실시간 글자 수 합산 계산기 */
     function updateCharCount() {
         const allInputs = document.querySelectorAll('.answer-input');
@@ -1069,9 +1079,10 @@
 
     function executeExit() {
         isSubmitting = true; // 감시 중단
-        sendLog('EXIT');
 
         const formData = new FormData(document.getElementById('answerForm'));
+        formData.set('is_submit', 'true');
+        formData.set('is_exit', 'true');
         fetch(window.location.href, {
             method: 'POST',
             body: formData,

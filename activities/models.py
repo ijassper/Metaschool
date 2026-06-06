@@ -115,7 +115,23 @@ class Activity(models.Model):
 
     @property
     def is_viewable(self):
-        return self.is_active
+        return True
+
+    def get_student_exam_state(self, answer=None):
+        if answer and answer.submitted_at:
+            if self.allow_edit_after_submission and self.is_attainable:
+                return "submitted_editable"
+            return "submitted_locked"
+        if not self.is_attainable:
+            return "unavailable"
+        return "available"
+
+    def can_student_enter(self, answer=None):
+        if not self.is_attainable:
+            return False
+        if answer and answer.submitted_at and not self.allow_edit_after_submission:
+            return False
+        return True
 
     @property
     def status_text(self):

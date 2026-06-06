@@ -124,7 +124,7 @@
                         
                         <!-- 제출 일시 -->
                         <td class="small text-muted">
-                            {% if item.status == '제출 완료' %}
+                            {% if item.status == '제출 완료' or item.status == '백지 제출' %}
                                 {{ item.submitted_at|date:"m-d H:i" }}
                             {% else %}
                                 -
@@ -136,7 +136,7 @@
                             <select class="form-select form-select-sm" 
                                     onchange="updateAbsence('{{ item.student.id }}', '{{ activity.id }}', this.value)"
                                     style="width: 100px; margin: 0 auto;"
-                                    {% if item.status == '제출 완료' %}disabled title="제출 완료된 학생은 변경할 수 없습니다."{% endif %}>
+                                    {% if item.status == '제출 완료' or item.status == '백지 제출' %}disabled title="제출 완료된 학생은 변경할 수 없습니다."{% endif %}>
                                 <option value="" {% if not item.absence %}selected{% endif %}>-</option>
                                 <option value="병결" {% if item.absence == '병결' %}selected{% endif %}>병결</option>
                                 <option value="공결" {% if item.absence == '공결' %}selected{% endif %}>공결</option>
@@ -147,7 +147,7 @@
 
                         <!-- 답안지 열기 (제출 완료일 때만 보임) -->
                         <td>
-                            {% if item.status == '제출 완료' %}
+                            {% if item.status == '제출 완료' or item.status == '백지 제출' %}
                                 <button
                                     type="button"
                                     class="btn btn-primary btn-sm rounded-pill px-3"

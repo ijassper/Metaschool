@@ -154,7 +154,7 @@ def dashboard(request):
         if student_profile:
             # 1. 나에게 배정된 모든 활성화된 평가 가져오기
             # .select_related() 등을 사용하여 성능 최적화 권장
-            activity_candidates = Activity.objects.filter(target_students=student_profile, is_active=True).order_by('-created_at')
+            activity_candidates = Activity.objects.filter(target_students=student_profile).order_by('-created_at')
             activities_list = [activity for activity in activity_candidates if activity.is_viewable]
             
             # 완료된 개수를 세기 위한 변수 초기화
@@ -167,6 +167,8 @@ def dashboard(request):
                 ans = Answer.objects.filter(student=student_profile, question__activity=activity).first()
                 activity.my_answer = ans
                 activity.has_submitted = bool(ans and ans.submitted_at)
+                activity.dashboard_state = activity.get_student_exam_state(ans)
+                activity.can_enter_exam = activity.can_student_enter(ans)
                 
                 # 디버깅 로그 추가
                 print(f"[DASHBOARD] 학생 {student_profile.name} - 활동 {activity.id} 매칭 결과: {ans}", flush=True)
