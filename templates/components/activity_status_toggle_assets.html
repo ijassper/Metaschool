@@ -127,7 +127,26 @@
 
                     if (button.dataset.deadlineTarget && data.deadline_display) {
                         const deadlineTarget = document.querySelector(button.dataset.deadlineTarget);
-                        if (deadlineTarget) deadlineTarget.textContent = data.deadline_display;
+                        if (deadlineTarget) {
+                            if (deadlineTarget.classList.contains('deadline-display')) {
+                                const parts = data.deadline_display.split(' ');
+                                deadlineTarget.innerHTML = '';
+
+                                const dateLine = document.createElement('span');
+                                dateLine.className = 'deadline-date';
+                                dateLine.textContent = parts[0] || data.deadline_display;
+                                deadlineTarget.appendChild(dateLine);
+
+                                if (parts[1]) {
+                                    const timeLine = document.createElement('span');
+                                    timeLine.className = 'deadline-time';
+                                    timeLine.textContent = parts[1];
+                                    deadlineTarget.appendChild(timeLine);
+                                }
+                            } else {
+                                deadlineTarget.textContent = data.deadline_display;
+                            }
+                        }
                     }
 
                     const row = button.closest('tr');
