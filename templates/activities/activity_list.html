@@ -1,6 +1,98 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<style>
+    .activity-list-table-wrap {
+        overflow-x: auto;
+        border-radius: 24px;
+    }
+
+    .activity-list-table {
+        min-width: 1080px;
+        table-layout: fixed;
+    }
+
+    .activity-list-table th,
+    .activity-list-table td {
+        padding: 0.75rem 0.6rem;
+        vertical-align: middle;
+    }
+
+    .activity-list-topic {
+        min-width: 260px;
+        white-space: normal;
+        word-break: keep-all;
+        overflow-wrap: anywhere;
+        line-height: 1.45;
+    }
+
+    .activity-list-topic a {
+        display: block;
+    }
+
+    .exam-mode-badge {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+        min-width: 58px;
+        padding: 0.28rem 0.42rem;
+        border-radius: 14px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        line-height: 1.12;
+        color: #5b3b7c;
+        background: rgba(142, 68, 173, 0.09);
+        border: 1px solid rgba(142, 68, 173, 0.14);
+    }
+
+    .activity-list-status-cell {
+        text-align: center;
+    }
+
+    .activity-list-table .activity-status-toggle {
+        width: 46px;
+        height: 26px;
+        vertical-align: middle;
+        transform: scale(0.92);
+        transform-origin: center;
+    }
+
+    .activity-list-table .activity-status-toggle:hover {
+        transform: translateY(-1px) scale(0.92);
+    }
+
+    .activity-list-table .activity-status-knob {
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+    }
+
+    .activity-list-table .activity-status-toggle.is-on .activity-status-knob {
+        transform: translateX(20px);
+    }
+
+    .activity-expired-badge {
+        display: block;
+        width: fit-content;
+        margin: 0.25rem auto 0;
+        font-size: 0.66rem;
+    }
+
+    .deadline-cell {
+        font-size: 0.78rem;
+        white-space: normal;
+        line-height: 1.3;
+    }
+
+    .activity-list-action {
+        padding-inline: 0.45rem;
+        white-space: normal;
+        line-height: 1.2;
+    }
+</style>
 <div class="container mt-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="fw-bold text-primary"><i class="bi bi-list-check"></i> 나의 평가 목록</h3>
@@ -12,19 +104,34 @@
         </a>
     </div>
 
-    <div class="card shadow-sm">
+    <div class="card shadow-sm" style="border-radius: 24px; background: rgba(255,255,255,0.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">
         <div class="card-body p-0">
-            <table class="table table-hover text-center align-middle mb-0">
+            <div class="activity-list-table-wrap">
+            <table class="table table-hover text-center align-middle mb-0 activity-list-table">
+                <colgroup>
+                    <col style="width: 5%;">
+                    <col style="width: 8%;">
+                    <col style="width: 24%;">
+                    <col style="width: 8%;">
+                    <col style="width: 8%;">
+                    <col style="width: 9%;">
+                    <col style="width: 10%;">
+                    <col style="width: 10%;">
+                    <col style="width: 9%;">
+                    <col style="width: 9%;">
+                </colgroup>
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 5%">번호</th>
-                        <th style="width: 8%">과목</th>
-                        <th class="text-start">평가 주제</th>
-                        <th style="width: 10%">상태(On/Off)</th>
-                        <th style="width: 10%">생성일</th>
-                        <th style="width: 10%">제출 관리</th> 
-                        <th style="width: 10%">분석 작업</th>
-                        <th style="width: 10%">결과 확인</th>
+                        <th>번호</th>
+                        <th>과목</th>
+                        <th class="text-start activity-list-topic">세부 주제</th>
+                        <th>응시 유형</th>
+                        <th>상태</th>
+                        <th>생성일</th>
+                        <th>제출 기한</th>
+                        <th>제출 관리</th>
+                        <th>분석 작업</th>
+                        <th>결과 확인</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -33,14 +140,28 @@
                         <td>{{ forloop.counter }}</td>
                         <td><span class="badge bg-secondary">{{ activity.subject_name }}</span></td>
                         <!-- 1. 제목 클릭 -> 상세 페이지(Detail)로 이동 -->
-                        <td class="text-start fw-bold">
+                        <td class="text-start fw-bold activity-list-topic">
                             <a href="{% url 'activity_detail' activity.id %}" class="text-decoration-none text-dark">
                                 [{{ activity.section }}] {{ activity.title }}
                             </a>
                         </td>
 
-                        <!-- 2. 상태 토글 버튼 (클릭하면 즉시 시작/마감) -->
                         <td>
+                            <span class="exam-mode-badge">
+                                {% if activity.exam_mode == 'CLOSED_LOCK' %}
+                                    <span>폐쇄형</span><span>복사금지</span>
+                                {% elif activity.exam_mode == 'CLOSED_FREE' %}
+                                    <span>폐쇄형</span><span>복사허용</span>
+                                {% elif activity.exam_mode == 'OPEN_LOCK' %}
+                                    <span>개방형</span><span>복사금지</span>
+                                {% else %}
+                                    <span>개방형</span><span>복사허용</span>
+                                {% endif %}
+                            </span>
+                        </td>
+
+                        <!-- 2. 상태 토글 버튼 (클릭하면 즉시 시작/마감) -->
+                        <td class="activity-list-status-cell">
                             <button type="button"
                                     class="activity-status-toggle {% if activity.is_active %}is-on{% else %}is-off{% endif %}"
                                     role="switch"
@@ -57,33 +178,38 @@
                         </td>
 
                         <td class="small text-muted">{{ activity.created_at|date:"Y-m-d" }}</td>
+
+                        <td class="deadline-cell {% if activity.status_code == 'CLOSED' %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                            {{ activity.deadline|date:"Y-m-d H:i"|default:"기한 없음" }}
+                        </td>
                         
                         <!-- 3. 제출 현황(답안 보기) -->
                         <td>
-                            <a href="{% url 'activity_result' activity.id %}" class="btn btn-sm btn-outline-primary w-100">
+                            <a href="{% url 'activity_result' activity.id %}" class="btn btn-sm btn-outline-primary w-100 activity-list-action">
                                 <i class="bi bi-person-check"></i> 제출 현황
                             </a>
                         </td>
                         <!-- 4. 결과 분석 -->
                         <td>
-                            <a href="{% url 'activity_analysis_work' activity.id %}" class="btn btn-sm btn-outline-success w-100">
+                            <a href="{% url 'activity_analysis_work' activity.id %}" class="btn btn-sm btn-outline-success w-100 activity-list-action">
                                 <i class="bi bi-cpu"></i> AI 분석
                             </a>
                         </td>
                         <!-- 3. 결과 확인 (학생답안 + AI결과 합쳐보기) -->
                         <td>
-                            <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-sm btn-primary w-100">
+                            <a href="{% url 'activity_analysis' activity.id %}" class="btn btn-sm btn-primary w-100 activity-list-action">
                                 <i class="bi bi-table"></i> 결과 분석
                             </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="py-5 text-muted">생성된 평가가 없습니다.</td>
+                        <td colspan="10" class="py-5 text-muted">생성된 평가가 없습니다.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>
