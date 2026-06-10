@@ -1,0 +1,192 @@
+{% extends 'registration/auth_base.html' %}
+
+{% block auth_form %}
+    <h2 class="fw-bold mb-5">로그인</h2>
+    
+    <form method="post" action="{% url 'login' %}" id="loginForm">
+    {% csrf_token %}
+    <div class="role-selector mb-4" style="display: flex; background: #f1f3f5; padding: 5px; border-radius: 14px;">
+        <input type="radio" name="login_type" id="type_student" value="student" style="display:none;" {% if login_type == 'student' or not login_type %}checked{% endif %}>
+        <label for="type_student" style="flex:1; text-align:center; padding:12px; border-radius:10px; cursor:pointer; font-weight:700;">학생</label>
+        
+        <input type="radio" name="login_type" id="type_teacher" value="teacher" style="display:none;" {% if login_type == 'teacher' %}checked{% endif %}>
+        <label for="type_teacher" style="flex:1; text-align:center; padding:12px; border-radius:10px; cursor:pointer; font-weight:700;">교사</label>
+    </div>
+
+    <style>
+        .role-selector input:checked + label { background: white; color: #8E44AD; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .role-selector label { color: #adb5bd; transition: 0.2s; }
+    </style>
+
+    <div class="mb-4">
+        <label class="fw-bold small text-muted mb-2 d-block" id="label_username">전체 이메일 주소</label>
+        <input type="email" name="username" class="form-input w-100 p-3 border rounded-3" id="id_username" placeholder="전체 이메일 주소를 입력하세요 (예: hshoseok@goedu.kr)" required autocomplete="off">
+    </div>
+
+    <div class="mb-4">
+        <label class="fw-bold small text-muted mb-2 d-block">비밀번호</label>
+        <input type="password" name="password" class="form-input w-100 p-3 border rounded-3" id="id_password" placeholder="비밀번호를 입력하세요" required>
+    </div>
+
+    <!-- 비밀번호 찾기 링크에 ID 추가 및 초기 상태 처리 -->
+    <div class="d-flex justify-content-between mb-5 px-1">
+        <div class="form-check d-flex align-items-center gap-2">
+            <input class="form-check-input" type="checkbox" name="remember_me" id="rememberMe" style="width: 1.1rem; height: 1.1rem;">
+            <label class="form-check-label text-secondary small" for="rememberMe">로그인 유지</label>
+        </div>
+        <!-- class="text-ingrid" 적용 -->
+        <a href="{% url 'find_account' %}" id="forgot-password-link" class="text-ingrid small text-decoration-none" style="display: none;">비밀번호 찾기</a>
+    </div>
+
+    <button type="submit" class="btn-ingrid-submit">로그인</button>
+</form>
+
+<!-- 교사 선택 시에만 나타나는 영역 -->
+<div id="teacher-signup-area" class="text-center mt-5 small" style="display: none;">
+    <span class="text-secondary">계정이 없으신가요?</span>
+    <!-- class="text-ingrid" 적용 -->
+    <a href="{% url 'signup' %}" id="signup-link" class="text-ingrid ms-2 text-decoration-none">교사 회원가입</a>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. 요소 선택
+        const radioTeacher = document.getElementById('type_teacher');
+        const radioStudent = document.getElementById('type_student');
+        const labelUsername = document.getElementById('label_username');
+        const inputUsername = document.getElementById('id_username');
+        const signupLink = document.getElementById('signup-link');
+
+        // 1. UI 업데이트 함수
+        function updateUI(role) {
+            const signupArea = document.getElementById('teacher-signup-area');
+            const forgotPwLink = document.getElementById('forgot-password-link');
+            
+            if (role === 'teacher') {
+                labelUsername.innerText = "선생님 이메일 아이디";
+                inputUsername.placeholder = "아이디(이메일)를 입력하세요";
+                signupArea.style.display = 'block'; // 교사일 때만 가입 링크 표시
+                forgotPwLink.style.display = 'block'; // 교사일 때는 비밀번호 찾기 링크 표시
+            } else {
+                labelUsername.innerText = "학생 ID";
+                inputUsername.placeholder = "학생 ID를 입력하세요";
+                signupArea.style.display = 'none';  // 학생일 때는 숨김
+                forgotPwLink.style.display = 'none'; // 학생일 때는 비밀번호 찾기 링크 숨김
+            }
+            setTimeout(() => inputUsername.focus(), 100);
+        }
+
+        radioTeacher.addEventListener('change', () => updateUI('teacher'));
+        radioStudent.addEventListener('change', () => updateUI('student'));
+
+        // 2. 초기 상태 설정 (학생 디폴트)
+        updateUI('student');
+
+        // 3. 학생 회원가입 차단 로직 (복구됨)
+        if (signupLink) {
+            signupLink.addEventListener('click', function(event) {
+                if (radioStudent.checked) {
+                    event.preventDefault(); // 페이지 이동 차단
+                    const studentModal = new bootstrap.Modal(document.getElementById('studentSignupModal'));
+                    studentModal.show();
+                }
+            });
+        }
+
+        
+
+        // 1. 서버에서 넘겨준 시도된 로그인 타입 (없으면 현재 체크된 값)
+        // [디버깅 코드 추가]
+        const attemptedType = "{{ login_type }}"; 
+        console.log("1. 서버에서 넘어온 login_type:", attemptedType); // 이게 'teacher'로 찍히는지 확인!
+
+        const isStudentChecked = document.getElementById('type_student').checked;
+        console.log("2. 현재 HTML 라디오 버튼 학생 체크 여부:", isStudentChecked);
+        
+        if (attemptedType) {
+            updateUI(attemptedType); // 탭 디자인과 레이블을 시도했던 타입에 맞게 강제 고정
+        }
+
+        // 4. 로그인 실패 시 에러 모달 노출
+        // 1. 에러 상태값 취합
+        const hasDjangoErrors = "{% if form.errors or form.non_field_errors %}true{% else %}false{% endif %}";
+        const serverErrorMessage = "{{ error_message|escapejs }}";
+        const errorCode = "{{ error_code }}";
+        
+        // 2. 에러가 하나라도 있다면 모달 처리 시작
+        if (hasDjangoErrors === 'true' || serverErrorMessage) {
+            const errorModalElem = document.getElementById('loginErrorModal');
+            const modalBody = errorModalElem.querySelector('.modal-body');
+            const modalFooter = errorModalElem.querySelector('.modal-footer');
+            
+            // 현재 UI 상태가 아닌, '시도했던' 타입을 기준으로 판단
+            const isAttemptedStudent = attemptedType ? (attemptedType === 'student') : document.getElementById('type_student').checked;
+
+            // 최종적으로 보여줄 메시지 결정
+            let finalMsg = serverErrorMessage ? serverErrorMessage : "아이디 또는 비밀번호가 일치하지 않습니다.";
+            let title = "로그인 실패";
+            let iconHtml = '<i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3.5rem;"></i>';
+
+            if (isAttemptedStudent) {
+                // --- [학생 전용 UI 조립] ---
+                title = "로그인 정보 불일치";
+                iconHtml = '<i class="bi bi-person-x-fill text-danger" style="font-size: 3.5rem;"></i>';
+                const showStudentResetGuide = !errorCode.includes("ROLE_MISMATCH_TEACHER");
+                const studentResetGuideHtml = showStudentResetGuide ? `
+                    <p class="fw-bold text-dark mt-3">
+                        비밀번호를 분실했다면<br>
+                        <span style="color: #8E44AD;">담당 선생님께 초기화를 요청하세요.</span>
+                    </p>
+                ` : "";
+                
+                modalBody.innerHTML = `
+                    <div class="mb-3">${iconHtml}</div>
+                    <h4 class="fw-bold mb-3">${title}</h4>
+                    <p class="text-muted mb-0">${finalMsg}</p>
+                    ${studentResetGuideHtml}
+                `;
+                modalFooter.innerHTML = `
+                    <button type="button" class="btn btn-secondary rounded-pill px-5" data-bs-dismiss="modal">확인</button>
+                `;
+            } else {
+                // --- [교사 전용 UI 조립] ---
+                if (errorCode.includes("ROLE_MISMATCH")) {
+                    iconHtml = '<i class="bi bi-arrow-left-right text-primary" style="font-size: 3.5rem;"></i>';
+                    title = "로그인 탭 확인";
+                }
+
+                modalBody.innerHTML = `
+                    <div class="mb-3">${iconHtml}</div>
+                    <h4 class="fw-bold mb-3">${title}</h4>
+                    <p class="text-muted mb-3">${finalMsg}</p>
+                `;
+                modalFooter.innerHTML = `
+                    <!-- 1. 교사 회원가입: 시그니처 그라데이션 적용 -->
+                    <a href="{% url 'signup' %}" class="btn shadow-sm rounded-pill px-4 fw-bold" 
+                    style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none; color: white;">
+                    교사 회원가입
+                    </a>
+                    
+                    <!-- 2. 비밀번호 찾기: 보라색 테두리(Outline) 스타일 적용 -->
+                    <a href="{% url 'find_account' %}" class="btn rounded-pill px-4 fw-bold" 
+                    style="border: 2px solid #8E44AD; color: #8E44AD; background: white;">
+                    비밀번호 찾기
+                    </a>
+                    
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">닫기</button>
+                `;
+            }
+
+            // 모달 띄우기
+            const errorModal = new bootstrap.Modal(errorModalElem);
+            errorModal.show();
+        }
+
+        // 5. 태블릿 최적화 (페이지 로드 시 강제 활성화)
+        setTimeout(() => {
+            inputUsername.click();
+            inputUsername.focus();
+        }, 400);
+    });
+</script>
+{% endblock %}

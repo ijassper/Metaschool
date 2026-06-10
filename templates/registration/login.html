@@ -1,144 +1,399 @@
-{% extends 'registration/auth_base.html' %}
+{% extends 'base.html' %}
+{% load static %}
 
-{% block auth_form %}
-    <h2 class="fw-bold mb-5">로그인</h2>
-    
-    <form method="post" action="{% url 'login' %}" id="loginForm">
-    {% csrf_token %}
-    <div class="role-selector mb-4" style="display: flex; background: #f1f3f5; padding: 5px; border-radius: 14px;">
-        <input type="radio" name="login_type" id="type_student" value="student" style="display:none;" {% if login_type == 'student' or not login_type %}checked{% endif %}>
-        <label for="type_student" style="flex:1; text-align:center; padding:12px; border-radius:10px; cursor:pointer; font-weight:700;">학생</label>
-        
-        <input type="radio" name="login_type" id="type_teacher" value="teacher" style="display:none;" {% if login_type == 'teacher' %}checked{% endif %}>
-        <label for="type_teacher" style="flex:1; text-align:center; padding:12px; border-radius:10px; cursor:pointer; font-weight:700;">교사</label>
-    </div>
+{% block content %}
+<style>
+    body {
+        min-height: 100vh;
+        margin: 0 !important;
+        background: linear-gradient(135deg, #ff80b5 0%, #8e44ad 52%, #512da8 100%) !important;
+        font-family: "Pretendard", "Noto Sans KR", sans-serif;
+    }
 
-    <style>
-        .role-selector input:checked + label { background: white; color: #8E44AD; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .role-selector label { color: #adb5bd; transition: 0.2s; }
-    </style>
+    .navbar {
+        display: none !important;
+    }
 
-    <div class="mb-4">
-        <label class="fw-bold small text-muted mb-2 d-block" id="label_username">전체 이메일 주소</label>
-        <input type="email" name="username" class="form-input w-100 p-3 border rounded-3" id="id_username" placeholder="전체 이메일 주소를 입력하세요 (예: hshoseok@goedu.kr)" required autocomplete="off">
-    </div>
+    .login-page {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 16px;
+        position: relative;
+        overflow: hidden;
+    }
 
-    <div class="mb-4">
-        <label class="fw-bold small text-muted mb-2 d-block">비밀번호</label>
-        <input type="password" name="password" class="form-input w-100 p-3 border rounded-3" id="id_password" placeholder="비밀번호를 입력하세요" required>
-    </div>
+    .login-page::before {
+        content: "";
+        position: absolute;
+        inset: -18px;
+        background-image: url('{% static "images/ingrid_bg.jpg" %}');
+        background-size: cover;
+        background-position: center;
+        opacity: 0.14;
+        filter: blur(2px);
+        mix-blend-mode: overlay;
+        transform: scale(1.04);
+    }
 
-    <!-- 비밀번호 찾기 링크에 ID 추가 및 초기 상태 처리 -->
-    <div class="d-flex justify-content-between mb-5 px-1">
-        <div class="form-check d-flex align-items-center gap-2">
-            <input class="form-check-input" type="checkbox" name="remember_me" id="rememberMe" style="width: 1.1rem; height: 1.1rem;">
-            <label class="form-check-label text-secondary small" for="rememberMe">로그인 유지</label>
+    .login-card {
+        width: 90%;
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 32px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid rgba(255, 255, 255, 0.42);
+        box-shadow: 0 24px 60px rgba(38, 29, 54, 0.28);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        position: relative;
+        z-index: 1;
+    }
+
+    .login-logo {
+        width: 88px;
+        height: 88px;
+        object-fit: cover;
+        border-radius: 50%;
+        display: block;
+        margin: 0 auto 18px;
+        border: 4px solid rgba(255, 255, 255, 0.86);
+        box-shadow: 0 14px 30px rgba(81, 45, 168, 0.18);
+    }
+
+    .login-title {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #241332;
+        text-align: center;
+        margin-bottom: 4px;
+    }
+
+    .login-subtitle {
+        font-size: 0.82rem;
+        color: #6c5f78;
+        text-align: center;
+        margin-bottom: 24px;
+    }
+
+    .role-selector {
+        display: flex;
+        background: rgba(248, 249, 250, 0.9);
+        padding: 5px;
+        border-radius: 16px;
+        margin-bottom: 22px;
+        border: 1px solid rgba(142, 68, 173, 0.08);
+    }
+
+    .role-selector input {
+        display: none;
+    }
+
+    .role-selector label {
+        flex: 1;
+        text-align: center;
+        min-height: 46px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 800;
+        color: #9aa0a6;
+        transition: 0.2s ease;
+    }
+
+    .role-selector input:checked + label {
+        background: #fff;
+        color: #8e44ad;
+        box-shadow: 0 8px 18px rgba(81, 45, 168, 0.1);
+    }
+
+    .form-label-ingrid {
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #65576f;
+        margin-bottom: 8px;
+    }
+
+    .form-input {
+        width: 100%;
+        min-height: 56px;
+        border: 1px solid rgba(142, 68, 173, 0.16);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.88);
+        padding: 0 16px;
+        outline: none;
+        color: #241332;
+        transition: 0.2s ease;
+    }
+
+    .form-input:focus {
+        border-color: #8e44ad;
+        box-shadow: 0 0 0 4px rgba(142, 68, 173, 0.12);
+        background: #fff;
+    }
+
+    .password-field {
+        position: relative;
+    }
+
+    .password-field .form-input {
+        padding-right: 52px;
+    }
+
+    .password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 12px;
+        width: 40px;
+        height: 40px;
+        transform: translateY(-50%);
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: #8e44ad;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .password-toggle:hover {
+        background: rgba(142, 68, 173, 0.08);
+    }
+
+    .password-toggle svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .text-ingrid {
+        color: #8e44ad !important;
+        font-weight: 800;
+    }
+
+    .text-ingrid:hover {
+        color: #ff80b5 !important;
+    }
+
+    .btn-ingrid-submit {
+        width: 100%;
+        min-height: 56px;
+        border: none;
+        border-radius: 18px;
+        color: white;
+        font-weight: 900;
+        font-size: 1.02rem;
+        background: linear-gradient(90deg, #ec4899 0%, #8e44ad 100%);
+        box-shadow: 0 14px 28px rgba(142, 68, 173, 0.26);
+        transition: 0.2s ease;
+    }
+
+    .btn-ingrid-submit:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.04);
+        box-shadow: 0 18px 34px rgba(142, 68, 173, 0.32);
+    }
+
+    .login-helper-row {
+        min-height: 34px;
+    }
+
+    @media (max-width: 480px) {
+        .login-card {
+            width: 94%;
+            padding: 28px 22px;
+        }
+    }
+</style>
+
+<div class="login-page">
+    <div class="login-card">
+        <img src="{% static 'images/ingrid_logo.jpg' %}" alt="Ingrid" class="login-logo">
+        <h1 class="login-title">인그리드 로그인</h1>
+        <p class="login-subtitle">학습 활동과 피드백을 이어가는 안전한 입구</p>
+
+        <form method="post" action="{% url 'login' %}" id="loginForm">
+            {% csrf_token %}
+
+            <div class="role-selector">
+                <input type="radio" name="login_type" id="type_student" value="student" {% if login_type == 'student' or not login_type %}checked{% endif %}>
+                <label for="type_student">학생</label>
+
+                <input type="radio" name="login_type" id="type_teacher" value="teacher" {% if login_type == 'teacher' %}checked{% endif %}>
+                <label for="type_teacher">교사</label>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label-ingrid d-block" id="label_username" for="id_username">학생 ID</label>
+                <input type="text" name="username" class="form-input" id="id_username" placeholder="학생 ID를 입력하세요" required autocomplete="off">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label-ingrid d-block" for="id_password">비밀번호</label>
+                <div class="password-field">
+                    <input type="password" name="password" class="form-input" id="id_password" placeholder="비밀번호를 입력하세요" required autocomplete="current-password">
+                    <button type="button" class="password-toggle" id="passwordToggle" aria-label="비밀번호 보기" aria-pressed="false">
+                        <svg id="iconEye" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                        <svg id="iconEyeSlash" class="d-none" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.48 10.48 0 0 0 2.25 12s3.75 6.75 9.75 6.75c1.8 0 3.407-.43 4.794-1.064M6.228 6.228C7.77 5.33 9.714 4.75 12 4.75c6 0 9.75 7.25 9.75 7.25a18.3 18.3 0 0 1-2.19 3.154M6.228 6.228 3.75 3.75m2.478 2.478 11.544 11.544m0 0 2.478 2.478M9.88 9.88A3 3 0 0 0 14.12 14.12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-4 login-helper-row">
+                <div class="form-check d-flex align-items-center gap-2">
+                    <input class="form-check-input" type="checkbox" name="remember_me" id="rememberMe" style="width: 1.1rem; height: 1.1rem;">
+                    <label class="form-check-label text-secondary small" for="rememberMe">로그인 유지</label>
+                </div>
+                <a href="{% url 'find_account' %}" id="forgot-password-link" class="text-ingrid small text-decoration-none" style="display: none;">비밀번호 찾기</a>
+            </div>
+
+            <button type="submit" class="btn-ingrid-submit">로그인</button>
+        </form>
+
+        <div id="teacher-signup-area" class="text-center mt-4 small" style="display: none;">
+            <span class="text-secondary">계정이 없으신가요?</span>
+            <a href="{% url 'signup' %}" id="signup-link" class="text-ingrid ms-2 text-decoration-none">교사 회원가입</a>
         </div>
-        <!-- class="text-ingrid" 적용 -->
-        <a href="{% url 'find_account' %}" id="forgot-password-link" class="text-ingrid small text-decoration-none" style="display: none;">비밀번호 찾기</a>
     </div>
+</div>
 
-    <button type="submit" class="btn-ingrid-submit">로그인</button>
-</form>
+<div class="modal fade" id="studentSignupModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+      <div class="modal-header bg-info text-white border-0">
+        <h5 class="modal-title fw-bold"><i class="bi bi-info-circle-fill"></i> 학생 회원가입 안내</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-5">
+        <p class="fw-bold mb-2" style="font-size: 1.1rem;">학생 계정은 선생님께서 생성합니다.</p>
+        <p class="text-muted small mb-0">직접 회원가입을 하실 수 없습니다.<br>담당 선생님께 <strong>ID와 비밀번호</strong>를 문의해주세요.</p>
+      </div>
+      <div class="modal-footer border-0 justify-content-center pb-4">
+        <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-<!-- 교사 선택 시에만 나타나는 영역 -->
-<div id="teacher-signup-area" class="text-center mt-5 small" style="display: none;">
-    <span class="text-secondary">계정이 없으신가요?</span>
-    <!-- class="text-ingrid" 적용 -->
-    <a href="{% url 'signup' %}" id="signup-link" class="text-ingrid ms-2 text-decoration-none">교사 회원가입</a>
+<div class="modal fade" id="loginErrorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+      <div class="modal-header bg-danger text-white border-0">
+        <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> 로그인 실패</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-5">
+        {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}
+                <p class="fw-bold mb-2 text-danger">{{ error }}</p>
+            {% endfor %}
+        {% else %}
+            <p class="fw-bold mb-2">아이디 또는 비밀번호가 일치하지 않습니다.</p>
+        {% endif %}
+        <p class="text-muted small mb-0">입력 정보를 다시 확인해주세요.</p>
+      </div>
+      <div class="modal-footer border-0 justify-content-center pb-4">
+        <a href="{% url 'signup' %}" class="btn btn-primary rounded-pill px-4">교사 회원가입</a>
+        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">닫기</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById('id_password');
+        const toggleButton = document.getElementById('passwordToggle');
+        const iconEye = document.getElementById('iconEye');
+        const iconEyeSlash = document.getElementById('iconEyeSlash');
+        const isPassword = passwordInput.type === 'password';
+
+        passwordInput.type = isPassword ? 'text' : 'password';
+        toggleButton.setAttribute('aria-label', isPassword ? '비밀번호 숨기기' : '비밀번호 보기');
+        toggleButton.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+        iconEye.classList.toggle('d-none', isPassword);
+        iconEyeSlash.classList.toggle('d-none', !isPassword);
+        passwordInput.focus();
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
-        // 1. 요소 선택
         const radioTeacher = document.getElementById('type_teacher');
         const radioStudent = document.getElementById('type_student');
         const labelUsername = document.getElementById('label_username');
         const inputUsername = document.getElementById('id_username');
         const signupLink = document.getElementById('signup-link');
+        const passwordToggle = document.getElementById('passwordToggle');
 
-        // 1. UI 업데이트 함수
         function updateUI(role) {
             const signupArea = document.getElementById('teacher-signup-area');
             const forgotPwLink = document.getElementById('forgot-password-link');
-            
+
             if (role === 'teacher') {
-                labelUsername.innerText = "선생님 이메일 아이디";
-                inputUsername.placeholder = "아이디(이메일)를 입력하세요";
-                signupArea.style.display = 'block'; // 교사일 때만 가입 링크 표시
-                forgotPwLink.style.display = 'block'; // 교사일 때는 비밀번호 찾기 링크 표시
+                labelUsername.innerText = '선생님 이메일 아이디';
+                inputUsername.placeholder = '아이디(이메일)를 입력하세요';
+                inputUsername.type = 'email';
+                signupArea.style.display = 'block';
+                forgotPwLink.style.display = 'block';
             } else {
-                labelUsername.innerText = "학생 ID";
-                inputUsername.placeholder = "학생 ID를 입력하세요";
-                signupArea.style.display = 'none';  // 학생일 때는 숨김
-                forgotPwLink.style.display = 'none'; // 학생일 때는 비밀번호 찾기 링크 숨김
+                labelUsername.innerText = '학생 ID';
+                inputUsername.placeholder = '학생 ID를 입력하세요';
+                inputUsername.type = 'text';
+                signupArea.style.display = 'none';
+                forgotPwLink.style.display = 'none';
             }
             setTimeout(() => inputUsername.focus(), 100);
         }
 
         radioTeacher.addEventListener('change', () => updateUI('teacher'));
         radioStudent.addEventListener('change', () => updateUI('student'));
+        passwordToggle.addEventListener('click', togglePasswordVisibility);
 
-        // 2. 초기 상태 설정 (학생 디폴트)
-        updateUI('student');
-
-        // 3. 학생 회원가입 차단 로직 (복구됨)
         if (signupLink) {
             signupLink.addEventListener('click', function(event) {
                 if (radioStudent.checked) {
-                    event.preventDefault(); // 페이지 이동 차단
+                    event.preventDefault();
                     const studentModal = new bootstrap.Modal(document.getElementById('studentSignupModal'));
                     studentModal.show();
                 }
             });
         }
 
-        
+        const attemptedType = "{{ login_type }}";
+        updateUI(attemptedType || (radioTeacher.checked ? 'teacher' : 'student'));
 
-        // 1. 서버에서 넘겨준 시도된 로그인 타입 (없으면 현재 체크된 값)
-        // [디버깅 코드 추가]
-        const attemptedType = "{{ login_type }}"; 
-        console.log("1. 서버에서 넘어온 login_type:", attemptedType); // 이게 'teacher'로 찍히는지 확인!
-
-        const isStudentChecked = document.getElementById('type_student').checked;
-        console.log("2. 현재 HTML 라디오 버튼 학생 체크 여부:", isStudentChecked);
-        
-        if (attemptedType) {
-            updateUI(attemptedType); // 탭 디자인과 레이블을 시도했던 타입에 맞게 강제 고정
-        }
-
-        // 4. 로그인 실패 시 에러 모달 노출
-        // 1. 에러 상태값 취합
         const hasDjangoErrors = "{% if form.errors or form.non_field_errors %}true{% else %}false{% endif %}";
         const serverErrorMessage = "{{ error_message|escapejs }}";
         const errorCode = "{{ error_code }}";
-        
-        // 2. 에러가 하나라도 있다면 모달 처리 시작
+
         if (hasDjangoErrors === 'true' || serverErrorMessage) {
             const errorModalElem = document.getElementById('loginErrorModal');
             const modalBody = errorModalElem.querySelector('.modal-body');
             const modalFooter = errorModalElem.querySelector('.modal-footer');
-            
-            // 현재 UI 상태가 아닌, '시도했던' 타입을 기준으로 판단
-            const isAttemptedStudent = attemptedType ? (attemptedType === 'student') : document.getElementById('type_student').checked;
-
-            // 최종적으로 보여줄 메시지 결정
-            let finalMsg = serverErrorMessage ? serverErrorMessage : "아이디 또는 비밀번호가 일치하지 않습니다.";
-            let title = "로그인 실패";
+            const isAttemptedStudent = attemptedType ? (attemptedType === 'student') : radioStudent.checked;
+            let finalMsg = serverErrorMessage ? serverErrorMessage : '아이디 또는 비밀번호가 일치하지 않습니다.';
+            let title = '로그인 실패';
             let iconHtml = '<i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3.5rem;"></i>';
 
             if (isAttemptedStudent) {
-                // --- [학생 전용 UI 조립] ---
-                title = "로그인 정보 불일치";
+                title = '로그인 정보 불일치';
                 iconHtml = '<i class="bi bi-person-x-fill text-danger" style="font-size: 3.5rem;"></i>';
-                const showStudentResetGuide = !errorCode.includes("ROLE_MISMATCH_TEACHER");
+                const showStudentResetGuide = !errorCode.includes('ROLE_MISMATCH_TEACHER');
                 const studentResetGuideHtml = showStudentResetGuide ? `
                     <p class="fw-bold text-dark mt-3">
                         비밀번호를 분실했다면<br>
                         <span style="color: #8E44AD;">담당 선생님께 초기화를 요청하세요.</span>
                     </p>
-                ` : "";
-                
+                ` : '';
+
                 modalBody.innerHTML = `
                     <div class="mb-3">${iconHtml}</div>
                     <h4 class="fw-bold mb-3">${title}</h4>
@@ -149,10 +404,9 @@
                     <button type="button" class="btn btn-secondary rounded-pill px-5" data-bs-dismiss="modal">확인</button>
                 `;
             } else {
-                // --- [교사 전용 UI 조립] ---
-                if (errorCode.includes("ROLE_MISMATCH")) {
+                if (errorCode.includes('ROLE_MISMATCH')) {
                     iconHtml = '<i class="bi bi-arrow-left-right text-primary" style="font-size: 3.5rem;"></i>';
-                    title = "로그인 탭 확인";
+                    title = '로그인 탭 확인';
                 }
 
                 modalBody.innerHTML = `
@@ -161,28 +415,22 @@
                     <p class="text-muted mb-3">${finalMsg}</p>
                 `;
                 modalFooter.innerHTML = `
-                    <!-- 1. 교사 회원가입: 시그니처 그라데이션 적용 -->
-                    <a href="{% url 'signup' %}" class="btn shadow-sm rounded-pill px-4 fw-bold" 
-                    style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none; color: white;">
-                    교사 회원가입
+                    <a href="{% url 'signup' %}" class="btn shadow-sm rounded-pill px-4 fw-bold"
+                       style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%); border: none; color: white;">
+                       교사 회원가입
                     </a>
-                    
-                    <!-- 2. 비밀번호 찾기: 보라색 테두리(Outline) 스타일 적용 -->
-                    <a href="{% url 'find_account' %}" class="btn rounded-pill px-4 fw-bold" 
-                    style="border: 2px solid #8E44AD; color: #8E44AD; background: white;">
-                    비밀번호 찾기
+                    <a href="{% url 'find_account' %}" class="btn rounded-pill px-4 fw-bold"
+                       style="border: 2px solid #8E44AD; color: #8E44AD; background: white;">
+                       비밀번호 찾기
                     </a>
-                    
                     <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">닫기</button>
                 `;
             }
 
-            // 모달 띄우기
             const errorModal = new bootstrap.Modal(errorModalElem);
             errorModal.show();
         }
 
-        // 5. 태블릿 최적화 (페이지 로드 시 강제 활성화)
         setTimeout(() => {
             inputUsername.click();
             inputUsername.focus();
