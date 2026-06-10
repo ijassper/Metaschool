@@ -677,6 +677,9 @@
     const ABNORMAL_INPUT_THRESHOLD = 100;
     const INPUT_GRACE_MS = 1000;
     const ANSWER_BACKUP_PREFIX = `ingrid-answer-backup-${answerId || 'new'}-`;
+    const RIGHT_CLICK_LOG_INTERVAL_MS = 60000;
+    const RIGHT_CLICK_LOG_STORAGE_KEY = `ingrid-right-click-log-${answerId || 'new'}`;
+    let lastRightClickLogAt = 0;
 
     /* 1.5. 복사 제어 기능 (_LOCK 계열 전용, 데모 모드에서는 항상 비활성) */
     function initSecurityMode() {
@@ -778,9 +781,26 @@
     function handleContextMenuBlock(e) {
         if (!testStarted || isSubmitting || !ENABLE_COPY_PROTECTION || IS_DEMO) return;
         e.preventDefault();
-        sendLog('RIGHT_CLICK');
+        sendRightClickLogIfAllowed();
         logSecurityEvent('contextmenu_block', 1);
         showSecurityWarning('보안 모드에서는 우클릭 메뉴가 금지되어 있습니다.');
+    }
+
+    function sendRightClickLogIfAllowed() {
+        const now = Date.now();
+        let lastLoggedAt = lastRightClickLogAt;
+
+        try {
+            lastLoggedAt = parseInt(localStorage.getItem(RIGHT_CLICK_LOG_STORAGE_KEY) || '0', 10) || 0;
+        } catch (error) {}
+
+        if (now - lastLoggedAt < RIGHT_CLICK_LOG_INTERVAL_MS) return;
+
+        lastRightClickLogAt = now;
+        try {
+            localStorage.setItem(RIGHT_CLICK_LOG_STORAGE_KEY, String(now));
+        } catch (error) {}
+        sendLog('RIGHT_CLICK');
     }
     
     function handleAbnormalInput(e) {
@@ -921,7 +941,7 @@
         const wasStarted = testStarted;
         testStarted = true;
         if (wasStarted && ENABLE_EXIT_DETECTION) {
-            sendLog('IN'); // [기록] 보안 경고 후 재입장
+            sendLog('RETURN'); // [기록] 보안 경고 후 재입장
         }
         document.getElementById('startOverlay').classList.add('d-none');
         const container = document.getElementById('testContainer');
@@ -1016,7 +1036,7 @@
             method: 'POST',
             keepalive: true,
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({ 'answer_id': answerId, 'type': 'EXIT' })
+            body: JSON.stringify({ 'answer_id': answerId, 'type': 'OUT' })
         }).catch(function () {});
     });
 
@@ -1167,12 +1187,15 @@
     /* 9. 서버 로그 전송 (AJAX) */
     function sendLog(type) {
         const logMessages = {
-            'OUT': '화면 이탈(Alt+Tab 등)',
-            'IN': '화면 복귀',
-            'RE-ENTRY': '응시 계속하기 클릭 (답안지 복귀)', // 추가된 로그
-            'EXIT': '중도 퇴장 (임시저장)',
+            'IN': '답안지 페이지 입장',
+            'SUBMIT': '답안 제출',
+            'RETURN': '답안지 페이지로 재입장',
+            'RE_EDIT': '답안 제출 후 수정 위해 재입장',
+            'OUT': 'Alt+Tab 또는 창 전환으로 답안지 페이지 이탈',
+            'EXIT': '나가기 버튼을 누르고 답안지 페이지 이탈',
             'COPY': '복사 시도',
-            'PASTE': '붙여넣기 시도'
+            'PASTE': '붙여넣기 시도',
+            'RIGHT_CLICK': '우클릭 시도'
         };
 
         if (!answerId || answerId === "None" || answerId === "") return;

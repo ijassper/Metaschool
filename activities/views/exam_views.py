@@ -12,6 +12,25 @@ from accounts.decorators import teacher_required
 from accounts.models import Student, SystemConfig
 from ..models import Activity, Question, Answer
 
+LOG_MESSAGES = {
+    'IN': '답안지 페이지 입장',
+    'SUBMIT': '답안 제출',
+    'RETURN': '답안지 페이지로 재입장',
+    'RE_EDIT': '답안 제출 후 수정 위해 재입장',
+    'OUT': 'Alt+Tab 또는 창 전환으로 답안지 페이지 이탈',
+    'EXIT': '나가기 버튼을 누르고 답안지 페이지 이탈',
+    'COPY': '복사 시도',
+    'PASTE': '붙여넣기 시도',
+    'RIGHT_CLICK': '우클릭 시도',
+    'BACK_BUTTON': '브라우저 뒤로가기 버튼 클릭 시도',
+}
+
+
+def append_activity_log(answer, action_code, timestamp=None):
+    timestamp = timestamp or timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+    message = LOG_MESSAGES.get(action_code, action_code)
+    answer.activity_log = (answer.activity_log or "") + f"[{timestamp}] {message}\n"
+
 # [1] 학생 응시 페이지
 @login_required
 def take_test(request, activity_id):
@@ -69,10 +88,16 @@ def take_test(request, activity_id):
     )
 
     # 6. 최초 진입 시간 기록 (처음 생성된 경우에만 로그 기록)
+    timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
     if a_created:
-        timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
-        answer.activity_log = f"[{timestamp}] 시험 시작 (최초 진입)\n"
-        answer.save()
+        append_activity_log(answer, 'IN', timestamp)
+        answer.save(update_fields=['activity_log'])
+    elif existing_answer and existing_answer.submitted_at and activity.allow_edit_after_submission:
+        append_activity_log(answer, 'RE_EDIT', timestamp)
+        answer.save(update_fields=['activity_log'])
+    else:
+        append_activity_log(answer, 'RETURN', timestamp)
+        answer.save(update_fields=['activity_log'])
 
     if request.method == 'POST':
         # 제출인지 임시저장인지 구분 (hidden 필드 'is_submit' 기준)
@@ -97,9 +122,9 @@ def take_test(request, activity_id):
             answer.submitted_at = timezone.now()
             timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
             if is_exit_submit:
-                answer.activity_log += f"[{timestamp}] 중도 이탈로 자동 제출 처리\n"
+                append_activity_log(answer, 'EXIT', timestamp)
             else:
-                answer.activity_log += f"[{timestamp}] 답안 최종 제출 완료\n"
+                append_activity_log(answer, 'SUBMIT', timestamp)
 
         answer.save()
         
@@ -147,22 +172,10 @@ def log_activity(request):
             current_log = answer.activity_log if answer.activity_log else ""
             timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            # 로그 메시지 매핑
-            log_messages = {
-                'OUT': '화면 이탈(Alt+Tab 또는 창 전환)',
-                'IN': '화면 복귀',
-                'COPY': '복사 시도',
-                'PASTE': '붙여넣기 시도',
-                'RIGHT_CLICK': '우클릭 시도',
-                'EXIT': '중도 퇴장',
-                'BACK_BUTTON': '브라우저 뒤로가기 버튼 클릭 시도'
-            }
-            
-            new_entry = f"[{timestamp}] {log_messages.get(log_type, log_type)}\n"
-            answer.activity_log = current_log + new_entry
+            answer.activity_log = current_log
+            append_activity_log(answer, log_type, timestamp)
             if log_type in ['OUT', 'EXIT', 'BACK_BUTTON'] and not answer.submitted_at:
                 answer.submitted_at = timezone.now()
-                answer.activity_log += f"[{timestamp}] 이탈 감지로 자동 제출 처리\n"
                 answer.save(update_fields=['activity_log', 'submitted_at'])
             else:
                 answer.save(update_fields=['activity_log'])
