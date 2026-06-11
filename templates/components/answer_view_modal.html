@@ -1,8 +1,8 @@
 <!-- 답안 확인 공통 모달 컴포넌트 -->
 <div class="modal fade" id="answerViewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered answer-view-dialog">
         <div class="modal-content border-0 shadow-lg answer-view-content">
-            <div class="modal-header border-0 p-4 answer-view-header">
+            <div class="modal-header p-4 answer-view-header">
                 <h5 class="modal-title fw-bold text-white mb-0">
                     <i class="bi bi-file-text me-2"></i> <span id="answerModalHeaderTitle">학생 답안지</span>
                 </h5>
@@ -10,12 +10,12 @@
             </div>
             <div class="modal-body p-4 answer-view-body" id="answerPdfCaptureArea">
                 <div class="alert alert-light border answer-meta-bar">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="answer-meta-main">
+                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <div class="answer-meta-main d-flex align-items-center gap-2 flex-wrap">
                             <span id="modalSchoolName" class="badge rounded-pill text-bg-secondary px-3 py-2">학교명</span>
                             <span id="modalStudentInfo" class="fs-6 fw-bold text-dark"></span>
                         </div>
-                        <div class="text-muted small answer-meta-time">
+                        <div class="text-muted small answer-meta-time ms-auto text-end">
                             제출일시: <span id="modalSubmittedAt">-</span>
                         </div>
                     </div>
@@ -50,9 +50,21 @@
         background: rgba(255, 255, 255, 0.96);
     }
 
+    .answer-view-dialog {
+        width: calc(100% - 2rem);
+        max-width: 800px;
+        margin-right: auto;
+        margin-left: auto;
+    }
+
     .answer-view-header {
         background: var(--ingrid-gradient, linear-gradient(135deg, rgba(255, 128, 181, 0.92) 0%, rgba(142, 68, 173, 0.9) 100%));
         align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .answer-view-body {
+        padding-top: 1.5rem !important;
     }
 
     .answer-view-close-btn {
@@ -61,20 +73,20 @@
 
     .answer-meta-bar {
         border-radius: 16px;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 1rem 1.25rem;
     }
 
     .answer-meta-main {
-        display: block;
-        margin-bottom: 0.35rem;
+        min-width: 0;
     }
 
     .answer-meta-main #modalSchoolName {
-        margin-right: 0.4rem;
+        flex-shrink: 0;
     }
 
     .answer-meta-time {
-        display: block;
+        white-space: nowrap;
     }
 
     .answer-section {
@@ -98,8 +110,8 @@
 
     .answer-content-box {
         min-height: 300px;
-        font-size: 1.08rem;
-        line-height: 1.6;
+        font-size: 1.075rem;
+        line-height: 1.75;
         white-space: pre-wrap;
         page-break-inside: auto !important;
         break-inside: auto !important;
@@ -112,6 +124,37 @@
         background-clip: padding-box;
         orphans: 3;
         widows: 3;
+    }
+
+    .answer-content-title {
+        margin: 0 0 0.45rem;
+        font-weight: 700;
+        color: #212529;
+        line-height: 1.5;
+    }
+
+    .answer-content-text + .answer-content-title {
+        margin-top: 1.25rem;
+    }
+
+    .answer-content-text {
+        white-space: pre-wrap;
+    }
+
+    @media (max-width: 575.98px) {
+        .answer-view-dialog {
+            width: calc(100% - 1rem);
+        }
+
+        .answer-meta-time {
+            width: 100%;
+            text-align: left !important;
+        }
+
+        .answer-content-box {
+            font-size: 1rem;
+            line-height: 1.7;
+        }
     }
 
     .answer-pdf-btn {
@@ -225,7 +268,7 @@
             document.getElementById('answerPdfBtn').style.display = showPdfBtn ? 'inline-flex' : 'none';
         }
 
-        document.getElementById('modalAnswerContent').innerText = content || "내용이 없습니다.";
+        renderAnswerContent(document.getElementById('modalAnswerContent'), content, contentType);
         
         const modal = new bootstrap.Modal(document.getElementById('answerViewModal'));
         modal.show();
@@ -260,6 +303,54 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    }
+
+    function renderAnswerContent(container, content, contentType) {
+        const normalizedContent = (content || '').toString().replace(/\r\n?/g, '\n');
+        container.replaceChildren();
+
+        if (!normalizedContent.trim()) {
+            container.innerText = "내용이 없습니다.";
+            return;
+        }
+
+        if (contentType === 'ai') {
+            container.innerText = normalizedContent;
+            return;
+        }
+
+        const lines = normalizedContent.split('\n');
+        let textLines = [];
+
+        const appendText = () => {
+            const text = textLines.join('\n').replace(/^\n+|\n+$/g, '');
+            textLines = [];
+            if (!text) return;
+
+            const textElement = document.createElement('div');
+            textElement.className = 'answer-content-text';
+            textElement.innerText = text;
+            container.appendChild(textElement);
+        };
+
+        lines.forEach((line) => {
+            const titleMatch = line.match(/^\s*\[([^\]]*)\]\s*$/);
+            if (!titleMatch) {
+                textLines.push(line);
+                return;
+            }
+
+            appendText();
+            const title = titleMatch[1].trim();
+            if (!title) return;
+
+            const titleElement = document.createElement('div');
+            titleElement.className = 'answer-content-title font-bold fw-bold';
+            titleElement.innerText = title;
+            container.appendChild(titleElement);
+        });
+
+        appendText();
     }
 
     // PDF 저장 로직 (기존 activity_result.html의 savePdf 함수 통합)
