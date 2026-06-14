@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static tz %}
 
 {% block content %}
 <div class="container-fluid px-4 py-4">
@@ -98,8 +98,8 @@
                             <td class="deadline-cell {% if act.status_code == 'CLOSED' %}text-danger fw-bold{% else %}text-secondary{% endif %}">
                                 <span id="activity-deadline-{{ act.id }}" class="deadline-display">
                                     {% if act.deadline %}
-                                        <span class="deadline-date">{{ act.deadline|date:"Y-m-d" }}</span>
-                                        <span class="deadline-time">{{ act.deadline|date:"H:i" }}</span>
+                                        <span class="deadline-date">{{ act.deadline|localtime|date:"Y-m-d" }}</span>
+                                        <span class="deadline-time">{{ act.deadline|localtime|date:"H:i" }}</span>
                                     {% else %}
                                         <span class="deadline-date">기한 없음</span>
                                     {% endif %}

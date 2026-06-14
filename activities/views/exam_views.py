@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -27,7 +26,9 @@ LOG_MESSAGES = {
 
 
 def append_activity_log(answer, action_code, timestamp=None):
-    timestamp = timestamp or timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+    if timestamp is None:
+        now = timezone.localtime(timezone.now())
+        timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
     message = LOG_MESSAGES.get(action_code, action_code)
     answer.activity_log = (answer.activity_log or "") + f"[{timestamp}] {message}\n"
 
@@ -88,7 +89,8 @@ def take_test(request, activity_id):
     )
 
     # 6. 최초 진입 시간 기록 (처음 생성된 경우에만 로그 기록)
-    timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = timezone.localtime(timezone.now())
+    timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
     if a_created:
         append_activity_log(answer, 'IN', timestamp)
         answer.save(update_fields=['activity_log'])
@@ -119,8 +121,9 @@ def take_test(request, activity_id):
         
         # 최종 제출일 때만 제출 시간 기록 및 로그 남기기
         if is_final_submit:
-            answer.submitted_at = timezone.now()
-            timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            now = timezone.localtime(timezone.now())
+            answer.submitted_at = now
+            timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
             if is_exit_submit:
                 append_activity_log(answer, 'EXIT', timestamp)
             else:
@@ -170,12 +173,13 @@ def log_activity(request):
             
             # 기존 로그에 새로운 기록 추가 (줄바꿈 포함)
             current_log = answer.activity_log if answer.activity_log else ""
-            timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            now = timezone.localtime(timezone.now())
+            timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
             
             answer.activity_log = current_log
             append_activity_log(answer, log_type, timestamp)
             if log_type in ['OUT', 'EXIT', 'BACK_BUTTON'] and not answer.submitted_at:
-                answer.submitted_at = timezone.now()
+                answer.submitted_at = now
                 answer.save(update_fields=['activity_log', 'submitted_at'])
             else:
                 answer.save(update_fields=['activity_log'])

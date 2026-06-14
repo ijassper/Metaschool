@@ -222,7 +222,8 @@ class AnalysisResult(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.answer.student.name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+        created_at = timezone.localtime(self.created_at)
+        return f"{self.answer.student.name} - {created_at.strftime('%Y-%m-%d %H:%M')}"
 
 # 다중 파일을 저장하기 위한 모델 (ActivityFile)
 class ActivityFile(models.Model):

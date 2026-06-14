@@ -48,7 +48,8 @@ def submission_export_excel(request, activity_id):
     
     # 4. 파일 다운로드 응답 생성
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    filename = f"학생답안_{activity.title}_{timezone.now().strftime('%m%d')}.xlsx"
+    now = timezone.localtime(timezone.now())
+    filename = f"학생답안_{activity.title}_{now.strftime('%m%d')}.xlsx"
     
     # 한글 파일명 깨짐 방지
     from urllib.parse import quote
@@ -90,7 +91,8 @@ def analysis_export_excel(request, activity_id):
             if activity.q2_title: row.append(answer.ans_q2 if answer.ans_q2 else "")
             if activity.q3_title: row.append(answer.ans_q3 if answer.ans_q3 else "")
             row.append(answer.ai_result if answer.ai_result else "")
-            row.append(answer.ai_updated_at.strftime('%Y-%m-%d %H:%M') if answer.ai_updated_at else "")
+            ai_updated_at = timezone.localtime(answer.ai_updated_at) if answer.ai_updated_at else None
+            row.append(ai_updated_at.strftime('%Y-%m-%d %H:%M') if ai_updated_at else "")
         else:
             # 미제출 학생 처리
             row.append("(미제출)")
@@ -102,7 +104,8 @@ def analysis_export_excel(request, activity_id):
     
     # 4. 파일 다운로드 응답 생성
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    filename = f"AI_분석결과_{activity.title}_{timezone.now().strftime('%m%d')}.xlsx"
+    now = timezone.localtime(timezone.now())
+    filename = f"AI_분석결과_{activity.title}_{now.strftime('%m%d')}.xlsx"
     
     # 한글 파일명 깨짐 방지 처리
     response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
@@ -141,7 +144,7 @@ def export_answer_sheets_docx(request, activity_id):
 
         # 2행: 응시자 정보 / 응시 일시
         answer = activity.get_student_answer(student)
-        submitted_at = answer.submitted_at.strftime('%Y-%m-%d %H:%M') if answer and answer.submitted_at else "-"
+        submitted_at = timezone.localtime(answer.submitted_at).strftime('%Y-%m-%d %H:%M') if answer and answer.submitted_at else "-"
         
         table.cell(1, 0).text = "응시자 정보"
         table.cell(1, 1).text = f"{student.grade}학년 {student.class_no}반 {student.number}번 {student.name}"

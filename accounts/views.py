@@ -1251,11 +1251,12 @@ def student_export_excel(request):
     for s in students:
         # 연결된 유저의 최근 로그인 시간 가져오기
         user = CustomUser.objects.filter(email=s.email, role='STUDENT').first()
-        last_login = user.last_login.strftime('%Y-%m-%d %H:%M') if user and user.last_login else "미접속"
+        last_login = timezone.localtime(user.last_login).strftime('%Y-%m-%d %H:%M') if user and user.last_login else "미접속"
         ws.append([s.grade, s.class_no, s.number, s.name, s.email, last_login])
     
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    file_name = f"Student_List_{timezone.now().strftime('%Y%m%d')}.xlsx"
+    now = timezone.localtime(timezone.now())
+    file_name = f"Student_List_{now.strftime('%Y%m%d')}.xlsx"
     response['Content-Disposition'] = f'attachment; filename={file_name}'
     wb.save(response)
     return response

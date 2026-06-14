@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load tz %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3 class="fw-bold"><i class="bi bi-list-task text-primary"></i> 자율활동 목록</h3>
@@ -49,7 +50,7 @@
                             <span class="activity-expired-badge badge rounded-pill bg-secondary-subtle text-secondary border ms-2">기한 만료</span>
                         {% endif %}
                     </td>
-                    <td>{{ activity.created_at|date:"Y-m-d" }}</td>
+                    <td>{{ activity.created_at|localtime|date:"Y-m-d" }}</td>
                     <!-- 3. 제출 현황(답안 보기) -->
                         <td>
                             <a href="{% url 'activity_result' activity.id %}" class="btn btn-sm btn-outline-primary w-100">
