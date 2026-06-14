@@ -6,6 +6,8 @@ from django.utils import timezone
 
 
 class Activity(models.Model):
+    COPY_PROTECTED_EXAM_MODES = frozenset({'CLOSED_LOCK', 'OPEN_LOCK'})
+
     # --- [1. 분류 및 유형] ---
     CATEGORY_CHOICES = [
         ('ESSAY', '교과 논술형 평가'),
@@ -132,6 +134,11 @@ class Activity(models.Model):
         if answer and answer.submitted_at and not self.allow_edit_after_submission:
             return False
         return True
+
+    @property
+    def is_copy_protected(self):
+        """복사 제한이 적용되는 응시 환경인지 반환합니다."""
+        return self.exam_mode in self.COPY_PROTECTED_EXAM_MODES or self.exam_mode == 'CLOSED'
 
     @property
     def status_text(self):
