@@ -14,6 +14,7 @@ from .views import (
     dashboard,
     deny_teacher,
     login_view,
+    logout_view,
     profile_settings,
     profile_update,
     reset_student_password,
@@ -29,6 +30,7 @@ from .views import (
 
 urlpatterns = [
     path("login/", login_view, name="login"),
+    path("logout/", logout_view, name="logout"),
     path("signup/", SignUpView.as_view(), name="signup"),
     path("dashboard/", dashboard, name="dashboard"),
     path("profile-settings/", profile_settings, name="profile_settings"),

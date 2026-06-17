@@ -76,7 +76,13 @@ class CustomUser(AbstractUser):
         verbose_name="승인 상태",
     )
 
+    current_session_key = models.CharField(max_length=40, null=True, blank=True)
+
     REQUIRED_FIELDS = ['email', 'name']
+
+    @property
+    def is_student(self):
+        return self.role == self.Role.STUDENT
 
     def __str__(self):
         return f"[{self.get_role_display()}] {self.name}"
