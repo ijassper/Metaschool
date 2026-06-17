@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load tz %}
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -165,7 +166,7 @@
                     <td class="header-bg">응시자 정보</td>
                     <td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td>
                     <td class="header-bg">응시 일시</td>
-                    <td>{{ s.my_answer.submitted_at|date:"Y-m-d H:i"|default:"-" }}</td>
+                    <td>{{ s.my_answer.submitted_at|localtime|date:"Y-m-d H:i"|default:"-" }}</td>
                 </tr>
                 <tr class="row-title">
                     <td colspan="4" class="header-bg" style="letter-spacing: 5px;">학 생 답 안 지</td>

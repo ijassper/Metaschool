@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load tz %}
 
 {% block content %}
 <div class="container mt-5 mb-5">
@@ -19,7 +20,7 @@
                     </span>
                 </div>
                 <div class="text-muted small">
-                    제출일시: {{ answer.submitted_at|date:"Y년 m월 d일 H시 i분" }}
+                    제출일시: {{ answer.submitted_at|localtime|date:"Y년 m월 d일 H시 i분" }}
                 </div>
             </div>
 

@@ -6,6 +6,8 @@ from django.utils import timezone
 
 
 class Activity(models.Model):
+    COPY_PROTECTED_EXAM_MODES = frozenset({'CLOSED_LOCK', 'OPEN_LOCK'})
+
     # --- [1. 분류 및 유형] ---
     CATEGORY_CHOICES = [
         ('ESSAY', '교과 논술형 평가'),
@@ -134,6 +136,11 @@ class Activity(models.Model):
         return True
 
     @property
+    def is_copy_protected(self):
+        """복사 제한이 적용되는 응시 환경인지 반환합니다."""
+        return self.exam_mode in self.COPY_PROTECTED_EXAM_MODES or self.exam_mode == 'CLOSED'
+
+    @property
     def status_text(self):
         if self.deadline and timezone.now() > self.deadline:
             return "마감됨"
@@ -222,7 +229,8 @@ class AnalysisResult(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.answer.student.name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+        created_at = timezone.localtime(self.created_at)
+        return f"{self.answer.student.name} - {created_at.strftime('%Y-%m-%d %H:%M')}"
 
 # 다중 파일을 저장하기 위한 모델 (ActivityFile)
 class ActivityFile(models.Model):

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static tz %}
 
 {% block content %}
 <style>
@@ -272,7 +272,7 @@
             <div class="row mb-0 align-items-center">
                 <div class="col-md-3 text-center fw-bold text-secondary border-end">제출 기한 *</div>
                 <div class="col-md-9 px-4">
-                    <input type="text" name="deadline" id="deadline_picker" value="{{ activity.deadline|date:'Y. m. d. H:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="24시간 형식으로 선택 (예: 14:00)" readonly required>
+                    <input type="text" name="deadline" id="deadline_picker" value="{{ activity.deadline|localtime|date:'Y. m. d. H:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="24시간 형식으로 선택 (예: 14:00)" readonly required>
                 </div>
             </div>
         </div>
@@ -285,7 +285,7 @@
             <div class="row mb-3 align-items-center">
                 <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.detail.date }}</div>
                 <div class="col-md-9 px-4">
-                    <input type="text" name="activity_date" id="activity_date" value="{{ activity.activity_date|date:'Y. m. d. H:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker" placeholder="24시간 형식으로 선택 (예: 14:00)" readonly>
+                    <input type="text" name="activity_date" id="activity_date" value="{{ activity.activity_date|localtime|date:'Y. m. d. H:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker" placeholder="24시간 형식으로 선택 (예: 14:00)" readonly>
                 </div>
             </div>
 

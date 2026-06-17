@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load tz %}
 
 {% block content %}
 <!-- UI 강제 조정 (메뉴 숨김, 여백 제거) -->
@@ -501,7 +502,8 @@
                         {% if activity.q1_title %}
                         <div class="mb-5">
                             <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">답안 1.</span>{{ activity.q1_title }}</h5>
-                            <textarea name="ans_q1" rows="15" class="form-control shadow-sm answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q1|default:'' }}</textarea>
+                            <textarea name="ans_q1" rows="15" class="form-control shadow-sm answer-input" placeholder="내용을 입력하세요."
+                                {% if IS_COPY_PROTECTED %}onpaste="return false;" oncopy="return false;" oncut="return false;"{% endif %}>{{ answer.ans_q1|default:'' }}</textarea>
                         </div>
                         {% endif %}
 
@@ -509,7 +511,8 @@
                         {% if activity.q2_title %}
                         <div class="mb-5">
                             <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">답안 2.</span>{{ activity.q2_title }}</h5>
-                            <textarea name="ans_q2" rows="15" class="form-control shadow-sm answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q2|default:'' }}</textarea>
+                            <textarea name="ans_q2" rows="15" class="form-control shadow-sm answer-input" placeholder="내용을 입력하세요."
+                                {% if IS_COPY_PROTECTED %}onpaste="return false;" oncopy="return false;" oncut="return false;"{% endif %}>{{ answer.ans_q2|default:'' }}</textarea>
                         </div>
                         {% endif %}
 
@@ -517,7 +520,8 @@
                         {% if activity.q3_title %}
                         <div class="mb-5">
                             <h5 class="fw-bold text-dark mb-3"><span class="text-primary me-2">답안 3.</span>{{ activity.q3_title }}</h5>
-                            <textarea name="ans_q3" rows="15" class="form-control shadow-sm answer-input" placeholder="내용을 입력하세요.">{{ answer.ans_q3|default:'' }}</textarea>
+                            <textarea name="ans_q3" rows="15" class="form-control shadow-sm answer-input" placeholder="내용을 입력하세요."
+                                {% if IS_COPY_PROTECTED %}onpaste="return false;" oncopy="return false;" oncut="return false;"{% endif %}>{{ answer.ans_q3|default:'' }}</textarea>
                         </div>
                         {% endif %}
                     </div>
@@ -651,6 +655,55 @@
     </div>
 </div>
 
+{% if IS_COPY_PROTECTED %}
+<script>
+    // Lock 응시 환경에서는 시험 시작 전부터 선택과 클립보드 접근을 차단합니다.
+    document.addEventListener('selectstart', function(event) {
+        event.preventDefault();
+    });
+
+    document.addEventListener('contextmenu', function(event) {
+        event.preventDefault();
+        if (typeof window.reportCopyProtectionAttempt === 'function') {
+            window.reportCopyProtectionAttempt('RIGHT_CLICK');
+        }
+    });
+
+    document.addEventListener('keydown', function(event) {
+        const key = event.key.toLowerCase();
+        if ((event.ctrlKey || event.metaKey) && ['c', 'v', 'a', 'x'].includes(key)) {
+            event.preventDefault();
+            if (typeof window.reportCopyProtectionAttempt === 'function' && key !== 'a') {
+                window.reportCopyProtectionAttempt(key === 'v' ? 'PASTE' : 'COPY');
+            }
+        }
+    });
+
+    ['copy', 'cut', 'paste'].forEach(function(type) {
+        document.addEventListener(type, function(event) {
+            event.preventDefault();
+            if (typeof window.reportCopyProtectionAttempt === 'function') {
+                window.reportCopyProtectionAttempt(type === 'paste' ? 'PASTE' : 'COPY');
+            }
+            alert('보안 정책에 의해 복사/붙여넣기가 차단되었습니다.');
+        });
+    });
+
+    document.addEventListener('beforeinput', function(event) {
+        if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop') {
+            event.preventDefault();
+            if (typeof window.reportCopyProtectionAttempt === 'function') {
+                window.reportCopyProtectionAttempt('PASTE');
+            }
+        }
+    });
+
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+    document.body.style.webkitTouchCallout = 'none';
+</script>
+{% endif %}
+
 <!-- ★ 통합 보안 및 응시 기능 스크립트 -->
 <script>    
     /**
@@ -660,10 +713,11 @@
     /* 1. 환경 변수 및 초기 설정 */
     const EXAM_MODE = "{{ exam_mode }}";
     const IS_DEMO = {{ is_demo|yesno:"true,false" }};
+    const IS_COPY_PROTECTED = {{ IS_COPY_PROTECTED|yesno:"true,false" }};
     const ENABLE_EXIT_DETECTION = {{ enable_exit_detection|yesno:"true,false" }};
     const ENABLE_COPY_PROTECTION = {{ enable_copy_protection|yesno:"true,false" }};
     const charLimit = parseInt("{{ activity.char_limit|default:0 }}");
-    const deadlineValue = "{{ activity.deadline|date:'c' }}";
+    const deadlineValue = "{{ activity.deadline|localtime|date:'c' }}";
     const deadlineAt = deadlineValue ? new Date(deadlineValue) : null;
     const answerId = "{{ answer_id }}"; 
     const csrfToken = '{{ csrf_token }}';
@@ -672,7 +726,6 @@
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
     
     // 보안 모드 변수
-    let pasteAttempts = 0;
     let securityLogs = [];
     const ABNORMAL_INPUT_THRESHOLD = 100;
     const INPUT_GRACE_MS = 1000;
@@ -681,9 +734,19 @@
     const RIGHT_CLICK_LOG_STORAGE_KEY = `ingrid-right-click-log-${answerId || 'new'}`;
     let lastRightClickLogAt = 0;
 
-    /* 1.5. 복사 제어 기능 (_LOCK 계열 전용, 데모 모드에서는 항상 비활성) */
+    window.reportCopyProtectionAttempt = function(type) {
+        if (!IS_COPY_PROTECTED || isSubmitting) return;
+        if (type === 'RIGHT_CLICK') {
+            sendRightClickLogIfAllowed();
+        } else {
+            sendLog(type);
+        }
+        logSecurityEvent(`blocked_${type.toLowerCase()}`, 1);
+    };
+
+    /* 1.5. 복사 제어 기능 (_LOCK 계열 전용) */
     function initSecurityMode() {
-        if (!ENABLE_COPY_PROTECTION || IS_DEMO) return;
+        if (!IS_COPY_PROTECTED) return;
         
         const textareas = document.querySelectorAll('textarea.answer-input');
         
@@ -696,23 +759,6 @@
             textarea.addEventListener('input', handleAbnormalInput);
         });
 
-        document.addEventListener('paste', handlePasteAttempt);
-        document.addEventListener('copy', handleClipboardBlock);
-        document.addEventListener('cut', handleClipboardBlock);
-        document.addEventListener('contextmenu', handleContextMenuBlock);
-        document.addEventListener('selectstart', function(e) {
-            if (!testStarted || isSubmitting || IS_DEMO) return;
-            e.preventDefault();
-        });
-        document.addEventListener('keydown', function(e) {
-            if (!testStarted || isSubmitting || IS_DEMO) return;
-            const key = e.key.toLowerCase();
-            if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'a', 'x'].includes(key)) {
-                e.preventDefault();
-                sendLog(key === 'c' ? 'COPY' : 'PASTE');
-                showSecurityWarning('복사/붙여넣기가 차단된 응시 환경입니다.');
-            }
-        });
     }
     
     function getTextareaBackupKey(textarea) {
@@ -754,38 +800,13 @@
         }
     }
     
-    function handlePasteAttempt(e) {
-        if (!testStarted || isSubmitting || !ENABLE_COPY_PROTECTION || IS_DEMO) return;
-        e.preventDefault();
-        pasteAttempts++;
-        sendLog('PASTE');
-        logSecurityEvent('paste_attempt', pasteAttempts);
-        showSecurityWarning('보안 모드에서는 붙여넣기가 금지되어 있습니다.');
-    }
-    
-    function handleClipboardBlock(e) {
-        if (!testStarted || isSubmitting || !ENABLE_COPY_PROTECTION || IS_DEMO) return;
-        e.preventDefault();
-        sendLog(e.type === 'paste' ? 'PASTE' : 'COPY');
-        logSecurityEvent('clipboard_block', 1);
-        showSecurityWarning('보안 모드에서는 복사/잘라내기가 금지되어 있습니다.');
-    }
-    
     function handleDropBlock(e) {
-        if (!testStarted || isSubmitting || !ENABLE_COPY_PROTECTION || IS_DEMO) return;
+        if (isSubmitting || !IS_COPY_PROTECTED) return;
         e.preventDefault();
         logSecurityEvent('drop_block', 1);
         showSecurityWarning('보안 모드에서는 파일 드롭이 금지되어 있습니다.');
     }
     
-    function handleContextMenuBlock(e) {
-        if (!testStarted || isSubmitting || !ENABLE_COPY_PROTECTION || IS_DEMO) return;
-        e.preventDefault();
-        sendRightClickLogIfAllowed();
-        logSecurityEvent('contextmenu_block', 1);
-        showSecurityWarning('보안 모드에서는 우클릭 메뉴가 금지되어 있습니다.');
-    }
-
     function sendRightClickLogIfAllowed() {
         const now = Date.now();
         let lastLoggedAt = lastRightClickLogAt;

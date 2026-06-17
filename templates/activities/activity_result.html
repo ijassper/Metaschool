@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load tz %}
 
 {% block content %}
 
@@ -125,7 +126,7 @@
                         <!-- 제출 일시 -->
                         <td class="small text-muted">
                             {% if item.status == '제출 완료' or item.status == '백지 제출' %}
-                                {{ item.submitted_at|date:"m-d H:i" }}
+                                {{ item.submitted_at|localtime|date:"m-d H:i" }}
                             {% else %}
                                 -
                             {% endif %}
@@ -155,7 +156,7 @@
                                     data-grade="{{ item.student.grade|default:''|escape }}"
                                     data-class-no="{{ item.student.class_no|default:''|escape }}"
                                     data-number="{{ item.student.number|default:''|escape }}"
-                                    data-submitted="{{ item.submitted_at|date:'Y-m-d H:i'|default:''|escape }}"
+                                    data-submitted="{{ item.submitted_at|localtime|date:'Y-m-d H:i'|default:''|escape }}"
                                     data-question-content="{{ activity.question|default:activity.questions.first.content|default:''|escape }}"
                                     data-answer-content="{{ item.content|default:''|escape }}"
                                     data-school-name="{{ item.student.school.name|default:''|escape }}"

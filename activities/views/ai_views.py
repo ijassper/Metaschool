@@ -178,7 +178,7 @@ def activity_analysis(request, activity_id):
             'id': result.id,
             'content': result.result_content,
             'created_at': result.created_at,
-            'created_at_formatted': result.created_at.strftime('%m-%d %H:%M'),
+            'created_at_formatted': timezone.localtime(result.created_at).strftime('%m-%d %H:%M'),
             'work_name': result.work_name,
             'batch_id': result.batch_id
         }
@@ -280,14 +280,14 @@ def get_or_create_batch(request):
                     print(f"[결정] 교집합 없음 -> 기존 최신 batch_id '{batch_id}' 재사용")
                 else:
                     # 첫 분석인 경우
-                    from datetime import datetime
-                    batch_suffix = datetime.now().strftime('%m%d_%H%M')
+                    now = timezone.localtime(timezone.now())
+                    batch_suffix = now.strftime('%m%d_%H%M')
                     batch_id = f"{work_name}_{batch_suffix}" if work_name else f"분석_{batch_suffix}"
                     print(f"[결정] 첫 분석 -> 새 batch_id '{batch_id}' 생성")
             else:
                 # 4) [분리 확인]: 교집합이 있다면 무조건 새로운 batch_id 생성
-                from datetime import datetime
-                batch_suffix = datetime.now().strftime('%m%d_%H%M')
+                now = timezone.localtime(timezone.now())
+                batch_suffix = now.strftime('%m%d_%H%M')
                 batch_id = f"{work_name}_{batch_suffix}" if work_name else f"분석_{batch_suffix}"
                 print(f"[결정] 교집합 존재 -> 새 batch_id '{batch_id}' 생성")
             

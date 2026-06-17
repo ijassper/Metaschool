@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load tz %}
 {% block content %}
 <div class="container py-4">
     <div class="card shadow-sm border-0">
@@ -11,8 +12,8 @@
             
             <div class="bg-light p-3 rounded mb-4">
                 <ul class="mb-0 text-secondary" style="list-style: none; padding-left: 0;">
-                    <li><i class="bi bi-calendar-check me-2"></i> 생성일: {{ activity.created_at|date:"Y-m-d H:i" }}</li>
-                    <li><i class="bi bi-clock me-2"></i> 제출 기한: {{ activity.deadline|date:"Y-m-d H:i"|default:"무제한" }}</li>
+                    <li><i class="bi bi-calendar-check me-2"></i> 생성일: {{ activity.created_at|localtime|date:"Y-m-d H:i" }}</li>
+                    <li><i class="bi bi-clock me-2"></i> 제출 기한: {{ activity.deadline|localtime|date:"Y-m-d H:i"|default:"무제한" }}</li>
                     <li><i class="bi bi-info-circle me-2"></i> 상태: {{ activity.status_text }}</li>
                 </ul>
             </div>

@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -27,9 +26,23 @@ LOG_MESSAGES = {
 
 
 def append_activity_log(answer, action_code, timestamp=None):
-    timestamp = timestamp or timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+    if timestamp is None:
+        now = timezone.localtime(timezone.now())
+        timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
     message = LOG_MESSAGES.get(action_code, action_code)
     answer.activity_log = (answer.activity_log or "") + f"[{timestamp}] {message}\n"
+
+
+def update_exam_security_session(request, activity):
+    """DB의 응시 환경을 현재 학생 세션의 보안 상태로 동기화합니다."""
+    security_state = {
+        'activity_id': activity.id,
+        'exam_mode': activity.exam_mode,
+        'is_copy_protected': activity.is_copy_protected,
+    }
+    request.session['exam_security'] = security_state
+    request.session.modified = True
+    return security_state
 
 # [1] 학생 응시 페이지
 @login_required
@@ -69,6 +82,11 @@ def take_test(request, activity_id):
     except SystemConfig.DoesNotExist:
         is_demo = False
 
+    # 통합 생성 폼에서 저장된 exam_mode를 기준으로 현재 응시 세션의 보안 상태를 갱신합니다.
+    # 세션 값은 상태 전달용이며, 실제 정책 판정은 항상 DB의 activity.exam_mode를 사용합니다.
+    security_state = update_exam_security_session(request, activity)
+    is_copy_locked = security_state['is_copy_protected']
+
     # 4. 문항(Question) 가져오기 (통합 로직: 없으면 자동 생성)
     # activity.questions.first()가 있으면 가져오고, 없으면 defaults의 내용으로 새로 만듭니다.
     question, q_created = Question.objects.get_or_create(
@@ -88,7 +106,8 @@ def take_test(request, activity_id):
     )
 
     # 6. 최초 진입 시간 기록 (처음 생성된 경우에만 로그 기록)
-    timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = timezone.localtime(timezone.now())
+    timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
     if a_created:
         append_activity_log(answer, 'IN', timestamp)
         answer.save(update_fields=['activity_log'])
@@ -119,8 +138,9 @@ def take_test(request, activity_id):
         
         # 최종 제출일 때만 제출 시간 기록 및 로그 남기기
         if is_final_submit:
-            answer.submitted_at = timezone.now()
-            timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            now = timezone.localtime(timezone.now())
+            answer.submitted_at = now
+            timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
             if is_exit_submit:
                 append_activity_log(answer, 'EXIT', timestamp)
             else:
@@ -137,7 +157,6 @@ def take_test(request, activity_id):
     # 7. 응시 환경 보안 플래그 구성
     exam_mode = activity.exam_mode
     is_closed_mode = exam_mode.startswith('CLOSED_') or exam_mode == 'CLOSED'
-    is_copy_locked = exam_mode.endswith('_LOCK') or exam_mode == 'CLOSED'
     enable_exit_detection = is_closed_mode and not is_demo
     enable_copy_protection = is_copy_locked and not is_demo
 
@@ -150,6 +169,7 @@ def take_test(request, activity_id):
         'exam_mode': exam_mode,
         'is_closed_mode': is_closed_mode,
         'is_copy_locked': is_copy_locked,
+        'IS_COPY_PROTECTED': is_copy_locked,
         'enable_exit_detection': enable_exit_detection,
         'enable_copy_protection': enable_copy_protection,
         'is_demo': is_demo,
@@ -170,12 +190,13 @@ def log_activity(request):
             
             # 기존 로그에 새로운 기록 추가 (줄바꿈 포함)
             current_log = answer.activity_log if answer.activity_log else ""
-            timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            now = timezone.localtime(timezone.now())
+            timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
             
             answer.activity_log = current_log
             append_activity_log(answer, log_type, timestamp)
             if log_type in ['OUT', 'EXIT', 'BACK_BUTTON'] and not answer.submitted_at:
-                answer.submitted_at = timezone.now()
+                answer.submitted_at = now
                 answer.save(update_fields=['activity_log', 'submitted_at'])
             else:
                 answer.save(update_fields=['activity_log'])

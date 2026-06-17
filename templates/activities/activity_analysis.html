@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static tz %}
 
 {% block title %}결과 분석: {{ activity.title }}{% endblock %}
 
@@ -240,7 +240,7 @@
                             data-bs-target="#answerViewModal"
                             data-school-name="{{ item.student.school.name|default:'-' }}"
                             data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
-                            data-submitted-at="{{ item.answer.submitted_at|date:'Y-m-d H:i'|default:'-' }}"
+                            data-submitted-at="{{ item.answer.submitted_at|localtime|date:'Y-m-d H:i'|default:'-' }}"
                             data-question-content="{{ activity.question|default:question.content }}"
                             data-answer-content="{{ item.answer.content|default:'' }}"
                             data-show-pdf-btn="false"
@@ -317,7 +317,7 @@
                             <div class="bg-light rounded-5 p-3 border" style="height: 180px; position: relative; z-index: 1;">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <label class="text-muted mb-0 fw-bold" style="font-size: 0.75rem;">[학생 답안]</label>
-                                    <span class="text-muted" style="font-size: 0.65rem;">{{ item.answer.submitted_at|date:"m-d H:i"|default:"" }}</span>
+                                    <span class="text-muted" style="font-size: 0.65rem;">{{ item.answer.submitted_at|localtime|date:"m-d H:i"|default:"" }}</span>
                                 </div>
                                 {% if item.answer.content and item.answer.content.strip %}
                                     <div class="small text-secondary" 
@@ -326,7 +326,7 @@
                                          data-bs-target="#answerViewModal"
                                          data-school-name="{{ item.student.school.name|default:'-' }}"
                                          data-student-info="{{ item.student.grade }}학년 {{ item.student.class_no }}반 {{ item.student.number }}번 {{ item.student.name }}"
-                                         data-submitted-at="{{ item.answer.submitted_at|date:'Y-m-d H:i'|default:'-' }}"
+                                         data-submitted-at="{{ item.answer.submitted_at|localtime|date:'Y-m-d H:i'|default:'-' }}"
                                          data-question-content="{{ activity.question|default:question.content }}"
                                          data-answer-content="{{ item.answer.content|default:'' }}"
                                          data-show-pdf-btn="false"

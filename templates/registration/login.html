@@ -31,7 +31,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 2.5rem 1rem;
+        padding: 2rem 1rem;
         position: relative;
         box-sizing: border-box;
     }
@@ -51,8 +51,12 @@
     .login-card {
         width: 90%;
         max-width: 32rem;
-        margin: 0 auto;
-        padding: clamp(2rem, 4vw, 3rem);
+        height: auto;
+        max-height: calc(100dvh - 2rem);
+        margin: auto;
+        padding: 2rem clamp(1.5rem, 4vw, 3rem);
+        overflow-y: auto;
+        overscroll-behavior: contain;
         border-radius: 1.5rem;
         background: rgba(255, 255, 255, 0.82);
         border: 1px solid rgba(255, 255, 255, 0.42);
@@ -69,7 +73,7 @@
         object-fit: cover;
         border-radius: 50%;
         display: block;
-        margin: 0 auto 2rem;
+        margin: 0 auto 1.5rem;
         border: 0.25rem solid rgba(255, 255, 255, 0.86);
         box-shadow: 0 14px 30px rgba(81, 45, 168, 0.18);
     }
@@ -79,7 +83,7 @@
         background: rgba(248, 249, 250, 0.9);
         padding: 0.4375rem;
         border-radius: 1.25rem;
-        margin-bottom: 1.75rem;
+        margin-bottom: 1.25rem;
         border: 1px solid rgba(142, 68, 173, 0.08);
     }
 
@@ -96,8 +100,8 @@
         justify-content: center;
         border-radius: 1rem;
         cursor: pointer;
-        font-weight: 800;
-        font-size: 1.08rem;
+        font-weight: 600;
+        font-size: 1.25rem;
         color: #9aa0a6;
         transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
     }
@@ -106,13 +110,6 @@
         background: #fff;
         color: #8e44ad;
         box-shadow: 0 8px 18px rgba(81, 45, 168, 0.1);
-    }
-
-    .form-label-ingrid {
-        font-size: 0.95rem;
-        font-weight: 800;
-        color: #65576f;
-        margin-bottom: 0.625rem;
     }
 
     .form-input {
@@ -124,8 +121,14 @@
         padding: 0 1.25rem;
         outline: none;
         color: #241332;
-        font-size: 1.08rem;
+        font-size: 1rem;
         transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+    }
+
+    .form-input::placeholder {
+        color: #6c757d;
+        font-size: 1rem;
+        opacity: 1;
     }
 
     .form-input:focus {
@@ -208,6 +211,12 @@
         margin-top: 0.125rem;
     }
 
+    .remember-me-label {
+        color: #374151;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
     #teacher-signup-area {
         min-height: 2.125rem;
     }
@@ -239,26 +248,26 @@
 
     @media (max-height: 760px) {
         .login-page {
-            justify-content: flex-start;
-            padding-top: 2rem;
-            padding-bottom: 2rem;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
         }
 
         .login-card {
-            padding-top: 2rem;
-            padding-bottom: 2rem;
+            max-height: calc(100dvh - 2rem);
+            padding-top: 1.5rem;
+            padding-bottom: 1.5rem;
         }
 
         .login-logo {
             width: 6.5rem;
             height: 6.5rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
         }
     }
 </style>
 
 <div class="login-page">
-    <div class="login-card">
+    <div class="login-card h-auto my-auto overflow-y-auto">
         <img src="{% static 'images/ingrid_logo.jpg' %}" alt="Ingrid" class="login-logo">
 
         <form method="post" action="{% url 'login' %}" id="loginForm">
@@ -272,15 +281,13 @@
                 <label for="type_teacher">교사</label>
             </div>
 
-            <div class="mb-4">
-                <label class="form-label-ingrid d-block" id="label_username" for="id_username">학생 ID</label>
-                <input type="text" name="username" class="form-input" id="id_username" placeholder="학생 ID를 입력하세요" required autocomplete="off">
+            <div class="mb-3">
+                <input type="text" name="username" class="form-input" id="id_username" placeholder="학생 ID를 입력하세요" aria-label="학생 ID" required autocomplete="off">
             </div>
 
-            <div class="mb-4">
-                <label class="form-label-ingrid d-block" for="id_password">비밀번호</label>
+            <div class="mb-3">
                 <div class="password-field">
-                    <input type="password" name="password" class="form-input" id="id_password" placeholder="비밀번호를 입력하세요" required autocomplete="current-password">
+                    <input type="password" name="password" class="form-input" id="id_password" placeholder="비밀번호를 입력하세요" aria-label="비밀번호" required autocomplete="current-password">
                     <button type="button" class="password-toggle" id="passwordToggle" aria-label="비밀번호 보기" aria-pressed="false">
                         <svg id="iconEye" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12Z" />
@@ -294,10 +301,10 @@
             </div>
 
             <div class="fixed-height-container">
-                <div class="d-flex justify-content-between align-items-center mb-4 login-helper-row">
+                <div class="d-flex justify-content-between align-items-center mb-3 login-helper-row">
                     <div class="form-check d-flex align-items-center gap-2">
                         <input class="form-check-input" type="checkbox" name="remember_me" id="rememberMe" style="width: 1.1rem; height: 1.1rem;">
-                        <label class="form-check-label text-secondary small" for="rememberMe">로그인 유지</label>
+                        <label class="form-check-label remember-me-label" for="rememberMe">로그인 유지</label>
                     </div>
                     <a href="{% url 'find_account' %}" id="forgot-password-link" class="text-ingrid small text-decoration-none layout-slot-hidden">비밀번호 찾기</a>
                 </div>
@@ -375,7 +382,6 @@
     document.addEventListener('DOMContentLoaded', function() {
         const radioTeacher = document.getElementById('type_teacher');
         const radioStudent = document.getElementById('type_student');
-        const labelUsername = document.getElementById('label_username');
         const inputUsername = document.getElementById('id_username');
         const signupLink = document.getElementById('signup-link');
         const passwordToggle = document.getElementById('passwordToggle');
@@ -385,14 +391,14 @@
             const forgotPwLink = document.getElementById('forgot-password-link');
 
             if (role === 'teacher') {
-                labelUsername.innerText = '선생님 이메일 아이디';
                 inputUsername.placeholder = '아이디(이메일)를 입력하세요';
+                inputUsername.setAttribute('aria-label', '선생님 이메일 아이디');
                 inputUsername.type = 'email';
                 signupArea.classList.remove('layout-slot-hidden');
                 forgotPwLink.classList.remove('layout-slot-hidden');
             } else {
-                labelUsername.innerText = '학생 ID';
                 inputUsername.placeholder = '학생 ID를 입력하세요';
+                inputUsername.setAttribute('aria-label', '학생 ID');
                 inputUsername.type = 'text';
                 signupArea.classList.add('layout-slot-hidden');
                 forgotPwLink.classList.add('layout-slot-hidden');

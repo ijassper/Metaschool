@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load tz %}
 
 {% block content %}
 <style>
@@ -177,10 +178,10 @@
                             {% endif %}
                         </td>
 
-                        <td class="small text-muted">{{ activity.created_at|date:"Y-m-d" }}</td>
+                        <td class="small text-muted">{{ activity.created_at|localtime|date:"Y-m-d" }}</td>
 
                         <td class="deadline-cell {% if activity.status_code == 'CLOSED' %}text-danger fw-bold{% else %}text-muted{% endif %}">
-                            {{ activity.deadline|date:"Y-m-d H:i"|default:"기한 없음" }}
+                            {{ activity.deadline|localtime|date:"Y-m-d H:i"|default:"기한 없음" }}
                         </td>
                         
                         <!-- 3. 제출 현황(답안 보기) -->
