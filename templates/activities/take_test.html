@@ -139,6 +139,30 @@
     .floating-submit-bar .btn {
         min-height: 44px;
     }
+    .exam-action-group {
+        padding-left: 0.75rem;
+        border-left: 1px solid rgba(108, 117, 125, 0.28);
+    }
+    .draft-action-button {
+        color: #495057;
+        background: #fff;
+        border: 1px solid #adb5bd;
+    }
+    .draft-action-button:hover,
+    .draft-action-button:focus {
+        color: #212529;
+        background: #f1f3f5;
+        border-color: #6c757d;
+    }
+    .submit-action-button {
+        background: #c92a2a;
+        border: 1px solid #c92a2a;
+    }
+    .submit-action-button:hover,
+    .submit-action-button:focus {
+        background: #a51111;
+        border-color: #a51111;
+    }
     .exam-answer-scroll {
         padding-bottom: 120px !important;
     }
@@ -536,16 +560,18 @@
         <span id="floatingCharCount" class="exam-status-pill">
             <i class="bi bi-type"></i> 0자 / {{ activity.char_limit }}자 이내
         </span>
-        <div class="d-flex align-items-center gap-2 ms-auto">
-            <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-bold" onclick="saveDraft()">
+        <div class="exam-action-group d-flex align-items-center gap-2 ms-auto">
+            <button type="button" id="saveDraftButton" class="btn draft-action-button px-4 fw-bold" onclick="saveAnswer(event)">
                 <i class="bi bi-cloud-check me-1"></i> 임시 저장
             </button>
-            <button type="button" class="btn rounded-pill px-4 fw-bold text-white" style="background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%)); border: 0;" data-bs-toggle="modal" data-bs-target="#submitModal">
+            <button type="button" class="btn submit-action-button px-4 fw-bold text-white" data-bs-toggle="modal" data-bs-target="#submitModal">
                 <i class="bi bi-send-check-fill me-1"></i> 최종 제출하기
             </button>
         </div>
     </div>
 </div>
+
+{% include 'components/save_status_modal.html' %}
 
 <!-- 시작 가림막 (전체화면 유도) -->
 <!-- <div id="startOverlay" class="position-fixed top-0 start-0 w-100 h-100 bg-dark d-flex flex-column justify-content-center align-items-center" style="z-index: 9999; --bs-bg-opacity: .95;">
@@ -1142,6 +1168,10 @@
         });
     });
 
+    document.getElementById('answerForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+    });
+
     function executeExit() {
         isSubmitting = true; // 감시 중단
 
@@ -1166,35 +1196,39 @@
         });
     }
 
-    function saveDraft() {
+    async function saveAnswer(event) {
+        if (event) event.preventDefault();
+
         const form = document.getElementById('answerForm');
-        const submitField = document.getElementById('isSubmitField');
-        const floatingBar = document.getElementById('floatingSubmitBar');
-        const previousSubmitValue = submitField.value;
+        const saveButton = document.getElementById('saveDraftButton');
+        const originalButtonHtml = saveButton.innerHTML;
 
-        submitField.value = 'false';
         backupAllAnswers();
-        if (floatingBar) floatingBar.classList.add('opacity-75');
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>저장 중';
 
-        fetch(window.location.href, {
-            method: 'POST',
-            body: new FormData(form),
-            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
-        })
-            .then(function (response) {
-                if (!response.ok) throw new Error('임시 저장에 실패했습니다.');
-                return response;
-            })
-            .then(function () {
-                alert('임시 저장되었습니다.');
-            })
-            .catch(function (error) {
-                alert(error.message || '임시 저장 중 오류가 발생했습니다.');
-            })
-            .finally(function () {
-                submitField.value = previousSubmitValue;
-                if (floatingBar) floatingBar.classList.remove('opacity-75');
+        try {
+            const response = await fetch("{% url 'save_answer_draft' activity.id %}", {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             });
+            const result = await response.json();
+            if (!response.ok || result.status !== 'success') {
+                throw new Error(result.message || '임시 저장에 실패했습니다.');
+            }
+
+            answerId = result.answer_id || answerId;
+            showSaveStatusModal(result.message || '임시저장이 완료되었습니다.');
+        } catch (error) {
+            showSaveStatusModal(error.message || '임시 저장 중 오류가 발생했습니다.', true);
+        } finally {
+            saveButton.disabled = false;
+            saveButton.innerHTML = originalButtonHtml;
+        }
     }
 
     // confirmExit 함수 제거 (모달로 대체됨)

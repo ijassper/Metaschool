@@ -108,6 +108,21 @@ def build_exam_context(request, activity, question, answer=None, exam_started=Fa
         'is_demo': is_demo,
     }
 
+def save_answer_content(answer, activity, form_data):
+    answer.ans_q1 = form_data.get('ans_q1', '').strip()
+    answer.ans_q2 = form_data.get('ans_q2', '').strip()
+    answer.ans_q3 = form_data.get('ans_q3', '').strip()
+
+    if any([answer.ans_q1, answer.ans_q2, answer.ans_q3]):
+        answer.content = (
+            f"[{activity.q1_title}]\n{answer.ans_q1}\n\n"
+            f"[{activity.q2_title}]\n{answer.ans_q2}\n\n"
+            f"[{activity.q3_title}]\n{answer.ans_q3}"
+        )
+    else:
+        answer.content = ""
+
+
 def update_exam_security_session(request, activity):
     """DB의 응시 환경을 현재 학생 세션의 보안 상태로 동기화합니다."""
     security_state = {
@@ -145,15 +160,7 @@ def take_test(request, activity_id):
         is_exit_submit = request.POST.get('is_exit') == 'true'
         is_final_submit = request.POST.get('is_submit') == 'true' or is_exit_submit
 
-        answer.ans_q1 = request.POST.get('ans_q1', '').strip()
-        answer.ans_q2 = request.POST.get('ans_q2', '').strip()
-        answer.ans_q3 = request.POST.get('ans_q3', '').strip()
-
-        has_written_content = any([answer.ans_q1, answer.ans_q2, answer.ans_q3])
-        if has_written_content:
-            answer.content = f"[{activity.q1_title}]\n{answer.ans_q1}\n\n[{activity.q2_title}]\n{answer.ans_q2}\n\n[{activity.q3_title}]\n{answer.ans_q3}"
-        else:
-            answer.content = ""
+        save_answer_content(answer, activity, request.POST)
 
         if is_final_submit:
             now = timezone.localtime(timezone.now())
@@ -173,6 +180,32 @@ def take_test(request, activity_id):
 
     context = build_exam_context(request, activity, question, answer=answer, exam_started=False)
     return render(request, 'activities/take_test.html', context)
+
+
+@require_POST
+@login_required
+def save_answer_draft(request, activity_id):
+    """Save student work without navigation or activity-log side effects."""
+    activity = get_object_or_404(Activity, id=activity_id)
+    student_info, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return JsonResponse({'status': 'error', 'message': '저장 권한이 없습니다.'}, status=403)
+    if not activity.is_attainable:
+        return JsonResponse({'status': 'error', 'message': '현재 임시 저장할 수 없습니다.'}, status=403)
+
+    question = ensure_exam_question(activity)
+    answer, _ = Answer.objects.get_or_create(student=student_info, question=question)
+    if answer.submitted_at and not activity.allow_edit_after_submission:
+        return JsonResponse({'status': 'error', 'message': '제출이 완료되어 수정할 수 없습니다.'}, status=403)
+
+    save_answer_content(answer, activity, request.POST)
+    answer.save(update_fields=['ans_q1', 'ans_q2', 'ans_q3', 'content'])
+
+    return JsonResponse({
+        'status': 'success',
+        'message': '임시저장이 완료되었습니다.',
+        'answer_id': answer.id,
+    })
 
 
 @require_POST

@@ -27,6 +27,7 @@ urlpatterns = [
 
     # 3. 학생 응시 및 보안 (exam_views)
     path('take/<int:activity_id>/', take_test, name='take_test'),
+    path('take/<int:activity_id>/draft/', save_answer_draft, name='save_answer_draft'),
     path('take/<int:activity_id>/start/', start_exam, name='start_exam'),
     path('take/<int:activity_id>/re-enter/', re_enter_exam, name='re_enter_exam'),
     path('api/log/', log_activity, name='log_activity'),

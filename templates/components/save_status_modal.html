@@ -1,0 +1,63 @@
+<div class="modal fade" id="saveStatusModal" tabindex="-1" aria-labelledby="saveStatusModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered save-status-dialog">
+        <div class="modal-content save-status-content border-0">
+            <div class="modal-body p-4 p-md-5 text-center">
+                <div class="save-status-icon mx-auto mb-3" id="saveStatusModalIcon" aria-hidden="true">
+                    <i class="bi bi-cloud-check-fill"></i>
+                </div>
+                <h5 class="fw-bold mb-2" id="saveStatusModalTitle">임시 저장 완료</h5>
+                <p class="text-secondary mb-4" id="saveStatusModalMessage">임시저장이 완료되었습니다.</p>
+                <button type="button" class="btn btn-dark px-5 fw-bold" data-bs-dismiss="modal">확인</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .save-status-dialog {
+        width: min(420px, calc(100% - 2rem));
+        margin-right: auto;
+        margin-left: auto;
+    }
+
+    .save-status-content {
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(22px);
+        -webkit-backdrop-filter: blur(22px);
+        border: 1px solid rgba(255, 255, 255, 0.72) !important;
+        box-shadow: 0 24px 60px rgba(33, 37, 41, 0.2);
+    }
+
+    .save-status-icon-error {
+        color: #b02a37 !important;
+        background: rgba(220, 53, 69, 0.13) !important;
+    }
+
+    .save-status-icon {
+        display: grid;
+        place-items: center;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        color: #146c43;
+        background: rgba(25, 135, 84, 0.13);
+        font-size: 1.65rem;
+    }
+</style>
+
+<script>
+    function showSaveStatusModal(message, isError = false) {
+        const modalElement = document.getElementById('saveStatusModal');
+        const titleElement = document.getElementById('saveStatusModalTitle');
+        const iconElement = document.getElementById('saveStatusModalIcon');
+
+        titleElement.textContent = isError ? '임시 저장 실패' : '임시 저장 완료';
+        document.getElementById('saveStatusModalMessage').textContent = message;
+        iconElement.classList.toggle('save-status-icon-error', isError);
+        iconElement.innerHTML = isError
+            ? '<i class="bi bi-exclamation-triangle-fill"></i>'
+            : '<i class="bi bi-cloud-check-fill"></i>';
+        bootstrap.Modal.getOrCreateInstance(modalElement).show();
+    }
+</script>
