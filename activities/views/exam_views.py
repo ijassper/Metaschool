@@ -14,10 +14,10 @@ from accounts.models import Student, SystemConfig
 from ..models import Activity, Question, Answer
 
 LOG_MESSAGES = {
-    'IN': '시험 시작',
+    'IN': '답안지 페이지 입장',
     'SUBMIT': '답안 제출',
-    'RETURN': '답안지 페이지로 재입장',
-    'RE_EDIT': '답안 제출 후 수정 위해 재입장',
+    'RETURN': '답안지 페이지 입장',
+    'RE_EDIT': '답안지 페이지 입장',
     'OUT': 'Alt+Tab 또는 창 전환으로 답안지 페이지 이탈',
     'EXIT': '나가기 버튼을 누르고 답안지 페이지 이탈',
     'COPY': '복사 시도',
@@ -210,7 +210,7 @@ def save_answer_draft(request, activity_id):
 
 @require_POST
 @login_required
-@log_event("시험 시작")
+@log_event("답안지 페이지 입장")
 def start_exam(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id)
     student_info, error_response = get_student_for_activity(request, activity)
@@ -227,7 +227,7 @@ def start_exam(request, activity_id):
 
 @require_POST
 @login_required
-@log_event("답안 제출 후 수정 위해 재입장")
+@log_event("답안지 페이지 입장")
 def re_enter_exam(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id)
     student_info, error_response = get_student_for_activity(request, activity)

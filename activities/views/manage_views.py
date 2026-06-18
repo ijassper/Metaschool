@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def sync_status_on_deadline_extension(activity, old_deadline, new_deadline):
     """
-    제출 기한이 연장되었을 때, 기존 답안 중 아직 최종 제출하지 않은(submitted_at is null) 
+    제출 기한이 연장되었을 때, 기존 답안 중 아직 답안 제출하지 않은(submitted_at is null)
     학생들의 activity_log에 기한 연장 메시지를 추가하여 상태가 복구되었음을 기록합니다.
     """
     now = timezone.now()

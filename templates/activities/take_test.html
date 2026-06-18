@@ -350,7 +350,7 @@
                                         <i class="bi {% if activity.allow_edit_after_submission %}bi-check-circle{% else %}bi-slash-circle{% endif %} me-1"></i> 수정 허용
                                     </div>
                                     <div class="text-dark fw-bold mt-2 prep-body-text">
-                                        {% if activity.allow_edit_after_submission %}제출 후 수정 가능{% else %}최종 제출 후 불가{% endif %}
+                                        {% if activity.allow_edit_after_submission %}제출 후 수정 가능{% else %}답안 제출 후 불가{% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -565,7 +565,7 @@
                 <i class="bi bi-cloud-check me-1"></i> 임시 저장
             </button>
             <button type="button" class="btn submit-action-button px-4 fw-bold text-white" data-bs-toggle="modal" data-bs-target="#submitModal">
-                <i class="bi bi-send-check-fill me-1"></i> 최종 제출하기
+                <i class="bi bi-send-check-fill me-1"></i> 답안 제출하기
             </button>
         </div>
     </div>
@@ -1020,7 +1020,7 @@
     }
 
     /**
-     * 최종 제출 버튼 클릭 시 호출 (제출 확인 모달 내 버튼)
+     * 답안 제출 버튼 클릭 시 호출 (제출 확인 모달 내 버튼)
      */
     function finalSubmit() {
         document.getElementById('isSubmitField').value = 'true'; // 제출 플래그 설정
@@ -1222,9 +1222,9 @@
             }
 
             answerId = result.answer_id || answerId;
-            showSaveStatusModal(result.message || '임시저장이 완료되었습니다.');
+            showSaveStatusModal();
         } catch (error) {
-            showSaveStatusModal(error.message || '임시 저장 중 오류가 발생했습니다.', true);
+            showSaveStatusModal(true);
         } finally {
             saveButton.disabled = false;
             saveButton.innerHTML = originalButtonHtml;
@@ -1268,8 +1268,8 @@
         const logMessages = {
             'IN': '답안지 페이지 입장',
             'SUBMIT': '답안 제출',
-            'RETURN': '답안지 페이지로 재입장',
-            'RE_EDIT': '답안 제출 후 수정 위해 재입장',
+            'RETURN': '답안지 페이지 입장',
+            'RE_EDIT': '답안지 페이지 입장',
             'OUT': 'Alt+Tab 또는 창 전환으로 답안지 페이지 이탈',
             'EXIT': '나가기 버튼을 누르고 답안지 페이지 이탈',
             'COPY': '복사 시도',
