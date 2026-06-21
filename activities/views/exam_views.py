@@ -1,5 +1,8 @@
 import json
 from functools import wraps
+from urllib.parse import urlparse
+
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -107,6 +110,39 @@ def build_exam_context(request, activity, question, answer=None, exam_started=Fa
         'enable_copy_protection': enable_copy_protection,
         'is_demo': is_demo,
     }
+
+
+@login_required
+def pdf_viewer(request):
+    """Render a same-origin PDF inside the in-page PDF.js viewer."""
+    file_url = request.GET.get('file', '').strip()
+    parsed_url = urlparse(file_url)
+    allowed_prefixes = (
+        settings.MEDIA_URL,
+        f"/{settings.STATIC_URL.lstrip('/')}",
+    )
+
+    if (
+        not file_url
+        or parsed_url.scheme
+        or parsed_url.netloc
+        or '..' in parsed_url.path.split('/')
+        or not parsed_url.path.lower().endswith('.pdf')
+        or not parsed_url.path.startswith(allowed_prefixes)
+    ):
+        return render(
+            request,
+            'activities/pdf_viewer.html',
+            {'pdf_file_url': '', 'viewer_error': '올바른 PDF 파일 경로가 아닙니다.'},
+            status=400,
+        )
+
+    return render(
+        request,
+        'activities/pdf_viewer.html',
+        {'pdf_file_url': file_url, 'viewer_error': ''},
+    )
+
 
 def save_answer_content(answer, activity, form_data):
     answer.ans_q1 = form_data.get('ans_q1', '').strip()

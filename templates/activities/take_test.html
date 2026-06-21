@@ -166,6 +166,34 @@
     .exam-answer-scroll {
         padding-bottom: 120px !important;
     }
+    .pdf-preview-modal {
+        pointer-events: none;
+    }
+    .pdf-preview-modal .modal-dialog {
+        pointer-events: auto;
+    }
+    .pdf-preview-modal .modal-content {
+        height: 85vh;
+        border-radius: 24px;
+        overflow: hidden;
+    }
+    .pdf-preview-modal .modal-body {
+        min-height: 0;
+    }
+    .pdf-preview-frame {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        border-radius: 12px;
+        touch-action: manipulation;
+    }
+    .pdf-preview-close {
+        width: 1.5rem;
+        height: 1.5rem;
+        padding: 0.75rem;
+        background-size: 1.25rem;
+        flex: 0 0 auto;
+    }
     .prep-glass-card {
         background: rgba(255, 255, 255, 0.8) !important;
         backdrop-filter: blur(14px);
@@ -285,6 +313,23 @@
         .floating-submit-bar .container-fluid {
             height: auto !important;
             padding: 0 !important;
+        }
+    }
+    @media (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) {
+        .pdf-preview-modal {
+            width: 55vw;
+            right: auto;
+        }
+        .pdf-preview-modal .modal-dialog {
+            width: 55vw;
+            max-width: 55vw;
+            height: 100dvh;
+            margin: 0;
+        }
+        .pdf-preview-modal .modal-content {
+            height: 100dvh;
+            border-radius: 0 24px 24px 0;
+            box-shadow: 14px 0 36px rgba(33, 37, 41, 0.2);
         }
     }
 </style>
@@ -583,17 +628,17 @@
 </div> -->
 
 <!-- 참고자료 미리보기 모달 (활동 상세페이지와 동일) -->
-<div class="modal fade" id="filePreviewModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade pdf-preview-modal" id="filePreviewModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered shadow-lg">
-        <div class="modal-content border-0" style="border-radius: 24px; height: 85vh;">
+        <div class="modal-content border-0">
             <div class="modal-header border-0 p-4 pb-0">
                 <h5 class="modal-title fw-bold text-truncate" id="previewTitle">파일 미리보기</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close pdf-preview-close" data-bs-dismiss="modal" aria-label="닫기"></button>
             </div>
             <div class="modal-body p-4 pt-2">
-                <!-- 1. PDF/웹 문서를 위한 embed -->
+                <!-- PDF.js viewer iframe -->
                 <div id="previewContainer" class="w-100 h-100" style="display: none;">
-                    <embed id="previewEmbed" src="" type="application/pdf" width="100%" height="100%" style="border-radius: 12px;">
+                    <iframe id="previewFrame" class="pdf-preview-frame" src="about:blank" title="PDF 참고자료"></iframe>
                 </div>
                 
                 <!-- 2. 이미지를 위한 컨테이너 -->
@@ -1237,7 +1282,7 @@
     /* 8. 첨부파일 미리보기 통합 함수 */
     function previewFile(url, filename) {
         const previewContainer = document.getElementById('previewContainer');
-        const embed = document.getElementById('previewEmbed');
+        const frame = document.getElementById('previewFrame');
         const imgContainer = document.getElementById('previewImageContainer');
         const img = document.getElementById('previewImg');
         const errorDiv = document.getElementById('previewError');
@@ -1253,15 +1298,31 @@
             img.src = url;
             imgContainer.style.setProperty('display', 'flex', 'important');
         } else if (ext === 'pdf') {
-            embed.setAttribute('src', url);
+            const viewerUrl = "{% url 'pdf_viewer' %}?file=" + encodeURIComponent(url);
+            frame.setAttribute('src', viewerUrl);
             previewContainer.style.display = 'block';
         } else {
             errorDiv.style.setProperty('display', 'flex', 'important');
         }
 
-        const myModal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
+        const modalElement = document.getElementById('filePreviewModal');
+        const myModal = bootstrap.Modal.getOrCreateInstance(modalElement, {
+            backdrop: false,
+            focus: false,
+            keyboard: true
+        });
         myModal.show();
     }
+
+    const filePreviewModal = document.getElementById('filePreviewModal');
+    filePreviewModal.addEventListener('shown.bs.modal', function () {
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+    });
+    filePreviewModal.addEventListener('hidden.bs.modal', function () {
+        document.getElementById('previewFrame').setAttribute('src', 'about:blank');
+    });
 
     /* 9. 서버 로그 전송 (AJAX) */
     function sendLog(type) {
