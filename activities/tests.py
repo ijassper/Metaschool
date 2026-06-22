@@ -57,3 +57,24 @@ class PdfViewerTests(SimpleTestCase):
     def test_exam_and_pdf_viewer_templates_compile(self):
         self.assertIsNotNone(get_template('activities/take_test.html'))
         self.assertIsNotNone(get_template('activities/pdf_viewer.html'))
+
+    def test_pdf_controls_are_non_submitting_and_stop_event_propagation(self):
+        template_source = get_template(
+            'activities/pdf_viewer.html'
+        ).template.source
+
+        self.assertIn('class="modal-button"', template_source)
+        self.assertIn('tabindex="-1"', template_source)
+        self.assertIn('event.preventDefault()', template_source)
+        self.assertIn('event.stopPropagation()', template_source)
+        self.assertNotIn('location.reload', template_source)
+        self.assertNotIn('window.location.href =', template_source)
+
+    def test_exam_security_ignores_only_active_pdf_modal_focus(self):
+        template_source = get_template(
+            'activities/take_test.html'
+        ).template.source
+
+        self.assertIn('let is_modal_active = false', template_source)
+        self.assertIn('isPdfModalInteractionActive()', template_source)
+        self.assertIn("event.data.type === 'pdf-viewer-interaction'", template_source)

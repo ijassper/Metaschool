@@ -797,6 +797,19 @@
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
+    let is_modal_active = false;
+    let modalInteractionGraceUntil = 0;
+
+    function isPdfModalInteractionActive() {
+        if (!is_modal_active) return false;
+
+        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+        const isTabActive = !document.hidden;
+        const iframeFocused = document.activeElement === document.getElementById('previewFrame');
+        const interactionGraceActive = Date.now() < modalInteractionGraceUntil;
+
+        return Boolean(isFullscreen && isTabActive && (iframeFocused || interactionGraceActive));
+    }
     
     // 보안 모드 변수
     let securityLogs = [];
@@ -1112,6 +1125,8 @@
             const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
             const isTabActive = !document.hidden;
 
+            if (isPdfModalInteractionActive()) return;
+
             if (!isFullscreen) {
                 sendLog('OUT'); // [기록] 전체화면 해제
                 lockScreen("전체 화면 모드가 해제되었습니다. 다시 복귀해 주세요.");
@@ -1127,8 +1142,11 @@
         // [Alt+Tab 및 외부 프로그램 사용 감지]
         window.addEventListener('blur', () => {
             if (!testStarted || isSubmitting || IS_DEMO) return;
-            sendLog('OUT'); // [기록] 포커스 이탈
-            lockScreen("브라우저 포커스가 이탈되었습니다. 다른 프로그램 사용이 감지되었습니다.");
+            window.setTimeout(() => {
+                if (isPdfModalInteractionActive()) return;
+                sendLog('OUT'); // [기록] 포커스 이탈
+                lockScreen("브라우저 포커스가 이탈되었습니다. 다른 프로그램 사용이 감지되었습니다.");
+            }, 0);
         });
     }
 
@@ -1298,6 +1316,8 @@
             img.src = url;
             imgContainer.style.setProperty('display', 'flex', 'important');
         } else if (ext === 'pdf') {
+            is_modal_active = true;
+            modalInteractionGraceUntil = Date.now() + 1000;
             const viewerUrl = "{% url 'pdf_viewer' %}?file=" + encodeURIComponent(url);
             frame.setAttribute('src', viewerUrl);
             previewContainer.style.display = 'block';
@@ -1315,12 +1335,27 @@
     }
 
     const filePreviewModal = document.getElementById('filePreviewModal');
+    window.addEventListener('message', function (event) {
+        const previewFrame = document.getElementById('previewFrame');
+        if (
+            event.origin === window.location.origin
+            && event.source === previewFrame.contentWindow
+            && event.data
+            && event.data.type === 'pdf-viewer-interaction'
+        ) {
+            modalInteractionGraceUntil = Date.now() + 1000;
+        }
+    });
     filePreviewModal.addEventListener('shown.bs.modal', function () {
+        is_modal_active = true;
+        modalInteractionGraceUntil = Date.now() + 1000;
         document.body.classList.remove('modal-open');
         document.body.style.removeProperty('overflow');
         document.body.style.removeProperty('padding-right');
     });
     filePreviewModal.addEventListener('hidden.bs.modal', function () {
+        is_modal_active = false;
+        modalInteractionGraceUntil = 0;
         document.getElementById('previewFrame').setAttribute('src', 'about:blank');
     });
 

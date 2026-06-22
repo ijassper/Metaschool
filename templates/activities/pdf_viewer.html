@@ -82,10 +82,10 @@
 </head>
 <body>
     <div class="viewer-toolbar" aria-label="PDF 확대 및 축소">
-        <button type="button" id="zoomOut" aria-label="축소">−</button>
+        <button type="button" id="zoomOut" class="modal-button" tabindex="-1" aria-label="축소">−</button>
         <span id="zoomLabel">100%</span>
-        <button type="button" id="zoomIn" aria-label="확대">+</button>
-        <button type="button" id="fitWidth" aria-label="너비에 맞춤">맞춤</button>
+        <button type="button" id="zoomIn" class="modal-button" tabindex="-1" aria-label="확대">+</button>
+        <button type="button" id="fitWidth" class="modal-button" tabindex="-1" aria-label="너비에 맞춤">맞춤</button>
     </div>
     <main id="viewer">
         <div class="viewer-message" id="viewerMessage">
@@ -107,6 +107,18 @@
         let pdfDocument = null;
         let scale = 1;
         let renderVersion = 0;
+
+        document.querySelectorAll('.modal-button').forEach((button) => {
+            button.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                window.parent.postMessage({ type: 'pdf-viewer-interaction' }, window.location.origin);
+            });
+        });
 
         function updateZoomLabel() {
             zoomLabel.textContent = `${Math.round(scale * 100)}%`;
@@ -150,19 +162,27 @@
             await renderDocument();
         }
 
-        document.getElementById('zoomIn').addEventListener('click', async () => {
+        document.getElementById('zoomIn').addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             scale = Math.min(3, scale + 0.25);
             updateZoomLabel();
             await renderDocument();
         });
 
-        document.getElementById('zoomOut').addEventListener('click', async () => {
+        document.getElementById('zoomOut').addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             scale = Math.max(0.5, scale - 0.25);
             updateZoomLabel();
             await renderDocument();
         });
 
-        document.getElementById('fitWidth').addEventListener('click', fitToWidth);
+        document.getElementById('fitWidth').addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await fitToWidth();
+        });
 
         try {
             pdfDocument = await pdfjsLib.getDocument(pdfUrl).promise;
