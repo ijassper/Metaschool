@@ -169,7 +169,13 @@ CSRF_TRUSTED_ORIGINS = [
     'https://jacknov.gabia.io',
 ]
 
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_SAVE_EVERY_REQUEST = True
+
 # [이동 경로 설정] 로그인 또는 회원가입 성공 시 이동할 URL
+LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/accounts/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
@@ -191,3 +197,25 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # 같은 도메인 내에서는 iframe(미리보기)을 허용하도록 설정
 X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.security.csrf': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'accounts.middleware': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

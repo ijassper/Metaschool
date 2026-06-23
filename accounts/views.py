@@ -14,6 +14,7 @@ from django.db import transaction   # 트랜잭션 처리를 위해 필요
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm    # 로그인 폼 (필요 시 사용), 비밀번호 변경 폼
 from django.contrib.auth import authenticate,login as auth_login
 from django.contrib.sessions.models import Session # 로그인 처리 함수 (회원가입 후 자동 로그인 위해 필요)
+from django.middleware.csrf import rotate_token
 from django.utils import timezone
 import requests
 import random
@@ -96,6 +97,8 @@ def login_view(request):
             
             # (C) 모든 검증 통과 시 로그인 처리
             auth_login(request, user) # 실제 로그인 수행
+            request.session.cycle_key()
+            rotate_token(request)
             
             # --- [로그인 유지 로직 시작] ---
             if remember_me:
@@ -107,17 +110,16 @@ def login_view(request):
             # --- [로그인 유지 로직 끝] ---
             
             if user.is_student:
-                previous_session_key = user.current_session_key
                 current_session_key = request.session.session_key
-                if not current_session_key:
-                    request.session.create()
-                    current_session_key = request.session.session_key
+                with transaction.atomic():
+                    locked_user = CustomUser.objects.select_for_update().get(pk=user.pk)
+                    previous_session_key = locked_user.current_session_key
 
-                if previous_session_key and previous_session_key != current_session_key:
-                    Session.objects.filter(session_key=previous_session_key).delete()
+                    if previous_session_key and previous_session_key != current_session_key:
+                        Session.objects.filter(session_key=previous_session_key).delete()
 
-                user.current_session_key = current_session_key
-                user.save(update_fields=['current_session_key'])
+                    locked_user.current_session_key = current_session_key
+                    locked_user.save(update_fields=['current_session_key'])
             
             if user.role != 'STUDENT':
                 if user.approval_status == CustomUser.ApprovalStatus.DENIED:
