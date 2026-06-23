@@ -168,17 +168,44 @@
     }
     .pdf-preview-modal {
         pointer-events: none;
+        z-index: 1060;
     }
-    .pdf-preview-modal .modal-dialog {
+    .pdf-preview-modal .resizable-modal {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        width: min(40vw, 640px);
+        height: calc(100dvh - 32px);
+        min-width: 300px;
+        min-height: 200px;
+        max-width: none;
+        margin: 0;
+        resize: both;
+        overflow: hidden;
         pointer-events: auto;
+        touch-action: none;
+        transform: none !important;
     }
     .pdf-preview-modal .modal-content {
-        height: 85vh;
+        width: 100%;
+        height: 100%;
         border-radius: 24px;
         overflow: hidden;
+        box-shadow: 0 18px 48px rgba(33, 37, 41, 0.25);
+    }
+    .pdf-preview-modal .modal-header {
+        min-height: 68px;
+        cursor: move;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+    }
+    .pdf-preview-modal .modal-header:active {
+        cursor: grabbing;
     }
     .pdf-preview-modal .modal-body {
         min-height: 0;
+        overflow: hidden;
     }
     .pdf-preview-frame {
         width: 100%;
@@ -193,6 +220,50 @@
         padding: 0.75rem;
         background-size: 1.25rem;
         flex: 0 0 auto;
+    }
+    .pdf-preview-tool {
+        width: 44px;
+        height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        touch-action: manipulation;
+    }
+    .pdf-resize-handle {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        z-index: 4;
+        width: 44px;
+        height: 44px;
+        cursor: nwse-resize;
+        touch-action: none;
+    }
+    .pdf-resize-handle::after {
+        content: "";
+        position: absolute;
+        right: 9px;
+        bottom: 9px;
+        width: 18px;
+        height: 18px;
+        border-right: 3px solid rgba(73, 80, 87, 0.75);
+        border-bottom: 3px solid rgba(73, 80, 87, 0.75);
+        border-radius: 0 0 4px 0;
+    }
+    .resizable-modal.is-minimized {
+        width: min(340px, calc(100vw - 24px)) !important;
+        height: 68px !important;
+        min-height: 68px;
+        resize: none;
+    }
+    .resizable-modal.is-minimized .modal-body,
+    .resizable-modal.is-minimized .pdf-resize-handle {
+        display: none !important;
+    }
+    .resizable-modal.is-minimized .modal-content {
+        border-radius: 18px;
     }
     .prep-glass-card {
         background: rgba(255, 255, 255, 0.8) !important;
@@ -315,21 +386,11 @@
             padding: 0 !important;
         }
     }
-    @media (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) {
-        .pdf-preview-modal {
-            width: 55vw;
-            right: auto;
-        }
-        .pdf-preview-modal .modal-dialog {
-            width: 55vw;
-            max-width: 55vw;
-            height: 100dvh;
-            margin: 0;
-        }
-        .pdf-preview-modal .modal-content {
-            height: 100dvh;
-            border-radius: 0 24px 24px 0;
-            box-shadow: 14px 0 36px rgba(33, 37, 41, 0.2);
+    @media (max-width: 767.98px), (orientation: portrait) {
+        .pdf-preview-modal .resizable-modal {
+            width: calc(100vw - 24px);
+            height: min(76dvh, 760px);
+            min-width: min(300px, calc(100vw - 24px));
         }
     }
 </style>
@@ -629,11 +690,19 @@
 
 <!-- 참고자료 미리보기 모달 (활동 상세페이지와 동일) -->
 <div class="modal fade pdf-preview-modal" id="filePreviewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered shadow-lg">
+    <div class="modal-dialog resizable-modal" id="filePreviewDialog">
         <div class="modal-content border-0">
-            <div class="modal-header border-0 p-4 pb-0">
+            <div class="modal-header border-0 px-3 py-2" id="filePreviewDragHandle">
                 <h5 class="modal-title fw-bold text-truncate" id="previewTitle">파일 미리보기</h5>
-                <button type="button" class="btn-close pdf-preview-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                <div class="d-flex align-items-center gap-1 ms-2">
+                    <button type="button" class="btn btn-light border pdf-preview-tool" id="previewResetButton" aria-label="위치와 크기 초기화" title="초기화">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                    <button type="button" class="btn btn-light border pdf-preview-tool" id="previewMinimizeButton" aria-label="최소화" title="최소화">
+                        <i class="bi bi-dash-lg" id="previewMinimizeIcon"></i>
+                    </button>
+                    <button type="button" class="btn-close pdf-preview-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
             </div>
             <div class="modal-body p-4 pt-2">
                 <!-- PDF.js viewer iframe -->
@@ -653,6 +722,7 @@
                     <!-- <p class="text-muted">아래 다운로드 버튼을 눌러 확인해 주세요.</p> -->
                 </div>
             </div>
+            <div class="pdf-resize-handle" id="filePreviewResizeHandle" aria-hidden="true"></div>
             <!-- <div class="modal-footer border-0 p-3">
                 <a id="previewDownloadBtn" href="" download class="btn btn-dark rounded-pill px-5">파일 다운로드</a>
             </div> -->
@@ -1297,6 +1367,229 @@
     // confirmExit 함수 제거 (모달로 대체됨)
     // function confirmExit() { ... }
 
+    const filePreviewModal = document.getElementById('filePreviewModal');
+    const filePreviewDialog = document.getElementById('filePreviewDialog');
+    const filePreviewDragHandle = document.getElementById('filePreviewDragHandle');
+    const filePreviewResizeHandle = document.getElementById('filePreviewResizeHandle');
+    const previewMinimizeButton = document.getElementById('previewMinimizeButton');
+    const previewMinimizeIcon = document.getElementById('previewMinimizeIcon');
+    const previewResetButton = document.getElementById('previewResetButton');
+    let previewRestoreRect = null;
+    let previewPointerAction = null;
+
+    function getPreviewViewport() {
+        return {
+            width: document.documentElement.clientWidth,
+            height: document.documentElement.clientHeight
+        };
+    }
+
+    function applyPreviewRect(rect) {
+        filePreviewDialog.style.left = `${Math.round(rect.left)}px`;
+        filePreviewDialog.style.top = `${Math.round(rect.top)}px`;
+        filePreviewDialog.style.width = `${Math.round(rect.width)}px`;
+        filePreviewDialog.style.height = `${Math.round(rect.height)}px`;
+    }
+
+    function constrainPreviewRect(rect) {
+        const viewport = getPreviewViewport();
+        const minimumWidth = Math.min(300, viewport.width - 16);
+        const minimumHeight = filePreviewDialog.classList.contains('is-minimized') ? 68 : 200;
+        const width = Math.max(minimumWidth, Math.min(rect.width, viewport.width - 16));
+        const height = Math.max(minimumHeight, Math.min(rect.height, viewport.height - 16));
+
+        return {
+            left: Math.max(8, Math.min(rect.left, viewport.width - width - 8)),
+            top: Math.max(8, Math.min(rect.top, viewport.height - height - 8)),
+            width,
+            height
+        };
+    }
+
+    function resetPreviewDialog() {
+        const viewport = getPreviewViewport();
+        const isLandscapeTablet = viewport.width >= 768 && viewport.width > viewport.height;
+        const width = isLandscapeTablet
+            ? Math.max(360, Math.min(viewport.width * 0.4, 640))
+            : Math.max(300, viewport.width - 24);
+        const height = isLandscapeTablet
+            ? viewport.height - 32
+            : Math.min(viewport.height * 0.76, 760);
+
+        filePreviewDialog.classList.remove('is-minimized');
+        previewMinimizeButton.setAttribute('aria-label', '최소화');
+        previewMinimizeButton.setAttribute('title', '최소화');
+        previewMinimizeIcon.className = 'bi bi-dash-lg';
+        previewRestoreRect = null;
+        applyPreviewRect(constrainPreviewRect({
+            left: isLandscapeTablet ? 16 : (viewport.width - width) / 2,
+            top: isLandscapeTablet ? 16 : Math.max(12, (viewport.height - height) / 2),
+            width,
+            height
+        }));
+    }
+
+    function constrainCurrentPreviewDialog() {
+        if (!filePreviewModal.classList.contains('show')) return;
+        const rect = filePreviewDialog.getBoundingClientRect();
+        applyPreviewRect(constrainPreviewRect(rect));
+    }
+
+    function togglePreviewMinimize(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const viewport = getPreviewViewport();
+
+        if (filePreviewDialog.classList.contains('is-minimized')) {
+            filePreviewDialog.classList.remove('is-minimized');
+            previewMinimizeButton.setAttribute('aria-label', '최소화');
+            previewMinimizeButton.setAttribute('title', '최소화');
+            previewMinimizeIcon.className = 'bi bi-dash-lg';
+            applyPreviewRect(constrainPreviewRect(previewRestoreRect || {
+                left: 16,
+                top: 16,
+                width: viewport.width * 0.4,
+                height: viewport.height - 32
+            }));
+            return;
+        }
+
+        const rect = filePreviewDialog.getBoundingClientRect();
+        previewRestoreRect = {
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height
+        };
+        filePreviewDialog.classList.add('is-minimized');
+        previewMinimizeButton.setAttribute('aria-label', '복원');
+        previewMinimizeButton.setAttribute('title', '복원');
+        previewMinimizeIcon.className = 'bi bi-arrows-angle-expand';
+
+        const minimizedWidth = Math.min(340, viewport.width - 24);
+        applyPreviewRect({
+            left: viewport.width - minimizedWidth - 12,
+            top: viewport.height - 80,
+            width: minimizedWidth,
+            height: 68
+        });
+    }
+
+    function startPreviewPointerAction(event, action) {
+        if (event.button !== undefined && event.button !== 0) return;
+        if (action === 'drag' && event.target.closest('button')) return;
+        if (action === 'resize' && filePreviewDialog.classList.contains('is-minimized')) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        modalInteractionGraceUntil = Date.now() + 1000;
+
+        const rect = filePreviewDialog.getBoundingClientRect();
+        previewPointerAction = {
+            action,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height
+        };
+        if (event.currentTarget.setPointerCapture) {
+            event.currentTarget.setPointerCapture(event.pointerId);
+        }
+    }
+
+    function movePreviewPointer(event) {
+        if (!previewPointerAction || previewPointerAction.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        event.stopPropagation();
+
+        const deltaX = event.clientX - previewPointerAction.startX;
+        const deltaY = event.clientY - previewPointerAction.startY;
+        const nextRect = previewPointerAction.action === 'drag'
+            ? {
+                left: previewPointerAction.left + deltaX,
+                top: previewPointerAction.top + deltaY,
+                width: previewPointerAction.width,
+                height: previewPointerAction.height
+            }
+            : {
+                left: previewPointerAction.left,
+                top: previewPointerAction.top,
+                width: previewPointerAction.width + deltaX,
+                height: previewPointerAction.height + deltaY
+            };
+
+        applyPreviewRect(constrainPreviewRect(nextRect));
+    }
+
+    function endPreviewPointer(event) {
+        if (!previewPointerAction || previewPointerAction.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        event.stopPropagation();
+        previewPointerAction = null;
+    }
+
+    filePreviewDragHandle.addEventListener('pointerdown', function (event) {
+        startPreviewPointerAction(event, 'drag');
+    });
+    filePreviewResizeHandle.addEventListener('pointerdown', function (event) {
+        startPreviewPointerAction(event, 'resize');
+    });
+    [filePreviewDragHandle, filePreviewResizeHandle].forEach(function (element) {
+        element.addEventListener('pointermove', movePreviewPointer);
+        element.addEventListener('pointerup', endPreviewPointer);
+        element.addEventListener('pointercancel', endPreviewPointer);
+    });
+    if (!window.PointerEvent) {
+        function asPreviewTouchPointer(event) {
+            const touch = event.touches[0] || event.changedTouches[0];
+            return {
+                button: 0,
+                pointerId: 'touch',
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                target: event.target,
+                currentTarget: event.currentTarget,
+                preventDefault: function () { event.preventDefault(); },
+                stopPropagation: function () { event.stopPropagation(); }
+            };
+        }
+
+        filePreviewDragHandle.addEventListener('touchstart', function (event) {
+            startPreviewPointerAction(asPreviewTouchPointer(event), 'drag');
+        }, { passive: false });
+        filePreviewResizeHandle.addEventListener('touchstart', function (event) {
+            startPreviewPointerAction(asPreviewTouchPointer(event), 'resize');
+        }, { passive: false });
+        [filePreviewDragHandle, filePreviewResizeHandle].forEach(function (element) {
+            element.addEventListener('touchmove', function (event) {
+                movePreviewPointer(asPreviewTouchPointer(event));
+            }, { passive: false });
+            element.addEventListener('touchend', function (event) {
+                endPreviewPointer(asPreviewTouchPointer(event));
+            }, { passive: false });
+            element.addEventListener('touchcancel', function (event) {
+                endPreviewPointer(asPreviewTouchPointer(event));
+            }, { passive: false });
+        });
+    }
+    previewMinimizeButton.addEventListener('click', togglePreviewMinimize);
+    previewResetButton.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        resetPreviewDialog();
+    });
+    window.addEventListener('resize', constrainCurrentPreviewDialog);
+
+    if (window.ResizeObserver) {
+        const previewResizeObserver = new ResizeObserver(function () {
+            window.requestAnimationFrame(constrainCurrentPreviewDialog);
+        });
+        previewResizeObserver.observe(filePreviewDialog);
+    }
+
     /* 8. 첨부파일 미리보기 통합 함수 */
     function previewFile(url, filename) {
         const previewContainer = document.getElementById('previewContainer');
@@ -1334,7 +1627,6 @@
         myModal.show();
     }
 
-    const filePreviewModal = document.getElementById('filePreviewModal');
     window.addEventListener('message', function (event) {
         const previewFrame = document.getElementById('previewFrame');
         if (
@@ -1349,6 +1641,7 @@
     filePreviewModal.addEventListener('shown.bs.modal', function () {
         is_modal_active = true;
         modalInteractionGraceUntil = Date.now() + 1000;
+        resetPreviewDialog();
         document.body.classList.remove('modal-open');
         document.body.style.removeProperty('overflow');
         document.body.style.removeProperty('padding-right');

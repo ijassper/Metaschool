@@ -78,3 +78,23 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('let is_modal_active = false', template_source)
         self.assertIn('isPdfModalInteractionActive()', template_source)
         self.assertIn("event.data.type === 'pdf-viewer-interaction'", template_source)
+
+    def test_pdf_modal_supports_drag_resize_minimize_and_reset(self):
+        template_source = get_template(
+            'activities/take_test.html'
+        ).template.source
+
+        self.assertIn('class="modal-dialog resizable-modal"', template_source)
+        self.assertIn('id="filePreviewDragHandle"', template_source)
+        self.assertIn('id="filePreviewResizeHandle"', template_source)
+        self.assertIn("addEventListener('pointerdown'", template_source)
+        self.assertIn("setPointerCapture(event.pointerId)", template_source)
+        self.assertIn("addEventListener('touchstart'", template_source)
+        self.assertIn("addEventListener('touchmove'", template_source)
+        self.assertIn("addEventListener('touchend'", template_source)
+        self.assertIn('function constrainPreviewRect', template_source)
+        self.assertIn('function togglePreviewMinimize', template_source)
+        self.assertIn('function resetPreviewDialog', template_source)
+        self.assertIn("width: min(40vw, 640px)", template_source)
+        self.assertIn('min-width: 300px', template_source)
+        self.assertIn('min-height: 200px', template_source)
