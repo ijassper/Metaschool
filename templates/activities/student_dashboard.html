@@ -461,7 +461,7 @@
               {% elif act.dashboard_state == 'unavailable' %}
                 <span class="status-bar status-unavailable">[응시 불가능]</span>
               {% else %}
-                <span class="status-bar status-ready">[응시 하기]</span>
+                <span class="status-bar status-ready">시험 시작하기</span>
               {% endif %}
             </div>
           </div>
@@ -479,15 +479,29 @@
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.eval-item-card[data-href]').forEach(function (card) {
-      const go = function () {
+      let isNavigatingToExam = false;
+      const go = async function (event) {
+        if (event) event.preventDefault();
+        if (isNavigatingToExam) return;
+        isNavigatingToExam = true;
+
+        if (!document.fullscreenElement) {
+          try {
+            await document.documentElement.requestFullscreen();
+          } catch (error) {
+            console.log('풀스크린 요청이 거부되었습니다.', error);
+          }
+        }
+
         window.location.href = card.dataset.href;
       };
 
-      card.addEventListener('click', go);
+      card.addEventListener('click', function (event) {
+        go(event);
+      });
       card.addEventListener('keydown', function (event) {
         if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          go();
+          go(event);
         }
       });
     });

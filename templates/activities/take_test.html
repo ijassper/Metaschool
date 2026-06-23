@@ -467,9 +467,8 @@
                 <div class="card prep-glass-card prep-action-card">
                     <div class="card-body p-3">
                         <div class="d-flex flex-column flex-sm-row gap-2 prep-action-row">
-                            <button class="btn btn-lg px-4 py-3 rounded-pill fw-bold text-white flex-fill"
+                            <button type="button" id="start-btn" class="btn btn-lg px-4 py-3 rounded-pill fw-bold text-white flex-fill"
                                     style="background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%)); border: none; transition: transform 0.2s;"
-                                    onclick="startTest(event)"
                                     onmouseover="this.style.transform='scale(1.02)'"
                                     onmouseout="this.style.transform='scale(1)'">
                                 <i class="bi bi-play-circle-fill me-2"></i> 시험 시작하기
@@ -590,7 +589,7 @@
         <div class="col-md-9 d-flex flex-column bg-white h-100 exam-answer-panel">
             <form id="answerForm" method="post" class="h-100 d-flex flex-column">
                 {% csrf_token %}
-                <!-- 응시 계속하기 로그 기록 -->
+                <!-- 시험 시작하기 및 재진입 로그 기록 -->
                 <input type="hidden" name="is_submit" id="isSubmitField" value="false">
                 <!-- 상단 헤더 고정 -->
                 <div class="exam-sticky-header p-3 d-flex align-items-center flex-wrap">
@@ -685,7 +684,7 @@
         <h2 class="fw-bold mb-3">평가 응시 준비</h2>
         <p>평가 보안을 위해 전체 화면 모드로 전환됩니다.</p>
     </div>
-    <button class="btn btn-primary btn-lg px-5 py-3 fw-bold" onclick="startTest(event)">응시 시작하기</button>
+    <button class="btn btn-primary btn-lg px-5 py-3 fw-bold">시험 시작하기</button>
 </div> -->
 
 <!-- 참고자료 미리보기 모달 (활동 상세페이지와 동일) -->
@@ -867,6 +866,7 @@
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
+    let isStartingExam = false;
     let is_modal_active = false;
     let modalInteractionGraceUntil = 0;
 
@@ -1124,24 +1124,33 @@
         return Promise.resolve();
     }
 
-    function startTest(event) {
+    async function startTest(event) {
         if (event) event.preventDefault();
-        requestExamFullscreen()
-            .then(recordEntryEvent)
-            .then(completeStart)
-            .catch(function (error) {
-                alert(error.message || '전체 화면 모드를 허용해야 응시가 가능합니다.');
-            });
+        if (isStartingExam) return;
+
+        isStartingExam = true;
+        try {
+            await requestExamFullscreen();
+        } catch (error) {
+            console.log('풀스크린 요청이 거부되었습니다.', error);
+        }
+
+        try {
+            await recordEntryEvent();
+        } catch (error) {
+            console.error('시험 입장 기록에 실패했습니다.', error);
+        }
+
+        completeStart();
+        window.setTimeout(function () {
+            isStartingExam = false;
+        }, 500);
     }
     /**
-     * 보안 경고창에서 '응시 계속하기' 클릭 시 실행
+     * 보안 경고창에서도 '시험 시작하기' 클릭 시 실행
      */
     function completeStart() {
-        const wasStarted = testStarted;
         testStarted = true;
-        if (wasStarted && ENABLE_EXIT_DETECTION) {
-            return;
-        }
         document.getElementById('startOverlay').classList.add('d-none');
         const container = document.getElementById('testContainer');
         if (container) container.style.filter = "none";
@@ -1158,7 +1167,7 @@
 
     /* 3. 보안 제어: 화면 잠금(가림막) 함수 (Native Alert 대체) */
     const lockScreen = (message) => {
-        if (!ENABLE_EXIT_DETECTION || isSubmitting || !testStarted || IS_DEMO) return;
+        if (!ENABLE_EXIT_DETECTION || isSubmitting || isStartingExam || !testStarted || IS_DEMO) return;
         
         const overlay = document.getElementById('startOverlay');
         const btn = overlay.querySelector('button');
@@ -1167,7 +1176,7 @@
         
         if (title) title.innerHTML = '<i class="bi bi-shield-lock-fill text-danger"></i> 보안 경고';
         if (btn) {
-            btn.innerText = "전체 화면으로 복귀하여 응시 계속하기";
+            btn.innerText = "시험 시작하기";
             btn.classList.remove('btn-primary');
             btn.classList.add('btn-danger');
         }
@@ -1190,7 +1199,7 @@
         }
 
         const checkSecurity = () => {
-            if (!testStarted || isSubmitting || IS_DEMO) return;
+            if (!testStarted || isSubmitting || isStartingExam || IS_DEMO) return;
             
             const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
             const isTabActive = !document.hidden;
@@ -1211,7 +1220,7 @@
         
         // [Alt+Tab 및 외부 프로그램 사용 감지]
         window.addEventListener('blur', () => {
-            if (!testStarted || isSubmitting || IS_DEMO) return;
+            if (!testStarted || isSubmitting || isStartingExam || IS_DEMO) return;
             window.setTimeout(() => {
                 if (isPdfModalInteractionActive()) return;
                 sendLog('OUT'); // [기록] 포커스 이탈
@@ -1288,6 +1297,10 @@
 
     // 보안 모드 초기화 호출
     document.addEventListener('DOMContentLoaded', function() {
+        const startButton = document.getElementById('start-btn');
+        if (startButton) {
+            startButton.addEventListener('click', startTest);
+        }
         initSecurityMode();
         initExitDetection();
         updateCharCount(); // 초기 글자 수 계산

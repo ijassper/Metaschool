@@ -1,8 +1,10 @@
 from types import SimpleNamespace
+from pathlib import Path
 
 from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.template.loader import get_template
 from django.urls import reverse
+from django.conf import settings
 
 from .views.exam_views import pdf_viewer
 
@@ -98,3 +100,33 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn("width: min(40vw, 640px)", template_source)
         self.assertIn('min-width: 300px', template_source)
         self.assertIn('min-height: 200px', template_source)
+
+    def test_exam_start_labels_and_fullscreen_navigation_are_standardized(self):
+        template_root = Path(settings.BASE_DIR) / 'templates'
+        combined_templates = '\n'.join(
+            path.read_text(encoding='utf-8')
+            for path in template_root.rglob('*.html')
+        )
+        take_test_source = get_template(
+            'activities/take_test.html'
+        ).template.source
+        dashboard_source = get_template(
+            'activities/student_dashboard.html'
+        ).template.source
+
+        self.assertNotIn('전체 화면으로 복귀하여 응시 계속하기', combined_templates)
+        self.assertNotIn('응시 시작하기', combined_templates)
+        self.assertIn('id="start-btn"', take_test_source)
+        self.assertIn('async function startTest(event)', take_test_source)
+        self.assertIn('await requestExamFullscreen()', take_test_source)
+        self.assertIn('let isStartingExam = false', take_test_source)
+        self.assertIn(
+            'isSubmitting || isStartingExam || IS_DEMO',
+            take_test_source,
+        )
+        self.assertNotIn('const wasStarted = testStarted', take_test_source)
+        self.assertIn(
+            'await document.documentElement.requestFullscreen()',
+            dashboard_source,
+        )
+        self.assertIn('window.location.href = card.dataset.href', dashboard_source)
