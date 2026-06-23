@@ -364,6 +364,20 @@
 </div>
 
 <script>
+    function syncLoginCsrfToken() {
+        const loginForm = document.getElementById('loginForm');
+        const tokenInput = loginForm
+            ? loginForm.querySelector('input[name="csrfmiddlewaretoken"]')
+            : null;
+        const latestToken = window.getIngridCookie
+            ? window.getIngridCookie('csrftoken')
+            : '';
+
+        if (tokenInput && latestToken) {
+            tokenInput.value = latestToken;
+        }
+    }
+
     function togglePasswordVisibility() {
         const passwordInput = document.getElementById('id_password');
         const toggleButton = document.getElementById('passwordToggle');
@@ -385,6 +399,13 @@
         const inputUsername = document.getElementById('id_username');
         const signupLink = document.getElementById('signup-link');
         const passwordToggle = document.getElementById('passwordToggle');
+        const loginForm = document.getElementById('loginForm');
+
+        syncLoginCsrfToken();
+        loginForm.addEventListener('submit', function () {
+            // bfcache/다중 탭 환경에서도 제출 직전 최신 쿠키 토큰으로 동기화합니다.
+            syncLoginCsrfToken();
+        });
 
         function updateUI(role) {
             const signupArea = document.getElementById('teacher-signup-area');
@@ -488,6 +509,11 @@
             inputUsername.click();
             inputUsername.focus();
         }, 400);
+    });
+
+    window.addEventListener('pageshow', function () {
+        // 태블릿 뒤로가기로 캐시된 로그인 화면이 복원되는 경우를 보완합니다.
+        syncLoginCsrfToken();
     });
 </script>
 {% endblock %}

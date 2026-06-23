@@ -20,11 +20,8 @@
     }
 
     function getCsrfToken() {
-        const cookieToken = getCookie('csrftoken');
-        if (cookieToken) return cookieToken;
-
-        const input = document.querySelector('[name=csrfmiddlewaretoken]');
-        return input ? input.value : '';
+        // 요청 시점의 쿠키만 사용합니다. 캐시된 DOM 토큰은 사용하지 않습니다.
+        return getCookie('csrftoken');
     }
 
     function isSameOrigin(url) {

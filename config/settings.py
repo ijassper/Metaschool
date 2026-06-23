@@ -173,6 +173,8 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_SAVE_EVERY_REQUEST = True
+# same-origin 로그인 POST의 Referer가 프록시 정책으로 제거되지 않도록 명시합니다.
+SECURE_REFERRER_POLICY = 'same-origin'
 
 # [이동 경로 설정] 로그인 또는 회원가입 성공 시 이동할 URL
 LOGIN_URL = '/accounts/login/'

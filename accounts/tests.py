@@ -7,15 +7,19 @@ from unittest.mock import patch
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpResponse
-from django.test import RequestFactory, SimpleTestCase
+from django.test import Client, RequestFactory, SimpleTestCase, override_settings
 
 from .middleware import StudentSessionValidationMiddleware
 from .views import login_view
 
 
+@override_settings(
+    STATICFILES_STORAGE='django.contrib.staticfiles.storage.StaticFilesStorage'
+)
 class CsrfAndSessionConsistencyTests(SimpleTestCase):
     def setUp(self):
         self.factory = RequestFactory()
+        self.client = Client()
 
     def test_csrf_cookie_is_available_to_common_fetch_wrapper(self):
         self.assertFalse(settings.CSRF_COOKIE_HTTPONLY)
@@ -31,6 +35,10 @@ class CsrfAndSessionConsistencyTests(SimpleTestCase):
         self.assertIn("getCookie('csrftoken')", script)
         self.assertIn("headers.set('X-CSRFToken', csrfToken)", script)
         self.assertIn("'X-Session-Expired'", script)
+        self.assertNotIn(
+            "document.querySelector('[name=csrfmiddlewaretoken]')",
+            script,
+        )
 
     def test_replaced_student_ajax_session_returns_identifiable_401(self):
         request = self.factory.post(
@@ -84,9 +92,30 @@ class CsrfAndSessionConsistencyTests(SimpleTestCase):
     def test_login_rotates_session_and_csrf_tokens(self):
         source = inspect.getsource(login_view)
 
+        self.assertIn('get_token(request)', source)
         self.assertIn('request.session.cycle_key()', source)
         self.assertIn('rotate_token(request)', source)
         self.assertIn('select_for_update()', source)
+
+    def test_login_get_forces_csrf_cookie_and_form_sync(self):
+        response = self.client.get('/accounts/login/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('csrftoken', response.cookies)
+
+        template = (
+            Path(settings.BASE_DIR)
+            / 'templates'
+            / 'registration'
+            / 'login.html'
+        ).read_text(encoding='utf-8')
+        self.assertIn('function syncLoginCsrfToken()', template)
+        self.assertIn("getIngridCookie('csrftoken')", template)
+        self.assertIn("loginForm.addEventListener('submit'", template)
+        self.assertIn("window.addEventListener('pageshow'", template)
+
+    def test_referrer_policy_keeps_same_origin_login_referer(self):
+        self.assertEqual(settings.SECURE_REFERRER_POLICY, 'same-origin')
 
     def test_all_post_forms_include_csrf_token(self):
         template_root = Path(settings.BASE_DIR) / 'templates'

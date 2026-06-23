@@ -14,7 +14,7 @@ from django.db import transaction   # 트랜잭션 처리를 위해 필요
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm    # 로그인 폼 (필요 시 사용), 비밀번호 변경 폼
 from django.contrib.auth import authenticate,login as auth_login
 from django.contrib.sessions.models import Session # 로그인 처리 함수 (회원가입 후 자동 로그인 위해 필요)
-from django.middleware.csrf import rotate_token
+from django.middleware.csrf import get_token, rotate_token
 from django.utils import timezone
 import requests
 import random
@@ -58,6 +58,9 @@ def can_manage_teachers(user):
 
 # 로그인 유지 기능이 포함된 커스텀 로그인 함수
 def login_view(request):
+    # 로그인 화면 진입 및 캐시 복원 시 사용할 최신 CSRF 쿠키를 강제로 발행합니다.
+    get_token(request)
+
     # 이미 로그인된 상태라면 대시보드로 보냄
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -99,6 +102,8 @@ def login_view(request):
             auth_login(request, user) # 실제 로그인 수행
             request.session.cycle_key()
             rotate_token(request)
+            # rotate_token()으로 변경된 secret을 응답 쿠키에 즉시 반영합니다.
+            get_token(request)
             
             # --- [로그인 유지 로직 시작] ---
             if remember_me:
