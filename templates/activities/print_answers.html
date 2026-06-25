@@ -18,201 +18,300 @@
             src: local('Malgun Gothic'), local('맑은 고딕');
         }
 
-        /* 1. 용지 및 폰트 기본 설정 */
-        @page { size: A4; margin: 0; }
-        body { 
-            margin: 0; padding: 0; 
-            font-family: 'Noto Sans KR', 'Nanum Gothic', 'Malgun Gothic', '맑은 고딕', sans-serif;
-            background-color: #3b3f46; /* 화면 미리보기 배경 */
+        @page {
+            size: A4;
+            margin: 12mm;
         }
 
-        /* 2. 상단 버튼 바 (PDF 제외) */
-        .no-print-bar { 
-            position: sticky; top: 0; background: rgba(255, 255, 255, 0.88); padding: 15px; 
-            z-index: 1000; display: flex; justify-content: center; gap: 15px; 
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Noto Sans KR', 'Nanum Gothic', 'Malgun Gothic', sans-serif;
+            background: #3b3f46;
+            color: #111;
+            line-height: 1.55;
+        }
+
+        .no-print-bar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.88);
             border-bottom: 1px solid rgba(255, 255, 255, 0.35);
             backdrop-filter: blur(14px);
         }
-        .btn-save { background-color: #FF80B5; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        .btn-print { background-color: #8E44AD; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; }
 
-        /* 3. 실제 종이 영역 (A4 규격 강제 고정) */
+        .btn-print {
+            border: 0;
+            border-radius: 10px;
+            padding: 12px 30px;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            background: #8E44AD;
+        }
+
         .print-page {
-            background-color: white !important;
             width: 210mm;
             min-height: 297mm;
-            height: auto;
-            padding: 15mm 15mm 10mm 15mm; /* 하단 여백 확보 */
-            margin: 20px auto 28px auto;
-            box-sizing: border-box;
-            position: relative;
-            overflow: visible;
+            margin: 20px auto 28px;
+            padding: 15mm 15mm 10mm;
+            background: #fff;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
             page-break-after: always;
             break-after: page;
-            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
             page-break-inside: auto;
+            break-inside: auto;
         }
 
-        /* 4. 테이블 디자인 (너비 및 높이 완벽 고정) */
-        table {
-            width: 100%;
-            min-height: 265mm;
-            height: auto;
-            border-collapse: collapse;
-            table-layout: fixed;
-            border: 1px solid #000;
-            page-break-inside: auto;
-        }
-        tr { page-break-inside: auto; }
-        td {
-            border: 1px solid #000;
-            padding: 8px;
+        .print-title {
+            margin: 0 0 10px;
             text-align: center;
+            font-size: 16pt;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+        }
+
+        .activity-title {
+            margin: 0 0 8px;
+            text-align: center;
+            font-size: 10pt;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .student-meta {
+            margin-bottom: 12px;
+            padding: 9px 11px;
+            border: 1.5px solid #000;
             font-size: 10.5pt;
-            word-break: break-all;
-            page-break-inside: auto;
-        }
-        .header-bg { 
-            background-color: #f2f2f2 !important; 
-            font-weight: bold; 
-            -webkit-print-color-adjust: exact; 
-            print-color-adjust: exact; 
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
-        /* 5. 각 행의 고정 높이 설정 (스크린샷 양식 재현) */
-        .row-header { height: 15mm; }
-        .row-title { height: 12mm; }
-        
-        /* [가장 중요] 답안 영역 - 남은 모든 공간을 차지함 */
-        .answer-box { 
-            height: auto; 
-            vertical-align: top; 
-            text-align: left; 
-            padding: 5px 20px; 
-            line-height: 1.8; 
-            font-size: 11pt;
-            background-color: #f8f9fa !important;
-            word-break: break-all;
-            overflow-wrap: anywhere;
-            white-space: pre-wrap;
-            page-break-inside: auto;
-        }
-        .answer-box-content {
-            white-space: pre-wrap;
-            word-break: break-all;
-            overflow-wrap: anywhere;
-        }
-        .student-answer-section {
-            min-height: 120mm;
-            width: 100%;
-            page-break-inside: auto;
-            page-break-after: auto;
-            break-after: auto;
-        }
-        .student-answer-section.is-empty {
+        .student-meta-row {
             display: flex;
-            flex-direction: column;
-            justify-content: center;
+            align-items: baseline;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .student-meta-row + .student-meta-row {
+            margin-top: 3px;
+        }
+
+        .student-meta-label {
+            min-width: 54px;
+            font-weight: 700;
+            flex: 0 0 auto;
+        }
+
+        .student-meta-divider {
+            color: #555;
+            margin: 0 2px;
+        }
+
+        .question-section {
+            margin-bottom: 8px;
+            page-break-inside: auto;
+            break-inside: auto;
+        }
+
+        .section-title {
+            margin: 0 0 5px;
+            font-size: 11pt;
+            font-weight: 700;
+        }
+
+        .question-content {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            font-size: 10pt;
+            font-weight: 700;
+            line-height: 1.55;
+        }
+
+        .answer-section {
+            margin-top: 8px;
+            page-break-inside: auto;
+            break-inside: auto;
+        }
+
+        .answer-box {
+            min-height: 120mm;
+            padding: 10px 12px;
+            border: 1.5px solid #000;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            font-size: 10pt;
+            line-height: 1.65;
+            background: #fff;
+            page-break-inside: auto;
+            break-inside: auto;
+            box-decoration-break: clone;
+            -webkit-box-decoration-break: clone;
+            orphans: 3;
+            widows: 3;
+        }
+
+        .answer-box::before,
+        .answer-box::after {
+            content: "";
+            display: block;
+            height: 0;
+        }
+
+        .answer-box.is-empty {
+            min-height: 40mm;
+            display: flex;
             align-items: center;
+            justify-content: center;
+            color: #495057;
+            font-weight: 700;
             text-align: center;
         }
-        .answer-box-empty {
-            font-weight: bold;
-            color: #495057;
+
+        .answer-title {
+            margin: 0 0 0.45rem;
+            font-weight: 700;
+            line-height: 1.45;
         }
 
-        /* 6. 미리보기 효과 및 인쇄 최적화 */
-        @media screen { .print-page { box-shadow: 0 0 15px rgba(0,0,0,0.5); } }
+        .answer-text + .answer-title {
+            margin-top: 1rem;
+        }
+
+        .answer-text {
+            white-space: pre-wrap;
+        }
+
         @media print {
-            body { background: white !important; }
+            body {
+                background: #fff !important;
+            }
+
+            .no-print-bar {
+                display: none !important;
+            }
+
             .print-page {
                 width: auto;
                 min-height: auto;
                 margin: 0 !important;
+                padding: 0 !important;
                 box-shadow: none !important;
                 page-break-after: always !important;
                 break-after: page !important;
             }
-            .no-print-bar { display: none !important; }
+
+            .answer-section,
+            .answer-box {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+
+            .answer-box {
+                min-height: 0;
+            }
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body data-print-title="{% if students|length == 1 %}[{{ activity.title }}] {{ students.0.grade }}학년{{ students.0.class_no }}반 {{ students.0.name }}{% else %}[{{ activity.title }}] {% if students %}{{ students.0.grade }}학년{{ students.0.class_no }}반{% else %}전체학급{% endif %}{% endif %}">
 
     <div class="no-print-bar">
-        <!-- 1. 저장 버튼: 누르면 안내 메시지 후 인쇄창 -->
-        <!-- <button onclick="savePdf()" class="btn-save">💾 PDF 저장</button> -->
-        <!-- 2. 인쇄 버튼: 즉시 인쇄창 -->
-        <button onclick="window.print()" class="btn-print">🖨️ PDF 인쇄</button>
+        <button onclick="window.print()" class="btn-print">PDF 인쇄</button>
     </div>
 
     <div id="pdfArea">
         {% for s in students %}
-        <div class="print-page">
-            <table style="table-layout: fixed; width: 100%; border-collapse: collapse; page-break-inside: auto;">
-                <colgroup>
-                    <col style="width: 20%;"><col style="width: 30%;">
-                    <col style="width: 20%;"><col style="width: 30%;">
-                </colgroup>
-                <!-- 제목 영역 수정 -->
-                <tr class="row-header">
-                    <td class="header-bg">응시 과목</td>
-                    <td class="fw-bold">{{ activity.section }}</td>
-                    <td class="header-bg">평가명</td>
-                    <td class="fw-bold">{{ activity.title }}</td>
-                </tr>
-                <tr class="row-header">
-                    <td class="header-bg">응시자 정보</td>
-                    <td>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</td>
-                    <td class="header-bg">응시 일시</td>
-                    <td>{{ s.my_answer.submitted_at|localtime|date:"Y-m-d H:i"|default:"-" }}</td>
-                </tr>
-                <tr class="row-title">
-                    <td colspan="4" class="header-bg" style="letter-spacing: 5px;">학 생 답 안 지</td>
-                </tr>
-                <tr>
-                    <td colspan="4" class="answer-box" style="word-break: break-all; white-space: pre-wrap; background-color: #f8f9fa;">
-                        {% if s.my_answer and s.my_answer.content %}
-                            <div class="student-answer-section answer-box-content">{{ s.my_answer.content }}</div>
-                        {% else %}
-                            <div class="student-answer-section is-empty d-flex align-items-center justify-content-center" style="min-height: 40px; padding: 5px 0;">
-                                <span class="answer-box-empty text-secondary fw-bold">미제출</span>
-                            </div>
-                        {% endif %}
-                    </td>
-                </tr>
-            </table>
-        </div>
+        <section class="print-page">
+            <h1 class="print-title">학생 답안지</h1>
+            <p class="activity-title">{{ activity.section }} · {{ activity.title }}</p>
+
+            <div class="student-meta">
+                <div class="student-meta-row">
+                    <span class="student-meta-label">제출일시</span>
+                    <span>{{ s.my_answer.submitted_at|localtime|date:"Y-m-d H:i"|default:"-" }}</span>
+                </div>
+                <div class="student-meta-row">
+                    <span class="student-meta-label">학교명</span>
+                    <span>{{ s.school.name|default:"-" }}</span>
+                    <span class="student-meta-divider">|</span>
+                    <strong>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</strong>
+                </div>
+            </div>
+
+            {% if s.my_answer and s.my_answer.question %}
+            <section class="question-section">
+                <h2 class="section-title">평가 문항</h2>
+                <div class="question-content">{{ s.my_answer.question.content }}</div>
+            </section>
+            {% endif %}
+
+            <section class="answer-section">
+                <h2 class="section-title">작성한 답안</h2>
+                {% if s.my_answer and s.my_answer.content %}
+                    <div class="answer-box" data-format-answer-titles>{{ s.my_answer.content }}</div>
+                {% else %}
+                    <div class="answer-box is-empty">미제출</div>
+                {% endif %}
+            </section>
+        </section>
         {% endfor %}
     </div>
 
-    
     <script>
-        function savePdf() {
-            const element = document.getElementById('pdfArea');
-            if (!element) {
-                console.error("PDF 생성 대상(#pdfArea)을 찾을 수 없습니다.");
-                return;
-            }
+        function splitAnswerTitles(container) {
+            const normalizedContent = (container.textContent || '').replace(/\r\n?/g, '\n');
+            container.replaceChildren();
 
-            const rawTitle = document.body.dataset.printTitle || "학생답안지";
-            const cleanTitle = rawTitle
-                .replace(/\u00A0/g, " ")
-                .replace(/[\/\\:*?"<>|]/g, "_")
-                .replace(/\s+/g, " ")
-                .trim() || "학생답안지";
+            const lines = normalizedContent.split('\n');
+            let textLines = [];
 
-            const opt = {
-                margin: 10,
-                filename: cleanTitle + ".pdf",
-                image: { type: "jpeg", quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-                jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+            const appendText = () => {
+                const text = textLines.join('\n').replace(/^\n+|\n+$/g, '');
+                textLines = [];
+                if (!text) return;
+
+                const textElement = document.createElement('div');
+                textElement.className = 'answer-text';
+                textElement.textContent = text;
+                container.appendChild(textElement);
             };
 
-            html2pdf().set(opt).from(element).save();
+            lines.forEach((line) => {
+                const titleMatch = line.match(/^\s*\[([^\]]*)\]\s*$/);
+                if (!titleMatch) {
+                    textLines.push(line);
+                    return;
+                }
+
+                appendText();
+                const title = titleMatch[1].trim();
+                if (!title) return;
+
+                const titleElement = document.createElement('div');
+                titleElement.className = 'answer-title';
+                titleElement.textContent = title;
+                container.appendChild(titleElement);
+            });
+
+            appendText();
         }
+
+        document.querySelectorAll('[data-format-answer-titles]').forEach(splitAnswerTitles);
     </script>
+
 </body>
 </html>

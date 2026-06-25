@@ -130,3 +130,31 @@ class PdfViewerTests(SimpleTestCase):
             dashboard_source,
         )
         self.assertIn('window.location.href = card.dataset.href', dashboard_source)
+
+    def test_answer_print_layout_is_compact_and_fragmentable(self):
+        modal_source = get_template(
+            'components/answer_view_modal.html'
+        ).template.source
+        print_source = get_template(
+            'activities/print_answers.html'
+        ).template.source
+
+        self.assertIn('answer-meta-row answer-meta-time', modal_source)
+        self.assertIn('<span class="answer-meta-label">제출일시</span>', modal_source)
+        self.assertIn('<span class="answer-meta-divider" aria-hidden="true">|</span>', modal_source)
+        self.assertIn('class="p-0 answer-question-box"', modal_source)
+        self.assertIn('font-size: 0.995rem', modal_source)
+        self.assertIn('formatPrintAnswerContent(data.answerContent)', modal_source)
+        self.assertIn('print-answer-title', modal_source)
+
+        self.assertIn('student-meta-row', print_source)
+        self.assertIn('<span class="student-meta-label">제출일시</span>', print_source)
+        self.assertIn('<span class="student-meta-divider">|</span>', print_source)
+        self.assertIn('font-size: 10pt', print_source)
+        self.assertIn('page-break-inside: auto', print_source)
+        self.assertIn('break-inside: auto', print_source)
+        self.assertIn('box-decoration-break: clone', print_source)
+        self.assertIn('-webkit-box-decoration-break: clone', print_source)
+        self.assertIn('data-format-answer-titles', print_source)
+        self.assertIn('titleMatch = line.match', print_source)
+        self.assertNotIn('<table', print_source.lower())

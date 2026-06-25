@@ -10,20 +10,20 @@
             </div>
             <div class="modal-body p-4 answer-view-body" id="answerPdfCaptureArea">
                 <div class="alert alert-light border answer-meta-bar">
-                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-                        <div class="answer-meta-main d-flex align-items-center gap-2 flex-wrap">
-                            <span id="modalSchoolName" class="badge rounded-pill text-bg-secondary px-3 py-2">학교명</span>
-                            <span id="modalStudentInfo" class="fs-6 fw-bold text-dark"></span>
-                        </div>
-                        <div class="text-muted small answer-meta-time ms-auto text-end">
-                            제출일시: <span id="modalSubmittedAt">-</span>
-                        </div>
+                    <div class="answer-meta-row answer-meta-time">
+                        <span class="answer-meta-label">제출일시</span>
+                        <span id="modalSubmittedAt">-</span>
+                    </div>
+                    <div class="answer-meta-row answer-meta-main">
+                        <span id="modalSchoolName">학교명</span>
+                        <span class="answer-meta-divider" aria-hidden="true">|</span>
+                        <span id="modalStudentInfo" class="fw-bold text-dark"></span>
                     </div>
                 </div>
 
                 <div class="mb-4 answer-section" id="modalQuestionSection">
                     <label class="fw-bold text-secondary mb-2 answer-section-title">평가 문항</label>
-                    <div id="modalQuestionContent" class="p-3 bg-light rounded-4 border answer-question-box"></div>
+                    <div id="modalQuestionContent" class="p-0 answer-question-box"></div>
                 </div>
 
                 <div class="mb-1 answer-section">
@@ -74,19 +74,44 @@
     .answer-meta-bar {
         border-radius: 16px;
         margin-bottom: 1.5rem;
-        padding: 1rem 1.25rem;
+        padding: 0.9rem 1.1rem;
+    }
+
+    .answer-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        line-height: 1.5;
+        min-width: 0;
+    }
+
+    .answer-meta-row + .answer-meta-row {
+        margin-top: 0.35rem;
+    }
+
+    .answer-meta-label {
+        font-weight: 700;
+        color: #495057;
     }
 
     .answer-meta-main {
         min-width: 0;
+        font-size: 1rem;
+        font-weight: 700;
     }
 
     .answer-meta-main #modalSchoolName {
         flex-shrink: 0;
     }
 
+    .answer-meta-divider {
+        color: #adb5bd;
+        font-weight: 400;
+    }
+
     .answer-meta-time {
-        white-space: nowrap;
+        color: #6c757d;
+        font-size: 0.92rem;
     }
 
     .answer-section {
@@ -105,12 +130,15 @@
         page-break-inside: auto !important;
         break-inside: auto !important;
         white-space: pre-wrap;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0;
+        font-weight: 700;
+        color: #212529;
+        line-height: 1.55;
     }
 
     .answer-content-box {
         min-height: 300px;
-        font-size: 1.075rem;
+        font-size: 0.995rem;
         line-height: 1.75;
         white-space: pre-wrap;
         page-break-inside: auto !important;
@@ -148,11 +176,10 @@
 
         .answer-meta-time {
             width: 100%;
-            text-align: left !important;
         }
 
         .answer-content-box {
-            font-size: 1rem;
+            font-size: 0.94rem;
             line-height: 1.7;
         }
     }
@@ -353,6 +380,38 @@
         appendText();
     }
 
+    function formatPrintAnswerContent(content) {
+        const normalizedContent = (content || '').toString().replace(/\r\n?/g, '\n');
+        if (!normalizedContent.trim()) return escapeHtml('내용 없음');
+
+        const lines = normalizedContent.split('\n');
+        const chunks = [];
+        let textLines = [];
+
+        const appendText = () => {
+            const text = textLines.join('\n').replace(/^\n+|\n+$/g, '');
+            textLines = [];
+            if (!text) return;
+            chunks.push(`<div class="print-answer-text">${escapeHtml(text)}</div>`);
+        };
+
+        lines.forEach((line) => {
+            const titleMatch = line.match(/^\s*\[([^\]]*)\]\s*$/);
+            if (!titleMatch) {
+                textLines.push(line);
+                return;
+            }
+
+            appendText();
+            const title = titleMatch[1].trim();
+            if (!title) return;
+            chunks.push(`<div class="print-answer-title">${escapeHtml(title)}</div>`);
+        });
+
+        appendText();
+        return chunks.join('');
+    }
+
     // PDF 저장 로직 (기존 activity_result.html의 savePdf 함수 통합)
     function savePdf() {
         if (!window.currentAnswerModalData) return;
@@ -387,31 +446,45 @@
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
-                    body { font-family: 'Noto Sans KR', sans-serif; padding: 20px; line-height: 1.6; }
-                    .print-sheet { width: 100%; max-width: 190mm; margin: 0 auto; }
-                    .print-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 20px; }
-                    .print-meta { border: 2px solid #000; padding: 15px; margin-bottom: 20px; }
-                    .print-section-title { font-size: 15px; font-weight: 700; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 10px; }
-                    .print-box { border: 2px solid #000; padding: 15px; white-space: pre-wrap; margin-bottom: 25px; }
-                    .print-answer { min-height: 180mm; }
-                    @media print { body { padding: 0; } .print-sheet { padding: 5mm; } }
+                    @page { size: A4; margin: 12mm; }
+                    body { font-family: 'Noto Sans KR', sans-serif; padding: 20px; line-height: 1.55; color: #111; }
+                    .print-sheet { width: 100%; max-width: 186mm; margin: 0 auto; }
+                    .print-title { font-size: 18px; font-weight: 700; text-align: center; margin: 0 0 12px; }
+                    .print-meta { border: 1.5px solid #000; padding: 9px 11px; margin-bottom: 12px; font-size: 10.5pt; }
+                    .print-meta-row { display: flex; gap: 8px; align-items: baseline; line-height: 1.5; }
+                    .print-meta-row + .print-meta-row { margin-top: 3px; }
+                    .print-meta-label { font-weight: 700; min-width: 54px; }
+                    .print-meta-divider { margin: 0 4px; color: #555; }
+                    .print-section { margin: 0 0 10px; page-break-inside: auto; break-inside: auto; }
+                    .print-section-title { font-size: 11pt; font-weight: 700; margin: 0 0 6px; }
+                    .print-question { font-size: 10pt; font-weight: 700; white-space: pre-wrap; margin-bottom: 8px; }
+                    .print-box { border: 1.5px solid #000; padding: 10px 12px; white-space: pre-wrap; margin-bottom: 14px; font-size: 10pt; line-height: 1.65; page-break-inside: auto; break-inside: auto; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+                    .print-box::before, .print-box::after { content: ""; display: block; height: 0; }
+                    .print-answer { min-height: 0; }
+                    .print-answer-title { font-weight: 700; margin: 0 0 0.35rem; }
+                    .print-answer-text + .print-answer-title { margin-top: 1rem; }
+                    .print-answer-text { white-space: pre-wrap; }
+                    @media print {
+                        body { padding: 0; }
+                        .print-sheet { padding: 0; }
+                        .print-box { page-break-inside: auto; break-inside: auto; }
+                    }
                 </style>
             </head>
             <body>
                 <div class="print-sheet">
                     <h1 class="print-title">학 생 답 안 지</h1>
                     <div class="print-meta">
-                        <div><strong>학교명:</strong> ${escapeHtml(data.schoolName)}</div>
-                        <div><strong>학생:</strong> ${escapeHtml(`${grade}학년 ${data.classNo}반 ${data.number}번 ${name}`)}</div>
-                        <div><strong>제출일시:</strong> ${escapeHtml(data.submittedAt)}</div>
+                        <div class="print-meta-row"><span class="print-meta-label">제출일시</span><span>${escapeHtml(data.submittedAt)}</span></div>
+                        <div class="print-meta-row"><span class="print-meta-label">학교명</span><span>${escapeHtml(data.schoolName)}</span><span class="print-meta-divider">|</span><strong>${escapeHtml(`${grade}학년 ${data.classNo}반 ${data.number}번 ${name}`)}</strong></div>
                     </div>
                     <div class="print-section">
                         <h2 class="print-section-title">평가 문항</h2>
-                        <div class="print-box">${escapeHtml(data.questionContent || '문항 정보 없음')}</div>
+                        <div class="print-question">${escapeHtml(data.questionContent || '문항 정보 없음')}</div>
                     </div>
                     <div class="print-section">
                         <h2 class="print-section-title">작성한 답안</h2>
-                        <div class="print-box print-answer">${escapeHtml(data.answerContent || '내용 없음')}</div>
+                        <div class="print-box print-answer">${formatPrintAnswerContent(data.answerContent)}</div>
                     </div>
                 </div>
             </body>
