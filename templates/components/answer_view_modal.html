@@ -143,6 +143,18 @@
         border-radius: 12px !important;
     }
 
+    .text-gray-400 {
+        color: #9ca3af !important;
+    }
+
+    .italic {
+        font-style: italic !important;
+    }
+
+    .font-medium {
+        font-weight: 500 !important;
+    }
+
     .answer-section {
         display: block;
         page-break-inside: auto !important;
@@ -399,7 +411,10 @@
         container.replaceChildren();
 
         if (!normalizedContent.trim()) {
-            container.innerText = "내용이 없습니다.";
+            const emptyEl = document.createElement('p');
+            emptyEl.className = 'text-gray-400 italic font-medium m-0';
+            emptyEl.innerText = "백지제출";
+            container.appendChild(emptyEl);
             return;
         }
 
@@ -410,16 +425,29 @@
 
         const lines = normalizedContent.split('\n');
         let textLines = [];
+        let questionCounter = 0;
+        let hasHeader = false;
 
         const appendText = () => {
             const text = textLines.join('\n').replace(/^\n+|\n+$/g, '');
             textLines = [];
-            if (!text) return;
-
-            const textElement = document.createElement('div');
-            textElement.className = 'answer-content-text';
-            textElement.innerText = text;
-            container.appendChild(textElement);
+            
+            if (hasHeader) {
+                const textElement = document.createElement('div');
+                if (!text.trim()) {
+                    textElement.className = 'answer-content-text text-gray-400 italic font-medium';
+                    textElement.innerText = '백지제출';
+                } else {
+                    textElement.className = 'answer-content-text';
+                    textElement.innerText = text;
+                }
+                container.appendChild(textElement);
+            } else if (text.trim()) {
+                const textElement = document.createElement('div');
+                textElement.className = 'answer-content-text';
+                textElement.innerText = text;
+                container.appendChild(textElement);
+            }
         };
 
         lines.forEach((line) => {
@@ -433,9 +461,11 @@
             const title = titleMatch[1].trim();
             if (!title) return;
 
+            hasHeader = true;
+            questionCounter++;
             const titleElement = document.createElement('div');
             titleElement.className = 'answer-content-title font-bold fw-bold';
-            titleElement.innerText = title;
+            titleElement.innerText = `문항 ${questionCounter}. ${title}`;
             container.appendChild(titleElement);
         });
 
@@ -444,17 +474,27 @@
 
     function formatPrintAnswerContent(content) {
         const normalizedContent = (content || '').toString().replace(/\r\n?/g, '\n');
-        if (!normalizedContent.trim()) return escapeHtml('내용 없음');
+        if (!normalizedContent.trim()) return '<div class="print-answer-text text-gray-400 italic font-medium">백지제출</div>';
 
         const lines = normalizedContent.split('\n');
         const chunks = [];
         let textLines = [];
+        let questionCounter = 0;
+        let hasHeader = false;
 
         const appendText = () => {
             const text = textLines.join('\n').replace(/^\n+|\n+$/g, '');
             textLines = [];
-            if (!text) return;
-            chunks.push(`<div class="print-answer-text">${escapeHtml(text)}</div>`);
+            
+            if (hasHeader) {
+                if (!text.trim()) {
+                    chunks.push(`<div class="print-answer-text text-gray-400 italic font-medium">백지제출</div>`);
+                } else {
+                    chunks.push(`<div class="print-answer-text">${escapeHtml(text)}</div>`);
+                }
+            } else if (text.trim()) {
+                chunks.push(`<div class="print-answer-text">${escapeHtml(text)}</div>`);
+            }
         };
 
         lines.forEach((line) => {
@@ -467,7 +507,10 @@
             appendText();
             const title = titleMatch[1].trim();
             if (!title) return;
-            chunks.push(`<div class="print-answer-title">${escapeHtml(title)}</div>`);
+
+            hasHeader = true;
+            questionCounter++;
+            chunks.push(`<div class="print-answer-title font-bold fw-bold">문항 ${questionCounter}. ${escapeHtml(title)}</div>`);
         });
 
         appendText();
@@ -566,6 +609,15 @@
                     }
                     .p-4 {
                         padding: 16px !important;
+                    }
+                    .text-gray-400 {
+                        color: #9ca3af !important;
+                    }
+                    .italic {
+                        font-style: italic !important;
+                    }
+                    .font-medium {
+                        font-weight: 500 !important;
                     }
                     .print-question {
                         font-size: 9pt;
