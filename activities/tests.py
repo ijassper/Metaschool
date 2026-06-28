@@ -139,13 +139,23 @@ class PdfViewerTests(SimpleTestCase):
             'activities/print_answers.html'
         ).template.source
 
-        self.assertIn('answer-meta-row answer-meta-time', modal_source)
+        self.assertIn('answer-meta-left', modal_source)
+        self.assertIn('answer-meta-right', modal_source)
         self.assertIn('<span class="answer-meta-label">제출일시</span>', modal_source)
         self.assertIn('<span class="answer-meta-divider" aria-hidden="true">|</span>', modal_source)
+        self.assertIn('justify-content: space-between', modal_source)
+        self.assertIn('class="answer-section answer-question-panel bg-gray-50 rounded-xl p-4"', modal_source)
         self.assertIn('class="p-0 answer-question-box"', modal_source)
+        self.assertIn('font-size: 0.9rem', modal_source)
+        self.assertIn('font-weight: normal', modal_source)
         self.assertIn('font-size: 0.995rem', modal_source)
+        self.assertIn('-webkit-print-color-adjust: exact', modal_source)
+        self.assertIn('print-color-adjust: exact', modal_source)
         self.assertIn('formatPrintAnswerContent(data.answerContent)', modal_source)
         self.assertIn('print-answer-title', modal_source)
+        self.assertIn('print-meta-left', modal_source)
+        self.assertIn('print-meta-right', modal_source)
+        self.assertIn('print-question-panel', modal_source)
 
         self.assertIn('student-meta-row', print_source)
         self.assertIn('<span class="student-meta-label">제출일시</span>', print_source)

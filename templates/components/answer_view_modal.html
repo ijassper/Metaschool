@@ -14,18 +14,18 @@
             </div>
             <div class="modal-body p-4 answer-view-body" id="answerPdfCaptureArea">
                 <div class="alert alert-light border answer-meta-bar">
-                    <div class="answer-meta-row answer-meta-time">
+                    <div class="answer-meta-left">
                         <span class="answer-meta-label">제출일시</span>
                         <span id="modalSubmittedAt">-</span>
                     </div>
-                    <div class="answer-meta-row answer-meta-main">
+                    <div class="answer-meta-right">
                         <span id="modalSchoolName">학교명</span>
                         <span class="answer-meta-divider" aria-hidden="true">|</span>
                         <span id="modalStudentInfo" class="fw-bold text-dark"></span>
                     </div>
                 </div>
 
-                <div class="answer-section bg-gray-50 rounded-xl p-4" id="modalQuestionSection">
+                <div class="answer-section answer-question-panel bg-gray-50 rounded-xl p-4" id="modalQuestionSection">
                     <label class="fw-bold text-secondary mb-2 answer-section-title">평가 문항</label>
                     <div id="modalQuestionContent" class="p-0 answer-question-box"></div>
                 </div>
@@ -82,7 +82,8 @@
         print-color-adjust: exact !important;
     }
 
-    .answer-meta-row {
+    .answer-meta-left,
+    .answer-meta-right {
         display: flex;
         align-items: center;
         gap: 0.6rem;
@@ -90,8 +91,21 @@
         min-width: 0;
     }
 
-    .answer-meta-bar .answer-meta-row + .answer-meta-row {
-        margin-top: 0;
+    .answer-meta-left {
+        color: #6c757d;
+        font-size: 0.92rem;
+        flex: 0 0 auto;
+    }
+
+    .answer-meta-right {
+        justify-content: flex-end;
+        text-align: right;
+        font-size: 1rem;
+        font-weight: 700;
+        flex: 1 1 auto;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .answer-meta-label {
@@ -99,13 +113,7 @@
         color: #495057;
     }
 
-    .answer-meta-main {
-        min-width: 0;
-        font-size: 1rem;
-        font-weight: 700;
-    }
-
-    .answer-meta-main #modalSchoolName {
+    .answer-meta-right #modalSchoolName {
         flex-shrink: 0;
     }
 
@@ -114,14 +122,19 @@
         font-weight: 400;
     }
 
-    .answer-meta-time {
-        color: #6c757d;
-        font-size: 0.92rem;
+    #modalQuestionSection {
+        margin-bottom: 16px !important;
     }
 
-    #modalQuestionSection {
-        font-size: 0.9rem;
-        margin-bottom: 16px !important;
+    .answer-question-panel {
+        border: 1px solid #e9ecef;
+        background-color: #f9fafb !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    #modalQuestionSection.p-4 {
+        padding: 1rem !important;
     }
 
     .bg-gray-50 {
@@ -152,6 +165,7 @@
         white-space: pre-wrap;
         margin-bottom: 0;
         font-weight: normal;
+        font-size: 0.9rem;
         color: #212529;
         line-height: 1.55;
     }
@@ -201,8 +215,12 @@
             gap: 0.5rem;
         }
 
-        .answer-meta-time {
+        .answer-meta-left,
+        .answer-meta-right {
             width: 100%;
+            justify-content: flex-start;
+            text-align: left;
+            white-space: normal;
         }
 
         .answer-content-box {
@@ -239,17 +257,31 @@
             flex-direction: row !important;
         }
 
-        .answer-meta-row {
+        .answer-meta-left,
+        .answer-meta-right {
             display: flex !important;
             align-items: center !important;
         }
 
-        .answer-meta-row + .answer-meta-row {
-            margin-top: 0 !important;
+        .answer-meta-right {
+            justify-content: flex-end !important;
+            text-align: right !important;
+            white-space: nowrap !important;
         }
 
-        .bg-gray-50 {
+        .bg-gray-50,
+        .answer-question-panel {
             background-color: #f9fafb !important;
+            border: 1px solid #e9ecef !important;
+            border-radius: 12px !important;
+            padding: 1rem !important;
+            margin-bottom: 16px !important;
+        }
+
+        .answer-question-box {
+            font-size: 0.9rem !important;
+            font-weight: normal !important;
+            line-height: 1.55 !important;
         }
 
         .answer-content-box {
@@ -497,11 +529,23 @@
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
-                    .print-meta-row {
+                    .print-meta-left,
+                    .print-meta-right {
                         display: flex;
                         gap: 8px;
                         align-items: center;
                         line-height: 1.5;
+                    }
+                    .print-meta-left {
+                        color: #6c757d;
+                        flex: 0 0 auto;
+                    }
+                    .print-meta-right {
+                        justify-content: flex-end;
+                        text-align: right;
+                        font-weight: 700;
+                        flex: 1 1 auto;
+                        white-space: nowrap;
                     }
                     .print-meta-label { font-weight: 700; color: #495057; }
                     .print-meta-divider { margin: 0 4px; color: #adb5bd; }
@@ -514,8 +558,10 @@
                     .print-section-title { font-size: 11pt; font-weight: 700; margin: 0 0 8px; }
                     .text-primary { color: #8E44AD !important; }
                     .text-secondary { color: #6c757d !important; }
+                    .print-question-panel,
                     .bg-gray-50 {
                         background-color: #f9fafb !important;
+                        border: 1px solid #e9ecef;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
@@ -557,6 +603,38 @@
                     @media print {
                         body { padding: 0; }
                         .print-sheet { padding: 0; }
+                        .print-meta {
+                            display: flex !important;
+                            justify-content: space-between !important;
+                            align-items: flex-start !important;
+                            flex-direction: row !important;
+                        }
+                        .print-meta-left,
+                        .print-meta-right {
+                            display: flex !important;
+                            align-items: center !important;
+                        }
+                        .print-meta-right {
+                            justify-content: flex-end !important;
+                            text-align: right !important;
+                            white-space: nowrap !important;
+                        }
+                        .print-question-panel,
+                        .print-box {
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        .print-question-panel {
+                            background-color: #f9fafb !important;
+                            border: 1px solid #e9ecef !important;
+                            border-radius: 12px !important;
+                            padding: 16px !important;
+                            margin-bottom: 16px !important;
+                        }
+                        .print-question {
+                            font-size: 9pt !important;
+                            font-weight: normal !important;
+                        }
                         .print-box { page-break-inside: auto; break-inside: auto; }
                     }
                 </style>
@@ -565,17 +643,17 @@
                 <div class="print-sheet">
                     <h1 class="print-title">학 생 답 안 지</h1>
                     <div class="print-meta">
-                        <div class="print-meta-row">
+                        <div class="print-meta-left">
                             <span class="print-meta-label">제출일시</span>
                             <span>${escapeHtml(data.submittedAt)}</span>
                         </div>
-                        <div class="print-meta-row">
+                        <div class="print-meta-right">
                             <span>${escapeHtml(data.schoolName)}</span>
                             <span class="print-meta-divider">|</span>
                             <strong>${escapeHtml(`${grade}학년 ${data.classNo}반 ${data.number}번 ${name}`)}</strong>
                         </div>
                     </div>
-                    <div class="print-section bg-gray-50 rounded-xl p-4">
+                    <div class="print-section print-question-panel bg-gray-50 rounded-xl p-4">
                         <h2 class="print-section-title text-secondary">평가 문항</h2>
                         <div class="print-question">${escapeHtml(data.questionContent || '문항 정보 없음')}</div>
                     </div>
