@@ -413,7 +413,7 @@
         if (!normalizedContent.trim()) {
             const emptyEl = document.createElement('p');
             emptyEl.className = 'text-gray-400 italic font-medium m-0';
-            emptyEl.innerText = "백지제출";
+            emptyEl.innerText = "백지 답안";
             container.appendChild(emptyEl);
             return;
         }
@@ -436,7 +436,7 @@
                 const textElement = document.createElement('div');
                 if (!text.trim()) {
                     textElement.className = 'answer-content-text text-gray-400 italic font-medium';
-                    textElement.innerText = '백지제출';
+                    textElement.innerText = '백지 답안';
                 } else {
                     textElement.className = 'answer-content-text';
                     textElement.innerText = text;
@@ -474,7 +474,7 @@
 
     function formatPrintAnswerContent(content) {
         const normalizedContent = (content || '').toString().replace(/\r\n?/g, '\n');
-        if (!normalizedContent.trim()) return '<div class="print-answer-text text-gray-400 italic font-medium">백지제출</div>';
+        if (!normalizedContent.trim()) return '<div class="print-answer-text text-gray-400 italic font-medium">백지 답안</div>';
 
         const lines = normalizedContent.split('\n');
         const chunks = [];
@@ -488,7 +488,7 @@
             
             if (hasHeader) {
                 if (!text.trim()) {
-                    chunks.push(`<div class="print-answer-text text-gray-400 italic font-medium">백지제출</div>`);
+                    chunks.push(`<div class="print-answer-text text-gray-400 italic font-medium">백지 답안</div>`);
                 } else {
                     chunks.push(`<div class="print-answer-text">${escapeHtml(text)}</div>`);
                 }

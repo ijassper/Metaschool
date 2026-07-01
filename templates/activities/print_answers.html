@@ -274,7 +274,7 @@
             <section class="answer-section">
                 <h2 class="section-title">작성한 답안</h2>
                 {% if not s.my_answer or not s.my_answer.content %}
-                    <div class="answer-box is-empty text-gray-400 italic font-medium">백지제출</div>
+                    <div class="answer-box is-empty text-gray-400 italic font-medium">백지 답안</div>
                 {% else %}
                     <div class="answer-box" data-format-answer-titles>{{ s.my_answer.content }}</div>
                 {% endif %}
@@ -291,7 +291,7 @@
             if (!normalizedContent.trim()) {
                 const emptyEl = document.createElement('div');
                 emptyEl.className = 'answer-text text-gray-400 italic font-medium';
-                emptyEl.textContent = '백지제출';
+                emptyEl.textContent = '백지 답안';
                 container.appendChild(emptyEl);
                 return;
             }
@@ -309,7 +309,7 @@
                     const textElement = document.createElement('div');
                     if (!text.trim()) {
                         textElement.className = 'answer-text text-gray-400 italic font-medium';
-                        textElement.textContent = '백지제출';
+                        textElement.textContent = '백지 답안';
                     } else {
                         textElement.className = 'answer-text';
                         textElement.textContent = text;

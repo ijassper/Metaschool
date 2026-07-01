@@ -2,7 +2,9 @@
 
 import json
 import re
+from urllib.parse import urlencode
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
@@ -141,19 +143,35 @@ def answer_detail(request, answer_id):
 def answer_delete(request, answer_id):
     answer = get_object_or_404(Answer, id=answer_id)
     activity = answer.question.activity
-    
-    # 리다이렉트 시 필요한 정보 미리 보관
     activity_id = activity.id
-    cat = request.GET.get('category', activity.category)
-    sub = request.GET.get('sub', activity.sub_category)
     
     # 답안 삭제
     answer.delete()
     
     messages.success(request, "답안을 삭제(반려)했습니다.")
     
-    # 제출 현황으로 돌아갈 때 파라미터를 함께 전달하여 메뉴 활성화 유지
-    return redirect(f'/activities/result/{activity_id}/?category={cat}&sub={sub}')
+    # 1. Query Parameter (현재 파라미터)
+    category = request.GET.get('category')
+    sub = request.GET.get('sub')
+    
+    if category or sub:
+        query_params = {}
+        if category:
+            query_params['category'] = category
+        if sub:
+            query_params['sub'] = sub
+            
+        base_url = reverse('activity_result', kwargs={'activity_id': activity_id})
+        query_string = urlencode(query_params)
+        return redirect(f'{base_url}?{query_string}')
+        
+    # 2. Referer (이전 페이지)
+    referer = request.META.get('HTTP_REFERER')
+    if referer:
+        return redirect(referer)
+        
+    # 3. 대시보드 메인
+    return redirect('dashboard')
 
 # [4] 선생님 특이사항 메모 저장 (AJAX)
 @login_required

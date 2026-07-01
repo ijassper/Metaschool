@@ -694,14 +694,21 @@
     }
 
     // 폐기 확인 함수
-        function discardAnswer(answerId, studentName) {
+    function discardAnswer(answerId, studentName) {
         // 1. 클릭된 버튼 요소를 찾습니다.
         const btn = event.currentTarget;
         // 2. 버튼에 심어둔 정확한 URL을 가져옵니다.
-        const targetUrl = btn.getAttribute('data-url');
+        let targetUrl = btn.getAttribute('data-url');
+
+        // 3. 현재 URL의 쿼리 파라미터가 있는 경우 동적으로 합산/전달
+        const currentParams = new URLSearchParams(window.location.search);
+        if (currentParams.toString()) {
+            const separator = targetUrl.includes('?') ? '&' : '?';
+            targetUrl = targetUrl + separator + currentParams.toString();
+        }
 
         if (confirm(`[${studentName}] 학생의 답안을 정말로 폐기하시겠습니까?\n폐기된 답안은 복구할 수 없으며 학생은 재응시해야 합니다.`)) {
-            // 3. 404 걱정 없는 정확한 주소로 이동합니다.
+            // 4. 404 걱정 없는 정확한 주소로 이동합니다.
             location.href = targetUrl;
         }
     }
