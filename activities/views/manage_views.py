@@ -393,8 +393,26 @@ def unified_delete(request, activity_id):
     messages.success(request, "평가활동이 성공적으로 삭제되었습니다.")
 
     # 5. [중요] 삭제 전 보관했던 파라미터를 붙여서 '원래 보던 목록'으로 보내줍니다.
-    # 이렇게 해야 동아리 삭제 후 다시 동아리 목록이 나옵니다.
-    return redirect(f'/activities/list/?category={cat_code}&sub={sub_menu}')
+    # 이렇게 해야 동아리 삭제 후 다시 동아리 목록이 나옵니다. (학급 및 메뉴 등 모든 쿼리 파라미터 보존)
+    from urllib.parse import urlencode
+    
+    params = {}
+    for key in ['category', 'sub', 'class_id', 'q']:
+        val = request.GET.get(key)
+        if val:
+            params[key] = val
+            
+    targets = request.GET.getlist('target')
+    if targets:
+        params['target'] = targets
+        
+    if 'category' not in params:
+        params['category'] = cat_code
+    if 'sub' not in params and sub_menu:
+        params['sub'] = sub_menu
+        
+    query_string = urlencode(params, doseq=True)
+    return redirect(f'/activities/list/?{query_string}')
 
 # 평가 상태 토글 (시작 <-> 마감)
 @login_required

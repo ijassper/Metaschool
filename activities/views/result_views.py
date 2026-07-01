@@ -150,19 +150,23 @@ def answer_delete(request, answer_id):
     
     messages.success(request, "답안을 삭제(반려)했습니다.")
     
-    # 1. Query Parameter (현재 파라미터)
-    category = request.GET.get('category')
-    sub = request.GET.get('sub')
-    
-    if category or sub:
-        query_params = {}
-        if category:
-            query_params['category'] = category
-        if sub:
-            query_params['sub'] = sub
+    # 1. Query Parameter (현재 파라미터 보존)
+    # category, sub, class_id, target(학급 필터), q(검색어) 등 모든 필수 상태값 추출
+    params = {}
+    for key in ['category', 'sub', 'class_id', 'q']:
+        val = request.GET.get(key)
+        if val:
+            params[key] = val
             
+    # target은 multi-value 파라미터이므로 getlist로 별도 처리
+    targets = request.GET.getlist('target')
+    if targets:
+        params['target'] = targets
+        
+    if params:
+        # urlencode에 doseq=True를 주어 리스트 타입인 target이 올바르게 인코딩되도록 합니다.
+        query_string = urlencode(params, doseq=True)
         base_url = reverse('activity_result', kwargs={'activity_id': activity_id})
-        query_string = urlencode(query_params)
         return redirect(f'{base_url}?{query_string}')
         
     # 2. Referer (이전 페이지)
