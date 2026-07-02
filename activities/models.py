@@ -17,6 +17,7 @@ class Activity(models.Model):
         ('CLUB', '동아리활동'),
         ('CAREER', '진로활동'),
         ('SCHOOL_LIFE', '기타 학교생활'),
+        ('WRITING', '기초 쓰기 활동'),
     ]
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='ESSAY', verbose_name="활동 유형")
     sub_category = models.CharField(max_length=50, blank=True, null=True, verbose_name="소메뉴명")
