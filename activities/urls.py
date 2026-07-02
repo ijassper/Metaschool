@@ -45,6 +45,23 @@ urlpatterns = [
     path('analysis/all/', integrated_analysis, name='integrated_analysis'),
     path('analysis-work/<int:activity_id>/', activity_analysis_work, name='activity_analysis_work'),
     path('api/get-or-create-batch/', get_or_create_batch, name='get_or_create_batch'),
+    path('take/<int:activity_id>/draft/', save_answer_draft, name='save_answer_draft'),
+    path('take/<int:activity_id>/start/', start_exam, name='start_exam'),
+    path('take/<int:activity_id>/re-enter/', re_enter_exam, name='re_enter_exam'),
+    path('api/log/', log_activity, name='log_activity'),
+    path('api/update-absence/', update_absence, name='update_absence'),
+
+    # 4. 결과 및 답안 관리 (result_views)
+    path('result/<int:activity_id>/', activity_result, name='activity_result'),
+    path('answer/detail/<int:answer_id>/', answer_detail, name='answer_detail'),
+    path('answer/delete/<int:answer_id>/', answer_delete, name='answer_delete'),
+    path('answer/note/<int:activity_id>/<int:student_id>/', save_note, name='save_note'),
+
+    # 5. AI 분석 (ai_views)
+    path('analysis/<int:activity_id>/', activity_analysis, name='activity_analysis'),
+    path('analysis/all/', integrated_analysis, name='integrated_analysis'),
+    path('analysis-work/<int:activity_id>/', activity_analysis_work, name='activity_analysis_work'),
+    path('api/get-or-create-batch/', get_or_create_batch, name='get_or_create_batch'),
     path('api/process-db-row/', api_process_db_row, name='api_process_db_row'),
 
     # 6. 내보내기 (export_views)
@@ -52,4 +69,6 @@ urlpatterns = [
     path('submission/export-docx/<int:activity_id>/', export_answer_sheets_docx, name='export_answer_sheets_docx'),
     path('submission/print/<int:activity_id>/', print_answer_sheets, name='print_answer_sheets'),
     path('analysis/export/<int:activity_id>/', analysis_export_excel, name='analysis_export_excel'),
+    path('activities/transcription/', unified_create, name='transcription'),
+    path('activities/typing/', unified_create, name='typing'),
 ]

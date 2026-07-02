@@ -204,6 +204,23 @@ def get_form_config(sub_menu):
             'ai_info': [],
             'default_q': ['학기 성장 기록', '진로 변화 과정', '향후 진로 계획']
         },
+        # ==========================================
+        # 7. 기초 쓰기 활동
+        # ==========================================
+        '필사(받아쓰기)': {
+            'basic': {'section': '필사 주제', 'title': '세부 주제'},
+            'detail': {'date': '제출 기한', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
+            'ai_info': [],
+            'default_q': ['항목 1', '항목 2', '항목 3']
+        },
+        '타자 연습': {
+            'basic': {'section': '연습 주제', 'title': '세부 주제'},
+            'detail': {'date': '제출 기한', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
+            'ai_info': [],
+            'default_q': ['항목 1', '항목 2', '항목 3']
+        },
     }
 
     # 매칭되는 소메뉴가 없을 때 사용할 기본 설정
