@@ -474,10 +474,12 @@
     </div>
     <div class="collapse {% if request.GET.category == 'WRITING' %}show{% endif %}" id="writingMenu">
         <div class="sub-menu-list">
-            <a href="{% url 'unified_list' %}?category=WRITING&sub=필사(받아쓰기)" 
-               class="sub-menu-item {% if request.GET.sub == '필사(받아쓰기)' %}active{% endif %}">필사(받아쓰기)</a>
-            <a href="{% url 'unified_list' %}?category=WRITING&sub=타자 연습" 
-               class="sub-menu-item {% if request.GET.sub == '타자 연습' %}active{% endif %}">타자 연습</a>
+            <a href="{% url 'unified_list' %}?category=WRITING&sub=좋은글 필사하기" 
+               class="sub-menu-item {% if request.GET.sub == '좋은글 필사하기' %}active{% endif %}">좋은글 필사하기</a>
+            <a href="{% url 'unified_list' %}?category=WRITING&sub=한글 타자 연습" 
+               class="sub-menu-item {% if request.GET.sub == '한글 타자 연습' %}active{% endif %}">한글 타자 연습</a>
+            <a href="{% url 'unified_list' %}?category=WRITING&sub=영문 타자 연습" 
+               class="sub-menu-item {% if request.GET.sub == '영문 타자 연습' %}active{% endif %}">영문 타자 연습</a>
         </div>
     </div>
 </div>
