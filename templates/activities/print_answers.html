@@ -246,41 +246,9 @@
     </div>
 
     <div id="pdfArea">
-        {% for s in students %}
-        <section class="print-page">
-            <h1 class="print-title">학생 답안지</h1>
-            <p class="activity-title">{{ activity.section }} · {{ activity.title }}</p>
-
-            <div class="student-meta">
-                <div class="student-meta-row">
-                    <span class="student-meta-label">제출일시</span>
-                    <span>{{ s.my_answer.submitted_at|localtime|date:"Y-m-d H:i"|default:"-" }}</span>
-                </div>
-                <div class="student-meta-row">
-                    <span class="student-meta-label">학교명</span>
-                    <span>{{ s.school.name|default:"-" }}</span>
-                    <span class="student-meta-divider">|</span>
-                    <strong>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</strong>
-                </div>
-            </div>
-
-            {% if s.my_answer and s.my_answer.question %}
-            <section class="question-section">
-                <h2 class="section-title">평가 문항</h2>
-                <div class="question-content">{{ s.my_answer.question.content }}</div>
-            </section>
-            {% endif %}
-
-            <section class="answer-section">
-                <h2 class="section-title">작성한 답안</h2>
-                {% if not s.my_answer or not s.my_answer.content %}
-                    <div class="answer-box is-empty text-gray-400 italic font-medium">백지 답안</div>
-                {% else %}
-                    <div class="answer-box" data-format-answer-titles>{{ s.my_answer.content }}</div>
-                {% endif %}
-            </section>
-        </section>
-        {% endfor %}
+{% for s in students %}
+{% include 'components/answer_sheet_print.html' %}
+{% endfor %}
     </div>
 
     <script>

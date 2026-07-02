@@ -1,0 +1,32 @@
+{% comment %}
+Reusable printable answer sheet component for bulk print.
+It renders a full printable page for a student `s`.
+{% endcomment %}
+<section class="print-page">
+    <h1 class="print-title">학생 답안지</h1>
+    <div class="student-meta">
+        <div class="student-meta-left">
+            <span class="student-meta-label">제출일시</span>
+            <span>{{ s.my_answer.submitted_at|localtime|date:"Y-m-d H:i"|default:"-" }}</span>
+        </div>
+        <div class="student-meta-right">
+            <span>{{ s.school.name|default:"-" }}</span>
+            <span class="student-meta-divider" aria-hidden="true">|</span>
+            <strong>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}</strong>
+        </div>
+    </div>
+    {% if s.my_answer and s.my_answer.question %}
+    <div class="print-section print-question-panel bg-gray-50 rounded-xl p-4">
+        <h2 class="print-section-title text-secondary">평가 문항</h2>
+        <div class="print-question">{{ s.my_answer.question.content }}</div>
+    </div>
+    {% endif %}
+    <div class="print-section">
+        <h2 class="print-section-title">작성한 답안</h2>
+        {% if not s.my_answer or not s.my_answer.content %}
+            <div class="print-box print-answer text-gray-400 italic font-medium">백지 답안</div>
+        {% else %}
+            <div class="print-box print-answer" data-format-answer-titles>{{ s.my_answer.content }}</div>
+        {% endif %}
+    </div>
+</section>
