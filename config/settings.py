@@ -152,6 +152,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # 서버(DEBUG=False)에서만 작동하도록 설정하여 개발 환경에서는 편리하게 HTTP로 테스트할 수 있게 합니다.
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # 2. 가비아 컨테이너와 같은 프록시 서버 환경에서 HTTPS 여부를 판별하기 위한 설정
 # 가비아 서버가 내부적으로 HTTPS 요청을 처리할 때 이 헤더를 사용합니다.
