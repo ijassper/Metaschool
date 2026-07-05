@@ -303,6 +303,82 @@
                 </div>
             </div>
 
+            {% if config.typing_fields %}
+            <div class="bg-white rounded-4 shadow-sm p-4 mb-3 border border-1">
+                <h6 class="fw-bold mb-3 text-primary">
+                    <i class="bi bi-keyboard-fill me-2"></i>타자 연습 설정
+                </h6>
+
+                <div class="row mb-3 align-items-center">
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.typing_fields.typing_type.label }}</div>
+                    <div class="col-md-9 px-4">
+                        <div class="d-flex flex-wrap gap-3">
+                            {% for value, label in config.typing_fields.typing_type.choices %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="typing_type" id="typing_type_{{ value }}" value="{{ value }}"
+                                    {% if form_data.typing_type == value or activity.typing_type == value or not activity and not form_data and forloop.first %}checked{% endif %}>
+                                <label class="form-check-label fw-bold" for="typing_type_{{ value }}">{{ label }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3 align-items-center">
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.typing_fields.typing_position.label }}</div>
+                    <div class="col-md-9 px-4">
+                        <div class="d-flex flex-wrap gap-3">
+                            {% for value, label in config.typing_fields.typing_position.choices %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="typing_position" id="typing_position_{{ value }}" value="{{ value }}"
+                                    {% if form_data.typing_position == value or activity.typing_position == value or not activity and not form_data and value == 'BOTH' %}checked{% endif %}>
+                                <label class="form-check-label fw-bold" for="typing_position_{{ value }}">{{ label }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3 align-items-center">
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.typing_fields.typing_level.label }}</div>
+                    <div class="col-md-9 px-4">
+                        <select name="typing_level" class="form-select border-0 shadow-sm p-3">
+                            {% for value, label in config.typing_fields.typing_level.choices %}
+                            <option value="{{ value }}" {% if form_data.typing_level == value or activity.typing_level == value or not activity and not form_data and forloop.first %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-3 align-items-center">
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.typing_fields.duration.label }}</div>
+                    <div class="col-md-9 px-4 d-flex align-items-center gap-2">
+                        <input type="number" name="duration" min="1" max="600" class="form-control border-0 shadow-sm p-3 text-center" style="max-width: 140px;"
+                            value="{% if form_data.duration %}{{ form_data.duration }}{% elif activity.duration %}{{ activity.duration }}{% else %}{{ config.typing_fields.duration.default }}{% endif %}">
+                        <span class="fw-bold text-muted">분</span>
+                    </div>
+                </div>
+
+                <div class="row mb-3 align-items-center">
+                    <div class="col-md-3 text-center fw-bold text-secondary border-end">{{ config.typing_fields.show_keyboard.label }}</div>
+                    <div class="col-md-9 px-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" name="show_keyboard" id="show_keyboard" value="on"
+                                {% if form_data.show_keyboard or activity.show_keyboard or not activity and not form_data %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="show_keyboard">학생 화면에 키보드 가이드를 표시합니다.</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-0">
+                    <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">{{ config.typing_fields.target_data.label }}</div>
+                    <div class="col-md-9 px-4">
+                        <textarea name="target_data" class="form-control border-0 shadow-sm p-3" rows="6" placeholder="학생이 타이핑할 단어, 문장, 문단을 입력하세요.">{% if form_data.target_data %}{{ form_data.target_data }}{% else %}{{ activity.target_data }}{% endif %}</textarea>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- 3. 참고 자료 및 다중 파일 업로드 (핵심 변경 부분) -->
             <div class="row mb-3">
                 <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">참고 자료 및 파일</div>

@@ -22,6 +22,28 @@ from accounts.decorators import teacher_required
 
 logger = logging.getLogger(__name__)
 
+def normalize_typing_duration(value):
+    try:
+        duration = int(value)
+    except (TypeError, ValueError):
+        return None
+    return min(max(duration, 1), 600)
+
+def get_allowed_choice_values(choices):
+    return {value for value, _label in choices}
+
+def apply_typing_settings_from_post(activity, post_data):
+    typing_types = get_allowed_choice_values(Activity.TYPING_TYPE_CHOICES)
+    typing_positions = get_allowed_choice_values(Activity.TYPING_POSITION_CHOICES)
+    typing_levels = get_allowed_choice_values(Activity.TYPING_LEVEL_CHOICES)
+
+    activity.typing_type = post_data.get('typing_type') if post_data.get('typing_type') in typing_types else 'SHORT_MISSION'
+    activity.typing_position = post_data.get('typing_position') if post_data.get('typing_position') in typing_positions else 'BOTH'
+    activity.typing_level = post_data.get('typing_level') if post_data.get('typing_level') in typing_levels else 'BEGINNER_0'
+    activity.duration = normalize_typing_duration(post_data.get('duration'))
+    activity.show_keyboard = post_data.get('show_keyboard') == 'on'
+    activity.target_data = post_data.get('target_data', '').strip()
+
 def sync_status_on_deadline_extension(activity, old_deadline, new_deadline):
     """
     제출 기한이 연장되었을 때, 기존 답안 중 아직 답안 제출하지 않은(submitted_at is null)
@@ -162,6 +184,17 @@ def unified_create(request):
                 q2_title=request.POST.get('q2_title', config.get('default_q', ['',''])[1]),
                 q3_title=request.POST.get('q3_title', config.get('default_q', ['','',''])[2]),
             )
+
+            if config.get('typing_fields'):
+                apply_typing_settings_from_post(activity, request.POST)
+                activity.save(update_fields=[
+                    'typing_type',
+                    'typing_position',
+                    'typing_level',
+                    'duration',
+                    'show_keyboard',
+                    'target_data',
+                ])
 
             print(f"[생성] Activity 객체 생성 완료 - ID: {activity.id}")
 
@@ -309,6 +342,9 @@ def unified_update(request, activity_id):
         activity.q1_title = new_q1_title
         activity.q2_title = request.POST.get('q2_title', activity.q2_title)
         activity.q3_title = request.POST.get('q3_title', activity.q3_title)
+
+        if config.get('typing_fields'):
+            apply_typing_settings_from_post(activity, request.POST)
         
         old_deadline = activity.deadline
         # [비활성화] 수업 일시(activity_date)는 UI/로직에서 제외합니다.

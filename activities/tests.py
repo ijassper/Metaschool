@@ -243,3 +243,37 @@ class PdfViewerTests(SimpleTestCase):
         self.assertNotIn("parse_dt(request.POST.get('activity_date'))", update_source)
         self.assertNotIn('activity.activity_date =', update_source)
         self.assertIn("config['detail'].pop('date', None)", main_source)
+
+    def test_typing_activity_model_config_form_and_save_logic_exist(self):
+        model_source = (
+            Path(settings.BASE_DIR) / 'activities' / 'models.py'
+        ).read_text(encoding='utf-8')
+        main_source = (
+            Path(settings.BASE_DIR) / 'activities' / 'views' / 'main_views.py'
+        ).read_text(encoding='utf-8')
+        manage_source = (
+            Path(settings.BASE_DIR) / 'activities' / 'views' / 'manage_views.py'
+        ).read_text(encoding='utf-8')
+        form_source = get_template(
+            'activities/unified_form.html'
+        ).template.source
+
+        for field_name in [
+            'typing_type',
+            'typing_position',
+            'typing_level',
+            'duration',
+            'show_keyboard',
+            'target_data',
+        ]:
+            self.assertIn(field_name, model_source)
+            self.assertIn(field_name, form_source)
+
+        self.assertIn('TYPING_TYPE_CHOICES', model_source)
+        self.assertIn('TYPING_POSITION_CHOICES', model_source)
+        self.assertIn('TYPING_LEVEL_CHOICES', model_source)
+        self.assertIn("'타자 연습':", main_source)
+        self.assertIn("'typing_fields':", main_source)
+        self.assertIn('타자 연습 설정', form_source)
+        self.assertIn('apply_typing_settings_from_post', manage_source)
+        self.assertIn("if config.get('typing_fields'):", manage_source)

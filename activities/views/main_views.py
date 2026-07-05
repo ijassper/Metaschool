@@ -216,10 +216,44 @@ def get_form_config(sub_menu):
         },
         '타자 연습': {
             'basic': {'section': '연습 주제', 'title': '세부 주제'},
-            'detail': {'date': '제출 기한', 'content': '평가 문항'},
-            'textareas': [{'name': 'question', 'label': '평가 문항'}],
+            'detail': {'date': '제출 기한', 'content': '연습 안내'},
+            'textareas': [{'name': 'question', 'label': '연습 안내'}],
+            'typing_fields': {
+                'typing_type': {
+                    'label': '연습 유형',
+                    'choices': [
+                        ('SHORT_MISSION', '단시간 미션'),
+                        ('SHORT_TEAM', '단시간 팀플레이'),
+                        ('LONG_SELF', '장기간 자율 훈련'),
+                    ],
+                },
+                'typing_position': {
+                    'label': '연습 위치',
+                    'choices': [
+                        ('LEFT', '왼손'),
+                        ('RIGHT', '오른손'),
+                        ('BOTH', '양손'),
+                        ('WORD', '단어 연습'),
+                        ('SENTENCE', '문장 연습'),
+                        ('PARAGRAPH', '문단 연습'),
+                    ],
+                },
+                'typing_level': {
+                    'label': '수준',
+                    'choices': [
+                        ('BEGINNER_0', '왕초보'),
+                        ('BEGINNER_1', '초보'),
+                        ('INTERMEDIATE', '중수'),
+                        ('ADVANCED', '고수'),
+                        ('MASTER', '초고수'),
+                    ],
+                },
+                'duration': {'label': '활동 시간(분)', 'default': 5},
+                'show_keyboard': {'label': '화면 키보드 표시'},
+                'target_data': {'label': '연습 지문 데이터'},
+            },
             'ai_info': [],
-            'default_q': ['항목 1', '항목 2', '항목 3']
+            'default_q': ['타자 연습 기록', '정확도와 속도', '연습 소감']
         },
     }
 

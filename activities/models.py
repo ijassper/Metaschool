@@ -47,6 +47,34 @@ class Activity(models.Model):
     char_limit = models.IntegerField(default=0, verbose_name="분량 제한(자)") # 0은 무제한
     result = models.TextField(blank=True, verbose_name="평가 결과/피드백", help_text="학생에게 보여줄 피드백")
 
+    # --- [4-1. 타자 연습 전용 설정] ---
+    TYPING_TYPE_CHOICES = [
+        ('SHORT_MISSION', '단시간 미션'),
+        ('SHORT_TEAM', '단시간 팀플레이'),
+        ('LONG_SELF', '장기간 자율 훈련'),
+    ]
+    TYPING_POSITION_CHOICES = [
+        ('LEFT', '왼손'),
+        ('RIGHT', '오른손'),
+        ('BOTH', '양손'),
+        ('WORD', '단어 연습'),
+        ('SENTENCE', '문장 연습'),
+        ('PARAGRAPH', '문단 연습'),
+    ]
+    TYPING_LEVEL_CHOICES = [
+        ('BEGINNER_0', '왕초보'),
+        ('BEGINNER_1', '초보'),
+        ('INTERMEDIATE', '중수'),
+        ('ADVANCED', '고수'),
+        ('MASTER', '초고수'),
+    ]
+    typing_type = models.CharField(max_length=20, choices=TYPING_TYPE_CHOICES, blank=True, default='', verbose_name="타자 연습 유형")
+    typing_position = models.CharField(max_length=20, choices=TYPING_POSITION_CHOICES, blank=True, default='', verbose_name="타자 연습 위치")
+    typing_level = models.CharField(max_length=20, choices=TYPING_LEVEL_CHOICES, blank=True, default='', verbose_name="타자 연습 수준")
+    duration = models.PositiveIntegerField(null=True, blank=True, verbose_name="활동 시간(분)")
+    show_keyboard = models.BooleanField(default=True, verbose_name="화면 키보드 표시")
+    target_data = models.TextField(blank=True, default='', verbose_name="타자 연습 지문 데이터")
+
     # --- [5. 시간 관리 (핵심)] ---
     # 평가 생성일: 교사가 저장 버튼을 누른 시점 (자동 저장)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="평가 생성일")
