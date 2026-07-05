@@ -138,13 +138,17 @@ class PdfViewerTests(SimpleTestCase):
         print_source = get_template(
             'activities/print_answers.html'
         ).template.source
+        print_component_source = get_template(
+            'components/answer_sheet_print.html'
+        ).template.source
 
         self.assertIn('answer-meta-left', modal_source)
         self.assertIn('answer-meta-right', modal_source)
-        self.assertIn('<span class="answer-meta-label">제출일시</span>', modal_source)
+        self.assertIn('answer-meta-label', modal_source)
         self.assertIn('<span class="answer-meta-divider" aria-hidden="true">|</span>', modal_source)
         self.assertIn('justify-content: space-between', modal_source)
         self.assertIn('class="answer-section answer-question-panel bg-gray-50 rounded-xl p-4"', modal_source)
+        self.assertIn('문항 1. 평가 문항', modal_source)
         self.assertIn('class="p-0 answer-question-box"', modal_source)
         self.assertIn('font-size: 0.9rem', modal_source)
         self.assertIn('font-weight: normal', modal_source)
@@ -156,10 +160,12 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('print-meta-left', modal_source)
         self.assertIn('print-meta-right', modal_source)
         self.assertIn('print-question-panel', modal_source)
+        self.assertIn('백지 제출', modal_source)
 
-        self.assertIn('student-meta-row', print_source)
-        self.assertIn('<span class="student-meta-label">제출일시</span>', print_source)
-        self.assertIn('<span class="student-meta-divider">|</span>', print_source)
+        self.assertIn("{% include 'components/answer_sheet_print.html' %}", print_source)
+        self.assertIn('student-meta-left', print_source)
+        self.assertIn('student-meta-right', print_source)
+        self.assertIn('justify-content: space-between', print_source)
         self.assertIn('font-size: 10pt', print_source)
         self.assertIn('page-break-inside: auto', print_source)
         self.assertIn('break-inside: auto', print_source)
@@ -167,4 +173,12 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('-webkit-box-decoration-break: clone', print_source)
         self.assertIn('data-format-answer-titles', print_source)
         self.assertIn('titleMatch = line.match', print_source)
+        self.assertIn('백지 제출', print_source)
+        self.assertNotIn('activity-title', print_source)
         self.assertNotIn('<table', print_source.lower())
+
+        self.assertIn('student-meta-left', print_component_source)
+        self.assertIn('student-meta-right', print_component_source)
+        self.assertIn('문항 1. 평가 문항', print_component_source)
+        self.assertIn('print-question-panel bg-gray-50 rounded-xl p-4', print_component_source)
+        self.assertIn('백지 제출', print_component_source)

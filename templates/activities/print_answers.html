@@ -43,8 +43,8 @@
             display: flex;
             justify-content: center;
             gap: 15px;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.88);
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.9);
             border-bottom: 1px solid rgba(255, 255, 255, 0.35);
             backdrop-filter: blur(14px);
         }
@@ -57,6 +57,10 @@
             font-weight: 700;
             cursor: pointer;
             background: #8E44AD;
+        }
+
+        #pdfArea {
+            padding-top: 4px;
         }
 
         .print-page {
@@ -73,113 +77,133 @@
         }
 
         .print-title {
-            margin: 0 0 10px;
+            margin: 0 0 12px;
             text-align: center;
-            font-size: 16pt;
+            font-size: 18px;
             font-weight: 700;
             letter-spacing: 0.18em;
         }
 
-        .activity-title {
-            margin: 0 0 8px;
-            text-align: center;
-            font-size: 10pt;
-            font-weight: 700;
-            color: #333;
-        }
-
         .student-meta {
-            margin-bottom: 12px;
-            padding: 9px 11px;
-            border: 1.5px solid #000;
-            font-size: 10.5pt;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 1.5rem;
+            padding: 14px 18px;
+            border: 1px solid #dee2e6;
+            border-radius: 16px;
+            background-color: #f8f9fa;
+            font-size: 10pt;
             page-break-inside: avoid;
             break-inside: avoid;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
 
-        .student-meta-row {
+        .student-meta-left,
+        .student-meta-right {
             display: flex;
-            align-items: baseline;
+            align-items: center;
             gap: 8px;
+            line-height: 1.5;
             min-width: 0;
         }
 
-        .student-meta-row + .student-meta-row {
-            margin-top: 3px;
-        }
-
-        .student-meta-label {
-            min-width: 54px;
-            font-weight: 700;
+        .student-meta-left {
+            color: #6c757d;
             flex: 0 0 auto;
         }
 
-        .student-meta-divider {
-            color: #555;
-            margin: 0 2px;
+        .student-meta-right {
+            justify-content: flex-end;
+            text-align: right;
+            font-weight: 700;
+            flex: 1 1 auto;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .question-section {
-            margin-bottom: 8px;
+        .student-meta-label {
+            font-weight: 700;
+            color: #495057;
+        }
+
+        .student-meta-divider {
+            color: #adb5bd;
+            margin: 0 4px;
+        }
+
+        .print-section {
+            margin-bottom: 16px;
             page-break-inside: auto;
             break-inside: auto;
         }
 
-        .section-title {
-            margin: 0 0 5px;
+        .print-section-title {
+            margin: 0 0 8px;
             font-size: 11pt;
             font-weight: 700;
         }
 
-        .question-content {
+        .text-secondary {
+            color: #6c757d !important;
+        }
+
+        .bg-gray-50,
+        .print-question-panel {
+            background-color: #f9fafb !important;
+            border: 1px solid #e9ecef;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .rounded-xl {
+            border-radius: 12px !important;
+        }
+
+        .p-4 {
+            padding: 16px !important;
+        }
+
+        .print-question {
             margin: 0;
             white-space: pre-wrap;
             word-break: break-word;
             overflow-wrap: anywhere;
-            font-size: 10pt;
-            font-weight: 700;
+            font-size: 9pt;
+            font-weight: normal;
+            color: #212529;
             line-height: 1.55;
         }
 
-        .answer-section {
-            margin-top: 8px;
-            page-break-inside: auto;
-            break-inside: auto;
-        }
-
-        .answer-box {
-            min-height: 120mm;
-            padding: 10px 12px;
-            border: 1.5px solid #000;
+        .print-box {
+            min-height: 0;
+            padding: 16px;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            background: #fff;
             white-space: pre-wrap;
             word-break: break-word;
             overflow-wrap: anywhere;
             font-size: 10pt;
             line-height: 1.65;
-            background: #fff;
             page-break-inside: auto;
             break-inside: auto;
             box-decoration-break: clone;
             -webkit-box-decoration-break: clone;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
             orphans: 3;
             widows: 3;
         }
 
-        .answer-box::before,
-        .answer-box::after {
+        .print-box::before,
+        .print-box::after {
             content: "";
             display: block;
             height: 0;
-        }
-
-        .answer-box.is-empty {
-            min-height: 40mm;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #495057;
-            font-weight: 700;
-            text-align: center;
         }
 
         .text-gray-400 {
@@ -194,17 +218,20 @@
             font-weight: 500 !important;
         }
 
-        .answer-title {
-            margin: 0 0 0.45rem;
+        .answer-title,
+        .print-answer-title {
+            margin: 0 0 0.35rem;
             font-weight: 700;
             line-height: 1.45;
         }
 
-        .answer-text + .answer-title {
+        .answer-text + .answer-title,
+        .print-answer-text + .print-answer-title {
             margin-top: 1rem;
         }
 
-        .answer-text {
+        .answer-text,
+        .print-answer-text {
             white-space: pre-wrap;
         }
 
@@ -217,6 +244,10 @@
                 display: none !important;
             }
 
+            #pdfArea {
+                padding-top: 0 !important;
+            }
+
             .print-page {
                 width: auto;
                 min-height: auto;
@@ -227,14 +258,35 @@
                 break-after: page !important;
             }
 
-            .answer-section,
-            .answer-box {
-                page-break-inside: auto !important;
-                break-inside: auto !important;
+            .student-meta {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: flex-start !important;
+                flex-direction: row !important;
             }
 
-            .answer-box {
-                min-height: 0;
+            .student-meta-left,
+            .student-meta-right {
+                display: flex !important;
+                align-items: center !important;
+            }
+
+            .student-meta-right {
+                justify-content: flex-end !important;
+                text-align: right !important;
+                white-space: nowrap !important;
+            }
+
+            .print-question-panel,
+            .print-box {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .print-section,
+            .print-box {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
             }
         }
     </style>
@@ -246,9 +298,9 @@
     </div>
 
     <div id="pdfArea">
-{% for s in students %}
-{% include 'components/answer_sheet_print.html' %}
-{% endfor %}
+        {% for s in students %}
+            {% include 'components/answer_sheet_print.html' %}
+        {% endfor %}
     </div>
 
     <script>
@@ -259,7 +311,7 @@
             if (!normalizedContent.trim()) {
                 const emptyEl = document.createElement('div');
                 emptyEl.className = 'answer-text text-gray-400 italic font-medium';
-                emptyEl.textContent = '백지 답안';
+                emptyEl.textContent = '백지 제출';
                 container.appendChild(emptyEl);
                 return;
             }
@@ -272,12 +324,12 @@
             const appendText = () => {
                 const text = textLines.join('\n').replace(/^\n+|\n+$/g, '');
                 textLines = [];
-                
+
                 if (hasHeader) {
                     const textElement = document.createElement('div');
                     if (!text.trim()) {
                         textElement.className = 'answer-text text-gray-400 italic font-medium';
-                        textElement.textContent = '백지 답안';
+                        textElement.textContent = '백지 제출';
                     } else {
                         textElement.className = 'answer-text';
                         textElement.textContent = text;

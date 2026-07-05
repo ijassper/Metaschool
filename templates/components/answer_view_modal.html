@@ -22,7 +22,7 @@
                 </div>
 
                 <div class="answer-section answer-question-panel bg-gray-50 rounded-xl p-4" id="modalQuestionSection">
-                    <label class="fw-bold text-secondary mb-2 answer-section-title">평가 문항</label>
+                    <label class="fw-bold text-secondary mb-2 answer-section-title">문항 1. 평가 문항</label>
                     <div id="modalQuestionContent" class="p-0 answer-question-box"></div>
                 </div>
 
@@ -413,7 +413,7 @@
         if (!normalizedContent.trim()) {
             const emptyEl = document.createElement('p');
             emptyEl.className = 'text-gray-400 italic font-medium m-0';
-            emptyEl.innerText = "백지 답안";
+            emptyEl.innerText = "백지 제출";
             container.appendChild(emptyEl);
             return;
         }
@@ -436,7 +436,7 @@
                 const textElement = document.createElement('div');
                 if (!text.trim()) {
                     textElement.className = 'answer-content-text text-gray-400 italic font-medium';
-                    textElement.innerText = '백지 답안';
+                        textElement.innerText = '백지 제출';
                 } else {
                     textElement.className = 'answer-content-text';
                     textElement.innerText = text;
@@ -474,7 +474,7 @@
 
     function formatPrintAnswerContent(content) {
         const normalizedContent = (content || '').toString().replace(/\r\n?/g, '\n');
-        if (!normalizedContent.trim()) return '<div class="print-answer-text text-gray-400 italic font-medium">백지 답안</div>';
+        if (!normalizedContent.trim()) return '<div class="print-answer-text text-gray-400 italic font-medium">백지 제출</div>';
 
         const lines = normalizedContent.split('\n');
         const chunks = [];
@@ -488,7 +488,7 @@
             
             if (hasHeader) {
                 if (!text.trim()) {
-                    chunks.push(`<div class="print-answer-text text-gray-400 italic font-medium">백지 답안</div>`);
+                    chunks.push(`<div class="print-answer-text text-gray-400 italic font-medium">백지 제출</div>`);
                 } else {
                     chunks.push(`<div class="print-answer-text">${escapeHtml(text)}</div>`);
                 }
@@ -702,7 +702,7 @@
                         </div>
                     </div>
                     <div class="print-section print-question-panel bg-gray-50 rounded-xl p-4">
-                        <h2 class="print-section-title text-secondary">평가 문항</h2>
+                        <h2 class="print-section-title text-secondary">문항 1. 평가 문항</h2>
                         <div class="print-question">${escapeHtml(data.questionContent || '문항 정보 없음')}</div>
                     </div>
                     <div class="print-section">
