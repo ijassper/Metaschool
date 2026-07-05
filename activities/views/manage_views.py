@@ -144,7 +144,9 @@ def unified_create(request):
                 deadline=parse_dt(request.POST.get('deadline')), # 섹션 1 기한
                 
                 # [섹션 2: 세부 평가 내용]
-                activity_date=parse_dt(request.POST.get('activity_date')),
+                # [비활성화] 수업 일시(activity_date)는 UI/로직에서 제외합니다.
+                # DB 필드는 보존하되 신규 생성 시에는 null로 둡니다.
+                activity_date=None,
                 question=main_question,  
                 reference_material=request.POST.get('reference_material', ''),
                 conditions=request.POST.get('conditions', ''),
@@ -309,9 +311,8 @@ def unified_update(request, activity_id):
         activity.q3_title = request.POST.get('q3_title', activity.q3_title)
         
         old_deadline = activity.deadline
-        # 날짜 업데이트
-        if request.POST.get('activity_date'):
-            activity.activity_date = parse_dt(request.POST.get('activity_date'))
+        # [비활성화] 수업 일시(activity_date)는 UI/로직에서 제외합니다.
+        # 기존 데이터 보존을 위해 수정 시 POST 값이 들어와도 변경하지 않습니다.
         if request.POST.get('deadline'):
             activity.deadline = parse_dt(request.POST.get('deadline'))
 

@@ -236,7 +236,14 @@ def get_form_config(sub_menu):
         'default_q': ['항목 1', '항목 2', '항목 3']
     }
 
-    return configs.get(sub_menu, default_config)
+    config = configs.get(sub_menu, default_config)
+
+    # [비활성화] 수업 일시(activity_date) UI/로직 단 배제.
+    # DB 필드는 유지하고, 추후 필요 시 아래 pop 처리와 unified_form 주석을 되돌리면 됩니다.
+    if isinstance(config.get('detail'), dict):
+        config['detail'].pop('date', None)
+
+    return config
 
 # 계정 찾기 (임시)
 def find_account(request):

@@ -218,3 +218,28 @@ class PdfViewerTests(SimpleTestCase):
                 missing_tz_load.append(str(template_path.relative_to(template_root)))
 
         self.assertEqual([], missing_tz_load)
+
+    def test_activity_date_field_is_disabled_in_unified_form_and_save_logic(self):
+        form_source = get_template(
+            'activities/unified_form.html'
+        ).template.source
+        manage_source = (
+            Path(settings.BASE_DIR) / 'activities' / 'views' / 'manage_views.py'
+        ).read_text(encoding='utf-8')
+        update_source = manage_source[
+            manage_source.index('def unified_update'):
+            manage_source.index('def unified_delete')
+        ]
+        main_source = (
+            Path(settings.BASE_DIR) / 'activities' / 'views' / 'main_views.py'
+        ).read_text(encoding='utf-8')
+
+        self.assertIn('[비활성화] 수업 일시 필드', form_source)
+        self.assertIn('name="activity_date"', form_source)
+        self.assertIn('readonly disabled', form_source)
+        self.assertNotIn('<input type="text" name="activity_date"', form_source.replace('<!--', '').split('-->')[-1])
+        self.assertIn('activity_date=None', manage_source)
+        self.assertNotIn('cleaned_data', update_source)
+        self.assertNotIn("parse_dt(request.POST.get('activity_date'))", update_source)
+        self.assertNotIn('activity.activity_date =', update_source)
+        self.assertIn("config['detail'].pop('date', None)", main_source)
