@@ -252,6 +252,11 @@ def get_form_config(sub_menu):
                 'show_keyboard': {'label': '화면 키보드 표시'},
                 'target_data': {'label': '연습 지문 데이터'},
             },
+            'visible_fields': {
+                'show_typing': True,
+                'show_writing_rules': False,
+                'show_reference_materials': False,
+            },
             'ai_info': [],
             'default_q': ['타자 연습 기록', '정확도와 속도', '연습 소감']
         },
@@ -277,6 +282,14 @@ def get_form_config(sub_menu):
     }
 
     config = configs.get(sub_menu, default_config)
+
+    visible_fields = config.setdefault('visible_fields', {})
+    visible_fields.setdefault('show_typing', bool(config.get('typing_fields')))
+    visible_fields.setdefault('show_writing_rules', True)
+    visible_fields.setdefault('show_reference_materials', True)
+    config['show_typing'] = visible_fields.get('show_typing', False)
+    config['show_writing_rules'] = visible_fields.get('show_writing_rules', True)
+    config['show_reference_materials'] = visible_fields.get('show_reference_materials', True)
 
     # [비활성화] 수업 일시(activity_date) UI/로직 단 배제.
     # DB 필드는 유지하고, 추후 필요 시 아래 pop 처리와 unified_form 주석을 되돌리면 됩니다.

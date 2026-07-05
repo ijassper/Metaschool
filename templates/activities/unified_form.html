@@ -303,7 +303,7 @@
                 </div>
             </div>
 
-            {% if config.typing_fields %}
+            {% if config.show_typing and config.typing_fields %}
             <div class="card p-4 mt-4 mb-3 border-0 shadow-sm rounded-2xl bg-white">
                 <h5 class="mb-3 fw-bold text-primary">
                     <i class="bi bi-keyboard me-2"></i>타자 연습 상세 설정
@@ -379,6 +379,7 @@
             </div>
             {% endif %}
 
+            {% if config.show_reference_materials %}
             <!-- 3. 참고 자료 및 다중 파일 업로드 (핵심 변경 부분) -->
             <div class="row mb-3">
                 <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">참고 자료 및 파일</div>
@@ -419,6 +420,9 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
+
+            {% if config.show_writing_rules %}
             <!-- 4. 작성 조건 -->
             <div class="row mb-3">
                 <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">작성 조건</div>
@@ -435,6 +439,7 @@
                     <span class="fw-bold small">자 이내 (0은 무제한)</span>
                 </div>
             </div>
+            {% endif %}
         </div>
 
         <!-- [섹션 3] AI 분석용 및 대상 설정 -->
