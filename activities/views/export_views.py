@@ -198,7 +198,7 @@ def export_answer_sheets_docx(request, activity_id):
 @teacher_required
 def print_answer_sheets(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
-    students = activity.target_students.all().order_by('grade', 'class_no', 'number')
+    students = activity.target_students.select_related('school').all().order_by('grade', 'class_no', 'number')
     selected_targets = request.GET.getlist('target')
 
     if selected_targets:
@@ -210,9 +210,19 @@ def print_answer_sheets(request, activity_id):
         if q_objects:
             students = students.filter(q_objects)
     
-    # 각 학생별 답안 데이터를 미리 매핑해서 전달
+    students = list(students)
+
+    answers_by_student_id = {
+        answer.student_id: answer
+        for answer in Answer.objects.filter(
+            question__activity=activity,
+            student__in=students,
+        ).select_related('student', 'question')
+    }
+
+    # 각 학생별 답안 데이터를 한 번의 쿼리 결과로 매핑해서 전달
     for s in students:
-        s.my_answer = activity.get_student_answer(s)
+        s.my_answer = answers_by_student_id.get(s.id)
 
     class_labels = sorted({f"{s.grade}학년{s.class_no}반" for s in students})
     if len(class_labels) == 1:

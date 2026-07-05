@@ -182,3 +182,22 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('문항 1. 평가 문항', print_component_source)
         self.assertIn('print-question-panel bg-gray-50 rounded-xl p-4', print_component_source)
         self.assertIn('백지 제출', print_component_source)
+
+    def test_bulk_print_view_and_iframe_preview_are_resilient(self):
+        export_view_source = (
+            Path(settings.BASE_DIR) / 'activities' / 'views' / 'export_views.py'
+        ).read_text(encoding='utf-8')
+        result_source = get_template(
+            'activities/activity_result.html'
+        ).template.source
+
+        self.assertIn('students = list(students)', export_view_source)
+        self.assertIn('answers_by_student_id', export_view_source)
+        self.assertIn("select_related('student', 'question')", export_view_source)
+        self.assertNotIn('activity.get_student_answer(s)', export_view_source)
+        self.assertIn('id="pdfPreviewStatus"', result_source)
+        self.assertIn("iframe.getAttribute('src') === 'about:blank'", result_source)
+        self.assertIn('일괄 출력 화면이 비어 있습니다.', result_source)
+        self.assertIn('iframeDoc.body.innerText.trim().length > 0', result_source)
+        self.assertIn('로딩이 오래 걸리고 있습니다.', result_source)
+        self.assertIn('새 창에서 확인', result_source)

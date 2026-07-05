@@ -506,6 +506,24 @@
         background: #3b3f46;
     }
 
+    .pdf-preview-status {
+        position: absolute;
+        inset: 18px;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 18px;
+        background: #fff;
+        color: #495057;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .pdf-preview-status.is-hidden {
+        display: none;
+    }
+
     </style>
 
 <!-- PDF 뷰어 모달 (페이지 최하단) -->
@@ -516,8 +534,9 @@
                 <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>학생 답안지 출력 시스템</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" style="overflow: hidden;">
+            <div class="modal-body position-relative" style="overflow: hidden;">
                 <!-- 우리가 만든 완벽한 인쇄 페이지를 이 iframe에 담습니다 -->
+                <div id="pdfPreviewStatus" class="pdf-preview-status">일괄 출력 화면을 불러오는 중입니다…</div>
                 <iframe id="pdfIframe" src=""></iframe>
             </div>
         </div>
@@ -715,8 +734,60 @@
 
     // PDF 뷰어 모달
     function openPdfPreview(url) {
-        document.getElementById('pdfIframe').src = url;
-        new bootstrap.Modal(document.getElementById('pdfViewerModal')).show();
+        const iframe = document.getElementById('pdfIframe');
+        const status = document.getElementById('pdfPreviewStatus');
+        const modalEl = document.getElementById('pdfViewerModal');
+
+        if (!iframe || !modalEl) {
+            window.open(url, '_blank');
+            return;
+        }
+
+        let loadTimer = null;
+        if (status) {
+            status.innerHTML = '일괄 출력 화면을 불러오는 중입니다…';
+            status.classList.remove('is-hidden');
+        }
+
+        iframe.onload = function() {
+            if (iframe.getAttribute('src') === 'about:blank') return;
+            if (loadTimer) clearTimeout(loadTimer);
+            setTimeout(function() {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const hasContent = iframeDoc && iframeDoc.body && iframeDoc.body.innerText.trim().length > 0;
+                    if (!hasContent && status) {
+                        status.innerHTML = '일괄 출력 화면이 비어 있습니다.<br><a class="btn btn-sm btn-outline-danger mt-3" href="' + url + '" target="_blank" rel="noopener">새 창에서 확인</a>';
+                        status.classList.remove('is-hidden');
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('일괄 출력 iframe 내용을 확인하지 못했습니다.', err);
+                }
+
+                if (status) status.classList.add('is-hidden');
+            }, 100);
+        };
+
+        iframe.onerror = function() {
+            if (loadTimer) clearTimeout(loadTimer);
+            if (status) {
+                status.innerHTML = '일괄 출력 화면을 불러오지 못했습니다.<br><a class="btn btn-sm btn-outline-danger mt-3" href="' + url + '" target="_blank" rel="noopener">새 창에서 확인</a>';
+                status.classList.remove('is-hidden');
+            }
+        };
+
+        iframe.src = 'about:blank';
+        setTimeout(function() {
+            iframe.src = url;
+        }, 0);
+
+        loadTimer = setTimeout(function() {
+            if (!status || status.classList.contains('is-hidden')) return;
+            status.innerHTML = '로딩이 오래 걸리고 있습니다.<br><a class="btn btn-sm btn-outline-danger mt-3" href="' + url + '" target="_blank" rel="noopener">새 창에서 확인</a>';
+        }, 10000);
+
+        new bootstrap.Modal(modalEl).show();
     }
 </script>
 
