@@ -257,6 +257,12 @@ def get_form_config(sub_menu):
         },
     }
 
+    # 사이드바/진입 URL에서 사용하는 세부 메뉴명도 동일한 타자 연습 설정을 사용합니다.
+    # 예: ?category=WRITING&sub=한글 타자 연습 / 영문 타자 연습
+    configs['한글 타자 연습'] = configs['타자 연습']
+    configs['영문 타자 연습'] = configs['타자 연습']
+    configs['WRITING_TYPING'] = configs['타자 연습']
+
     # 매칭되는 소메뉴가 없을 때 사용할 기본 설정
     default_config = {
         'basic': {'section': '활동명', 'title': '주제'},

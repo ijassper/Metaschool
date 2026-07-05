@@ -16,5 +16,5 @@ def transcription_view(request):
 @login_required
 @teacher_required
 def typing_view(request):
-    """Redirect to unified_create with preset WRITING category and '타자 연습' sub menu."""
-    return redirect('/activities/create/?category=WRITING&sub=타자 연습')
+    """Redirect to unified_create with preset WRITING category and '한글 타자 연습' sub menu."""
+    return redirect('/activities/create/?category=WRITING&sub=한글 타자 연습')
