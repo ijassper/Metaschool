@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from pathlib import Path
+import re
 
 from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.template.loader import get_template
@@ -201,3 +202,19 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('iframeDoc.body.innerText.trim().length > 0', result_source)
         self.assertIn('로딩이 오래 걸리고 있습니다.', result_source)
         self.assertIn('새 창에서 확인', result_source)
+
+    def test_templates_using_localtime_load_tz_library(self):
+        template_root = Path(settings.BASE_DIR) / 'templates'
+        missing_tz_load = []
+
+        for template_path in template_root.rglob('*.html'):
+            source = template_path.read_text(encoding='utf-8')
+            if 'localtime' not in source:
+                continue
+
+            load_tags = re.findall(r'{%\s*load\s+([^%]+?)\s*%}', source)
+            has_tz = any('tz' in tag.split() for tag in load_tags)
+            if not has_tz:
+                missing_tz_load.append(str(template_path.relative_to(template_root)))
+
+        self.assertEqual([], missing_tz_load)
