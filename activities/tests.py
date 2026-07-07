@@ -63,7 +63,10 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIsNotNone(get_template('activities/take_test.html'))
         self.assertIsNotNone(get_template('activities/pdf_viewer.html'))
         self.assertIn("{% static 'images/ingrid_logo.jpg' %}", base_source)
-        self.assertNotIn('http://', base_source)
+        self.assertIn('Mixed Content', base_source)
+        self.assertIn("form.action.replace('http://', 'https://')", base_source)
+        self.assertNotIn('src="http://', base_source)
+        self.assertNotIn('href="http://', base_source)
 
     def test_pdf_controls_are_non_submitting_and_stop_event_propagation(self):
         template_source = get_template(
