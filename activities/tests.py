@@ -58,8 +58,12 @@ class PdfViewerTests(SimpleTestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_exam_and_pdf_viewer_templates_compile(self):
+        base_source = get_template('base.html').template.source
+
         self.assertIsNotNone(get_template('activities/take_test.html'))
         self.assertIsNotNone(get_template('activities/pdf_viewer.html'))
+        self.assertIn("{% static 'images/ingrid_logo.jpg' %}", base_source)
+        self.assertNotIn('http://', base_source)
 
     def test_pdf_controls_are_non_submitting_and_stop_event_propagation(self):
         template_source = get_template(
