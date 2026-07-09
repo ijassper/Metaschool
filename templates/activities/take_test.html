@@ -108,6 +108,74 @@
         font-weight: 800;
         white-space: nowrap;
     }
+    .typing-practice-shell {
+        min-height: 100%;
+        background: linear-gradient(135deg, #F8F7FF 0%, #FFF5FB 100%);
+    }
+    .typing-target-display {
+        font-size: clamp(1.4rem, 2.4vw, 2.2rem);
+        line-height: 1.9;
+        letter-spacing: 0.03em;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+    .typing-char {
+        padding: 0.05rem 0.12rem;
+        border-radius: 0.4rem;
+        transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+    }
+    .typing-char.is-correct {
+        color: rgba(25, 135, 84, 0.32);
+        background: rgba(25, 135, 84, 0.08);
+    }
+    .typing-char.is-wrong {
+        color: #dc3545;
+        background: rgba(220, 53, 69, 0.16);
+        font-weight: 800;
+    }
+    .typing-char.is-current {
+        background: rgba(142, 68, 173, 0.16);
+        box-shadow: inset 0 -3px 0 rgba(142, 68, 173, 0.45);
+    }
+    .typing-input {
+        font-size: 1.2rem;
+        line-height: 1.8;
+        resize: none;
+        min-height: 140px;
+    }
+    .typing-keyboard {
+        display: grid;
+        gap: 0.5rem;
+        justify-items: center;
+    }
+    .typing-keyboard-row {
+        display: flex;
+        gap: 0.45rem;
+        justify-content: center;
+        flex-wrap: nowrap;
+    }
+    .typing-keycap {
+        min-width: 2.4rem;
+        height: 2.4rem;
+        border-radius: 0.8rem;
+        border: 1px solid rgba(142, 68, 173, 0.18);
+        background: rgba(255, 255, 255, 0.86);
+        color: #495057;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        box-shadow: 0 0.35rem 1rem rgba(31, 22, 54, 0.08);
+        transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+    .typing-keycap.is-active {
+        background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));
+        color: #fff;
+        transform: translateY(-2px) scale(1.06);
+    }
+    .typing-keycap.space-key {
+        min-width: min(18rem, 70vw);
+    }
     .exam-header-left {
         min-width: 0;
     }
@@ -641,6 +709,81 @@
 <!-- 화면 전체를 꽉 채우기 위해 container-fluid 및 높이 설정 -->
 <div id="testContainer" class="container-fluid vh-100 p-0 overflow-hidden" style="margin-top: -25px; filter: blur(15px); transition: filter 0.5s;">
     <div class="row h-100 g-0">
+        {% if activity.typing_type %}
+        <div class="col-12 d-flex flex-column bg-white h-100">
+            <form id="answerForm" method="post" class="h-100 d-flex flex-column">
+                {% csrf_token %}
+                <input type="hidden" name="is_submit" id="isSubmitField" value="false">
+                <input type="hidden" name="ans_q1" id="typingResultField" value="{{ answer.ans_q1|default:'' }}">
+
+                <div class="exam-sticky-header p-3">
+                    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
+                        <div>
+                            <h5 class="exam-header-title mb-1 fw-bold text-primary">
+                                <i class="bi bi-keyboard-fill me-2"></i> 타자연습 실전
+                            </h5>
+                            <div class="exam-student-identity fw-bold">
+                                {{ user.name }}{% if user.school %} · {{ user.school.name }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                            <span id="typingSpeed" class="exam-status-pill"><i class="bi bi-speedometer2"></i> 0 타/분</span>
+                            <span id="typingErrorCount" class="exam-status-pill"><i class="bi bi-bug-fill"></i> 오타 0</span>
+                            <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">결과 제출</button>
+                        </div>
+                    </div>
+                    <div class="progress rounded-pill" style="height: 18px; background: rgba(142, 68, 173, 0.12);">
+                        <div id="typingProgressBar" class="progress-bar rounded-pill" style="width: 0%; background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));" role="progressbar" aria-valuemin="0" aria-valuemax="100">현재 0% 완료</div>
+                    </div>
+                </div>
+
+                <div class="flex-grow-1 scroll-panel typing-practice-shell p-4 p-md-5">
+                    <div class="container-fluid h-auto p-0">
+                        <div class="row g-4">
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body p-4 p-md-5">
+                                        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+                                            <div>
+                                                <div class="small text-muted fw-bold">쳐야 할 키보드 / 단어 / 문장 / 문단</div>
+                                                <h4 class="fw-bold text-dark mb-0">{{ activity.title }}</h4>
+                                            </div>
+                                            <span class="badge rounded-pill bg-light text-primary border px-3 py-2 fw-bold">{{ activity.get_typing_position_display }}</span>
+                                        </div>
+                                        <div id="typingTargetDisplay" class="typing-target-display bg-light rounded-4 p-4 border"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body p-4">
+                                        <label for="typingInput" class="form-label fw-bold text-primary">여기에 그대로 입력하세요</label>
+                                        <textarea id="typingInput" class="form-control typing-input border-0 shadow-sm p-4" rows="4" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="타자연습 시작 후 여기에 입력하세요."></textarea>
+                                        <div class="d-flex justify-content-between flex-wrap gap-2 mt-3 small text-muted fw-bold">
+                                            <span id="typingAccuracy">정확도 100%</span>
+                                            <span id="typingCurrentKey">다음 입력: -</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if activity.show_keyboard %}
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body p-4">
+                                        <h5 class="fw-bold text-primary mb-3"><i class="bi bi-keyboard me-2"></i>화면 키보드</h5>
+                                        <div id="typingKeyboard" class="typing-keyboard"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% else %}
         
         <!-- [좌측 영역: 문제지 - 5대 섹션 반영] -->
         <div class="col-md-3 border-end bg-light scroll-panel p-4">
@@ -757,9 +900,11 @@
                 </div>
             </form>
         </div>
+        {% endif %}
     </div>
 </div>
 
+{% if not activity.typing_type %}
 <div id="floatingSubmitBar" class="floating-submit-bar">
     <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
         <span id="floatingCharCount" class="exam-status-pill">
@@ -775,6 +920,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 {% include 'components/save_status_modal.html' %}
 
@@ -963,6 +1109,11 @@
     const csrfToken = '{{ csrf_token }}';
     const entryLogUrl = '{% url entry_action_url activity.id %}';
     let entryLogged = false;
+    const IS_TYPING_ACTIVITY = {{ activity.typing_type|yesno:"true,false" }};
+    const TYPING_TYPE = "{{ activity.typing_type|default:'' }}";
+    const TYPING_POSITION = "{{ activity.typing_position|default:'' }}";
+    const TYPING_TARGET_DATA = "{{ activity.target_data|default:''|escapejs }}";
+    const TYPING_SHOW_KEYBOARD = {{ activity.show_keyboard|yesno:"true,false" }};
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
@@ -1254,12 +1405,147 @@
         document.getElementById('startOverlay').classList.add('d-none');
         const container = document.getElementById('testContainer');
         if (container) container.style.filter = "none";
+        const typingInput = document.getElementById('typingInput');
+        if (typingInput) typingInput.focus();
+    }
+
+    const LEFT_TYPING_KEYS = ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅋ','ㅌ','ㅊ','ㅍ','ㅠ',' '];
+    const RIGHT_TYPING_KEYS = ['ㅛ','ㅕ','ㅑ','ㅐ','ㅔ','[',']','ㅗ','ㅓ','ㅏ','ㅣ',';',"'",'ㅜ','ㅡ',',','.','/',' '];
+    const KOREAN_KEYBOARD_ROWS = [
+        ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ','ㅐ','ㅔ','[',']'],
+        ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ',';',"'",],
+        ['ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ',',','.','/'],
+        [' '],
+    ];
+    let typingStartedAt = null;
+    let typingTargetText = '';
+    let typingLastStats = { progress: 0, speed: 0, errors: 0, accuracy: 100 };
+
+    function buildTypingTargetText() {
+        if (TYPING_TARGET_DATA && TYPING_TARGET_DATA.trim()) {
+            return TYPING_TARGET_DATA.trim();
+        }
+        let keys = LEFT_TYPING_KEYS;
+        if (TYPING_POSITION === 'RIGHT') {
+            keys = RIGHT_TYPING_KEYS;
+        } else if (TYPING_POSITION === 'BOTH') {
+            keys = LEFT_TYPING_KEYS.concat(RIGHT_TYPING_KEYS.filter(key => !LEFT_TYPING_KEYS.includes(key)));
+        }
+        const visibleKeys = keys.map(key => key === ' ' ? '스페이스바' : key).join(' ');
+        return `${visibleKeys}\n${keys.join('').repeat(4)}`;
+    }
+
+    function renderTypingKeyboard() {
+        const keyboard = document.getElementById('typingKeyboard');
+        if (!keyboard || !TYPING_SHOW_KEYBOARD) return;
+        keyboard.innerHTML = KOREAN_KEYBOARD_ROWS.map(row => `
+            <div class="typing-keyboard-row">
+                ${row.map(key => `<span class="typing-keycap ${key === ' ' ? 'space-key' : ''}" data-key="${key === ' ' ? 'space' : key}">${key === ' ' ? '스페이스바' : key}</span>`).join('')}
+            </div>
+        `).join('');
+    }
+
+    function escapeTypingChar(char) {
+        if (char === ' ') return '&nbsp;';
+        return char.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderTypingTarget(inputValue) {
+        const display = document.getElementById('typingTargetDisplay');
+        if (!display) return;
+        const chars = Array.from(typingTargetText);
+        const inputChars = Array.from(inputValue);
+        display.innerHTML = chars.map((char, index) => {
+            let className = 'typing-char';
+            if (index < inputChars.length) {
+                className += inputChars[index] === char ? ' is-correct' : ' is-wrong';
+            } else if (index === inputChars.length) {
+                className += ' is-current';
+            }
+            return `<span class="${className}">${escapeTypingChar(char)}</span>`;
+        }).join('');
+    }
+
+    function updateTypingKeyboardHighlight(nextChar) {
+        document.querySelectorAll('.typing-keycap').forEach(keycap => {
+            const key = keycap.dataset.key === 'space' ? ' ' : keycap.dataset.key;
+            keycap.classList.toggle('is-active', key === nextChar);
+        });
+    }
+
+    function updateTypingResultField() {
+        const field = document.getElementById('typingResultField');
+        const input = document.getElementById('typingInput');
+        if (!field || !input) return;
+        field.value = [
+            `타자연습 과제명: {{ activity.title|escapejs }}`,
+            `타자연습 유형: {{ activity.get_typing_type_display|escapejs }}`,
+            `연습 타자 위치: {{ activity.get_typing_position_display|escapejs }}`,
+            `타자연습 수준: {{ activity.get_typing_level_display|escapejs }}`,
+            `진행률: ${typingLastStats.progress}%`,
+            `실시간 타자 속도: ${typingLastStats.speed} 타/분`,
+            `오타: ${typingLastStats.errors}`,
+            `정확도: ${typingLastStats.accuracy}%`,
+            '',
+            '[입력 내용]',
+            input.value
+        ].join('\n');
+    }
+
+    function updateTypingStats() {
+        const input = document.getElementById('typingInput');
+        if (!input || !typingTargetText) return;
+        if (!typingStartedAt && input.value.length > 0) typingStartedAt = Date.now();
+        const inputChars = Array.from(input.value);
+        const targetChars = Array.from(typingTargetText);
+        let errors = 0;
+        let correct = 0;
+        inputChars.forEach((char, index) => {
+            if (char === targetChars[index]) correct += 1;
+            else errors += 1;
+        });
+        const progress = targetChars.length ? Math.min(100, Math.round((Math.min(inputChars.length, targetChars.length) / targetChars.length) * 100)) : 0;
+        const elapsedMinutes = typingStartedAt ? Math.max((Date.now() - typingStartedAt) / 60000, 1 / 60) : 0;
+        const speed = elapsedMinutes ? Math.round(correct / elapsedMinutes) : 0;
+        const accuracy = inputChars.length ? Math.max(0, Math.round((correct / inputChars.length) * 100)) : 100;
+        typingLastStats = { progress, speed, errors, accuracy };
+
+        const progressBar = document.getElementById('typingProgressBar');
+        if (progressBar) {
+            progressBar.style.width = `${progress}%`;
+            progressBar.textContent = `현재 ${progress}% 완료`;
+            progressBar.setAttribute('aria-valuenow', String(progress));
+        }
+        const speedEl = document.getElementById('typingSpeed');
+        if (speedEl) speedEl.innerHTML = `<i class="bi bi-speedometer2"></i> ${speed} 타/분`;
+        const errorEl = document.getElementById('typingErrorCount');
+        if (errorEl) errorEl.innerHTML = `<i class="bi bi-bug-fill"></i> 오타 ${errors}`;
+        const accuracyEl = document.getElementById('typingAccuracy');
+        if (accuracyEl) accuracyEl.textContent = `정확도 ${accuracy}%`;
+
+        const nextChar = targetChars[inputChars.length] || '';
+        const nextEl = document.getElementById('typingCurrentKey');
+        if (nextEl) nextEl.textContent = `다음 입력: ${nextChar === ' ' ? '스페이스바' : (nextChar || '완료')}`;
+        updateTypingKeyboardHighlight(nextChar);
+        renderTypingTarget(input.value);
+        updateTypingResultField();
+    }
+
+    function initTypingPractice() {
+        if (!IS_TYPING_ACTIVITY) return;
+        typingTargetText = buildTypingTargetText();
+        renderTypingKeyboard();
+        renderTypingTarget('');
+        updateTypingStats();
+        const input = document.getElementById('typingInput');
+        if (input) input.addEventListener('input', updateTypingStats);
     }
 
     /**
      * 답안 제출 버튼 클릭 시 호출 (제출 확인 모달 내 버튼)
      */
     function finalSubmit() {
+        updateTypingResultField();
         document.getElementById('isSubmitField').value = 'true'; // 제출 플래그 설정
         isSubmitting = true;
         document.getElementById('answerForm').submit();
@@ -1402,6 +1688,7 @@
             startButton.addEventListener('click', startTest);
         }
         initSecurityMode();
+        initTypingPractice();
         initExitDetection();
         updateCharCount(); // 초기 글자 수 계산
         updateRemainingTime();
