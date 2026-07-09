@@ -70,18 +70,6 @@ def unified_create(request):
     
     # 메뉴별 설정 가져오기
     config = get_form_config(sub_menu)
-    if sub_menu in {'한글 타자 연습', '영문 타자 연습', '타자 연습', 'WRITING_TYPING'}:
-        print(
-            '[DEBUG get_form_config]',
-            {
-                'sub_menu': sub_menu,
-                'show_typing': config.get('show_typing'),
-                'show_writing_rules': config.get('show_writing_rules'),
-                'show_reference_materials': config.get('show_reference_materials'),
-                'visible_fields': config.get('visible_fields'),
-            },
-            flush=True,
-        )
     category_name = dict(Activity.CATEGORY_CHOICES).get(cat_code, "평가/활동")
 
     if request.method == 'POST':

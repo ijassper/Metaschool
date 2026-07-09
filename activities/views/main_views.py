@@ -230,9 +230,9 @@ def get_form_config(sub_menu):
                 'typing_position': {
                     'label': '연습 위치',
                     'choices': [
-                        ('LEFT', '왼손'),
-                        ('RIGHT', '오른손'),
-                        ('BOTH', '양손'),
+                        ('LEFT', '왼손 키보드 연습'),
+                        ('RIGHT', '오른손 키보드 연습'),
+                        ('BOTH', '양손 키보드 연습'),
                         ('WORD', '단어 연습'),
                         ('SENTENCE', '문장 연습'),
                         ('PARAGRAPH', '문단 연습'),
@@ -241,11 +241,12 @@ def get_form_config(sub_menu):
                 'typing_level': {
                     'label': '수준',
                     'choices': [
-                        ('BEGINNER_0', '왕초보'),
-                        ('BEGINNER_1', '초보'),
-                        ('INTERMEDIATE', '중수'),
-                        ('ADVANCED', '고수'),
-                        ('MASTER', '초고수'),
+                        ('BEGINNER_0', '타자 처음 왕초보'),
+                        ('BEGINNER_1', '독수리 타자'),
+                        ('INTERMEDIATE', '키보드 더듬더듬'),
+                        ('ADVANCED', '약간 능숙'),
+                        ('FAST', '고속 타자'),
+                        ('MASTER', '초고수 타자'),
                     ],
                 },
                 'duration': {'label': '활동 시간(분)', 'default': 5},

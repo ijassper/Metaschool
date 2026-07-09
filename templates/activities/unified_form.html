@@ -147,6 +147,150 @@
         <input type="hidden" name="target_students_data" id="target_students_data">
         <input type="hidden" name="selected_students_json" id="id_selected_students_json">
 
+        {% if config.show_typing and config.typing_fields %}
+        <input type="hidden" name="section" value="{% if form_data.section %}{{ form_data.section }}{% elif activity.section %}{{ activity.section }}{% else %}{{ sub_menu }}{% endif %}">
+        <input type="hidden" name="question" value="타자 연습을 시작하세요.">
+        <input type="hidden" name="exam_mode" value="OPEN_FREE">
+        <input type="hidden" name="allow_edit_after_submission" value="True">
+        <input type="hidden" name="q1_title" value="타자 연습 결과">
+        <input type="hidden" name="q2_title" value="">
+        <input type="hidden" name="q3_title" value="">
+
+        <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
+            <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-keyboard-fill me-2 text-primary"></i> 1. 타자연습 기본 설정</h5>
+
+            <div class="row mb-4 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">타자연습 과제명 *</div>
+                <div class="col-md-9 px-4">
+                    <input type="text" name="title" value="{% if form_data %}{{ form_data.title|default:'' }}{% else %}{{ activity.title|default:'' }}{% endif %}" class="form-control border-0 shadow-sm p-3 rounded-3" placeholder="예: 한글 자리 익히기 5분 미션" required>
+                </div>
+            </div>
+
+            <div class="row mb-4 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">타자연습 유형</div>
+                <div class="col-md-9 px-4">
+                    <div class="d-flex flex-wrap gap-3">
+                        {% for value, label in config.typing_fields.typing_type.choices %}
+                        <div class="form-check">
+                            <input class="form-check-input typing-type-input" type="radio" name="typing_type" id="typing_type_{{ value }}" value="{{ value }}"
+                                {% if form_data.typing_type == value or activity.typing_type == value or not activity and not form_data and forloop.first %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="typing_type_{{ value }}">{{ label }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">연습 타자 위치</div>
+                <div class="col-md-9 px-4">
+                    <div class="d-flex flex-wrap gap-3">
+                        {% for value, label in config.typing_fields.typing_position.choices %}
+                        <div class="form-check">
+                            <input class="form-check-input typing-position-input" type="radio" name="typing_position" id="typing_position_{{ value }}" value="{{ value }}"
+                                {% if form_data.typing_position == value or activity.typing_position == value or not activity and not form_data and value == 'BOTH' %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="typing_position_{{ value }}">{{ label }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">타자연습 수준</div>
+                <div class="col-md-9 px-4">
+                    <select name="typing_level" class="form-select border-0 shadow-sm p-3">
+                        {% for value, label in config.typing_fields.typing_level.choices %}
+                        <option value="{{ value }}" {% if form_data.typing_level == value or activity.typing_level == value or not activity and not form_data and forloop.first %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-4 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">활동 시간</div>
+                <div class="col-md-9 px-4">
+                    <div id="typingShortDurationOptions" class="d-flex flex-wrap gap-3">
+                        {% for minute in "12345" %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="duration" id="duration_{{ minute }}" value="{{ minute }}"
+                                {% if form_data.duration == minute or activity.duration|stringformat:"s" == minute or not activity and not form_data and minute == "5" %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="duration_{{ minute }}">{{ minute }}분</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div id="typingLongDateTimeOptions" class="d-none">
+                        <input type="text" name="deadline" id="deadline_picker" value="{{ activity.deadline|localtime|date:'Y. m. d. H:i' }}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="장기간 자율 훈련 종료 일시 선택" readonly>
+                        <small class="text-muted d-block mt-2">장기간 자율 훈련은 캘린더와 시간을 선택해 훈련 종료 시점을 정합니다.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
+            <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-ui-checks-grid me-2 text-primary"></i> 2. 연습 내용 및 기타 설정</h5>
+
+            <div class="row mb-4 typing-target-data-row">
+                <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">연습 지문 데이터</div>
+                <div class="col-md-9 px-4">
+                    <textarea name="target_data" class="form-control border-0 shadow-sm p-3" rows="7" placeholder="단어, 문장, 문단 연습일 때 학생이 타이핑할 내용을 입력하세요.">{% if form_data.target_data %}{{ form_data.target_data }}{% else %}{{ activity.target_data }}{% endif %}</textarea>
+                    <small class="text-muted d-block mt-2">왼손/오른손/양손 키보드 연습에서는 지문 입력 없이 자리 연습으로 진행할 수 있습니다.</small>
+                </div>
+            </div>
+
+            <div class="row mb-0 align-items-center typing-keyboard-options">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">기타 설정</div>
+                <div class="col-md-9 px-4">
+                    <div class="d-flex flex-wrap gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="show_keyboard" id="show_keyboard_on" value="on"
+                                {% if form_data.show_keyboard == 'on' or activity.show_keyboard or not activity and not form_data %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="show_keyboard_on">화면에 키보드 보임</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="show_keyboard" id="show_keyboard_off" value="off"
+                                {% if form_data.show_keyboard == 'off' or activity.show_keyboard == False %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="show_keyboard_off">키보드 안보임</label>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-2">단어/문장/문단 연습을 선택하면 이 설정은 자동으로 숨겨집니다.</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card form-section-card p-4 mb-5 bg-{{ cat_code }}">
+            <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-people-fill me-2 text-primary"></i> 3. 연습 대상</h5>
+
+            <div class="row mb-4 align-items-center">
+                <div class="col-md-3 text-center fw-bold text-secondary border-end">대상 방식</div>
+                <div class="col-md-9 px-4">
+                    <div class="d-flex flex-wrap gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input typing-target-mode" type="radio" name="typing_target_mode" id="typing_target_individual" value="individual" checked>
+                            <label class="form-check-label fw-bold" for="typing_target_individual">개별 학급, 학생 선택</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input typing-target-mode" type="radio" name="typing_target_mode" id="typing_target_team" value="team">
+                            <label class="form-check-label fw-bold" for="typing_target_team">팀 구성</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3 bg-white p-3 rounded-4 shadow-sm">
+                {% include 'components/student_selector.html' with selector_label="연습 대상 선택" %}
+            </div>
+
+            <div id="typingTeamMemo" class="row mt-4 d-none">
+                <div class="col-md-3 pt-3 text-center fw-bold text-secondary border-end">팀 구성 메모</div>
+                <div class="col-md-9 px-4">
+                    <textarea name="reference_material" class="form-control border-0 shadow-sm p-3" rows="4" placeholder="예: 1팀 - 김OO, 이OO / 2팀 - 박OO, 최OO">{{ activity.reference_material }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+
         <!-- [섹션 1] 기본 정보 -->
         <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
             <h5 class="fw-bold mb-4" style="color: #495057;"><i class="bi bi-info-circle-fill me-2 text-primary"></i> 1. 기본 정보</h5>
@@ -494,12 +638,13 @@
             </div>
             {% endfor %}
         </div>
+        {% endif %}
 
         <!-- 저장 버튼 -->
         <div class="text-center pb-5">
             <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow-lg" 
                     style="background: var(--ingrid-gradient); border: none; font-size: 1.1rem;">
-                평가 시트 {% if activity %}수정{% else %}생성{% endif %} 완료
+                {% if config.show_typing and config.typing_fields %}타자 연습{% else %}평가 시트{% endif %} {% if activity %}수정{% else %}생성{% endif %} 완료
             </button>
         </div>
 
@@ -580,6 +725,72 @@
             });
         }
 
+        const typingTypeInputs = document.querySelectorAll('.typing-type-input');
+        const typingPositionInputs = document.querySelectorAll('.typing-position-input');
+        const typingShortDurationOptions = document.getElementById('typingShortDurationOptions');
+        const typingLongDateTimeOptions = document.getElementById('typingLongDateTimeOptions');
+        const typingDurationInputs = document.querySelectorAll('input[name="duration"]');
+        const typingKeyboardOptions = document.querySelector('.typing-keyboard-options');
+        const typingKeyboardInputs = document.querySelectorAll('input[name="show_keyboard"]');
+        const typingTargetDataRow = document.querySelector('.typing-target-data-row');
+        const typingTargetDataInput = document.querySelector('textarea[name="target_data"]');
+        const typingTargetModes = document.querySelectorAll('.typing-target-mode');
+        const typingTeamMemo = document.getElementById('typingTeamMemo');
+
+        function getCheckedValue(inputs) {
+            const checked = Array.from(inputs).find(input => input.checked);
+            return checked ? checked.value : '';
+        }
+
+        function toggleTypingDurationFields() {
+            const isLongSelf = getCheckedValue(typingTypeInputs) === 'LONG_SELF';
+            if (typingShortDurationOptions) {
+                typingShortDurationOptions.classList.toggle('d-none', isLongSelf);
+            }
+            if (typingLongDateTimeOptions) {
+                typingLongDateTimeOptions.classList.toggle('d-none', !isLongSelf);
+            }
+            typingDurationInputs.forEach(input => {
+                input.disabled = isLongSelf;
+            });
+            if (endInput) {
+                endInput.disabled = !isLongSelf;
+            }
+        }
+
+        function toggleTypingPracticeFields() {
+            const typingPosition = getCheckedValue(typingPositionInputs);
+            const isTextPractice = ['WORD', 'SENTENCE', 'PARAGRAPH'].includes(typingPosition);
+            if (typingKeyboardOptions) {
+                typingKeyboardOptions.classList.toggle('d-none', isTextPractice);
+            }
+            typingKeyboardInputs.forEach(input => {
+                input.disabled = isTextPractice;
+            });
+            if (typingTargetDataRow) {
+                typingTargetDataRow.classList.toggle('d-none', !isTextPractice);
+            }
+            if (typingTargetDataInput) {
+                typingTargetDataInput.disabled = !isTextPractice;
+            }
+        }
+
+        function toggleTypingTargetMode() {
+            const isTeamMode = getCheckedValue(typingTargetModes) === 'team';
+            if (typingTeamMemo) {
+                typingTeamMemo.classList.toggle('d-none', !isTeamMode);
+            }
+        }
+
+        if (typingTypeInputs.length > 0) {
+            typingTypeInputs.forEach(input => input.addEventListener('change', toggleTypingDurationFields));
+            typingPositionInputs.forEach(input => input.addEventListener('change', toggleTypingPracticeFields));
+            typingTargetModes.forEach(input => input.addEventListener('change', toggleTypingTargetMode));
+            toggleTypingDurationFields();
+            toggleTypingPracticeFields();
+            toggleTypingTargetMode();
+        }
+
         // 5. 폼 제출 전 유효성 검사 및 데이터 브릿지 강제 주입
         if (form) {
             form.onsubmit = function(e) {
@@ -611,8 +822,15 @@
                 }
                 
                 // (2) 필수 날짜 입력값 체크 (제출 기한만 필수)
-                if (!endInput.value) {
+                if (endInput && !endInput.disabled && !endInput.value) {
                     alert("제출 기한을 입력해주세요.");
+                    e.preventDefault();
+                    return false;
+                }
+
+                if (typingTargetDataInput && !typingTargetDataInput.disabled && !typingTargetDataInput.value.trim()) {
+                    alert("단어/문장/문단 연습에 사용할 연습 지문 데이터를 입력해주세요.");
+                    typingTargetDataInput.focus();
                     e.preventDefault();
                     return false;
                 }
@@ -635,6 +853,7 @@
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
         const fileList = document.getElementById('file-list');
+        if (dropZone && fileInput && fileList) {
         
         // 서버로 전송될 파일들을 관리할 DataTransfer 객체
         let dataTransfer = new DataTransfer();
@@ -718,6 +937,7 @@
             fileInput.files = dataTransfer.files; // input 동기화
             renderFileList();
         };
+        }
         console.log("Ingrid 4대 섹션 생성 폼 로드 완료");
     });
 </script>
