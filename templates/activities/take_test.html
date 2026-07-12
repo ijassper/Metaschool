@@ -727,6 +727,7 @@
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                            <span id="typingTimer" class="exam-status-pill"><i class="bi bi-hourglass-split"></i> --:--</span>
                             <span id="typingSpeed" class="exam-status-pill"><i class="bi bi-speedometer2"></i> 0 타/분</span>
                             <span id="typingErrorCount" class="exam-status-pill"><i class="bi bi-bug-fill"></i> 오타 0</span>
                             <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">결과 제출</button>
@@ -1407,23 +1408,38 @@
         if (container) container.style.filter = "none";
         const typingInput = document.getElementById('typingInput');
         if (typingInput) typingInput.focus();
+        if (IS_TYPING_ACTIVITY) startTypingTimer();
     }
 
-    const LEFT_TYPING_KEYS = ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅋ','ㅌ','ㅊ','ㅍ','ㅠ',' '];
-    const RIGHT_TYPING_KEYS = ['ㅛ','ㅕ','ㅑ','ㅐ','ㅔ','[',']','ㅗ','ㅓ','ㅏ','ㅣ',';',"'",'ㅜ','ㅡ',',','.','/',' '];
+    const LEFT_TYPING_KEYS = ['\u3142','\u3148','\u3137','\u3131','\u3145','\u3141','\u3134','\u3147','\u3139','\u314e','\u314b','\u314c','\u314a','\u314d','\u3160',' '];
+    const RIGHT_TYPING_KEYS = ['\u315b','\u3155','\u3151','\u3150','\u3154','[',']','\u3157','\u3153','\u314f','\u3163',';','\'','\u315c','\u3161',',','.','/',' '];
     const KOREAN_KEYBOARD_ROWS = [
-        ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ','ㅐ','ㅔ','[',']'],
-        ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ',';',"'",],
-        ['ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ',',','.','/'],
+        ['\u3142','\u3148','\u3137','\u3131','\u3145','\u315b','\u3155','\u3151','\u3150','\u3154','[',']'],
+        ['\u3141','\u3134','\u3147','\u3139','\u314e','\u3157','\u3153','\u314f','\u3163',';','\'',],
+        ['\u314b','\u314c','\u314a','\u314d','\u3160','\u315c','\u3161',',','.','/'],
         [' '],
     ];
+    const TYPING_DURATION_SECONDS = Math.max(1, parseInt('{{ activity.duration|default:5 }}', 10) || 5) * 60;
     let typingStartedAt = null;
-    let typingTargetText = '';
-    let typingLastStats = { progress: 0, speed: 0, errors: 0, accuracy: 100 };
+    let typingEnded = false;
+    let typingTimerId = null;
+    let typingTimeLeft = TYPING_DURATION_SECONDS;
+    let typingTargetLines = [];
+    let typingCurrentLineIndex = 0;
+    let typingCompletedInputs = [];
+    let typingLastStats = { progress: 0, speed: 0, errors: 0, accuracy: 100, totalTypingTime: 0 };
 
-    function buildTypingTargetText() {
+    function normalizeTypingLine(line) {
+        return Array.from(line || '').filter(char => char !== ' ').join('');
+    }
+
+    function getCurrentTypingLine() {
+        return typingTargetLines[typingCurrentLineIndex] || '';
+    }
+
+    function buildTypingTargetLines() {
         if (TYPING_TARGET_DATA && TYPING_TARGET_DATA.trim()) {
-            return TYPING_TARGET_DATA.trim();
+            return TYPING_TARGET_DATA.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
         }
         let keys = LEFT_TYPING_KEYS;
         if (TYPING_POSITION === 'RIGHT') {
@@ -1431,8 +1447,8 @@
         } else if (TYPING_POSITION === 'BOTH') {
             keys = LEFT_TYPING_KEYS.concat(RIGHT_TYPING_KEYS.filter(key => !LEFT_TYPING_KEYS.includes(key)));
         }
-        const visibleKeys = keys.map(key => key === ' ' ? '스페이스바' : key).join(' ');
-        return `${visibleKeys}\n${keys.join('').repeat(4)}`;
+        const keyLine = keys.join('');
+        return [keyLine, keyLine, keyLine, keyLine];
     }
 
     function renderTypingKeyboard() {
@@ -1440,7 +1456,7 @@
         if (!keyboard || !TYPING_SHOW_KEYBOARD) return;
         keyboard.innerHTML = KOREAN_KEYBOARD_ROWS.map(row => `
             <div class="typing-keyboard-row">
-                ${row.map(key => `<span class="typing-keycap ${key === ' ' ? 'space-key' : ''}" data-key="${key === ' ' ? 'space' : key}">${key === ' ' ? '스페이스바' : key}</span>`).join('')}
+                ${row.map(key => `<span class="typing-keycap ${key === ' ' ? 'space-key' : ''}" data-key="${key === ' ' ? 'space' : key}">${key === ' ' ? '\uc2a4\ud398\uc774\uc2a4\ubc14' : key}</span>`).join('')}
             </div>
         `).join('');
     }
@@ -1453,15 +1469,20 @@
     function renderTypingTarget(inputValue) {
         const display = document.getElementById('typingTargetDisplay');
         if (!display) return;
-        const chars = Array.from(typingTargetText);
-        const inputChars = Array.from(inputValue);
-        display.innerHTML = chars.map((char, index) => {
+        const line = getCurrentTypingLine();
+        const visibleChars = Array.from(line);
+        const targetChars = Array.from(normalizeTypingLine(line));
+        const inputChars = Array.from((inputValue || '').replace(/\s/g, ''));
+        let compareIndex = 0;
+        display.innerHTML = visibleChars.map(char => {
+            if (char === ' ') return '<span class="typing-char is-space">&nbsp;</span>';
             let className = 'typing-char';
-            if (index < inputChars.length) {
-                className += inputChars[index] === char ? ' is-correct' : ' is-wrong';
-            } else if (index === inputChars.length) {
+            if (compareIndex < inputChars.length) {
+                className += inputChars[compareIndex] === targetChars[compareIndex] ? ' is-correct' : ' is-wrong text-danger';
+            } else if (compareIndex === inputChars.length) {
                 className += ' is-current';
             }
+            compareIndex += 1;
             return `<span class="${className}">${escapeTypingChar(char)}</span>`;
         }).join('');
     }
@@ -1473,69 +1494,131 @@
         });
     }
 
+    function getTypingTotals(inputValue) {
+        const completedLines = typingCompletedInputs;
+        const currentInput = (inputValue || '').replace(/\s/g, '');
+        const allInput = completedLines.join('') + currentInput;
+        const allTarget = typingTargetLines.map(normalizeTypingLine).join('');
+        let errors = 0;
+        let correct = 0;
+        Array.from(allInput).forEach((char, index) => {
+            if (char === allTarget[index]) correct += 1;
+            else errors += 1;
+        });
+        return { allInput, allTarget, errors, correct };
+    }
+
+    function updateTimerDisplay(timeLeft) {
+        const timerEl = document.getElementById('typingTimer');
+        if (!timerEl) return;
+        const minutes = Math.floor(Math.max(timeLeft, 0) / 60);
+        const seconds = Math.max(timeLeft, 0) % 60;
+        timerEl.innerHTML = `<i class="bi bi-hourglass-split"></i> ${minutes}:${String(seconds).padStart(2, '0')}`;
+    }
+
     function updateTypingResultField() {
         const field = document.getElementById('typingResultField');
         const input = document.getElementById('typingInput');
         if (!field || !input) return;
         field.value = [
-            `타자연습 과제명: {{ activity.title|escapejs }}`,
-            `타자연습 유형: {{ activity.get_typing_type_display|escapejs }}`,
-            `연습 타자 위치: {{ activity.get_typing_position_display|escapejs }}`,
-            `타자연습 수준: {{ activity.get_typing_level_display|escapejs }}`,
-            `진행률: ${typingLastStats.progress}%`,
-            `실시간 타자 속도: ${typingLastStats.speed} 타/분`,
-            `오타: ${typingLastStats.errors}`,
-            `정확도: ${typingLastStats.accuracy}%`,
+            `total_typing_time: ${typingLastStats.totalTypingTime}`,
+            `typing_speed: ${typingLastStats.speed}`,
+            `accuracy: ${typingLastStats.accuracy}`,
+            `error_count: ${typingLastStats.errors}`,
             '',
-            '[입력 내용]',
+            `\ud0c0\uc790\uc5f0\uc2b5 \uacfc\uc81c\uba85: {{ activity.title|escapejs }}`,
+            `\ud0c0\uc790\uc5f0\uc2b5 \uc720\ud615: {{ activity.get_typing_type_display|escapejs }}`,
+            `\uc5f0\uc2b5 \ud0c0\uc790 \uc704\uce58: {{ activity.get_typing_position_display|escapejs }}`,
+            `\ud0c0\uc790\uc5f0\uc2b5 \uc218\uc900: {{ activity.get_typing_level_display|escapejs }}`,
+            `\uc9c4\ud589\ub960: ${typingLastStats.progress}%`,
+            '',
+            '[\uc785\ub825 \ub0b4\uc6a9]',
             input.value
         ].join('\n');
     }
 
-    function updateTypingStats() {
+    function maybeAdvanceTypingLine(input) {
+        const currentTarget = normalizeTypingLine(getCurrentTypingLine());
+        const currentInput = (input.value || '').replace(/\s/g, '');
+        if (currentTarget && currentInput.length >= currentTarget.length && typingCurrentLineIndex < typingTargetLines.length - 1) {
+            typingCompletedInputs.push(currentInput.slice(0, currentTarget.length));
+            typingCurrentLineIndex += 1;
+            input.value = '';
+            renderTypingTarget('');
+            input.focus();
+        }
+    }
+
+    function updateTypingStats(allowAutoSubmit = true) {
         const input = document.getElementById('typingInput');
-        if (!input || !typingTargetText) return;
+        if (!input || typingTargetLines.length === 0 || typingEnded) return;
         if (!typingStartedAt && input.value.length > 0) typingStartedAt = Date.now();
-        const inputChars = Array.from(input.value);
-        const targetChars = Array.from(typingTargetText);
-        let errors = 0;
-        let correct = 0;
-        inputChars.forEach((char, index) => {
-            if (char === targetChars[index]) correct += 1;
-            else errors += 1;
-        });
-        const progress = targetChars.length ? Math.min(100, Math.round((Math.min(inputChars.length, targetChars.length) / targetChars.length) * 100)) : 0;
-        const elapsedMinutes = typingStartedAt ? Math.max((Date.now() - typingStartedAt) / 60000, 1 / 60) : 0;
-        const speed = elapsedMinutes ? Math.round(correct / elapsedMinutes) : 0;
-        const accuracy = inputChars.length ? Math.max(0, Math.round((correct / inputChars.length) * 100)) : 100;
-        typingLastStats = { progress, speed, errors, accuracy };
+        maybeAdvanceTypingLine(input);
+        const currentInput = (input.value || '').replace(/\s/g, '');
+        const currentTarget = normalizeTypingLine(getCurrentTypingLine());
+        const totals = getTypingTotals(input.value);
+        const progress = totals.allTarget.length ? Math.min(100, Math.round((Math.min(totals.allInput.length, totals.allTarget.length) / totals.allTarget.length) * 100)) : 0;
+        const totalTypingTime = typingStartedAt ? Math.round((Date.now() - typingStartedAt) / 1000) : 0;
+        const elapsedMinutes = Math.max(totalTypingTime / 60, 1 / 60);
+        const speed = Math.round(totals.correct / elapsedMinutes);
+        const accuracy = totals.allInput.length ? Math.max(0, Math.round((totals.correct / totals.allInput.length) * 100)) : 100;
+        typingLastStats = { progress, speed, errors: totals.errors, accuracy, totalTypingTime };
+
+        const hasCurrentError = Array.from(currentInput).some((char, index) => char !== currentTarget[index]);
+        if (hasCurrentError && navigator.vibrate) navigator.vibrate(35);
 
         const progressBar = document.getElementById('typingProgressBar');
         if (progressBar) {
             progressBar.style.width = `${progress}%`;
-            progressBar.textContent = `현재 ${progress}% 완료`;
+            progressBar.textContent = `\ud604\uc7ac ${progress}% \uc644\ub8cc`;
             progressBar.setAttribute('aria-valuenow', String(progress));
         }
         const speedEl = document.getElementById('typingSpeed');
-        if (speedEl) speedEl.innerHTML = `<i class="bi bi-speedometer2"></i> ${speed} 타/분`;
+        if (speedEl) speedEl.innerHTML = `<i class="bi bi-speedometer2"></i> ${speed} \ud0c0/\ubd84`;
         const errorEl = document.getElementById('typingErrorCount');
-        if (errorEl) errorEl.innerHTML = `<i class="bi bi-bug-fill"></i> 오타 ${errors}`;
+        if (errorEl) errorEl.innerHTML = `<i class="bi bi-bug-fill"></i> \uc624\ud0c0 ${totals.errors}`;
         const accuracyEl = document.getElementById('typingAccuracy');
-        if (accuracyEl) accuracyEl.textContent = `정확도 ${accuracy}%`;
+        if (accuracyEl) accuracyEl.textContent = `\uc815\ud655\ub3c4 ${accuracy}%`;
 
-        const nextChar = targetChars[inputChars.length] || '';
+        const nextChar = Array.from(currentTarget)[currentInput.length] || '';
         const nextEl = document.getElementById('typingCurrentKey');
-        if (nextEl) nextEl.textContent = `다음 입력: ${nextChar === ' ' ? '스페이스바' : (nextChar || '완료')}`;
+        if (nextEl) nextEl.textContent = `\ub2e4\uc74c \uc785\ub825: ${nextChar || '\uc644\ub8cc'}`;
         updateTypingKeyboardHighlight(nextChar);
         renderTypingTarget(input.value);
         updateTypingResultField();
+        if (allowAutoSubmit && progress >= 100) submitTypingResult();
+    }
+
+    function submitTypingResult() {
+        if (typingEnded) return;
+        updateTypingStats(false);
+        typingEnded = true;
+        if (typingTimerId) clearInterval(typingTimerId);
+        updateTypingResultField();
+        finalSubmit();
+    }
+
+    function startTypingTimer() {
+        if (typingTimerId || !IS_TYPING_ACTIVITY) return;
+        if (!typingStartedAt) typingStartedAt = Date.now();
+        typingTimeLeft = TYPING_DURATION_SECONDS;
+        updateTimerDisplay(typingTimeLeft);
+        typingTimerId = setInterval(() => {
+            typingTimeLeft -= 1;
+            updateTimerDisplay(typingTimeLeft);
+            if (typingTimeLeft <= 0) {
+                clearInterval(typingTimerId);
+                submitTypingResult();
+            }
+        }, 1000);
     }
 
     function initTypingPractice() {
         if (!IS_TYPING_ACTIVITY) return;
-        typingTargetText = buildTypingTargetText();
+        typingTargetLines = buildTypingTargetLines();
         renderTypingKeyboard();
         renderTypingTarget('');
+        updateTimerDisplay(typingTimeLeft);
         updateTypingStats();
         const input = document.getElementById('typingInput');
         if (input) input.addEventListener('input', updateTypingStats);
