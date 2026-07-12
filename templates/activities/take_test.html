@@ -730,7 +730,9 @@
                             <span id="typingTimer" class="exam-status-pill"><i class="bi bi-hourglass-split"></i> --:--</span>
                             <span id="typingSpeed" class="exam-status-pill"><i class="bi bi-speedometer2"></i> 0 타/분</span>
                             <span id="typingErrorCount" class="exam-status-pill"><i class="bi bi-bug-fill"></i> 오타 0</span>
-                            <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">결과 제출</button>
+                            <button type="button" id="stop-btn" class="btn btn-warning btn-sm rounded-pill px-4 fw-bold text-dark">
+                                <i class="bi bi-pause-circle-fill me-1"></i> 연습 중단
+                            </button>
                         </div>
                     </div>
                     <div class="progress rounded-pill" style="height: 18px; background: rgba(142, 68, 173, 0.12);">
@@ -1613,6 +1615,19 @@
         }, 1000);
     }
 
+    function stopTypingPractice() {
+        if (!IS_TYPING_ACTIVITY) return;
+        if (!confirm('연습을 중단하시겠습니까? 중단 시 기록은 저장되지 않습니다.')) return;
+
+        typingEnded = true;
+        isSubmitting = true;
+        if (typingTimerId) {
+            clearInterval(typingTimerId);
+            typingTimerId = null;
+        }
+        window.location.href = "{% url 'dashboard' %}";
+    }
+
     function initTypingPractice() {
         if (!IS_TYPING_ACTIVITY) return;
         typingTargetLines = buildTypingTargetLines();
@@ -1622,6 +1637,8 @@
         updateTypingStats();
         const input = document.getElementById('typingInput');
         if (input) input.addEventListener('input', updateTypingStats);
+        const stopButton = document.getElementById('stop-btn');
+        if (stopButton) stopButton.addEventListener('click', stopTypingPractice);
     }
 
     /**
