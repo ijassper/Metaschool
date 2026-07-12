@@ -140,11 +140,17 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('id="typingKeyboard"', take_test_source)
         self.assertIn('typing-context-char is-current', take_test_source)
         self.assertIn('const offsets = [-3, -2, -1, 0, 1, 2, 3]', take_test_source)
+        self.assertLess(
+            take_test_source.index('for="typingInput"'),
+            take_test_source.index('id="typingKeyboard"'),
+        )
         self.assertNotIn('id="typingFingerGuide"', take_test_source)
         self.assertNotIn('typing-finger-dot" data-finger', take_test_source)
         self.assertIn('typing-result-modal-dialog', take_test_source)
         self.assertIn('typing-result-modal-content', take_test_source)
         self.assertIn('requestTypingFullscreenOnLoad', take_test_source)
+        self.assertIn('!ENABLE_EXIT_DETECTION && !IS_TYPING_ACTIVITY', take_test_source)
+        self.assertIn("logFullscreenState('start-click-success')", take_test_source)
         self.assertIn('TYPING_DATA_URL', take_test_source)
         self.assertIn('typing_data.json', take_test_source)
         self.assertIn('loadTypingKeyData', take_test_source)

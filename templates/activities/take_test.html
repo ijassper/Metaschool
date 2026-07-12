@@ -931,14 +931,6 @@
 
                             <div class="col-12">
                                 <div class="card border-0 shadow-sm rounded-4">
-                                    <div class="card-body p-3 p-md-4">
-                                        <div id="typingKeyboard" class="typing-keyboard" aria-label="키보드 자판 레이아웃"></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-12">
-                                <div class="card border-0 shadow-sm rounded-4">
                                     <div class="card-body p-4">
                                         <label for="typingInput" class="form-label fw-bold text-primary">여기에 그대로 입력하세요</label>
                                         <textarea id="typingInput" class="form-control typing-input border-0 shadow-sm p-4" rows="4" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="타자연습 시작 후 여기에 입력하세요."></textarea>
@@ -946,6 +938,14 @@
                                             <span id="typingAccuracy">정확도 100%</span>
                                             <span id="typingCurrentKey">다음 입력: -</span>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm rounded-4">
+                                    <div class="card-body p-3 p-md-4">
+                                        <div id="typingKeyboard" class="typing-keyboard" aria-label="키보드 자판 레이아웃"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1588,7 +1588,7 @@
     }
 
     function requestExamFullscreen() {
-        if (!ENABLE_EXIT_DETECTION) return Promise.resolve();
+        if (!ENABLE_EXIT_DETECTION && !IS_TYPING_ACTIVITY) return Promise.resolve();
         const elem = document.documentElement;
         if (elem.requestFullscreen) return elem.requestFullscreen();
         if (elem.webkitRequestFullscreen) {
@@ -1596,6 +1596,16 @@
             return Promise.resolve();
         }
         return Promise.resolve();
+    }
+
+    function logFullscreenState(context, error) {
+        console.log(`[fullscreen:${context}]`, {
+            isTypingActivity: IS_TYPING_ACTIVITY,
+            enableExitDetection: ENABLE_EXIT_DETECTION,
+            fullscreenEnabled: document.fullscreenEnabled,
+            hasFullscreenElement: Boolean(document.fullscreenElement),
+            error: error ? String(error && (error.message || error)) : null,
+        });
     }
 
     function requestTypingFullscreenOnLoad() {
@@ -1607,11 +1617,11 @@
             const result = request.call(elem);
             if (result && typeof result.catch === 'function') {
                 result.catch(err => {
-                    console.log('전체화면 전환 실패, 사용자가 수동 조작 필요', err);
+                    logFullscreenState('load-rejected', err);
                 });
             }
         } catch (err) {
-            console.log('전체화면 전환 실패, 사용자가 수동 조작 필요', err);
+            logFullscreenState('load-error', err);
         }
     }
 
@@ -1622,8 +1632,9 @@
         isStartingExam = true;
         try {
             await requestExamFullscreen();
+            logFullscreenState('start-click-success');
         } catch (error) {
-            console.log('풀스크린 요청이 거부되었습니다.', error);
+            logFullscreenState('start-click-rejected', error);
         }
 
         try {
