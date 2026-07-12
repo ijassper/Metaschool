@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load tz %}
+{% load static tz %}
 
 {% block content %}
 <!-- UI 강제 조정 (메뉴 숨김, 여백 제거) -->
@@ -119,6 +119,77 @@
         word-break: break-word;
         white-space: pre-wrap;
     }
+    .typing-main-guide {
+        border-radius: 1.5rem;
+        background: radial-gradient(circle at 50% 0%, rgba(255, 128, 181, 0.18), transparent 34%),
+                    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 247, 255, 0.94));
+        border: 1px solid rgba(142, 68, 173, 0.14);
+        box-shadow: 0 1rem 2.5rem rgba(31, 22, 54, 0.08);
+    }
+    .typing-guide-flow {
+        display: grid;
+        grid-template-columns: minmax(3.5rem, 1fr) minmax(7rem, 1.1fr) minmax(3.5rem, 1fr);
+        align-items: center;
+        gap: clamp(0.75rem, 2vw, 1.5rem);
+    }
+    .typing-guide-side,
+    .typing-guide-current {
+        min-height: 6rem;
+        border-radius: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+    }
+    .typing-guide-side {
+        color: rgba(73, 80, 87, 0.42);
+        background: rgba(248, 249, 250, 0.74);
+        font-size: clamp(1.75rem, 4vw, 3rem);
+    }
+    .typing-guide-current {
+        color: #fff;
+        background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));
+        font-size: clamp(3.75rem, 10vw, 7rem);
+        box-shadow: 0 1rem 2rem rgba(142, 68, 173, 0.22);
+        transform: translateY(-2px);
+    }
+    .typing-finger-guide {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        padding: 0.55rem 0.95rem;
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid rgba(142, 68, 173, 0.14);
+        color: #8E44AD;
+        font-weight: 900;
+    }
+    .typing-hand-guide {
+        display: grid;
+        grid-template-columns: repeat(9, minmax(1.6rem, 1fr));
+        gap: 0.35rem;
+        max-width: 34rem;
+        margin: 0.75rem auto 0;
+        opacity: 0.86;
+    }
+    .typing-finger-dot {
+        height: 1.85rem;
+        border-radius: 999px;
+        background: rgba(108, 117, 125, 0.14);
+        color: rgba(73, 80, 87, 0.64);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        font-weight: 900;
+        transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+    .typing-finger-dot.is-active {
+        background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));
+        color: #fff;
+        transform: translateY(-2px) scale(1.08);
+        box-shadow: 0 0.75rem 1.25rem rgba(142, 68, 173, 0.18);
+    }
     .typing-char {
         padding: 0.05rem 0.12rem;
         border-radius: 0.4rem;
@@ -168,7 +239,19 @@
         box-shadow: 0 0.35rem 1rem rgba(31, 22, 54, 0.08);
         transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
     }
+    .typing-keycap small {
+        display: block;
+        font-size: 0.62rem;
+        line-height: 1;
+        opacity: 0.62;
+        margin-top: 0.1rem;
+    }
     .typing-keycap.is-active {
+        background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));
+        color: #fff;
+        transform: translateY(-2px) scale(1.06);
+    }
+    .typing-keycap.highlight {
         background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));
         color: #fff;
         transform: translateY(-2px) scale(1.06);
@@ -790,6 +873,29 @@
                                             </div>
                                             <span class="badge rounded-pill bg-light text-primary border px-3 py-2 fw-bold">{{ activity.get_typing_position_display }}</span>
                                         </div>
+                                        <div class="typing-main-guide p-3 p-md-4 mb-4 text-center">
+                                            <div class="typing-guide-flow">
+                                                <div id="typingGuidePrev" class="typing-guide-side" aria-label="이전 글자">-</div>
+                                                <div id="typingGuideCurrent" class="typing-guide-current" aria-label="현재 입력할 글자">-</div>
+                                                <div id="typingGuideNext" class="typing-guide-side" aria-label="다음 글자">-</div>
+                                            </div>
+                                            <div class="mt-3">
+                                                <span id="typingFingerGuide" class="typing-finger-guide">
+                                                    <i class="bi bi-hand-index-thumb"></i> 손가락 안내 준비 중
+                                                </span>
+                                            </div>
+                                            <div class="typing-hand-guide" aria-hidden="true">
+                                                <span class="typing-finger-dot" data-finger="left-pinky">L5</span>
+                                                <span class="typing-finger-dot" data-finger="left-ring">L4</span>
+                                                <span class="typing-finger-dot" data-finger="left-middle">L3</span>
+                                                <span class="typing-finger-dot" data-finger="left-index">L2</span>
+                                                <span class="typing-finger-dot" data-finger="thumb">Space</span>
+                                                <span class="typing-finger-dot" data-finger="right-index">R2</span>
+                                                <span class="typing-finger-dot" data-finger="right-middle">R3</span>
+                                                <span class="typing-finger-dot" data-finger="right-ring">R4</span>
+                                                <span class="typing-finger-dot" data-finger="right-pinky">R5</span>
+                                            </div>
+                                        </div>
                                         <div id="typingTargetDisplay" class="typing-target-display bg-light rounded-4 p-4 border"></div>
                                     </div>
                                 </div>
@@ -1204,6 +1310,7 @@
     const TYPING_POSITION = "{{ activity.typing_position|default:'' }}";
     const TYPING_TARGET_DATA = "{{ activity.target_data|default:''|escapejs }}";
     const TYPING_SHOW_KEYBOARD = {{ activity.show_keyboard|yesno:"true,false" }};
+    const TYPING_DATA_URL = "{% static 'data/typing_data.json' %}";
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
@@ -1519,6 +1626,7 @@
     let typingResultModalShown = false;
     let typingLastAnalysis = null;
     let typingLastStats = { progress: 0, speed: 0, errors: 0, accuracy: 100, totalTypingTime: 0 };
+    let typingKeyData = null;
 
     function normalizeTypingLine(line) {
         return Array.from(line || '').filter(char => char !== ' ').join('');
@@ -1542,12 +1650,61 @@
         return [keyLine, keyLine, keyLine, keyLine];
     }
 
+    function buildFallbackTypingData() {
+        const fallbackLayout = KOREAN_KEYBOARD_ROWS.map((row, rowIndex) => row.map((char, keyIndex) => ({
+            id: char === ' ' ? 'key-space' : `fallback-${rowIndex}-${keyIndex}`,
+            key: char === ' ' ? 'space' : char,
+            display: char === ' ' ? '\uc2a4\ud398\uc774\uc2a4\ubc14' : char,
+            finger: char === ' ' ? 'thumb' : '',
+            wide: char === ' ',
+        })));
+        const characters = {};
+        fallbackLayout.flat().forEach(key => {
+            characters[key.display === '\uc2a4\ud398\uc774\uc2a4\ubc14' ? ' ' : key.display] = {
+                keyId: key.id,
+                finger: key.finger,
+                display: key.display,
+            };
+        });
+        return {
+            layout: fallbackLayout,
+            characters,
+            fingerLabels: {
+                thumb: '\uc5c4\uc9c0 / \uc2a4\ud398\uc774\uc2a4\ubc14',
+            },
+        };
+    }
+
+    async function loadTypingKeyData() {
+        if (typingKeyData) return typingKeyData;
+        try {
+            const response = await fetch(TYPING_DATA_URL, { cache: 'force-cache' });
+            if (!response.ok) throw new Error('typing_data.json load failed');
+            typingKeyData = await response.json();
+        } catch (error) {
+            console.warn('Typing key mapping fallback is used.', error);
+            typingKeyData = buildFallbackTypingData();
+        }
+        return typingKeyData;
+    }
+
+    function getTypingCharMeta(char) {
+        if (!typingKeyData || !typingKeyData.characters) return null;
+        return typingKeyData.characters[char] || null;
+    }
+
     function renderTypingKeyboard() {
         const keyboard = document.getElementById('typingKeyboard');
         if (!keyboard || !TYPING_SHOW_KEYBOARD) return;
-        keyboard.innerHTML = KOREAN_KEYBOARD_ROWS.map(row => `
+        const layout = (typingKeyData && typingKeyData.layout) || buildFallbackTypingData().layout;
+        keyboard.innerHTML = layout.map(row => `
             <div class="typing-keyboard-row">
-                ${row.map(key => `<span class="typing-keycap ${key === ' ' ? 'space-key' : ''}" data-key="${key === ' ' ? 'space' : key}">${key === ' ' ? '\uc2a4\ud398\uc774\uc2a4\ubc14' : key}</span>`).join('')}
+                ${row.map(key => `
+                    <span class="typing-keycap ${key.wide ? 'space-key' : ''}" data-key-id="${key.id}" data-finger="${key.finger || ''}" data-char="${key.display}">
+                        <span>${escapeTypingChar(key.display)}</span>
+                        ${key.key && key.key !== key.display ? `<small>${escapeTypingChar(key.key)}</small>` : ''}
+                    </span>
+                `).join('')}
             </div>
         `).join('');
     }
@@ -1579,10 +1736,39 @@
     }
 
     function updateTypingKeyboardHighlight(nextChar) {
+        const meta = getTypingCharMeta(nextChar);
         document.querySelectorAll('.typing-keycap').forEach(keycap => {
-            const key = keycap.dataset.key === 'space' ? ' ' : keycap.dataset.key;
-            keycap.classList.toggle('is-active', key === nextChar);
+            keycap.classList.toggle('is-active', Boolean(meta && keycap.dataset.keyId === meta.keyId));
+            keycap.classList.toggle('highlight', Boolean(meta && keycap.dataset.keyId === meta.keyId));
         });
+        document.querySelectorAll('.typing-finger-dot').forEach(dot => {
+            dot.classList.toggle('is-active', Boolean(meta && dot.dataset.finger === meta.finger));
+        });
+    }
+
+    function setTypingGuideText(id, value) {
+        const element = document.getElementById(id);
+        if (!element) return;
+        element.textContent = value || '-';
+    }
+
+    function updateTypingMainGuide(targetChars, currentIndex) {
+        const previousChar = targetChars[currentIndex - 1] || '';
+        const currentChar = targetChars[currentIndex] || '';
+        const nextChar = targetChars[currentIndex + 1] || '';
+        const meta = getTypingCharMeta(currentChar);
+        const fingerLabel = meta && typingKeyData && typingKeyData.fingerLabels
+            ? typingKeyData.fingerLabels[meta.finger]
+            : '';
+
+        setTypingGuideText('typingGuidePrev', previousChar);
+        setTypingGuideText('typingGuideCurrent', currentChar || '\uc644\ub8cc');
+        setTypingGuideText('typingGuideNext', nextChar);
+
+        const fingerGuide = document.getElementById('typingFingerGuide');
+        if (fingerGuide) {
+            fingerGuide.innerHTML = `<i class="bi bi-hand-index-thumb"></i> ${fingerLabel || '\uc190\uac00\ub77d \uc548\ub0b4 \uc900\ube44 \uc911'}`;
+        }
     }
 
     function getTypingTotals(inputValue) {
@@ -1679,9 +1865,11 @@
         const accuracyEl = document.getElementById('typingAccuracy');
         if (accuracyEl) accuracyEl.textContent = `\uc815\ud655\ub3c4 ${accuracy}%`;
 
-        const nextChar = Array.from(currentTarget)[currentInput.length] || '';
+        const targetChars = Array.from(currentTarget);
+        const nextChar = targetChars[currentInput.length] || '';
         const nextEl = document.getElementById('typingCurrentKey');
         if (nextEl) nextEl.textContent = `\ub2e4\uc74c \uc785\ub825: ${nextChar || '\uc644\ub8cc'}`;
+        updateTypingMainGuide(targetChars, currentInput.length);
         updateTypingKeyboardHighlight(nextChar);
         renderTypingTarget(input.value);
         updateTypingResultField();
@@ -1828,8 +2016,9 @@
         window.location.href = "{% url 'dashboard' %}";
     }
 
-    function initTypingPractice() {
+    async function initTypingPractice() {
         if (!IS_TYPING_ACTIVITY) return;
+        await loadTypingKeyData();
         typingTargetLines = buildTypingTargetLines();
         renderTypingKeyboard();
         renderTypingTarget('');

@@ -1,0 +1,93 @@
+{
+  "layout": [
+    [
+      {"id": "key-q", "key": "q", "display": "ㅂ", "finger": "left-pinky"},
+      {"id": "key-w", "key": "w", "display": "ㅈ", "finger": "left-ring"},
+      {"id": "key-e", "key": "e", "display": "ㄷ", "finger": "left-middle"},
+      {"id": "key-r", "key": "r", "display": "ㄱ", "finger": "left-index"},
+      {"id": "key-t", "key": "t", "display": "ㅅ", "finger": "left-index"},
+      {"id": "key-y", "key": "y", "display": "ㅛ", "finger": "right-index"},
+      {"id": "key-u", "key": "u", "display": "ㅕ", "finger": "right-index"},
+      {"id": "key-i", "key": "i", "display": "ㅑ", "finger": "right-middle"},
+      {"id": "key-o", "key": "o", "display": "ㅐ", "finger": "right-ring"},
+      {"id": "key-p", "key": "p", "display": "ㅔ", "finger": "right-pinky"},
+      {"id": "key-left-bracket", "key": "[", "display": "[", "finger": "right-pinky"},
+      {"id": "key-right-bracket", "key": "]", "display": "]", "finger": "right-pinky"}
+    ],
+    [
+      {"id": "key-a", "key": "a", "display": "ㅁ", "finger": "left-pinky"},
+      {"id": "key-s", "key": "s", "display": "ㄴ", "finger": "left-ring"},
+      {"id": "key-d", "key": "d", "display": "ㅇ", "finger": "left-middle"},
+      {"id": "key-f", "key": "f", "display": "ㄹ", "finger": "left-index"},
+      {"id": "key-g", "key": "g", "display": "ㅎ", "finger": "left-index"},
+      {"id": "key-h", "key": "h", "display": "ㅗ", "finger": "right-index"},
+      {"id": "key-j", "key": "j", "display": "ㅓ", "finger": "right-index"},
+      {"id": "key-k", "key": "k", "display": "ㅏ", "finger": "right-middle"},
+      {"id": "key-l", "key": "l", "display": "ㅣ", "finger": "right-ring"},
+      {"id": "key-semicolon", "key": ";", "display": ";", "finger": "right-pinky"},
+      {"id": "key-quote", "key": "'", "display": "'", "finger": "right-pinky"}
+    ],
+    [
+      {"id": "key-z", "key": "z", "display": "ㅋ", "finger": "left-pinky"},
+      {"id": "key-x", "key": "x", "display": "ㅌ", "finger": "left-ring"},
+      {"id": "key-c", "key": "c", "display": "ㅊ", "finger": "left-middle"},
+      {"id": "key-v", "key": "v", "display": "ㅍ", "finger": "left-index"},
+      {"id": "key-b", "key": "b", "display": "ㅠ", "finger": "left-index"},
+      {"id": "key-n", "key": "n", "display": "ㅜ", "finger": "right-index"},
+      {"id": "key-m", "key": "m", "display": "ㅡ", "finger": "right-index"},
+      {"id": "key-comma", "key": ",", "display": ",", "finger": "right-middle"},
+      {"id": "key-period", "key": ".", "display": ".", "finger": "right-ring"},
+      {"id": "key-slash", "key": "/", "display": "/", "finger": "right-pinky"}
+    ],
+    [
+      {"id": "key-space", "key": "space", "display": "스페이스바", "finger": "thumb", "wide": true}
+    ]
+  ],
+  "characters": {
+    "ㅂ": {"keyId": "key-q", "finger": "left-pinky", "display": "ㅂ"},
+    "ㅈ": {"keyId": "key-w", "finger": "left-ring", "display": "ㅈ"},
+    "ㄷ": {"keyId": "key-e", "finger": "left-middle", "display": "ㄷ"},
+    "ㄱ": {"keyId": "key-r", "finger": "left-index", "display": "ㄱ"},
+    "ㅅ": {"keyId": "key-t", "finger": "left-index", "display": "ㅅ"},
+    "ㅛ": {"keyId": "key-y", "finger": "right-index", "display": "ㅛ"},
+    "ㅕ": {"keyId": "key-u", "finger": "right-index", "display": "ㅕ"},
+    "ㅑ": {"keyId": "key-i", "finger": "right-middle", "display": "ㅑ"},
+    "ㅐ": {"keyId": "key-o", "finger": "right-ring", "display": "ㅐ"},
+    "ㅔ": {"keyId": "key-p", "finger": "right-pinky", "display": "ㅔ"},
+    "[": {"keyId": "key-left-bracket", "finger": "right-pinky", "display": "["},
+    "]": {"keyId": "key-right-bracket", "finger": "right-pinky", "display": "]"},
+    "ㅁ": {"keyId": "key-a", "finger": "left-pinky", "display": "ㅁ"},
+    "ㄴ": {"keyId": "key-s", "finger": "left-ring", "display": "ㄴ"},
+    "ㅇ": {"keyId": "key-d", "finger": "left-middle", "display": "ㅇ"},
+    "ㄹ": {"keyId": "key-f", "finger": "left-index", "display": "ㄹ"},
+    "ㅎ": {"keyId": "key-g", "finger": "left-index", "display": "ㅎ"},
+    "ㅗ": {"keyId": "key-h", "finger": "right-index", "display": "ㅗ"},
+    "ㅓ": {"keyId": "key-j", "finger": "right-index", "display": "ㅓ"},
+    "ㅏ": {"keyId": "key-k", "finger": "right-middle", "display": "ㅏ"},
+    "ㅣ": {"keyId": "key-l", "finger": "right-ring", "display": "ㅣ"},
+    ";": {"keyId": "key-semicolon", "finger": "right-pinky", "display": ";"},
+    "'": {"keyId": "key-quote", "finger": "right-pinky", "display": "'"},
+    "ㅋ": {"keyId": "key-z", "finger": "left-pinky", "display": "ㅋ"},
+    "ㅌ": {"keyId": "key-x", "finger": "left-ring", "display": "ㅌ"},
+    "ㅊ": {"keyId": "key-c", "finger": "left-middle", "display": "ㅊ"},
+    "ㅍ": {"keyId": "key-v", "finger": "left-index", "display": "ㅍ"},
+    "ㅠ": {"keyId": "key-b", "finger": "left-index", "display": "ㅠ"},
+    "ㅜ": {"keyId": "key-n", "finger": "right-index", "display": "ㅜ"},
+    "ㅡ": {"keyId": "key-m", "finger": "right-index", "display": "ㅡ"},
+    ",": {"keyId": "key-comma", "finger": "right-middle", "display": ","},
+    ".": {"keyId": "key-period", "finger": "right-ring", "display": "."},
+    "/": {"keyId": "key-slash", "finger": "right-pinky", "display": "/"},
+    " ": {"keyId": "key-space", "finger": "thumb", "display": "스페이스바"}
+  },
+  "fingerLabels": {
+    "left-pinky": "왼손 새끼손가락",
+    "left-ring": "왼손 약지",
+    "left-middle": "왼손 중지",
+    "left-index": "왼손 검지",
+    "right-index": "오른손 검지",
+    "right-middle": "오른손 중지",
+    "right-ring": "오른손 약지",
+    "right-pinky": "오른손 새끼손가락",
+    "thumb": "엄지 / 스페이스바"
+  }
+}
