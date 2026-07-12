@@ -176,6 +176,43 @@
     .typing-keycap.space-key {
         min-width: min(18rem, 70vw);
     }
+    .typing-result-hero {
+        border-radius: 1.5rem;
+        background: linear-gradient(135deg, rgba(255, 128, 181, 0.16), rgba(142, 68, 173, 0.16));
+        border: 1px solid rgba(142, 68, 173, 0.14);
+    }
+    .typing-result-icon {
+        width: 4.5rem;
+        height: 4.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1rem 2rem rgba(31, 22, 54, 0.12);
+        font-size: 2.4rem;
+    }
+    .typing-result-table th {
+        width: 42%;
+        color: #6c757d;
+        font-weight: 800;
+    }
+    .typing-confetti-piece {
+        position: fixed;
+        top: -12px;
+        z-index: 2000;
+        width: 10px;
+        height: 16px;
+        border-radius: 3px;
+        animation: typingConfettiFall 1.8s ease-out forwards;
+        pointer-events: none;
+    }
+    @keyframes typingConfettiFall {
+        to {
+            transform: translateY(110vh) rotate(720deg);
+            opacity: 0;
+        }
+    }
     .exam-header-left {
         min-width: 0;
     }
@@ -979,6 +1016,56 @@
 </div>
 
 <!-- 3. 제출 확인 모달 (중앙 정렬) -->
+
+{% if activity.typing_type %}
+<!-- typing practice result feedback modal -->
+<div class="modal fade" id="typingResultModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 28px;">
+      <div class="modal-header border-0 p-4 pb-0">
+        <h5 class="modal-title fw-bold text-primary">
+            <i class="bi bi-stars me-2"></i> &#53440;&#51088;&#50672;&#49845; &#44208;&#44284; &#54588;&#46300;&#48177;
+        </h5>
+      </div>
+      <div class="modal-body p-4">
+        <div class="typing-result-hero text-center p-4 mb-4">
+            <div id="typingResultIcon" class="typing-result-icon mb-3">&#x1F44F;</div>
+            <h3 id="typingResultGrade" class="fw-bold mb-2">&#44208;&#44284; &#48516;&#49437; &#51473;...</h3>
+            <p id="typingResultMessage" class="text-muted fw-bold mb-0">&#53440;&#51088; &#44592;&#47197;&#51012; &#48516;&#49437;&#54616;&#44256; &#51080;&#50612;&#50836;.</p>
+        </div>
+        <div class="table-responsive">
+            <table class="table typing-result-table align-middle mb-0">
+                <tbody>
+                    <tr>
+                        <th>&#54217;&#44512; &#53440;&#51088; &#49549;&#46020;(WPM)</th>
+                        <td id="typingResultWpm" class="fw-bold">-</td>
+                    </tr>
+                    <tr>
+                        <th>&#44053;&#51216; &#53412;(Top 3)</th>
+                        <td id="typingResultStrongKeys" class="fw-bold">-</td>
+                    </tr>
+                    <tr>
+                        <th>&#50557;&#51216; &#53412;(Top 3)</th>
+                        <td id="typingResultWeakKeys" class="fw-bold">-</td>
+                    </tr>
+                    <tr>
+                        <th>&#51221;&#54869;&#46020; / &#50724;&#53440; &#49688;</th>
+                        <td id="typingResultAccuracy" class="fw-bold">-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+      </div>
+      <div class="modal-footer border-0 justify-content-center p-4 pt-0">
+        <button type="button" id="saveTypingResultButton" class="btn submit-action-button px-5 py-3 fw-bold text-white">
+            <i class="bi bi-check-circle-fill me-2"></i> &#44208;&#44284; &#51200;&#51109; &#48143; &#51333;&#47308;
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="modal fade" id="submitModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -1429,6 +1516,8 @@
     let typingTargetLines = [];
     let typingCurrentLineIndex = 0;
     let typingCompletedInputs = [];
+    let typingResultModalShown = false;
+    let typingLastAnalysis = null;
     let typingLastStats = { progress: 0, speed: 0, errors: 0, accuracy: 100, totalTypingTime: 0 };
 
     function normalizeTypingLine(line) {
@@ -1522,12 +1611,20 @@
         const field = document.getElementById('typingResultField');
         const input = document.getElementById('typingInput');
         if (!field || !input) return;
+        const analysisLines = typingLastAnalysis ? [
+            `average_wpm: ${typingLastAnalysis.average_wpm || 0}`,
+            `strong_keys: ${formatTypingKeyList(typingLastAnalysis.strong_keys)}`,
+            `weak_keys: ${formatTypingKeyList(typingLastAnalysis.weak_keys)}`,
+            `typing_grade: ${(typingLastAnalysis.grade && typingLastAnalysis.grade.grade) || ''}`,
+            '',
+        ] : [];
         field.value = [
             `total_typing_time: ${typingLastStats.totalTypingTime}`,
             `typing_speed: ${typingLastStats.speed}`,
             `accuracy: ${typingLastStats.accuracy}`,
             `error_count: ${typingLastStats.errors}`,
             '',
+            ...analysisLines,
             `\ud0c0\uc790\uc5f0\uc2b5 \uacfc\uc81c\uba85: {{ activity.title|escapejs }}`,
             `\ud0c0\uc790\uc5f0\uc2b5 \uc720\ud615: {{ activity.get_typing_type_display|escapejs }}`,
             `\uc5f0\uc2b5 \ud0c0\uc790 \uc704\uce58: {{ activity.get_typing_position_display|escapejs }}`,
@@ -1563,7 +1660,7 @@
         const totalTypingTime = typingStartedAt ? Math.round((Date.now() - typingStartedAt) / 1000) : 0;
         const elapsedMinutes = Math.max(totalTypingTime / 60, 1 / 60);
         const speed = Math.round(totals.correct / elapsedMinutes);
-        const accuracy = totals.allInput.length ? Math.max(0, Math.round((totals.correct / totals.allInput.length) * 100)) : 100;
+        const accuracy = totals.allInput.length ? Math.max(0, Math.round((totals.correct / totals.allInput.length) * 100)) : 0;
         typingLastStats = { progress, speed, errors: totals.errors, accuracy, totalTypingTime };
 
         const hasCurrentError = Array.from(currentInput).some((char, index) => char !== currentTarget[index]);
@@ -1591,13 +1688,116 @@
         if (allowAutoSubmit && progress >= 100) submitTypingResult();
     }
 
-    function submitTypingResult() {
-        if (typingEnded) return;
+    function formatTypingKeyList(keys) {
+        if (!keys || keys.length === 0) return '-';
+        return keys.map(item => `${item.key || '-'} (${item.count || 0})`).join(', ');
+    }
+
+    function triggerTypingConfetti() {
+        const colors = ['#FF80B5', '#8E44AD', '#FFD166', '#06D6A0', '#4D96FF'];
+        for (let index = 0; index < 42; index += 1) {
+            const piece = document.createElement('span');
+            piece.className = 'typing-confetti-piece';
+            piece.style.left = `${Math.random() * 100}vw`;
+            piece.style.background = colors[index % colors.length];
+            piece.style.animationDelay = `${Math.random() * 0.35}s`;
+            piece.style.transform = `rotate(${Math.random() * 180}deg)`;
+            document.body.appendChild(piece);
+            window.setTimeout(() => piece.remove(), 2400);
+        }
+    }
+
+    function buildTypingAnalysisPayload() {
+        const input = document.getElementById('typingInput');
+        const totals = getTypingTotals(input ? input.value : '');
+        return {
+            target_text: totals.allTarget,
+            input_text: totals.allInput,
+            total_typing_time: typingLastStats.totalTypingTime || (TYPING_DURATION_SECONDS - typingTimeLeft),
+            typing_speed: typingLastStats.speed,
+            accuracy: typingLastStats.accuracy,
+            error_count: typingLastStats.errors,
+        };
+    }
+
+    function buildFallbackTypingAnalysis(payload) {
+        return {
+            status: 'success',
+            average_wpm: payload.typing_speed || 0,
+            accuracy: payload.accuracy || 0,
+            error_count: payload.error_count || 0,
+            strong_keys: [],
+            weak_keys: [],
+            grade: {
+                grade: payload.typing_speed >= 200 ? '\uace0\uc18d \ud0c0\uc790' : '\uc5f0\uc2b5 \ud544\uc694',
+                icon: payload.typing_speed >= 200 ? '\ud83d\udc4f' : '\ud83d\ude22',
+                message: payload.typing_speed >= 200 ? '\uc88b\uc544\uc694. \uc544\uc8fc \uc548\uc815\uc801\uc778 \uc18d\ub3c4\uc608\uc694.' : '\uc870\uae08 \ub354 \uc5f0\uc2b5\ud574 \ubcfc\uae4c\uc694?',
+                confetti: payload.typing_speed >= 200,
+            },
+        };
+    }
+
+    function renderTypingResultModal(result) {
+        const grade = result.grade || {};
+        const iconEl = document.getElementById('typingResultIcon');
+        const gradeEl = document.getElementById('typingResultGrade');
+        const messageEl = document.getElementById('typingResultMessage');
+        const wpmEl = document.getElementById('typingResultWpm');
+        const strongEl = document.getElementById('typingResultStrongKeys');
+        const weakEl = document.getElementById('typingResultWeakKeys');
+        const accuracyEl = document.getElementById('typingResultAccuracy');
+
+        if (iconEl) iconEl.textContent = grade.icon || '\ud83d\udc4f';
+        if (gradeEl) gradeEl.textContent = grade.grade || '\ud0c0\uc790\uc5f0\uc2b5 \uc644\ub8cc';
+        if (messageEl) messageEl.textContent = grade.message || '\uc218\uace0\ud588\uc5b4\uc694. \uacb0\uacfc\ub97c \ud655\uc778\ud574 \ubcf4\uc138\uc694.';
+        if (wpmEl) wpmEl.textContent = `${result.average_wpm || 0} WPM`;
+        if (strongEl) strongEl.textContent = formatTypingKeyList(result.strong_keys);
+        if (weakEl) weakEl.textContent = formatTypingKeyList(result.weak_keys);
+        if (accuracyEl) accuracyEl.textContent = `${result.accuracy || 0}% / ${result.error_count || 0}\uac1c`;
+        if (grade.confetti) triggerTypingConfetti();
+    }
+
+    async function showTypingResultModal() {
+        if (typingResultModalShown) return;
+        typingResultModalShown = true;
         updateTypingStats(false);
         typingEnded = true;
-        if (typingTimerId) clearInterval(typingTimerId);
+        if (typingTimerId) {
+            clearInterval(typingTimerId);
+            typingTimerId = null;
+        }
         updateTypingResultField();
-        finalSubmit();
+
+        const payload = buildTypingAnalysisPayload();
+        let result = buildFallbackTypingAnalysis(payload);
+        try {
+            const response = await fetch("{% url 'analyze_typing_result' activity.id %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (response.ok && data.status === 'success') result = data;
+        } catch (error) {
+            console.warn('Typing analysis failed. Fallback result will be shown.', error);
+        }
+
+        renderTypingResultModal(result);
+        typingLastAnalysis = result;
+        updateTypingResultField();
+        const modalEl = document.getElementById('typingResultModal');
+        if (modalEl && window.bootstrap) {
+            bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: false }).show();
+        }
+    }
+
+    function submitTypingResult() {
+        if (typingEnded && typingResultModalShown) return;
+        showTypingResultModal();
     }
 
     function startTypingTimer() {
@@ -1639,6 +1839,8 @@
         if (input) input.addEventListener('input', updateTypingStats);
         const stopButton = document.getElementById('stop-btn');
         if (stopButton) stopButton.addEventListener('click', stopTypingPractice);
+        const saveResultButton = document.getElementById('saveTypingResultButton');
+        if (saveResultButton) saveResultButton.addEventListener('click', finalSubmit);
     }
 
     /**

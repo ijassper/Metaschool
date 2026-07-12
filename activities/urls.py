@@ -7,6 +7,7 @@ from .views.exam_views import *
 from .views.result_views import *
 from .views.ai_views import *
 from .views.export_views import *
+from .views.typing_views import *
 
 urlpatterns = [
     # 1. 공통 및 목록 (main_views)
@@ -48,6 +49,7 @@ urlpatterns = [
     path('take/<int:activity_id>/draft/', save_answer_draft, name='save_answer_draft'),
     path('take/<int:activity_id>/start/', start_exam, name='start_exam'),
     path('take/<int:activity_id>/re-enter/', re_enter_exam, name='re_enter_exam'),
+    path('take/<int:activity_id>/typing/analyze/', analyze_typing_result, name='analyze_typing_result'),
     path('api/log/', log_activity, name='log_activity'),
     path('api/update-absence/', update_absence, name='update_absence'),
 
