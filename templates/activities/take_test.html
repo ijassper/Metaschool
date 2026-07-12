@@ -110,6 +110,11 @@
     }
     .typing-practice-shell {
         min-height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-top: clamp(0.75rem, 2vh, 1.5rem) !important;
+        padding-bottom: clamp(0.75rem, 2vh, 1.5rem) !important;
         background: linear-gradient(135deg, #F8F7FF 0%, #FFF5FB 100%);
     }
     .typing-target-display {
@@ -120,6 +125,8 @@
         white-space: pre-wrap;
     }
     .typing-main-guide {
+        width: min(42rem, 92vw);
+        margin: 0 auto;
         border-radius: 1.5rem;
         background: radial-gradient(circle at 50% 0%, rgba(255, 128, 181, 0.18), transparent 34%),
                     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 247, 255, 0.94));
@@ -127,19 +134,25 @@
         box-shadow: 0 1rem 2.5rem rgba(31, 22, 54, 0.08);
     }
     .typing-guide-flow {
-        display: grid;
-        grid-template-columns: minmax(3.5rem, 1fr) minmax(7rem, 1.1fr) minmax(3.5rem, 1fr);
+        display: flex;
         align-items: center;
-        gap: clamp(0.75rem, 2vw, 1.5rem);
+        justify-content: center;
     }
-    .typing-guide-side,
     .typing-guide-current {
-        min-height: 6rem;
+        width: min(12rem, 42vw);
+        min-height: min(12rem, 42vw);
         border-radius: 1.25rem;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 900;
+    }
+    .typing-guide-side,
+    .typing-finger-guide,
+    .typing-hand-guide,
+    .typing-target-display,
+    .typing-keyboard {
+        display: none !important;
     }
     .typing-guide-side {
         color: rgba(73, 80, 87, 0.42);
@@ -149,7 +162,7 @@
     .typing-guide-current {
         color: #fff;
         background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));
-        font-size: clamp(3.75rem, 10vw, 7rem);
+        font-size: clamp(2.1rem, 5vw, 3.6rem);
         box-shadow: 0 1rem 2rem rgba(142, 68, 173, 0.22);
         transform: translateY(-2px);
     }
@@ -279,6 +292,30 @@
         width: 42%;
         color: #6c757d;
         font-weight: 800;
+    }
+    .typing-result-modal-dialog {
+        width: min(80vw, 1120px);
+        max-width: min(80vw, 1120px);
+    }
+    .typing-result-modal-content {
+        min-height: 70vh;
+        border-radius: 28px;
+    }
+    .typing-result-modal-content .modal-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .typing-result-modal-content .typing-result-hero {
+        padding: clamp(1.5rem, 4vw, 3rem) !important;
+    }
+    .typing-result-modal-content .typing-result-icon {
+        width: 6rem;
+        height: 6rem;
+        font-size: 3.1rem;
+    }
+    .typing-result-modal-content .table {
+        font-size: clamp(1rem, 1.8vw, 1.25rem);
     }
     .typing-confetti-piece {
         position: fixed;
@@ -875,28 +912,9 @@
                                         </div>
                                         <div class="typing-main-guide p-3 p-md-4 mb-4 text-center">
                                             <div class="typing-guide-flow">
-                                                <div id="typingGuidePrev" class="typing-guide-side" aria-label="이전 글자">-</div>
                                                 <div id="typingGuideCurrent" class="typing-guide-current" aria-label="현재 입력할 글자">-</div>
-                                                <div id="typingGuideNext" class="typing-guide-side" aria-label="다음 글자">-</div>
-                                            </div>
-                                            <div class="mt-3">
-                                                <span id="typingFingerGuide" class="typing-finger-guide">
-                                                    <i class="bi bi-hand-index-thumb"></i> 손가락 안내 준비 중
-                                                </span>
-                                            </div>
-                                            <div class="typing-hand-guide" aria-hidden="true">
-                                                <span class="typing-finger-dot" data-finger="left-pinky">L5</span>
-                                                <span class="typing-finger-dot" data-finger="left-ring">L4</span>
-                                                <span class="typing-finger-dot" data-finger="left-middle">L3</span>
-                                                <span class="typing-finger-dot" data-finger="left-index">L2</span>
-                                                <span class="typing-finger-dot" data-finger="thumb">Space</span>
-                                                <span class="typing-finger-dot" data-finger="right-index">R2</span>
-                                                <span class="typing-finger-dot" data-finger="right-middle">R3</span>
-                                                <span class="typing-finger-dot" data-finger="right-ring">R4</span>
-                                                <span class="typing-finger-dot" data-finger="right-pinky">R5</span>
                                             </div>
                                         </div>
-                                        <div id="typingTargetDisplay" class="typing-target-display bg-light rounded-4 p-4 border"></div>
                                     </div>
                                 </div>
                             </div>
@@ -914,16 +932,6 @@
                                 </div>
                             </div>
 
-                            {% if activity.show_keyboard %}
-                            <div class="col-12">
-                                <div class="card border-0 shadow-sm rounded-4">
-                                    <div class="card-body p-4">
-                                        <h5 class="fw-bold text-primary mb-3"><i class="bi bi-keyboard me-2"></i>화면 키보드</h5>
-                                        <div id="typingKeyboard" class="typing-keyboard"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -1126,8 +1134,8 @@
 {% if activity.typing_type %}
 <!-- typing practice result feedback modal -->
 <div class="modal fade" id="typingResultModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content border-0 shadow-lg" style="border-radius: 28px;">
+  <div class="modal-dialog modal-dialog-centered typing-result-modal-dialog">
+    <div class="modal-content border-0 shadow-lg typing-result-modal-content">
       <div class="modal-header border-0 p-4 pb-0">
         <h5 class="modal-title fw-bold text-primary">
             <i class="bi bi-stars me-2"></i> &#53440;&#51088;&#50672;&#49845; &#44208;&#44284; &#54588;&#46300;&#48177;
@@ -1570,6 +1578,23 @@
             return Promise.resolve();
         }
         return Promise.resolve();
+    }
+
+    function requestTypingFullscreenOnLoad() {
+        if (!IS_TYPING_ACTIVITY || document.fullscreenElement) return;
+        const elem = document.documentElement;
+        const request = elem.requestFullscreen || elem.webkitRequestFullscreen;
+        if (!request) return;
+        try {
+            const result = request.call(elem);
+            if (result && typeof result.catch === 'function') {
+                result.catch(err => {
+                    console.log('전체화면 전환 실패, 사용자가 수동 조작 필요', err);
+                });
+            }
+        } catch (err) {
+            console.log('전체화면 전환 실패, 사용자가 수동 조작 필요', err);
+        }
     }
 
     async function startTest(event) {
@@ -2179,6 +2204,7 @@
             startButton.addEventListener('click', startTest);
         }
         initSecurityMode();
+        requestTypingFullscreenOnLoad();
         initTypingPractice();
         initExitDetection();
         updateCharCount(); // 초기 글자 수 계산
