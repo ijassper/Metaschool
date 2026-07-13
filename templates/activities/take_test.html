@@ -1690,6 +1690,15 @@
         return typingTargetLines[typingCurrentLineIndex] || '';
     }
 
+    function shuffleTypingKeys(keys) {
+        const shuffled = [...keys];
+        for (let index = shuffled.length - 1; index > 0; index -= 1) {
+            const randomIndex = Math.floor(Math.random() * (index + 1));
+            [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+        }
+        return shuffled;
+    }
+
     function buildTypingTargetLines() {
         if (TYPING_TARGET_DATA && TYPING_TARGET_DATA.trim()) {
             return TYPING_TARGET_DATA.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
@@ -1700,8 +1709,7 @@
         } else if (TYPING_POSITION === 'BOTH') {
             keys = LEFT_TYPING_KEYS.concat(RIGHT_TYPING_KEYS.filter(key => !LEFT_TYPING_KEYS.includes(key)));
         }
-        const keyLine = keys.join('');
-        return [keyLine, keyLine, keyLine, keyLine];
+        return Array.from({ length: 4 }, () => shuffleTypingKeys(keys).join(''));
     }
 
     function buildFallbackTypingData() {
