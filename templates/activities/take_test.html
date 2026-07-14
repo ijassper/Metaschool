@@ -117,13 +117,22 @@
         color: rgba(142, 68, 173, 0.55);
         margin: 0 0.35rem;
     }
+    .typing-header-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .typing-header-grid .typing-stats-line {
+        justify-content: flex-end;
+    }
     .typing-student-card {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         max-width: min(34rem, 92vw);
-        margin: 0.35rem auto 0;
-        padding: 0.45rem 1.1rem;
+        margin: 0;
+        padding: 0.4rem 1.1rem;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.58);
         border: 1px solid rgba(255, 255, 255, 0.76);
@@ -133,6 +142,7 @@
         color: var(--ingrid-primary, #8E44AD);
         font-weight: 900;
         text-align: center;
+        white-space: nowrap;
     }
     .typing-stats-line .exam-status-pill {
         font-size: 0.85rem;
@@ -144,13 +154,23 @@
         align-items: flex-start;
         justify-content: center;
         overflow-y: auto !important;
-        padding-top: clamp(0.45rem, 1.3vh, 1rem) !important;
+        padding-top: clamp(0.75rem, 1.8vh, 1.25rem) !important;
         padding-bottom: 2.5rem !important;
         background: linear-gradient(135deg, #F8F7FF 0%, #FFF5FB 100%);
     }
     .main-content-shell {
         overflow-y: auto !important;
         padding-bottom: 2.5rem !important;
+    }
+    @media (max-width: 992px) {
+        .typing-header-grid {
+            grid-template-columns: 1fr;
+            justify-items: center;
+            text-align: center;
+        }
+        .typing-header-grid .typing-stats-line {
+            justify-content: center;
+        }
     }
     .typing-practice-shell .container-fluid {
         max-width: 980px;
@@ -944,14 +964,18 @@
                 <input type="hidden" name="ans_q1" id="typingResultField" value="{{ answer.ans_q1|default:'' }}">
 
                 <div class="exam-sticky-header p-2 p-md-3">
-                    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                    <div class="typing-header-grid">
                         <div class="exam-header-left">
                             <h5 class="typing-topic-title mb-0 fw-bold text-primary">
                                 <i class="bi bi-keyboard-fill me-2"></i>
-                                {{ activity.subject_name }}
-                                <span class="typing-topic-separator">&gt;</span>
+                                {% if activity.subject_name %}
+                                {{ activity.subject_name }}<span class="typing-topic-separator">&gt;</span>
+                                {% endif %}
                                 {{ activity.title }}
                             </h5>
+                        </div>
+                        <div class="typing-student-card">
+                            {{ user.name }}{% if user.school %} · {{ user.school.name }}{% endif %}
                         </div>
                         <div class="typing-stats-line d-flex align-items-center gap-2 flex-wrap justify-content-end">
                             <span id="typingTimer" class="exam-status-pill"><i class="bi bi-hourglass-split"></i> --:--</span>
@@ -963,12 +987,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="text-center">
-                        <div class="typing-student-card">
-                            {{ user.name }}{% if user.school %} · {{ user.school.name }}{% endif %}
-                        </div>
-                    </div>
-                    <div class="progress rounded-pill mt-2" style="height: 14px; background: rgba(142, 68, 173, 0.12);">
+                    <div class="progress rounded-pill mt-2" style="height: 12px; background: rgba(142, 68, 173, 0.12);">
                         <div id="typingProgressBar" class="progress-bar rounded-pill" style="width: 0%; background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));" role="progressbar" aria-valuemin="0" aria-valuemax="100">현재 0% 완료</div>
                     </div>
                 </div>
