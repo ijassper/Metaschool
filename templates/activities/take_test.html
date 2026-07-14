@@ -1863,7 +1863,7 @@
     let typingRejectedErrorCount = 0;
     let typingLastAcceptedValue = '';
     let typingIsManualInsert = false;
-    let typingSkipNextBeforeInput = false;
+    let typingSkipNextBeforeInput = 0;
 
     function normalizeTypingLine(line) {
         return Array.from(line || '').filter(char => char !== ' ').join('');
@@ -2112,10 +2112,7 @@
 
         event.preventDefault();
         if (acceptStrictTypingChars(input, typedChar)) {
-            typingSkipNextBeforeInput = true;
-            window.setTimeout(() => {
-                typingSkipNextBeforeInput = false;
-            }, 0);
+            typingSkipNextBeforeInput = Date.now() + 250;
         }
     }
 
@@ -2124,9 +2121,8 @@
         const input = event.currentTarget;
         const inputType = event.inputType || '';
 
-        if (typingSkipNextBeforeInput && inputType.startsWith('insert')) {
+        if (typingSkipNextBeforeInput >= Date.now() && inputType.startsWith('insert')) {
             if (event.cancelable) event.preventDefault();
-            typingSkipNextBeforeInput = false;
             return;
         }
 
