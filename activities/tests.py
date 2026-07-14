@@ -154,6 +154,9 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('id="typingKeyboard"', take_test_source)
         self.assertIn('typing-context-char is-current', take_test_source)
         self.assertIn('const offsets = [-3, -2, -1, 0, 1, 2, 3]', take_test_source)
+        self.assertIn('acceptStrictTypingChars', take_test_source)
+        self.assertIn('handleTypingBeforeInput', take_test_source)
+        self.assertIn("input.addEventListener('beforeinput', handleTypingBeforeInput)", take_test_source)
         self.assertLess(
             take_test_source.index('for="typingInput"'),
             take_test_source.index('id="typingKeyboard"'),

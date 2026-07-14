@@ -1991,6 +1991,28 @@
         updateTypingStats(false);
     }
 
+    function acceptStrictTypingChars(input, rawChars) {
+        let nextValue = decomposeHangulTypingValue(input.value || '');
+        const typedChars = Array.from(decomposeHangulTypingValue(rawChars || '').replace(/\s/g, ''));
+        if (typedChars.length === 0) {
+            updateTypingStats();
+            return true;
+        }
+
+        for (const char of typedChars) {
+            const expectedChar = getTypingExpectedCharForValue(nextValue);
+            if (!expectedChar || char !== expectedChar) {
+                rejectTypingInput(input, 1);
+                return false;
+            }
+            nextValue += char;
+        }
+
+        input.value = nextValue;
+        updateTypingStats();
+        return true;
+    }
+
     function enforceStrictTypingInputValue(input, inputType = '') {
         const decomposedValue = decomposeHangulTypingValue(input.value || '');
         const currentTarget = normalizeTypingLine(getCurrentTypingLine());
@@ -2035,18 +2057,30 @@
         if (!typedChar) return;
 
         event.preventDefault();
-        let nextValue = decomposeHangulTypingValue(input.value || '');
-        const typedChars = Array.from(decomposeHangulTypingValue(typedChar));
-        for (const char of typedChars) {
-            const expectedChar = getTypingExpectedCharForValue(nextValue);
-            if (char !== expectedChar) {
-                rejectTypingInput(input, 1);
-                return;
-            }
-            nextValue += char;
+        acceptStrictTypingChars(input, typedChar);
+    }
+
+    function handleTypingBeforeInput(event) {
+        if (!IS_TYPING_ACTIVITY || typingEnded) return;
+        const input = event.currentTarget;
+        const inputType = event.inputType || '';
+
+        if (inputType === 'deleteContentBackward') return;
+
+        if (
+            inputType.startsWith('insertComposition')
+            || inputType === 'insertFromPaste'
+            || inputType === 'insertFromDrop'
+        ) {
+            if (event.cancelable) event.preventDefault();
+            rejectTypingInput(input, 1);
+            return;
         }
-        input.value = nextValue;
-        updateTypingStats();
+
+        if (inputType.startsWith('insert') && typeof event.data === 'string') {
+            if (event.cancelable) event.preventDefault();
+            acceptStrictTypingChars(input, event.data);
+        }
     }
 
     function renderTypingKeyboard() {
@@ -2409,11 +2443,7 @@
             input.addEventListener('compositionstart', preventTypingComposition);
             input.addEventListener('compositionupdate', preventTypingComposition);
             input.addEventListener('compositionend', preventTypingComposition);
-            input.addEventListener('beforeinput', function(event) {
-                if (event.inputType && event.inputType.startsWith('insertComposition')) {
-                    preventTypingComposition(event);
-                }
-            });
+            input.addEventListener('beforeinput', handleTypingBeforeInput);
             input.addEventListener('paste', preventTypingComposition);
             input.addEventListener('drop', preventTypingComposition);
             input.addEventListener('input', function(event) {
