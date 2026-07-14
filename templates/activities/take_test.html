@@ -166,6 +166,23 @@
         box-shadow: 0 0.85rem 1.7rem rgba(142, 68, 173, 0.2);
         transform: translateY(-1px);
     }
+    .typing-context-char.is-error {
+        background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
+        animation: typingShake 0.28s ease-in-out;
+        box-shadow: 0 0.85rem 1.7rem rgba(220, 53, 69, 0.22);
+    }
+    .typing-guide-flow.has-error .typing-context-char.is-current {
+        animation: typingShake 0.28s ease-in-out;
+    }
+    .typing-input.has-error {
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.16), 0 0.75rem 1.5rem rgba(220, 53, 69, 0.08) !important;
+    }
+    @keyframes typingShake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        50% { transform: translateX(5px); }
+        75% { transform: translateX(-3px); }
+    }
     .typing-guide-side,
     .typing-finger-guide,
     .typing-hand-guide,
@@ -1181,7 +1198,7 @@
                         <td id="typingResultWeakKeys" class="fw-bold">-</td>
                     </tr>
                     <tr>
-                        <th>&#51221;&#54869;&#46020; / &#50724;&#53440; &#49688;</th>
+                        <th>&#51221;&#54869;&#46020; / &#50724;&#53440; &#49688; / &#49688;&#51221; &#54943;&#49688;</th>
                         <td id="typingResultAccuracy" class="fw-bold">-</td>
                     </tr>
                 </tbody>
@@ -1681,9 +1698,32 @@
     let typingLastAnalysis = null;
     let typingLastStats = { progress: 0, speed: 0, errors: 0, accuracy: 100, totalTypingTime: 0 };
     let typingKeyData = null;
+    let typingHasActiveError = false;
+    let typingCorrectionCount = 0;
 
     function normalizeTypingLine(line) {
         return Array.from(line || '').filter(char => char !== ' ').join('');
+    }
+
+    function getStrictTypingState(inputValue, targetValue) {
+        const inputChars = Array.from((inputValue || '').replace(/\s/g, ''));
+        const targetChars = Array.from(targetValue || '');
+        let correctPrefixLength = 0;
+        while (
+            correctPrefixLength < inputChars.length
+            && correctPrefixLength < targetChars.length
+            && inputChars[correctPrefixLength] === targetChars[correctPrefixLength]
+        ) {
+            correctPrefixLength += 1;
+        }
+        const hasCurrentError = inputChars.length > correctPrefixLength;
+        return {
+            inputChars,
+            targetChars,
+            correctPrefixLength,
+            hasCurrentError,
+            firstMismatchIndex: hasCurrentError ? correctPrefixLength : -1,
+        };
     }
 
     function getCurrentTypingLine() {
@@ -1783,15 +1823,17 @@
         const visibleChars = Array.from(line);
         const targetChars = Array.from(normalizeTypingLine(line));
         const inputChars = Array.from((inputValue || '').replace(/\s/g, ''));
+        const strictState = getStrictTypingState(inputValue, normalizeTypingLine(line));
         let compareIndex = 0;
         display.innerHTML = visibleChars.map(char => {
             if (char === ' ') return '<span class="typing-char is-space">&nbsp;</span>';
             let className = 'typing-char';
             if (compareIndex < inputChars.length) {
                 className += inputChars[compareIndex] === targetChars[compareIndex] ? ' is-correct' : ' is-wrong text-danger';
-            } else if (compareIndex === inputChars.length) {
+            } else if (compareIndex === strictState.correctPrefixLength) {
                 className += ' is-current';
             }
+            if (compareIndex === strictState.firstMismatchIndex) className += ' is-wrong text-danger';
             compareIndex += 1;
             return `<span class="${className}">${escapeTypingChar(char)}</span>`;
         }).join('');
@@ -1811,13 +1853,16 @@
         element.textContent = value || '-';
     }
 
-    function updateTypingMainGuide(targetChars, currentIndex) {
+    function updateTypingMainGuide(targetChars, currentIndex, hasCurrentError = false) {
         const guide = document.getElementById('typingGuideCurrent');
         if (!guide) return;
+        guide.classList.toggle('has-error', hasCurrentError);
         const offsets = [-3, -2, -1, 0, 1, 2, 3];
         guide.innerHTML = offsets.map(offset => {
             const char = targetChars[currentIndex + offset] || '';
-            const className = offset === 0 ? 'typing-context-char is-current' : 'typing-context-char';
+            const className = offset === 0
+                ? `typing-context-char is-current ${hasCurrentError ? 'is-error' : ''}`
+                : 'typing-context-char';
             return `<span class="${className}">${escapeTypingChar(char || '-')}</span>`;
         }).join('');
     }
@@ -1827,13 +1872,23 @@
         const currentInput = (inputValue || '').replace(/\s/g, '');
         const allInput = completedLines.join('') + currentInput;
         const allTarget = typingTargetLines.map(normalizeTypingLine).join('');
+        const currentTarget = normalizeTypingLine(getCurrentTypingLine());
+        const strictState = getStrictTypingState(inputValue, currentTarget);
+        const completedCorrectLength = completedLines.join('').length;
         let errors = 0;
         let correct = 0;
         Array.from(allInput).forEach((char, index) => {
             if (char === allTarget[index]) correct += 1;
             else errors += 1;
         });
-        return { allInput, allTarget, errors, correct };
+        return {
+            allInput,
+            allTarget,
+            errors,
+            correct,
+            strictState,
+            progressCorrectLength: completedCorrectLength + strictState.correctPrefixLength,
+        };
     }
 
     function updateTimerDisplay(timeLeft) {
@@ -1860,6 +1915,7 @@
             `typing_speed: ${typingLastStats.speed}`,
             `accuracy: ${typingLastStats.accuracy}`,
             `error_count: ${typingLastStats.errors}`,
+            `correction_count: ${typingLastStats.correctionCount || 0}`,
             '',
             ...analysisLines,
             `\ud0c0\uc790\uc5f0\uc2b5 \uacfc\uc81c\uba85: {{ activity.title|escapejs }}`,
@@ -1876,8 +1932,14 @@
     function maybeAdvanceTypingLine(input) {
         const currentTarget = normalizeTypingLine(getCurrentTypingLine());
         const currentInput = (input.value || '').replace(/\s/g, '');
-        if (currentTarget && currentInput.length >= currentTarget.length && typingCurrentLineIndex < typingTargetLines.length - 1) {
-            typingCompletedInputs.push(currentInput.slice(0, currentTarget.length));
+        const strictState = getStrictTypingState(input.value, currentTarget);
+        if (
+            currentTarget
+            && currentInput === currentTarget
+            && strictState.correctPrefixLength === currentTarget.length
+            && typingCurrentLineIndex < typingTargetLines.length - 1
+        ) {
+            typingCompletedInputs.push(currentTarget);
             typingCurrentLineIndex += 1;
             input.value = '';
             renderTypingTarget('');
@@ -1893,15 +1955,20 @@
         const currentInput = (input.value || '').replace(/\s/g, '');
         const currentTarget = normalizeTypingLine(getCurrentTypingLine());
         const totals = getTypingTotals(input.value);
-        const progress = totals.allTarget.length ? Math.min(100, Math.round((Math.min(totals.allInput.length, totals.allTarget.length) / totals.allTarget.length) * 100)) : 0;
+        const strictState = totals.strictState;
+        if (typingHasActiveError && !strictState.hasCurrentError) {
+            typingCorrectionCount += 1;
+        }
+        typingHasActiveError = strictState.hasCurrentError;
+        input.classList.toggle('has-error', strictState.hasCurrentError);
+        const progress = totals.allTarget.length ? Math.min(100, Math.round((Math.min(totals.progressCorrectLength, totals.allTarget.length) / totals.allTarget.length) * 100)) : 0;
         const totalTypingTime = typingStartedAt ? Math.round((Date.now() - typingStartedAt) / 1000) : 0;
         const elapsedMinutes = Math.max(totalTypingTime / 60, 1 / 60);
-        const speed = Math.round(totals.correct / elapsedMinutes);
+        const speed = Math.round(totals.progressCorrectLength / elapsedMinutes);
         const accuracy = totals.allInput.length ? Math.max(0, Math.round((totals.correct / totals.allInput.length) * 100)) : 0;
-        typingLastStats = { progress, speed, errors: totals.errors, accuracy, totalTypingTime };
+        typingLastStats = { progress, speed, errors: totals.errors, accuracy, totalTypingTime, correctionCount: typingCorrectionCount };
 
-        const hasCurrentError = Array.from(currentInput).some((char, index) => char !== currentTarget[index]);
-        if (hasCurrentError && navigator.vibrate) navigator.vibrate(35);
+        if (strictState.hasCurrentError && navigator.vibrate) navigator.vibrate(35);
 
         const progressBar = document.getElementById('typingProgressBar');
         if (progressBar) {
@@ -1917,10 +1984,10 @@
         if (accuracyEl) accuracyEl.textContent = `\uc815\ud655\ub3c4 ${accuracy}%`;
 
         const targetChars = Array.from(currentTarget);
-        const nextChar = targetChars[currentInput.length] || '';
+        const nextChar = targetChars[strictState.correctPrefixLength] || '';
         const nextEl = document.getElementById('typingCurrentKey');
         if (nextEl) nextEl.textContent = `\ub2e4\uc74c \uc785\ub825: ${nextChar || '\uc644\ub8cc'}`;
-        updateTypingMainGuide(targetChars, currentInput.length);
+        updateTypingMainGuide(targetChars, strictState.correctPrefixLength, strictState.hasCurrentError);
         updateTypingKeyboardHighlight(nextChar);
         renderTypingTarget(input.value);
         updateTypingResultField();
@@ -1956,6 +2023,7 @@
             typing_speed: typingLastStats.speed,
             accuracy: typingLastStats.accuracy,
             error_count: typingLastStats.errors,
+            correction_count: typingLastStats.correctionCount || 0,
         };
     }
 
@@ -1992,7 +2060,7 @@
         if (wpmEl) wpmEl.textContent = `${result.average_wpm || 0} WPM`;
         if (strongEl) strongEl.textContent = formatTypingKeyList(result.strong_keys);
         if (weakEl) weakEl.textContent = formatTypingKeyList(result.weak_keys);
-        if (accuracyEl) accuracyEl.textContent = `${result.accuracy || 0}% / ${result.error_count || 0}\uac1c`;
+        if (accuracyEl) accuracyEl.textContent = `${result.accuracy || 0}% / ${result.error_count || 0}\uac1c / ${result.correction_count || 0}\uD68C`;
         if (grade.confetti) triggerTypingConfetti();
     }
 

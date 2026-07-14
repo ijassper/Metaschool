@@ -84,6 +84,7 @@ def analyze_typing_result(request, activity_id):
     target_text = normalize_typing_text(payload.get('target_text'))
     input_text = normalize_typing_text(payload.get('input_text'))
     total_time = max(float(payload.get('total_typing_time') or 0), 1.0)
+    correction_count = int(payload.get('correction_count') or 0)
 
     correct_counter = Counter()
     error_counter = Counter()
@@ -108,6 +109,7 @@ def analyze_typing_result(request, activity_id):
         'average_wpm': average_wpm,
         'accuracy': accuracy,
         'error_count': error_count,
+        'correction_count': correction_count,
         'strong_keys': top_three(correct_counter),
         'weak_keys': top_three(error_counter),
         'grade': grade,
