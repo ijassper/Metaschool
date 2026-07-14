@@ -89,7 +89,7 @@
         position: sticky;
         top: 0;
         z-index: 1040;
-        min-height: 72px;
+        min-height: 68px;
         background: rgba(255, 255, 255, 0.92);
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
@@ -108,14 +108,49 @@
         font-weight: 800;
         white-space: nowrap;
     }
+    .typing-topic-title {
+        font-size: clamp(1rem, 1.8vw, 1.2rem);
+        line-height: 1.25;
+        word-break: keep-all;
+    }
+    .typing-topic-separator {
+        color: rgba(142, 68, 173, 0.55);
+        margin: 0 0.35rem;
+    }
+    .typing-student-card {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        max-width: min(34rem, 92vw);
+        margin: 0.35rem auto 0;
+        padding: 0.45rem 1.1rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.58);
+        border: 1px solid rgba(255, 255, 255, 0.76);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        box-shadow: 0 0.65rem 1.5rem rgba(31, 22, 54, 0.08);
+        color: var(--ingrid-primary, #8E44AD);
+        font-weight: 900;
+        text-align: center;
+    }
+    .typing-stats-line .exam-status-pill {
+        font-size: 0.85rem;
+        padding: 0.36rem 0.62rem;
+    }
     .typing-practice-shell {
         min-height: 100%;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
-        padding-top: clamp(0.75rem, 2vh, 1.5rem) !important;
-        padding-bottom: clamp(0.75rem, 2vh, 1.5rem) !important;
+        overflow-y: auto !important;
+        padding-top: clamp(0.45rem, 1.3vh, 1rem) !important;
+        padding-bottom: 2.5rem !important;
         background: linear-gradient(135deg, #F8F7FF 0%, #FFF5FB 100%);
+    }
+    .main-content-shell {
+        overflow-y: auto !important;
+        padding-bottom: 2.5rem !important;
     }
     .typing-practice-shell .container-fluid {
         max-width: 980px;
@@ -263,32 +298,33 @@
     }
     .typing-keyboard {
         display: grid;
-        gap: 0.35rem;
+        gap: 0.3rem;
         justify-items: center;
     }
     .typing-keyboard-row {
         display: flex;
-        gap: 0.32rem;
+        gap: 0.28rem;
         justify-content: center;
         flex-wrap: nowrap;
     }
     .typing-keycap {
-        min-width: clamp(1.8rem, 4.2vw, 2.45rem);
-        height: clamp(1.8rem, 4.2vw, 2.45rem);
-        border-radius: 0.65rem;
+        min-width: clamp(1.62rem, 3.78vw, 2.2rem);
+        height: clamp(1.62rem, 3.78vw, 2.2rem);
+        border-radius: 0.58rem;
         border: 1px solid rgba(142, 68, 173, 0.18);
         background: rgba(255, 255, 255, 0.86);
         color: #495057;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        font-size: 0.9rem;
         font-weight: 800;
         box-shadow: 0 0.35rem 1rem rgba(31, 22, 54, 0.08);
         transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
     }
     .typing-keycap small {
         display: block;
-        font-size: 0.62rem;
+        font-size: 0.56rem;
         line-height: 1;
         opacity: 0.62;
         margin-top: 0.1rem;
@@ -304,7 +340,7 @@
         transform: translateY(-2px) scale(1.06);
     }
     .typing-keycap.space-key {
-        min-width: min(16rem, 62vw);
+        min-width: min(14.4rem, 56vw);
     }
     .typing-result-hero {
         border-radius: 1.5rem;
@@ -907,44 +943,50 @@
                 <input type="hidden" name="is_submit" id="isSubmitField" value="false">
                 <input type="hidden" name="ans_q1" id="typingResultField" value="{{ answer.ans_q1|default:'' }}">
 
-                <div class="exam-sticky-header p-3">
-                    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-3">
-                        <div>
-                            <h5 class="exam-header-title mb-1 fw-bold text-primary">
-                                <i class="bi bi-keyboard-fill me-2"></i> 타자연습 실전
+                <div class="exam-sticky-header p-2 p-md-3">
+                    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                        <div class="exam-header-left">
+                            <h5 class="typing-topic-title mb-0 fw-bold text-primary">
+                                <i class="bi bi-keyboard-fill me-2"></i>
+                                {{ activity.subject_name }}
+                                <span class="typing-topic-separator">&gt;</span>
+                                {{ activity.title }}
                             </h5>
-                            <div class="exam-student-identity fw-bold">
-                                {{ user.name }}{% if user.school %} · {{ user.school.name }}{% endif %}
-                            </div>
                         </div>
-                        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                        <div class="typing-stats-line d-flex align-items-center gap-2 flex-wrap justify-content-end">
                             <span id="typingTimer" class="exam-status-pill"><i class="bi bi-hourglass-split"></i> --:--</span>
                             <span id="typingSpeed" class="exam-status-pill"><i class="bi bi-speedometer2"></i> 0 타/분</span>
+                            <span id="typingAccuracy" class="exam-status-pill"><i class="bi bi-bullseye"></i> 정확도 0%</span>
                             <span id="typingErrorCount" class="exam-status-pill"><i class="bi bi-bug-fill"></i> 오타 0</span>
                             <button type="button" id="stop-btn" class="btn btn-warning btn-sm rounded-pill px-4 fw-bold text-dark">
                                 <i class="bi bi-pause-circle-fill me-1"></i> 연습 중단
                             </button>
                         </div>
                     </div>
-                    <div class="progress rounded-pill" style="height: 18px; background: rgba(142, 68, 173, 0.12);">
+                    <div class="text-center">
+                        <div class="typing-student-card">
+                            {{ user.name }}{% if user.school %} · {{ user.school.name }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="progress rounded-pill mt-2" style="height: 14px; background: rgba(142, 68, 173, 0.12);">
                         <div id="typingProgressBar" class="progress-bar rounded-pill" style="width: 0%; background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));" role="progressbar" aria-valuemin="0" aria-valuemax="100">현재 0% 완료</div>
                     </div>
                 </div>
 
-                <div class="flex-grow-1 scroll-panel typing-practice-shell p-4 p-md-5">
+                <div class="flex-grow-1 scroll-panel typing-practice-shell main-content-shell p-3 p-md-4 pb-5">
                     <div class="container-fluid h-auto p-0">
-                        <div class="row g-4">
+                        <div class="row g-3">
                             <div class="col-12">
                                 <div class="card border-0 shadow-sm rounded-4">
-                                    <div class="card-body p-4 p-md-5">
-                                        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+                                    <div class="card-body p-3 p-md-4">
+                                        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-2">
                                             <div>
                                                 <div class="small text-muted fw-bold">쳐야 할 키보드 / 단어 / 문장 / 문단</div>
                                                 <h4 class="fw-bold text-dark mb-0">{{ activity.title }}</h4>
                                             </div>
                                             <span class="badge rounded-pill bg-light text-primary border px-3 py-2 fw-bold">{{ activity.get_typing_position_display }}</span>
                                         </div>
-                                        <div class="typing-main-guide p-3 p-md-4 mb-4 text-center">
+                                        <div class="typing-main-guide p-2 p-md-3 mb-2 text-center">
                                             <div id="typingGuideCurrent" class="typing-guide-flow" aria-label="타자 칠 흐름">-</div>
                                         </div>
                                     </div>
@@ -953,13 +995,9 @@
 
                             <div class="col-12">
                                 <div class="card border-0 shadow-sm rounded-4">
-                                    <div class="card-body p-4">
+                                    <div class="card-body p-3">
                                         <label for="typingInput" class="form-label fw-bold text-primary">여기에 그대로 입력하세요</label>
-                                        <textarea id="typingInput" class="form-control typing-input border-0 shadow-sm p-4" rows="4" autocomplete="off" autocapitalize="off" spellcheck="false" data-ime-disabled="true" placeholder="타자연습 시작 후 여기에 입력하세요."></textarea>
-                                        <div class="d-flex justify-content-between flex-wrap gap-2 mt-3 small text-muted fw-bold">
-                                            <span id="typingAccuracy">정확도 100%</span>
-                                            <span id="typingCurrentKey">다음 입력: -</span>
-                                        </div>
+                                        <textarea id="typingInput" class="form-control typing-input border-0 shadow-sm p-3" rows="3" autocomplete="off" autocapitalize="off" spellcheck="false" data-ime-disabled="true" placeholder="타자연습 시작 후 여기에 입력하세요."></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -2140,8 +2178,6 @@
 
         const targetChars = Array.from(currentTarget);
         const nextChar = targetChars[strictState.correctPrefixLength] || '';
-        const nextEl = document.getElementById('typingCurrentKey');
-        if (nextEl) nextEl.textContent = `\ub2e4\uc74c \uc785\ub825: ${nextChar || '\uc644\ub8cc'}`;
         updateTypingMainGuide(targetChars, strictState.correctPrefixLength, strictState.hasCurrentError);
         updateTypingKeyboardHighlight(nextChar);
         renderTypingTarget(input.value);
