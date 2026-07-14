@@ -264,12 +264,13 @@
         box-shadow: 0 0.85rem 1.7rem rgba(142, 68, 173, 0.2);
         transform: translateY(-1px);
     }
-    .typing-context-char.is-error {
+    .typing-context-char.is-error,
+    .typing-context-char.is-rejected {
         background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
         animation: typingShake 0.28s ease-in-out;
         box-shadow: 0 0.85rem 1.7rem rgba(220, 53, 69, 0.22);
     }
-    .typing-guide-flow.has-error .typing-context-char.is-current {
+    .typing-context-char.is-current.is-rejected {
         animation: typingShake 0.28s ease-in-out;
     }
     .typing-input.has-error {
@@ -2015,10 +2016,13 @@
     function triggerTypingInputShake(input) {
         const guide = document.getElementById('typingGuideCurrent');
         if (guide) {
-            guide.classList.remove('has-error');
-            void guide.offsetWidth;
-            guide.classList.add('has-error');
-            window.setTimeout(() => guide.classList.remove('has-error'), 300);
+            const currentChar = guide.querySelector('.typing-context-char.is-current');
+            if (currentChar) {
+                currentChar.classList.remove('is-rejected');
+                void currentChar.offsetWidth;
+                currentChar.classList.add('is-rejected');
+                window.setTimeout(() => currentChar.classList.remove('is-rejected'), 300);
+            }
         }
         if (navigator.vibrate) navigator.vibrate(35);
     }
@@ -2194,12 +2198,11 @@
     function updateTypingMainGuide(targetChars, currentIndex, hasCurrentError = false) {
         const guide = document.getElementById('typingGuideCurrent');
         if (!guide) return;
-        guide.classList.toggle('has-error', hasCurrentError);
         const offsets = [-3, -2, -1, 0, 1, 2, 3];
         guide.innerHTML = offsets.map(offset => {
             const char = targetChars[currentIndex + offset] || '';
             const className = offset === 0
-                ? `typing-context-char is-current ${hasCurrentError ? 'is-error' : ''}`
+                ? 'typing-context-char is-current'
                 : 'typing-context-char';
             return `<span class="${className}">${escapeTypingChar(char || '-')}</span>`;
         }).join('');
