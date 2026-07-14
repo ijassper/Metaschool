@@ -255,6 +255,7 @@
         line-height: 1.6;
         resize: none;
         min-height: 96px;
+        ime-mode: disabled;
     }
     .typing-keyboard {
         display: grid;
@@ -950,7 +951,7 @@
                                 <div class="card border-0 shadow-sm rounded-4">
                                     <div class="card-body p-4">
                                         <label for="typingInput" class="form-label fw-bold text-primary">여기에 그대로 입력하세요</label>
-                                        <textarea id="typingInput" class="form-control typing-input border-0 shadow-sm p-4" rows="4" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="타자연습 시작 후 여기에 입력하세요."></textarea>
+                                        <textarea id="typingInput" class="form-control typing-input border-0 shadow-sm p-4" rows="4" autocomplete="off" autocapitalize="off" spellcheck="false" data-ime-disabled="true" placeholder="타자연습 시작 후 여기에 입력하세요."></textarea>
                                         <div class="d-flex justify-content-between flex-wrap gap-2 mt-3 small text-muted fw-bold">
                                             <span id="typingAccuracy">정확도 100%</span>
                                             <span id="typingCurrentKey">다음 입력: -</span>
@@ -1686,6 +1687,22 @@
         ['\u314b','\u314c','\u314a','\u314d','\u3160','\u315c','\u3161',',','.','/'],
         [' '],
     ];
+    const HANGUL_CHO = ['\u3131','\u3132','\u3134','\u3137','\u3138','\u3139','\u3141','\u3142','\u3143','\u3145','\u3146','\u3147','\u3148','\u3149','\u314a','\u314b','\u314c','\u314d','\u314e'];
+    const HANGUL_JUNG = ['\u314f','\u3150','\u3151','\u3152','\u3153','\u3154','\u3155','\u3156','\u3157','\u3158','\u3159','\u315a','\u315b','\u315c','\u315d','\u315e','\u315f','\u3160','\u3161','\u3162','\u3163'];
+    const HANGUL_JONG = ['', '\u3131','\u3132','\u3131\u3145','\u3134','\u3134\u3148','\u3134\u314e','\u3137','\u3139','\u3139\u3131','\u3139\u3141','\u3139\u3142','\u3139\u3145','\u3139\u314c','\u3139\u314d','\u3139\u314e','\u3141','\u3142','\u3142\u3145','\u3145','\u3146','\u3147','\u3148','\u314a','\u314b','\u314c','\u314d','\u314e'];
+    const HANGUL_COMPAT_COMPOUND = {
+        '\u3133': '\u3131\u3145',
+        '\u3135': '\u3134\u3148',
+        '\u3136': '\u3134\u314e',
+        '\u313a': '\u3139\u3131',
+        '\u313b': '\u3139\u3141',
+        '\u313c': '\u3139\u3142',
+        '\u313d': '\u3139\u3145',
+        '\u313e': '\u3139\u314c',
+        '\u313f': '\u3139\u314d',
+        '\u3140': '\u3139\u314e',
+        '\u3144': '\u3142\u3145',
+    };
     const TYPING_DURATION_SECONDS = Math.max(1, parseInt('{{ activity.duration|default:5 }}', 10) || 5) * 60;
     let typingStartedAt = null;
     let typingEnded = false;
@@ -1705,8 +1722,21 @@
         return Array.from(line || '').filter(char => char !== ' ').join('');
     }
 
+    function decomposeHangulTypingValue(value) {
+        return Array.from(value || '').map(char => {
+            if (HANGUL_COMPAT_COMPOUND[char]) return HANGUL_COMPAT_COMPOUND[char];
+            const code = char.charCodeAt(0);
+            if (code < 0xAC00 || code > 0xD7A3) return char;
+            const offset = code - 0xAC00;
+            const choIndex = Math.floor(offset / 588);
+            const jungIndex = Math.floor((offset % 588) / 28);
+            const jongIndex = offset % 28;
+            return `${HANGUL_CHO[choIndex] || ''}${HANGUL_JUNG[jungIndex] || ''}${HANGUL_JONG[jongIndex] || ''}`;
+        }).join('');
+    }
+
     function getStrictTypingState(inputValue, targetValue) {
-        const inputChars = Array.from((inputValue || '').replace(/\s/g, ''));
+        const inputChars = Array.from(decomposeHangulTypingValue(inputValue || '').replace(/\s/g, ''));
         const targetChars = Array.from(targetValue || '');
         let correctPrefixLength = 0;
         while (
@@ -1795,6 +1825,71 @@
         return typingKeyData.characters[char] || null;
     }
 
+    function buildTypingKeyInputMap() {
+        const map = new Map();
+        const layout = (typingKeyData && typingKeyData.layout) || buildFallbackTypingData().layout;
+        layout.flat().forEach(key => {
+            const output = key.display === '\uc2a4\ud398\uc774\uc2a4\ubc14' ? ' ' : key.display;
+            if (key.key) {
+                map.set(String(key.key).toLowerCase(), output);
+                map.set(String(key.key).toUpperCase(), output);
+            }
+            if (key.display) map.set(String(key.display), output);
+        });
+        map.set(' ', ' ');
+        map.set('Spacebar', ' ');
+        return map;
+    }
+
+    function getTypingCharacterFromKey(event) {
+        const map = buildTypingKeyInputMap();
+        if (event.code === 'Space') return ' ';
+        if (map.has(event.key)) return map.get(event.key);
+        if (typeof event.key === 'string' && map.has(event.key.toLowerCase())) {
+            return map.get(event.key.toLowerCase());
+        }
+        const decomposed = decomposeHangulTypingValue(event.key || '');
+        if (decomposed !== event.key && Array.from(decomposed).every(char => map.has(char))) {
+            return decomposed;
+        }
+        return '';
+    }
+
+    function preventTypingComposition(event) {
+        if (!IS_TYPING_ACTIVITY) return;
+        if (event.cancelable) event.preventDefault();
+    }
+
+    function handleTypingKeydown(event) {
+        if (!IS_TYPING_ACTIVITY || typingEnded) return;
+        const input = event.currentTarget;
+
+        if (event.key === 'Backspace') {
+            event.preventDefault();
+            input.value = Array.from(input.value || '').slice(0, -1).join('');
+            updateTypingStats();
+            return;
+        }
+
+        if (event.key === 'Delete') {
+            event.preventDefault();
+            updateTypingStats();
+            return;
+        }
+
+        if (event.key === 'Enter' || event.key === 'Tab') {
+            event.preventDefault();
+            return;
+        }
+
+        const typedChar = getTypingCharacterFromKey(event);
+        if (!typedChar) return;
+
+        event.preventDefault();
+        input.value = decomposeHangulTypingValue(`${input.value || ''}${typedChar}`);
+        updateTypingStats();
+    }
+
     function renderTypingKeyboard() {
         const keyboard = document.getElementById('typingKeyboard');
         if (!keyboard) return;
@@ -1822,7 +1917,7 @@
         const line = getCurrentTypingLine();
         const visibleChars = Array.from(line);
         const targetChars = Array.from(normalizeTypingLine(line));
-        const inputChars = Array.from((inputValue || '').replace(/\s/g, ''));
+        const inputChars = Array.from(decomposeHangulTypingValue(inputValue || '').replace(/\s/g, ''));
         const strictState = getStrictTypingState(inputValue, normalizeTypingLine(line));
         let compareIndex = 0;
         display.innerHTML = visibleChars.map(char => {
@@ -1869,7 +1964,7 @@
 
     function getTypingTotals(inputValue) {
         const completedLines = typingCompletedInputs;
-        const currentInput = (inputValue || '').replace(/\s/g, '');
+        const currentInput = decomposeHangulTypingValue(inputValue || '').replace(/\s/g, '');
         const allInput = completedLines.join('') + currentInput;
         const allTarget = typingTargetLines.map(normalizeTypingLine).join('');
         const currentTarget = normalizeTypingLine(getCurrentTypingLine());
@@ -1931,7 +2026,7 @@
 
     function maybeAdvanceTypingLine(input) {
         const currentTarget = normalizeTypingLine(getCurrentTypingLine());
-        const currentInput = (input.value || '').replace(/\s/g, '');
+        const currentInput = decomposeHangulTypingValue(input.value || '').replace(/\s/g, '');
         const strictState = getStrictTypingState(input.value, currentTarget);
         if (
             currentTarget
@@ -1952,7 +2047,7 @@
         if (!input || typingTargetLines.length === 0 || typingEnded) return;
         if (!typingStartedAt && input.value.length > 0) typingStartedAt = Date.now();
         maybeAdvanceTypingLine(input);
-        const currentInput = (input.value || '').replace(/\s/g, '');
+        const currentInput = decomposeHangulTypingValue(input.value || '').replace(/\s/g, '');
         const currentTarget = normalizeTypingLine(getCurrentTypingLine());
         const totals = getTypingTotals(input.value);
         const strictState = totals.strictState;
@@ -2144,7 +2239,27 @@
         updateTimerDisplay(typingTimeLeft);
         updateTypingStats();
         const input = document.getElementById('typingInput');
-        if (input) input.addEventListener('input', updateTypingStats);
+        if (input) {
+            input.addEventListener('keydown', handleTypingKeydown);
+            input.addEventListener('compositionstart', preventTypingComposition);
+            input.addEventListener('compositionupdate', preventTypingComposition);
+            input.addEventListener('compositionend', preventTypingComposition);
+            input.addEventListener('beforeinput', function(event) {
+                if (event.inputType && event.inputType.startsWith('insertComposition')) {
+                    preventTypingComposition(event);
+                }
+            });
+            input.addEventListener('paste', preventTypingComposition);
+            input.addEventListener('drop', preventTypingComposition);
+            input.addEventListener('input', function(event) {
+                if (event.isComposing) {
+                    preventTypingComposition(event);
+                    return;
+                }
+                input.value = decomposeHangulTypingValue(input.value || '');
+                updateTypingStats();
+            });
+        }
         const stopButton = document.getElementById('stop-btn');
         if (stopButton) stopButton.addEventListener('click', stopTypingPractice);
         const saveResultButton = document.getElementById('saveTypingResultButton');
