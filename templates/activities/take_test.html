@@ -2035,9 +2035,8 @@
 
     function rejectTypingInput(input, count = 1) {
         typingRejectedErrorCount += Math.max(1, count);
-        typingHasActiveError = true;
-        triggerTypingInputShake(input);
         updateTypingStats(false);
+        window.requestAnimationFrame(() => triggerTypingInputShake(input));
     }
 
     function acceptStrictTypingChars(input, rawChars) {
