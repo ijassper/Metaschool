@@ -157,6 +157,9 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('acceptStrictTypingChars', take_test_source)
         self.assertIn('handleTypingBeforeInput', take_test_source)
         self.assertIn("input.addEventListener('beforeinput', handleTypingBeforeInput)", take_test_source)
+        self.assertIn('KOREAN_KEY_CODE_MAP', take_test_source)
+        self.assertIn('typingLastAcceptedValue', take_test_source)
+        self.assertIn('event.code && KOREAN_KEY_CODE_MAP[event.code]', take_test_source)
         self.assertLess(
             take_test_source.index('for="typingInput"'),
             take_test_source.index('id="typingKeyboard"'),

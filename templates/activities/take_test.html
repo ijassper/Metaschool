@@ -273,11 +273,10 @@
         animation: typingShake 0.28s ease-in-out;
     }
     .typing-input.has-error {
-        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.16), 0 0.75rem 1.5rem rgba(220, 53, 69, 0.08) !important;
+        box-shadow: 0 0.75rem 1.5rem rgba(31, 22, 54, 0.06) !important;
     }
     .typing-input.shake {
         animation: typingShake 0.3s ease-in-out;
-        border: 2px solid #dc3545 !important;
     }
     @keyframes typingShake {
         0%, 100% { transform: translateX(0); }
@@ -1794,6 +1793,42 @@
         ['\u314b','\u314c','\u314a','\u314d','\u3160','\u315c','\u3161',',','.','/'],
         [' '],
     ];
+    const KOREAN_KEY_CODE_MAP = {
+        KeyQ: '\u3142',
+        KeyW: '\u3148',
+        KeyE: '\u3137',
+        KeyR: '\u3131',
+        KeyT: '\u3145',
+        KeyY: '\u315b',
+        KeyU: '\u3155',
+        KeyI: '\u3151',
+        KeyO: '\u3150',
+        KeyP: '\u3154',
+        BracketLeft: '[',
+        BracketRight: ']',
+        KeyA: '\u3141',
+        KeyS: '\u3134',
+        KeyD: '\u3147',
+        KeyF: '\u3139',
+        KeyG: '\u314e',
+        KeyH: '\u3157',
+        KeyJ: '\u3153',
+        KeyK: '\u314f',
+        KeyL: '\u3163',
+        Semicolon: ';',
+        Quote: "'",
+        KeyZ: '\u314b',
+        KeyX: '\u314c',
+        KeyC: '\u314a',
+        KeyV: '\u314d',
+        KeyB: '\u3160',
+        KeyN: '\u315c',
+        KeyM: '\u3161',
+        Comma: ',',
+        Period: '.',
+        Slash: '/',
+        Space: ' ',
+    };
     const HANGUL_CHO = ['\u3131','\u3132','\u3134','\u3137','\u3138','\u3139','\u3141','\u3142','\u3143','\u3145','\u3146','\u3147','\u3148','\u3149','\u314a','\u314b','\u314c','\u314d','\u314e'];
     const HANGUL_JUNG = ['\u314f','\u3150','\u3151','\u3152','\u3153','\u3154','\u3155','\u3156','\u3157','\u3158','\u3159','\u315a','\u315b','\u315c','\u315d','\u315e','\u315f','\u3160','\u3161','\u3162','\u3163'];
     const HANGUL_JONG = ['', '\u3131','\u3132','\u3131\u3145','\u3134','\u3134\u3148','\u3134\u314e','\u3137','\u3139','\u3139\u3131','\u3139\u3141','\u3139\u3142','\u3139\u3145','\u3139\u314c','\u3139\u314d','\u3139\u314e','\u3141','\u3142','\u3142\u3145','\u3145','\u3146','\u3147','\u3148','\u314a','\u314b','\u314c','\u314d','\u314e'];
@@ -1825,6 +1860,8 @@
     let typingHasActiveError = false;
     let typingCorrectionCount = 0;
     let typingRejectedErrorCount = 0;
+    let typingLastAcceptedValue = '';
+    let typingIsManualInsert = false;
 
     function normalizeTypingLine(line) {
         return Array.from(line || '').filter(char => char !== ' ').join('');
@@ -1951,6 +1988,9 @@
 
     function getTypingCharacterFromKey(event) {
         const map = buildTypingKeyInputMap();
+        if (event.code && KOREAN_KEY_CODE_MAP[event.code]) {
+            return KOREAN_KEY_CODE_MAP[event.code];
+        }
         if (event.code === 'Space') return ' ';
         if (map.has(event.key)) return map.get(event.key);
         if (typeof event.key === 'string' && map.has(event.key.toLowerCase())) {
@@ -1966,14 +2006,20 @@
     function preventTypingComposition(event) {
         if (!IS_TYPING_ACTIVITY) return;
         if (event.cancelable) event.preventDefault();
+        const input = event.currentTarget;
+        if (input && input.id === 'typingInput') {
+            input.value = typingLastAcceptedValue;
+        }
     }
 
     function triggerTypingInputShake(input) {
-        if (!input) return;
-        input.classList.remove('shake');
-        void input.offsetWidth;
-        input.classList.add('shake');
-        window.setTimeout(() => input.classList.remove('shake'), 300);
+        const guide = document.getElementById('typingGuideCurrent');
+        if (guide) {
+            guide.classList.remove('has-error');
+            void guide.offsetWidth;
+            guide.classList.add('has-error');
+            window.setTimeout(() => guide.classList.remove('has-error'), 300);
+        }
         if (navigator.vibrate) navigator.vibrate(35);
     }
 
@@ -1986,7 +2032,6 @@
     function rejectTypingInput(input, count = 1) {
         typingRejectedErrorCount += Math.max(1, count);
         typingHasActiveError = true;
-        input.classList.add('has-error');
         triggerTypingInputShake(input);
         updateTypingStats(false);
     }
@@ -2009,6 +2054,7 @@
         }
 
         input.value = nextValue;
+        typingLastAcceptedValue = nextValue;
         updateTypingStats();
         return true;
     }
@@ -2019,14 +2065,17 @@
         const strictState = getStrictTypingState(decomposedValue, currentTarget);
         if (!strictState.hasCurrentError) {
             input.value = decomposedValue;
+            typingLastAcceptedValue = decomposedValue;
             return false;
         }
         if (inputType === 'deleteContentBackward') {
             input.value = strictState.inputChars.slice(0, strictState.correctPrefixLength).join('');
+            typingLastAcceptedValue = input.value;
             return false;
         }
         const rejectedCount = Math.max(1, strictState.inputChars.length - strictState.correctPrefixLength);
         input.value = strictState.inputChars.slice(0, strictState.correctPrefixLength).join('');
+        typingLastAcceptedValue = input.value;
         rejectTypingInput(input, rejectedCount);
         return true;
     }
@@ -2038,6 +2087,7 @@
         if (event.key === 'Backspace') {
             event.preventDefault();
             input.value = Array.from(input.value || '').slice(0, -1).join('');
+            typingLastAcceptedValue = input.value;
             updateTypingStats();
             return;
         }
@@ -2067,11 +2117,7 @@
 
         if (inputType === 'deleteContentBackward') return;
 
-        if (
-            inputType.startsWith('insertComposition')
-            || inputType === 'insertFromPaste'
-            || inputType === 'insertFromDrop'
-        ) {
+        if (inputType === 'insertFromPaste' || inputType === 'insertFromDrop') {
             if (event.cancelable) event.preventDefault();
             rejectTypingInput(input, 1);
             return;
@@ -2079,7 +2125,11 @@
 
         if (inputType.startsWith('insert') && typeof event.data === 'string') {
             if (event.cancelable) event.preventDefault();
+            typingIsManualInsert = true;
             acceptStrictTypingChars(input, event.data);
+            window.setTimeout(() => {
+                typingIsManualInsert = false;
+            }, 0);
         }
     }
 
@@ -2231,6 +2281,7 @@
             typingCompletedInputs.push(currentTarget);
             typingCurrentLineIndex += 1;
             input.value = '';
+            typingLastAcceptedValue = '';
             renderTypingTarget('');
             input.focus();
         }
@@ -2447,8 +2498,9 @@
             input.addEventListener('paste', preventTypingComposition);
             input.addEventListener('drop', preventTypingComposition);
             input.addEventListener('input', function(event) {
-                if (event.isComposing) {
-                    preventTypingComposition(event);
+                if (event.isComposing || (!typingIsManualInsert && input.value !== typingLastAcceptedValue)) {
+                    input.value = typingLastAcceptedValue;
+                    updateTypingStats(false);
                     return;
                 }
                 if (enforceStrictTypingInputValue(input, event.inputType || '')) return;
