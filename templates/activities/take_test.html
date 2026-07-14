@@ -177,6 +177,10 @@
     .typing-input.has-error {
         box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.16), 0 0.75rem 1.5rem rgba(220, 53, 69, 0.08) !important;
     }
+    .typing-input.shake {
+        animation: typingShake 0.3s ease-in-out;
+        border: 2px solid #dc3545 !important;
+    }
     @keyframes typingShake {
         0%, 100% { transform: translateX(0); }
         25% { transform: translateX(-5px); }
@@ -1717,6 +1721,7 @@
     let typingKeyData = null;
     let typingHasActiveError = false;
     let typingCorrectionCount = 0;
+    let typingRejectedErrorCount = 0;
 
     function normalizeTypingLine(line) {
         return Array.from(line || '').filter(char => char !== ' ').join('');
@@ -1860,6 +1865,47 @@
         if (event.cancelable) event.preventDefault();
     }
 
+    function triggerTypingInputShake(input) {
+        if (!input) return;
+        input.classList.remove('shake');
+        void input.offsetWidth;
+        input.classList.add('shake');
+        window.setTimeout(() => input.classList.remove('shake'), 300);
+        if (navigator.vibrate) navigator.vibrate(35);
+    }
+
+    function getTypingExpectedCharForValue(value) {
+        const currentTarget = normalizeTypingLine(getCurrentTypingLine());
+        const strictState = getStrictTypingState(value || '', currentTarget);
+        return currentTarget[strictState.correctPrefixLength] || '';
+    }
+
+    function rejectTypingInput(input, count = 1) {
+        typingRejectedErrorCount += Math.max(1, count);
+        typingHasActiveError = true;
+        input.classList.add('has-error');
+        triggerTypingInputShake(input);
+        updateTypingStats(false);
+    }
+
+    function enforceStrictTypingInputValue(input, inputType = '') {
+        const decomposedValue = decomposeHangulTypingValue(input.value || '');
+        const currentTarget = normalizeTypingLine(getCurrentTypingLine());
+        const strictState = getStrictTypingState(decomposedValue, currentTarget);
+        if (!strictState.hasCurrentError) {
+            input.value = decomposedValue;
+            return false;
+        }
+        if (inputType === 'deleteContentBackward') {
+            input.value = strictState.inputChars.slice(0, strictState.correctPrefixLength).join('');
+            return false;
+        }
+        const rejectedCount = Math.max(1, strictState.inputChars.length - strictState.correctPrefixLength);
+        input.value = strictState.inputChars.slice(0, strictState.correctPrefixLength).join('');
+        rejectTypingInput(input, rejectedCount);
+        return true;
+    }
+
     function handleTypingKeydown(event) {
         if (!IS_TYPING_ACTIVITY || typingEnded) return;
         const input = event.currentTarget;
@@ -1886,7 +1932,17 @@
         if (!typedChar) return;
 
         event.preventDefault();
-        input.value = decomposeHangulTypingValue(`${input.value || ''}${typedChar}`);
+        let nextValue = decomposeHangulTypingValue(input.value || '');
+        const typedChars = Array.from(decomposeHangulTypingValue(typedChar));
+        for (const char of typedChars) {
+            const expectedChar = getTypingExpectedCharForValue(nextValue);
+            if (char !== expectedChar) {
+                rejectTypingInput(input, 1);
+                return;
+            }
+            nextValue += char;
+        }
+        input.value = nextValue;
         updateTypingStats();
     }
 
@@ -2011,6 +2067,7 @@
             `accuracy: ${typingLastStats.accuracy}`,
             `error_count: ${typingLastStats.errors}`,
             `correction_count: ${typingLastStats.correctionCount || 0}`,
+            `rejected_error_count: ${typingLastStats.rejectedErrorCount || 0}`,
             '',
             ...analysisLines,
             `\ud0c0\uc790\uc5f0\uc2b5 \uacfc\uc81c\uba85: {{ activity.title|escapejs }}`,
@@ -2056,12 +2113,15 @@
         }
         typingHasActiveError = strictState.hasCurrentError;
         input.classList.toggle('has-error', strictState.hasCurrentError);
+        const totalErrors = totals.errors + typingRejectedErrorCount;
+        const totalCorrections = typingCorrectionCount + typingRejectedErrorCount;
         const progress = totals.allTarget.length ? Math.min(100, Math.round((Math.min(totals.progressCorrectLength, totals.allTarget.length) / totals.allTarget.length) * 100)) : 0;
         const totalTypingTime = typingStartedAt ? Math.round((Date.now() - typingStartedAt) / 1000) : 0;
         const elapsedMinutes = Math.max(totalTypingTime / 60, 1 / 60);
         const speed = Math.round(totals.progressCorrectLength / elapsedMinutes);
-        const accuracy = totals.allInput.length ? Math.max(0, Math.round((totals.correct / totals.allInput.length) * 100)) : 0;
-        typingLastStats = { progress, speed, errors: totals.errors, accuracy, totalTypingTime, correctionCount: typingCorrectionCount };
+        const accuracyDenominator = totals.progressCorrectLength + totalErrors;
+        const accuracy = accuracyDenominator ? Math.max(0, Math.round((totals.progressCorrectLength / accuracyDenominator) * 100)) : 0;
+        typingLastStats = { progress, speed, errors: totalErrors, accuracy, totalTypingTime, correctionCount: totalCorrections, rejectedErrorCount: typingRejectedErrorCount };
 
         if (strictState.hasCurrentError && navigator.vibrate) navigator.vibrate(35);
 
@@ -2074,7 +2134,7 @@
         const speedEl = document.getElementById('typingSpeed');
         if (speedEl) speedEl.innerHTML = `<i class="bi bi-speedometer2"></i> ${speed} \ud0c0/\ubd84`;
         const errorEl = document.getElementById('typingErrorCount');
-        if (errorEl) errorEl.innerHTML = `<i class="bi bi-bug-fill"></i> \uc624\ud0c0 ${totals.errors}`;
+        if (errorEl) errorEl.innerHTML = `<i class="bi bi-bug-fill"></i> \uc624\ud0c0 ${totalErrors}`;
         const accuracyEl = document.getElementById('typingAccuracy');
         if (accuracyEl) accuracyEl.textContent = `\uc815\ud655\ub3c4 ${accuracy}%`;
 
@@ -2119,6 +2179,7 @@
             accuracy: typingLastStats.accuracy,
             error_count: typingLastStats.errors,
             correction_count: typingLastStats.correctionCount || 0,
+            rejected_error_count: typingLastStats.rejectedErrorCount || 0,
         };
     }
 
@@ -2256,7 +2317,7 @@
                     preventTypingComposition(event);
                     return;
                 }
-                input.value = decomposeHangulTypingValue(input.value || '');
+                if (enforceStrictTypingInputValue(input, event.inputType || '')) return;
                 updateTypingStats();
             });
         }
