@@ -132,7 +132,7 @@
         justify-content: center;
         max-width: min(34rem, 92vw);
         margin: 0;
-        padding: 0.4rem 1.1rem;
+        padding: 0.5rem 1.35rem;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.58);
         border: 1px solid rgba(255, 255, 255, 0.76);
@@ -140,9 +140,49 @@
         -webkit-backdrop-filter: blur(14px);
         box-shadow: 0 0.65rem 1.5rem rgba(31, 22, 54, 0.08);
         color: var(--ingrid-primary, #8E44AD);
+        font-size: 1.5rem;
         font-weight: 900;
+        line-height: 1.15;
         text-align: center;
         white-space: nowrap;
+    }
+    .typing-progress-wrap {
+        max-width: min(96rem, 100%);
+        margin: 0.75rem auto 0;
+        padding: 0 0.6rem;
+    }
+    .typing-progress-track {
+        position: relative;
+        height: 14px;
+        overflow: visible;
+        background: rgba(142, 68, 173, 0.12);
+        box-shadow: inset 0 1px 2px rgba(31, 22, 54, 0.06);
+    }
+    .typing-progress-track .progress-bar {
+        min-width: 2rem;
+        overflow: visible;
+        background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));
+        font-size: 0;
+    }
+    .typing-progress-label {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 4.5rem;
+        padding: 0.12rem 0.5rem;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);
+        color: #fff;
+        font-size: 0.76rem;
+        font-weight: 900;
+        line-height: 1;
+        white-space: nowrap;
+        box-shadow: 0 0.35rem 0.9rem rgba(142, 68, 173, 0.18);
+        pointer-events: none;
     }
     .typing-stats-line .exam-status-pill {
         font-size: 0.85rem;
@@ -170,6 +210,9 @@
         }
         .typing-header-grid .typing-stats-line {
             justify-content: center;
+        }
+        .typing-student-card {
+            font-size: 1.25rem;
         }
     }
     .typing-practice-shell .container-fluid {
@@ -987,8 +1030,11 @@
                             </button>
                         </div>
                     </div>
-                    <div class="progress rounded-pill mt-2" style="height: 12px; background: rgba(142, 68, 173, 0.12);">
-                        <div id="typingProgressBar" class="progress-bar rounded-pill" style="width: 0%; background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%));" role="progressbar" aria-valuemin="0" aria-valuemax="100">현재 0% 완료</div>
+                    <div class="typing-progress-wrap">
+                        <div class="progress rounded-pill typing-progress-track">
+                            <div id="typingProgressBar" class="progress-bar rounded-pill" style="width: 0%;" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div>
+                            <span id="typingProgressLabel" class="typing-progress-label">현재 0% 완료</span>
+                        </div>
                     </div>
                 </div>
 
@@ -2185,8 +2231,11 @@
         const progressBar = document.getElementById('typingProgressBar');
         if (progressBar) {
             progressBar.style.width = `${progress}%`;
-            progressBar.textContent = `\ud604\uc7ac ${progress}% \uc644\ub8cc`;
             progressBar.setAttribute('aria-valuenow', String(progress));
+        }
+        const progressLabel = document.getElementById('typingProgressLabel');
+        if (progressLabel) {
+            progressLabel.textContent = `\ud604\uc7ac ${progress}% \uc644\ub8cc`;
         }
         const speedEl = document.getElementById('typingSpeed');
         if (speedEl) speedEl.innerHTML = `<i class="bi bi-speedometer2"></i> ${speed} \ud0c0/\ubd84`;
