@@ -402,6 +402,22 @@
         color: #fff;
         transform: translateY(-2px) scale(1.06);
     }
+    .typing-keycap.is-practice-zone {
+        border-color: rgba(142, 68, 173, 0.34);
+        background: rgba(255, 255, 255, 0.98);
+        color: #2e3138;
+        opacity: 1;
+    }
+    .typing-keycap.is-muted {
+        opacity: 0.32;
+        filter: grayscale(0.65);
+        box-shadow: none;
+    }
+    .typing-keycap.is-disabled-symbol {
+        opacity: 0.26;
+        filter: grayscale(0.9);
+        border-style: dashed;
+    }
     .typing-keycap.space-key {
         min-width: min(14.4rem, 56vw);
     }
@@ -1787,18 +1803,15 @@
     }
 
     const LEFT_TYPING_KEYS = ['\u3142','\u3148','\u3137','\u3131','\u3145','\u3141','\u3134','\u3147','\u3139','\u314e','\u314b','\u314c','\u314a','\u314d','\u3160',' '];
+    const LEFT_TYPING_KEY_SET = new Set(LEFT_TYPING_KEYS);
     const RIGHT_TYPING_KEYS = ['\u315b','\u3155','\u3151','\u3150','\u3154','\u3157','\u3153','\u314f','\u3163','\u315c','\u3161',';',',','.'];
     const RIGHT_TYPING_KEY_SET = new Set(RIGHT_TYPING_KEYS);
+    const DISABLED_TYPING_SYMBOL_SET = new Set(['[', ']', "'", '/']);
     const KOREAN_KEYBOARD_ROWS = [
         ['\u3142','\u3148','\u3137','\u3131','\u3145','\u315b','\u3155','\u3151','\u3150','\u3154','[',']'],
         ['\u3141','\u3134','\u3147','\u3139','\u314e','\u3157','\u3153','\u314f','\u3163',';','\'',],
         ['\u314b','\u314c','\u314a','\u314d','\u3160','\u315c','\u3161',',','.','/'],
         [' '],
-    ];
-    const RIGHT_TYPING_KEYBOARD_ROWS = [
-        ['\u315b','\u3155','\u3151','\u3150','\u3154'],
-        ['\u3157','\u3153','\u314f','\u3163',';'],
-        ['\u315c','\u3161',',','.'],
     ];
     const KOREAN_KEY_CODE_MAP = {
         KeyQ: '\u3142',
@@ -1976,9 +1989,6 @@
     }
 
     function getTypingKeyboardLayout() {
-        if (TYPING_POSITION === 'RIGHT') {
-            return buildTypingLayoutFromRows(RIGHT_TYPING_KEYBOARD_ROWS);
-        }
         return (typingKeyData && typingKeyData.layout) || buildFallbackTypingData().layout;
     }
 
@@ -1995,23 +2005,20 @@
         return typingKeyData;
     }
 
+    function getTypingKeyOutput(key) {
+        return key.display === '\uc2a4\ud398\uc774\uc2a4\ubc14' ? ' ' : key.display;
+    }
+
     function getTypingCharMeta(char) {
-        if (TYPING_POSITION === 'RIGHT') {
-            const key = getTypingKeyboardLayout().flat().find(item => {
-                const output = item.display === '\uc2a4\ud398\uc774\uc2a4\ubc14' ? ' ' : item.display;
-                return output === char;
-            });
-            return key ? { keyId: key.id, finger: key.finger, display: key.display } : null;
-        }
-        if (!typingKeyData || !typingKeyData.characters) return null;
-        return typingKeyData.characters[char] || null;
+        const key = getTypingKeyboardLayout().flat().find(item => getTypingKeyOutput(item) === char);
+        return key ? { keyId: key.id, finger: key.finger, display: key.display } : null;
     }
 
     function buildTypingKeyInputMap() {
         const map = new Map();
         const layout = getTypingKeyboardLayout();
         layout.flat().forEach(key => {
-            const output = key.display === '\uc2a4\ud398\uc774\uc2a4\ubc14' ? ' ' : key.display;
+            const output = getTypingKeyOutput(key);
             if (key.key) {
                 map.set(String(key.key).toLowerCase(), output);
                 map.set(String(key.key).toUpperCase(), output);
@@ -2181,6 +2188,24 @@
         }
     }
 
+    function getTypingKeycapModeClasses(key) {
+        const output = getTypingKeyOutput(key);
+        const classes = [];
+        const isDisabledSymbol = DISABLED_TYPING_SYMBOL_SET.has(output);
+        let isPracticeZone = true;
+
+        if (TYPING_POSITION === 'LEFT') {
+            isPracticeZone = LEFT_TYPING_KEY_SET.has(output);
+        } else if (TYPING_POSITION === 'RIGHT') {
+            isPracticeZone = RIGHT_TYPING_KEY_SET.has(output);
+        }
+
+        if (isPracticeZone) classes.push('is-practice-zone');
+        if (!isPracticeZone) classes.push('is-muted');
+        if (isDisabledSymbol) classes.push('is-disabled-symbol');
+        return classes.join(' ');
+    }
+
     function renderTypingKeyboard() {
         const keyboard = document.getElementById('typingKeyboard');
         if (!keyboard) return;
@@ -2188,7 +2213,7 @@
         keyboard.innerHTML = layout.map(row => `
             <div class="typing-keyboard-row">
                 ${row.map(key => `
-                    <span class="typing-keycap ${key.wide ? 'space-key' : ''}" data-key-id="${key.id}" data-finger="${key.finger || ''}" data-char="${key.display}">
+                    <span class="typing-keycap ${key.wide ? 'space-key' : ''} ${getTypingKeycapModeClasses(key)}" data-key-id="${key.id}" data-finger="${key.finger || ''}" data-char="${key.display}">
                         <span>${escapeTypingChar(key.display)}</span>
                         ${key.key && key.key !== key.display ? `<small>${escapeTypingChar(key.key)}</small>` : ''}
                     </span>
