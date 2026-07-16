@@ -1883,6 +1883,8 @@
     let typingLastAcceptedValue = '';
     let typingIsManualInsert = false;
     let typingSkipNextBeforeInput = 0;
+    let typingLastAcceptedInsert = '';
+    let typingDuplicateInsertUntil = 0;
 
     function normalizeTypingLine(line) {
         return Array.from(line || '').filter(char => char !== ' ').join('');
@@ -2087,9 +2089,25 @@
         window.requestAnimationFrame(() => triggerTypingInputShake(input));
     }
 
+    function normalizeTypingInsertChars(rawChars) {
+        return decomposeHangulTypingValue(rawChars || '').replace(/\s/g, '');
+    }
+
+    function rememberAcceptedTypingInsert(rawChars) {
+        const chars = normalizeTypingInsertChars(rawChars);
+        if (!chars) return;
+        typingLastAcceptedInsert = chars;
+        typingDuplicateInsertUntil = Date.now() + 700;
+    }
+
+    function isDuplicateNativeTypingInsert(rawChars) {
+        const chars = normalizeTypingInsertChars(rawChars);
+        return Boolean(chars && chars === typingLastAcceptedInsert && Date.now() <= typingDuplicateInsertUntil);
+    }
+
     function acceptStrictTypingChars(input, rawChars) {
         let nextValue = decomposeHangulTypingValue(input.value || '');
-        const typedChars = Array.from(decomposeHangulTypingValue(rawChars || '').replace(/\s/g, ''));
+        const typedChars = Array.from(normalizeTypingInsertChars(rawChars));
         if (typedChars.length === 0) {
             updateTypingStats();
             return true;
@@ -2106,6 +2124,7 @@
 
         input.value = nextValue;
         typingLastAcceptedValue = nextValue;
+        rememberAcceptedTypingInsert(rawChars);
         updateTypingStats();
         return true;
     }
@@ -2183,12 +2202,23 @@
 
         if (inputType.startsWith('insert') && typeof event.data === 'string') {
             if (event.cancelable) event.preventDefault();
+            if (isDuplicateNativeTypingInsert(event.data)) return;
             typingIsManualInsert = true;
             acceptStrictTypingChars(input, event.data);
             window.setTimeout(() => {
                 typingIsManualInsert = false;
             }, 0);
         }
+    }
+
+    function handleTypingCompositionEnd(event) {
+        if (!IS_TYPING_ACTIVITY || typingEnded) return;
+        const input = event.currentTarget;
+        if (!input || input.value === typingLastAcceptedValue) return;
+        typingIsManualInsert = true;
+        enforceStrictTypingInputValue(input, 'insertCompositionText');
+        typingIsManualInsert = false;
+        updateTypingStats(false);
     }
 
     function getTypingKeycapModeClasses(key) {
@@ -2568,12 +2598,15 @@
             input.addEventListener('keydown', handleTypingKeydown);
             input.addEventListener('compositionstart', preventTypingComposition);
             input.addEventListener('compositionupdate', preventTypingComposition);
-            input.addEventListener('compositionend', preventTypingComposition);
+            input.addEventListener('compositionend', handleTypingCompositionEnd);
             input.addEventListener('beforeinput', handleTypingBeforeInput);
             input.addEventListener('paste', preventTypingComposition);
             input.addEventListener('drop', preventTypingComposition);
             input.addEventListener('input', function(event) {
-                if (event.isComposing || (!typingIsManualInsert && input.value !== typingLastAcceptedValue)) {
+                if (event.isComposing) {
+                    return;
+                }
+                if (!typingIsManualInsert && input.value !== typingLastAcceptedValue) {
                     input.value = typingLastAcceptedValue;
                     updateTypingStats(false);
                     return;
