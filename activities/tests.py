@@ -118,6 +118,9 @@ class PdfViewerTests(SimpleTestCase):
         take_test_source = get_template(
             'activities/take_test.html'
         ).template.source
+        typing_views_source = (
+            Path(settings.BASE_DIR) / 'activities' / 'views' / 'typing_views.py'
+        ).read_text(encoding='utf-8')
         dashboard_source = get_template(
             'activities/student_dashboard.html'
         ).template.source
@@ -185,6 +188,12 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('shuffleTypingKeys', take_test_source)
         self.assertIn('Math.random()', take_test_source)
         self.assertIn('Array.from({ length: 4 }', take_test_source)
+        self.assertIn('RIGHT_TYPING_KEY_SET', take_test_source)
+        self.assertIn('RIGHT_TYPING_KEYBOARD_ROWS', take_test_source)
+        self.assertIn('filterRightTypingText', take_test_source)
+        self.assertIn('getTypingKeyboardLayout', take_test_source)
+        self.assertIn("if (TYPING_POSITION === 'RIGHT')", take_test_source)
+        self.assertNotIn("const RIGHT_TYPING_KEYS = ['\\u315b','\\u3155','\\u3151','\\u3150','\\u3154','[',']'", take_test_source)
         self.assertNotIn('const keyLine = keys.join', take_test_source)
         self.assertIn('updateTypingStats', take_test_source)
         self.assertIn('typingTimer', take_test_source)
@@ -195,7 +204,7 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('correctPrefixLength', take_test_source)
         self.assertIn('typingCorrectionCount', take_test_source)
         self.assertIn('correction_count', take_test_source)
-        self.assertIn('typing-context-char is-current ${hasCurrentError', take_test_source)
+        self.assertIn("'typing-context-char is-current'", take_test_source)
         self.assertIn('ime-mode: disabled', take_test_source)
         self.assertIn('handleTypingKeydown', take_test_source)
         self.assertIn('compositionstart', take_test_source)
@@ -223,6 +232,9 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('average_wpm', take_test_source)
         self.assertIn('strong_keys', take_test_source)
         self.assertIn('weak_keys', take_test_source)
+        self.assertIn('RIGHT_TYPING_KEYS', typing_views_source)
+        self.assertIn('filter_right_typing_text', typing_views_source)
+        self.assertIn("activity.typing_position == 'RIGHT'", typing_views_source)
         self.assertIn('async function startTest(event)', take_test_source)
         self.assertIn('await requestExamFullscreen()', take_test_source)
         self.assertIn('let isStartingExam = false', take_test_source)

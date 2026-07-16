@@ -10,9 +10,21 @@ from activities.models import Activity
 from .exam_views import get_student_for_activity
 
 
+RIGHT_TYPING_KEYS = {
+    '\u315b', '\u3155', '\u3151', '\u3150', '\u3154',
+    '\u3157', '\u3153', '\u314f', '\u3163',
+    '\u315c', '\u3161', ';', ',', '.',
+}
+
+
 def normalize_typing_text(value):
     """Compare typing content without whitespace noise."""
     return ''.join(ch for ch in (value or '') if not ch.isspace())
+
+
+def filter_right_typing_text(value):
+    """Keep only tablet-friendly right-hand practice keys."""
+    return ''.join(ch for ch in normalize_typing_text(value) if ch in RIGHT_TYPING_KEYS)
 
 
 def top_three(counter):
@@ -83,6 +95,9 @@ def analyze_typing_result(request, activity_id):
 
     target_text = normalize_typing_text(payload.get('target_text'))
     input_text = normalize_typing_text(payload.get('input_text'))
+    if activity.typing_position == 'RIGHT':
+        target_text = filter_right_typing_text(target_text)
+        input_text = filter_right_typing_text(input_text)
     total_time = max(float(payload.get('total_typing_time') or 0), 1.0)
     correction_count = int(payload.get('correction_count') or 0)
     rejected_error_count = int(payload.get('rejected_error_count') or 0)

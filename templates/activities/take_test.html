@@ -1787,12 +1787,18 @@
     }
 
     const LEFT_TYPING_KEYS = ['\u3142','\u3148','\u3137','\u3131','\u3145','\u3141','\u3134','\u3147','\u3139','\u314e','\u314b','\u314c','\u314a','\u314d','\u3160',' '];
-    const RIGHT_TYPING_KEYS = ['\u315b','\u3155','\u3151','\u3150','\u3154','[',']','\u3157','\u3153','\u314f','\u3163',';','\'','\u315c','\u3161',',','.','/',' '];
+    const RIGHT_TYPING_KEYS = ['\u315b','\u3155','\u3151','\u3150','\u3154','\u3157','\u3153','\u314f','\u3163','\u315c','\u3161',';',',','.'];
+    const RIGHT_TYPING_KEY_SET = new Set(RIGHT_TYPING_KEYS);
     const KOREAN_KEYBOARD_ROWS = [
         ['\u3142','\u3148','\u3137','\u3131','\u3145','\u315b','\u3155','\u3151','\u3150','\u3154','[',']'],
         ['\u3141','\u3134','\u3147','\u3139','\u314e','\u3157','\u3153','\u314f','\u3163',';','\'',],
         ['\u314b','\u314c','\u314a','\u314d','\u3160','\u315c','\u3161',',','.','/'],
         [' '],
+    ];
+    const RIGHT_TYPING_KEYBOARD_ROWS = [
+        ['\u315b','\u3155','\u3151','\u3150','\u3154'],
+        ['\u3157','\u3153','\u314f','\u3163',';'],
+        ['\u315c','\u3161',',','.'],
     ];
     const KOREAN_KEY_CODE_MAP = {
         KeyQ: '\u3142',
@@ -1916,9 +1922,20 @@
         return shuffled;
     }
 
+    function filterRightTypingText(value) {
+        return Array.from(decomposeHangulTypingValue(value || ''))
+            .filter(char => RIGHT_TYPING_KEY_SET.has(char))
+            .join('');
+    }
+
     function buildTypingTargetLines() {
         if (TYPING_TARGET_DATA && TYPING_TARGET_DATA.trim()) {
-            return TYPING_TARGET_DATA.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+            const sourceLines = TYPING_TARGET_DATA.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+            if (TYPING_POSITION === 'RIGHT') {
+                const rightLines = sourceLines.map(filterRightTypingText).filter(Boolean);
+                if (rightLines.length > 0) return rightLines;
+            }
+            if (TYPING_POSITION !== 'RIGHT') return sourceLines;
         }
         let keys = LEFT_TYPING_KEYS;
         if (TYPING_POSITION === 'RIGHT') {
@@ -1929,14 +1946,18 @@
         return Array.from({ length: 4 }, () => shuffleTypingKeys(keys).join(''));
     }
 
-    function buildFallbackTypingData() {
-        const fallbackLayout = KOREAN_KEYBOARD_ROWS.map((row, rowIndex) => row.map((char, keyIndex) => ({
+    function buildTypingLayoutFromRows(rows) {
+        return rows.map((row, rowIndex) => row.map((char, keyIndex) => ({
             id: char === ' ' ? 'key-space' : `fallback-${rowIndex}-${keyIndex}`,
             key: char === ' ' ? 'space' : char,
             display: char === ' ' ? '\uc2a4\ud398\uc774\uc2a4\ubc14' : char,
             finger: char === ' ' ? 'thumb' : '',
             wide: char === ' ',
         })));
+    }
+
+    function buildFallbackTypingData() {
+        const fallbackLayout = buildTypingLayoutFromRows(KOREAN_KEYBOARD_ROWS);
         const characters = {};
         fallbackLayout.flat().forEach(key => {
             characters[key.display === '\uc2a4\ud398\uc774\uc2a4\ubc14' ? ' ' : key.display] = {
@@ -1954,6 +1975,13 @@
         };
     }
 
+    function getTypingKeyboardLayout() {
+        if (TYPING_POSITION === 'RIGHT') {
+            return buildTypingLayoutFromRows(RIGHT_TYPING_KEYBOARD_ROWS);
+        }
+        return (typingKeyData && typingKeyData.layout) || buildFallbackTypingData().layout;
+    }
+
     async function loadTypingKeyData() {
         if (typingKeyData) return typingKeyData;
         try {
@@ -1968,13 +1996,20 @@
     }
 
     function getTypingCharMeta(char) {
+        if (TYPING_POSITION === 'RIGHT') {
+            const key = getTypingKeyboardLayout().flat().find(item => {
+                const output = item.display === '\uc2a4\ud398\uc774\uc2a4\ubc14' ? ' ' : item.display;
+                return output === char;
+            });
+            return key ? { keyId: key.id, finger: key.finger, display: key.display } : null;
+        }
         if (!typingKeyData || !typingKeyData.characters) return null;
         return typingKeyData.characters[char] || null;
     }
 
     function buildTypingKeyInputMap() {
         const map = new Map();
-        const layout = (typingKeyData && typingKeyData.layout) || buildFallbackTypingData().layout;
+        const layout = getTypingKeyboardLayout();
         layout.flat().forEach(key => {
             const output = key.display === '\uc2a4\ud398\uc774\uc2a4\ubc14' ? ' ' : key.display;
             if (key.key) {
@@ -1991,7 +2026,9 @@
     function getTypingCharacterFromKey(event) {
         const map = buildTypingKeyInputMap();
         if (event.code && KOREAN_KEY_CODE_MAP[event.code]) {
-            return KOREAN_KEY_CODE_MAP[event.code];
+            const codeChar = KOREAN_KEY_CODE_MAP[event.code];
+            if (TYPING_POSITION === 'RIGHT' && !RIGHT_TYPING_KEY_SET.has(codeChar)) return '';
+            return codeChar;
         }
         if (event.code === 'Space') return ' ';
         if (map.has(event.key)) return map.get(event.key);
@@ -2147,7 +2184,7 @@
     function renderTypingKeyboard() {
         const keyboard = document.getElementById('typingKeyboard');
         if (!keyboard) return;
-        const layout = (typingKeyData && typingKeyData.layout) || buildFallbackTypingData().layout;
+        const layout = getTypingKeyboardLayout();
         keyboard.innerHTML = layout.map(row => `
             <div class="typing-keyboard-row">
                 ${row.map(key => `
