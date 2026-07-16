@@ -2051,6 +2051,9 @@
 
     function preventTypingComposition(event) {
         if (!IS_TYPING_ACTIVITY) return;
+        if (event.currentTarget && event.currentTarget.id === 'typingInput' && event.type.startsWith('composition')) {
+            return;
+        }
         if (event.cancelable) event.preventDefault();
         const input = event.currentTarget;
         if (input && input.id === 'typingInput') {

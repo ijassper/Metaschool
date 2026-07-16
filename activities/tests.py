@@ -215,6 +215,7 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('handleTypingKeydown', take_test_source)
         self.assertIn('compositionstart', take_test_source)
         self.assertIn('preventTypingComposition', take_test_source)
+        self.assertIn("event.type.startsWith('composition')", take_test_source)
         self.assertIn('decomposeHangulTypingValue', take_test_source)
         self.assertIn('HANGUL_COMPAT_COMPOUND', take_test_source)
         self.assertIn('enforceStrictTypingInputValue', take_test_source)
