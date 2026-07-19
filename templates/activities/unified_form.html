@@ -798,13 +798,23 @@
                 
                 // [강제 주입] 모달의 체크된 ID들을 무조건 JSON으로 변환해서 필드에 쑤셔 넣어
                 const checkboxes = document.querySelectorAll('input[name="target_students"]:checked');
-                const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+                let selectedIds = Array.from(checkboxes).map(cb => cb.value);
                 
                 console.log('[폼 제출] 선택된 학생 수:', selectedIds.length);
                 console.log('[폼 제출] 선택된 학생 IDs:', selectedIds);
                 
                 // JSON 필드에 무조건 강제 주입
                 const jsonField = document.getElementById('id_selected_students_json');
+                if (selectedIds.length === 0 && jsonField && jsonField.value) {
+                    try {
+                        const fallbackIds = JSON.parse(jsonField.value);
+                        if (Array.isArray(fallbackIds)) {
+                            selectedIds = fallbackIds.map(id => String(id));
+                        }
+                    } catch (error) {
+                        console.warn('[학생 선택] hidden JSON 파싱 실패:', error);
+                    }
+                }
                 if (jsonField) {
                     jsonField.value = JSON.stringify(selectedIds);
                     console.log('[폼 제출] JSON 필드 강제 주입 완료:', jsonField.value);

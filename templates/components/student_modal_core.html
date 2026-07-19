@@ -144,7 +144,7 @@
                                         <input class="form-check-input student-check child-c-{{ grade_info.grade }}-{{ class_info.class_no }} group-g-{{ grade_info.grade }}" 
                                             type="checkbox" name="target_students" value="{{ s.id }}" id="s_{{ s.id }}"
                                             onchange="updateSummary()"
-                                            {% if s.id|stringformat:"s" in current_targets %}checked{% endif %}>
+                                            {% if s.id in current_targets %}checked{% endif %}>
                                         <label class="form-check-label small text-secondary" for="s_{{ s.id }}">
                                             <span class="fw-bold text-dark">{{ s.number|stringformat:"02d" }}</span> {{ s.name }}
                                         </label>
@@ -169,12 +169,45 @@
 
 <!-- [Script] 학생 선택 모달 제어 로직 -->
 <script>
+    const initialTargetStudentIds = {{ current_targets|default:"[]"|safe }};
+
+    function normalizeStudentIds(ids) {
+        return Array.isArray(ids) ? ids.map(id => String(id)) : [];
+    }
+
+    function getCheckedStudentIds() {
+        return Array.from(document.querySelectorAll('input[name="target_students"]:checked')).map(cb => cb.value);
+    }
+
+    function syncSelectedStudentFields(selectedIds = getCheckedStudentIds()) {
+        const normalizedIds = normalizeStudentIds(selectedIds);
+        const hiddenField = document.getElementById('target_students_data');
+        if (hiddenField) {
+            hiddenField.value = normalizedIds.join(',');
+        }
+        const jsonField = document.getElementById('id_selected_students_json');
+        if (jsonField) {
+            jsonField.value = JSON.stringify(normalizedIds);
+        }
+        return normalizedIds;
+    }
+
+    function applyInitialStudentSelection() {
+        const normalizedIds = normalizeStudentIds(initialTargetStudentIds);
+        if (normalizedIds.length === 0) return [];
+        normalizedIds.forEach(studentId => {
+            const checkbox = document.getElementById('s_' + studentId);
+            if (checkbox) checkbox.checked = true;
+        });
+        return syncSelectedStudentFields(normalizedIds);
+    }
     // 모든 학생 선택/해제
     function toggleAllStudents(select) {
         const checkboxes = document.querySelectorAll('input[name="target_students"]');
         checkboxes.forEach(cb => {
             cb.checked = select;
         });
+        syncSelectedStudentFields();
         updateSummary();
         updateParentCheckboxes();
     }
@@ -185,6 +218,7 @@
         children.forEach(child => {
             child.checked = parentCheckbox.checked;
         });
+        syncSelectedStudentFields();
         updateSummary();
         updateParentCheckboxes();
     }
@@ -212,6 +246,7 @@
     function updateSummary() {
         const checkedBoxes = document.querySelectorAll('input[name="target_students"]:checked');
         const count = checkedBoxes.length;
+        syncSelectedStudentFields(Array.from(checkedBoxes).map(cb => cb.value));
         
         // 1. 상단 {{ selector_label|default:"평가 대상" }} 선택 버튼 업데이트
         const summaryElement = document.getElementById('targetSummary');
@@ -235,8 +270,8 @@
 
     // 선택 완료 시 hidden 필드에 값 설정 (물리적 데이터 전송 브릿지)
     function completeStudentSelection() {
-        const checkboxes = document.querySelectorAll('input[name="target_students"]:checked');
-        const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+        const selectedIds = getCheckedStudentIds();
+        syncSelectedStudentFields(selectedIds);
         
         // 1) 기존 target_students_data 필드에 콤마로 구분하여 설정
         const hiddenField = document.getElementById('target_students_data');
@@ -262,6 +297,10 @@
 
     // 폼 제출 시 데이터 동기화 강제 (글로벌 모달 대응) - 중복 방지를 위해 단일 리스너만 사용
     document.addEventListener("DOMContentLoaded", function() {
+        applyInitialStudentSelection();
+        updateParentCheckboxes();
+        updateSummary();
+
         const unifiedForm = document.getElementById('unifiedForm');
         if (unifiedForm) {
             // 기존 onsubmit 핸들러가 있을 수 있으므로 addEventListener로 추가
@@ -269,8 +308,7 @@
                 console.log('[데이터 브릿지] 폼 제출 이벤트 감지됨');
                 
                 // 폼 제출 직전에 모달 데이터를 다시 동기화
-                const checkboxes = document.querySelectorAll('input[name="target_students"]:checked');
-                const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+                const selectedIds = syncSelectedStudentFields();
                 
                 console.log('[데이터 브릿지] 선택된 학생 수:', selectedIds.length);
                 console.log('[데이터 브릿지] 선택된 학생 IDs:', selectedIds);
