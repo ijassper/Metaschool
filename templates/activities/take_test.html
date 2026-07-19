@@ -1885,6 +1885,7 @@
     let typingSkipNextBeforeInput = 0;
     let typingLastAcceptedInsert = '';
     let typingDuplicateInsertUntil = 0;
+    const USE_KEYDOWN_TEXT_FALLBACK = !('InputEvent' in window);
 
     function normalizeTypingLine(line) {
         return Array.from(line || '').filter(char => char !== ' ').join('');
@@ -2105,6 +2106,19 @@
         return Boolean(chars && chars === typingLastAcceptedInsert && Date.now() <= typingDuplicateInsertUntil);
     }
 
+    function restoreAcceptedTypingValue(input) {
+        if (!input) return;
+        input.value = typingLastAcceptedValue;
+        updateTypingStats(false);
+    }
+
+    function isNativeDuplicateValue(input) {
+        if (!input || input.value === typingLastAcceptedValue) return false;
+        if (!input.value.startsWith(typingLastAcceptedValue)) return false;
+        const extraChars = normalizeTypingInsertChars(input.value.slice(typingLastAcceptedValue.length));
+        return Boolean(extraChars && extraChars === typingLastAcceptedInsert && Date.now() <= typingDuplicateInsertUntil);
+    }
+
     function acceptStrictTypingChars(input, rawChars) {
         let nextValue = decomposeHangulTypingValue(input.value || '');
         const typedChars = Array.from(normalizeTypingInsertChars(rawChars));
@@ -2176,9 +2190,11 @@
         const typedChar = getTypingCharacterFromKey(event);
         if (!typedChar) return;
 
-        event.preventDefault();
-        if (acceptStrictTypingChars(input, typedChar)) {
-            typingSkipNextBeforeInput = Date.now() + 250;
+        if (USE_KEYDOWN_TEXT_FALLBACK) {
+            event.preventDefault();
+            if (acceptStrictTypingChars(input, typedChar)) {
+                typingSkipNextBeforeInput = Date.now() + 250;
+            }
         }
     }
 
@@ -2215,6 +2231,10 @@
         if (!IS_TYPING_ACTIVITY || typingEnded) return;
         const input = event.currentTarget;
         if (!input || input.value === typingLastAcceptedValue) return;
+        if (isNativeDuplicateValue(input)) {
+            restoreAcceptedTypingValue(input);
+            return;
+        }
         typingIsManualInsert = true;
         enforceStrictTypingInputValue(input, 'insertCompositionText');
         typingIsManualInsert = false;
@@ -2607,8 +2627,7 @@
                     return;
                 }
                 if (!typingIsManualInsert && input.value !== typingLastAcceptedValue) {
-                    input.value = typingLastAcceptedValue;
-                    updateTypingStats(false);
+                    restoreAcceptedTypingValue(input);
                     return;
                 }
                 if (enforceStrictTypingInputValue(input, event.inputType || '')) return;
