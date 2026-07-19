@@ -170,6 +170,8 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn("!('InputEvent' in window)", take_test_source)
         self.assertIn('restoreAcceptedTypingValue', take_test_source)
         self.assertIn('isNativeDuplicateValue', take_test_source)
+        self.assertIn('if (typingIsManualInsert)', take_test_source)
+        self.assertIn('}, 120)', take_test_source)
         self.assertIn('typingLastAcceptedInsert', take_test_source)
         self.assertIn('isDuplicateNativeTypingInsert', take_test_source)
         self.assertIn('is-rejected', take_test_source)

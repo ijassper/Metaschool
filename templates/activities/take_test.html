@@ -2223,7 +2223,7 @@
             acceptStrictTypingChars(input, event.data);
             window.setTimeout(() => {
                 typingIsManualInsert = false;
-            }, 0);
+            }, 120);
         }
     }
 
@@ -2624,6 +2624,10 @@
             input.addEventListener('drop', preventTypingComposition);
             input.addEventListener('input', function(event) {
                 if (event.isComposing) {
+                    return;
+                }
+                if (typingIsManualInsert) {
+                    restoreAcceptedTypingValue(input);
                     return;
                 }
                 if (!typingIsManualInsert && input.value !== typingLastAcceptedValue) {
