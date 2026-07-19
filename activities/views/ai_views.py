@@ -15,6 +15,8 @@ from accounts.models import Student, SystemConfig, PromptTemplate, PromptLengthO
 from ..models import Activity, Question, Answer, AnalysisResult
 from .main_views import get_accessible_students, get_student_tree
 
+FORCED_AI_ANALYSIS_MODEL = 'gpt-4o-mini'
+
 # [1] 결과 분석 페이지 (활동별)
 @login_required
 @teacher_required
@@ -463,12 +465,8 @@ def api_process_db_row(request):
             batch_id = body.get('batch_id', '')
             print(f"DEBUG: 분석 요청 수신 -> answer_id: {answer_id}, work_name: {work_name}, batch_id: {batch_id}")
             
-            # 1. 설정 페이지에서 선택된 AI 모델 가져오기
-            try:
-                model_cfg = SystemConfig.objects.get(key_name='SELECTED_AI_MODEL')
-                ai_model = model_cfg.value.strip()
-            except SystemConfig.DoesNotExist:
-                ai_model = 'gemini-2.0-flash' # 기본값
+            # 분석 모델은 설정값/요청값을 사용하지 않고 서버에서 고정합니다.
+            ai_model = FORCED_AI_ANALYSIS_MODEL
 
             # 2. 답안 및 활동 정보 가져오기
             answer = Answer.objects.get(id=answer_id)

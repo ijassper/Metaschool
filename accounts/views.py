@@ -34,6 +34,8 @@ from activities.views.main_views import get_accessible_students, get_student_tre
 
 logger = logging.getLogger(__name__)
 
+FORCED_AI_ANALYSIS_MODEL = 'gpt-4o-mini'
+
 
 def can_manage_students(user):
     return bool(
@@ -892,7 +894,7 @@ def call_openai_api(api_key, model, prompt_system, prompt_user, temperature=0.7)
         "Content-Type": "application/json"
     }
     payload = {
-        "model": model,
+        "model": FORCED_AI_ANALYSIS_MODEL,
         "messages": [
             {"role": "system", "content": prompt_system},
             {"role": "user", "content": prompt_user}
@@ -922,7 +924,8 @@ def api_process_one_row(request):
             selected_cols = body.get('selected_cols')
             prompt_system = body.get('prompt_system')
             temperature = float(body.get('temperature', 0.7))
-            ai_model = body.get('ai_model', 'gpt-4o-mini') # ★ 모델 정보 받기
+            # 분석 모델은 프론트엔드 전달값을 무시하고 서버에서 고정합니다.
+            ai_model = FORCED_AI_ANALYSIS_MODEL
             
             # 세션에서 데이터 원본 가져오기
             df_json = request.session.get('df_data')
