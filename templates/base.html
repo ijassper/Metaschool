@@ -572,6 +572,9 @@
                 <main class="main-content-shell">
                     <!-- Django Messages (Alerts) -->
                     {% if messages %}
+                    {% if user.role == 'STUDENT' and request.resolver_match.url_name == 'dashboard' %}
+                        {% for message in messages %}{% endfor %}
+                    {% else %}
                         <div class="container-fluid mt-3 px-4">
                             {% for message in messages %}
                                 <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show rounded-pill shadow-sm border-0 px-4 py-3 mb-3 d-flex align-items-center" role="alert" style="background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);">
@@ -581,6 +584,7 @@
                                 </div>
                             {% endfor %}
                         </div>
+                    {% endif %}
                     {% endif %}
                     
                     {% block content %}{% endblock %}
