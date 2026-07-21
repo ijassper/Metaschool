@@ -48,6 +48,7 @@
             width: var(--sidebar-expanded-width);
             display: flex;
             flex-direction: column;
+            overflow: hidden;
             backdrop-filter: blur(14px);
             transform: translateX(0);
             transition: transform 0.3s ease, width 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
@@ -146,10 +147,18 @@
             list-style: none !important; 
             padding: 0 !important; 
             margin: 0; 
-            flex-grow: 1;
+            flex: 1 1 auto;
+            min-height: 0;
             overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
             position: relative;
             z-index: 1;
+        }
+
+        .nav-item-wrapper::-webkit-scrollbar {
+            display: none;
         }
 
         .menu-btn {
@@ -212,6 +221,7 @@
             margin-top: auto;
             position: relative;
             z-index: 1;
+            flex: 0 0 auto;
         }
         .profile-card {
             background-color: rgba(244, 247, 255, 0.82);
