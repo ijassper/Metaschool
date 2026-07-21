@@ -309,7 +309,7 @@
                     <a href="{% url 'find_account' %}" id="forgot-password-link" class="text-ingrid small text-decoration-none layout-slot-hidden">비밀번호 찾기</a>
                 </div>
 
-                <button type="submit" class="btn-ingrid-submit">로그인</button>
+                <button type="submit" class="btn-ingrid-submit" id="login-button">로그인</button>
 
                 <div id="teacher-signup-area" class="text-center mt-4 small layout-slot-hidden">
                     <span class="text-secondary">계정이 없으신가요?</span>
@@ -400,11 +400,43 @@
         const signupLink = document.getElementById('signup-link');
         const passwordToggle = document.getElementById('passwordToggle');
         const loginForm = document.getElementById('loginForm');
+        const loginButton = document.getElementById('login-button');
+        const loginFields = [inputUsername, document.getElementById('id_password')].filter(Boolean);
+        let isLoginSubmitting = false;
 
         syncLoginCsrfToken();
-        loginForm.addEventListener('submit', function () {
-            // bfcache/다중 탭 환경에서도 제출 직전 최신 쿠키 토큰으로 동기화합니다.
+        loginForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            if (isLoginSubmitting) {
+                return;
+            }
+
+            // iPad Return/bfcache/다중 탭 환경에서도 제출 직전 최신 쿠키 토큰으로 동기화합니다.
             syncLoginCsrfToken();
+            const csrfToken = loginForm.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+
+            if (!csrfToken) {
+                alert('보안 토큰이 만료되었습니다. 페이지를 새로고침한 뒤 다시 로그인해주세요.');
+                return;
+            }
+
+            if (typeof loginForm.reportValidity === 'function' && !loginForm.reportValidity()) {
+                return;
+            }
+
+            isLoginSubmitting = true;
+            HTMLFormElement.prototype.submit.call(loginForm);
+        });
+
+        loginFields.forEach((inputField) => {
+            inputField.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    syncLoginCsrfToken();
+                    loginButton.click();
+                }
+            });
         });
 
         function updateUI(role) {
