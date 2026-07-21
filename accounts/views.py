@@ -2,7 +2,8 @@ from django.db.models import Q  # 다중 필터 기능
 from django.urls import reverse_lazy
 from django.http import JsonResponse, HttpResponse  # 검색 기능을 위해 필요, API 응답을 위해 필요
 from django.views import generic
-from django.views.decorators.csrf import csrf_exempt    # API 뷰에서 CSRF 예외 처리를 위해 필요
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie    # API 뷰에서 CSRF 예외 처리를 위해 필요
+from django.views.decorators.cache import never_cache
 from django.shortcuts import render, redirect, get_object_or_404 # 리다이렉트 및 객체 가져오기
 from django.contrib.auth import login, logout as auth_logout, update_session_auth_hash  # 자동 로그인을 위해 필요, 비밀번호 변경 후 세션 유지 위해 필요
 from django.contrib.auth.decorators import login_required
@@ -59,6 +60,9 @@ def can_manage_teachers(user):
     )
 
 # 로그인 유지 기능이 포함된 커스텀 로그인 함수
+@csrf_exempt
+@ensure_csrf_cookie
+@never_cache
 def login_view(request):
     # 로그인 화면 진입 및 캐시 복원 시 사용할 최신 CSRF 쿠키를 강제로 발행합니다.
     get_token(request)
