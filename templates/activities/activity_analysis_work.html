@@ -216,6 +216,7 @@
     // 1. 초기 데이터 설정
     const ACTIVITY_ID = "{{ activity.id }}";
     const STORAGE_KEY = `ingrid_prompt_draft_${ACTIVITY_ID}`;
+    const SIDE_PEEK_TASK_SEED = '{{ analysis_task_seed|default:""|escapejs }}';
     
     // 분석 대상 학생 명단 (답안 제출자 리스트)
     let answerList = [];
@@ -272,6 +273,10 @@
     document.addEventListener('DOMContentLoaded', function() {
         
         loadPromptDraft(); // 페이지 열자마자 복구
+        if (SIDE_PEEK_TASK_SEED) {
+            document.getElementById('p_task').value = SIDE_PEEK_TASK_SEED;
+            savePromptDraft();
+        }
         updateSummary(); // 초기 선택된 학생 수 표시
 
         const inputs = ['p_context', 'p_task', 'p_example', 'p_length', 'temperature'];

@@ -56,14 +56,129 @@
     </div>
 
     <footer class="answer-peek-footer">
-        <a id="answerPeekAnalysisLink"
-           href="{% url 'activity_analysis_work' activity.id %}"
-           class="answer-peek-ai-btn">
+        <button id="answerPeekAnalysisButton"
+                type="button"
+                class="answer-peek-ai-btn">
             <i class="bi bi-stars"></i>
             <span>이 학생 답안 AI 분석하기</span>
             <i class="bi bi-arrow-right"></i>
-        </a>
+        </button>
         <p class="answer-peek-footer-hint mb-0">분석 화면에서 현재 학생이 자동으로 선택됩니다.</p>
+    </footer>
+</aside>
+
+<aside id="analysisWorkbench"
+       class="analysis-workbench"
+       aria-hidden="true"
+       aria-labelledby="analysisWorkbenchTitle">
+    <header class="analysis-workbench-header">
+        <div>
+            <span class="answer-peek-eyebrow">AI ANALYSIS</span>
+            <h4 id="analysisWorkbenchTitle" class="answer-peek-title">분석 워크벤치</h4>
+            <p id="analysisWorkbenchStudent" class="answer-peek-student-meta mb-0"></p>
+        </div>
+        <button type="button" id="analysisWorkbenchClose" class="answer-peek-close" aria-label="분석 패널 닫기">
+            <i class="bi bi-chevron-right"></i>
+        </button>
+    </header>
+
+    <div class="analysis-workbench-body">
+        <section class="analysis-setting-section">
+            <div class="analysis-setting-heading">
+                <span class="analysis-step">1</span>
+                <div>
+                    <strong>분석 목적</strong>
+                    <small>원하는 결과 유형을 하나 선택하세요.</small>
+                </div>
+            </div>
+            <div class="analysis-purpose-grid">
+                <label class="analysis-purpose-card">
+                    <input type="radio" name="analysis_purpose" value="종합 피드백" checked>
+                    <span class="analysis-purpose-icon purple"><i class="bi bi-stars"></i></span>
+                    <span>
+                        <strong>종합 피드백</strong>
+                        <small>내용·구조·표현을 균형 있게 분석</small>
+                    </span>
+                </label>
+                <label class="analysis-purpose-card">
+                    <input type="radio" name="analysis_purpose" value="강점과 보완점">
+                    <span class="analysis-purpose-icon green"><i class="bi bi-graph-up-arrow"></i></span>
+                    <span>
+                        <strong>강점·보완점</strong>
+                        <small>잘한 점과 다음 성장 과제 제안</small>
+                    </span>
+                </label>
+                <label class="analysis-purpose-card">
+                    <input type="radio" name="analysis_purpose" value="교사 코멘트">
+                    <span class="analysis-purpose-icon blue"><i class="bi bi-chat-square-heart"></i></span>
+                    <span>
+                        <strong>교사 코멘트</strong>
+                        <small>학생에게 전달할 짧은 피드백 작성</small>
+                    </span>
+                </label>
+            </div>
+        </section>
+
+        <section class="analysis-setting-section">
+            <div class="analysis-setting-heading">
+                <span class="analysis-step">2</span>
+                <div>
+                    <strong>중점적으로 볼 내용</strong>
+                    <small>이 답안에서 특별히 확인할 기준을 적어주세요.</small>
+                </div>
+            </div>
+            <textarea id="analysisCustomInstruction"
+                      class="analysis-instruction"
+                      rows="4"
+                      placeholder="예: 주장과 근거가 자연스럽게 연결되는지, 학생의 표현을 존중하는 어조로 피드백해 주세요."></textarea>
+            <div class="analysis-suggestion-row" aria-label="추천 지시어">
+                <button type="button" class="analysis-suggestion">논리성</button>
+                <button type="button" class="analysis-suggestion">근거의 타당성</button>
+                <button type="button" class="analysis-suggestion">표현력</button>
+                <button type="button" class="analysis-suggestion">성장 중심</button>
+            </div>
+        </section>
+
+        <section class="analysis-setting-section">
+            <div class="analysis-setting-heading">
+                <span class="analysis-step">3</span>
+                <div>
+                    <strong>결과 형태</strong>
+                    <small>수업 활용 방식에 맞게 결과 분량을 선택하세요.</small>
+                </div>
+            </div>
+            <div class="analysis-output-options">
+                <label>
+                    <span>결과 분량</span>
+                    <select id="analysisLength">
+                        <option value="short">간단히 · 핵심 3줄</option>
+                        <option value="medium" selected>보통 · 항목별 피드백</option>
+                        <option value="long">상세히 · 근거와 예시 포함</option>
+                    </select>
+                </label>
+                <label class="analysis-check-option">
+                    <input id="analysisIncludeQuote" type="checkbox" checked>
+                    <span>
+                        <strong>답안 근거 인용</strong>
+                        <small>학생 문장을 짧게 인용해 설명</small>
+                    </span>
+                </label>
+            </div>
+        </section>
+    </div>
+
+    <footer class="analysis-workbench-footer">
+        <div class="analysis-selection-summary">
+            <i class="bi bi-person-check"></i>
+            <span><strong id="analysisSelectedStudent">학생 1명</strong>의 답안을 분석합니다.</span>
+        </div>
+        <a id="analysisContinueLink"
+           href="{% url 'activity_analysis_work' activity.id %}"
+           class="analysis-continue-btn">
+            <span>선택한 학생으로 분석 계속하기</span>
+            <i class="bi bi-arrow-right"></i>
+        </a>
+        <p class="answer-peek-footer-hint mb-0">현재 설정은 다음 단계의 분석 지시 초안으로 전달됩니다.</p>
     </footer>
 </aside>
 
@@ -306,12 +421,14 @@
     }
 
     .answer-peek-ai-btn {
+        width: 100%;
         min-height: 46px;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 0.55rem;
         border-radius: 12px;
+        border: 0;
         background: linear-gradient(135deg, #ff80b5, #8e44ad);
         color: #fff;
         font-weight: 750;
@@ -322,6 +439,259 @@
     .answer-peek-ai-btn:hover {
         color: #fff;
         transform: translateY(-1px);
+    }
+
+    .analysis-workbench {
+        position: fixed;
+        z-index: 1064;
+        top: 0;
+        right: min(620px, 94vw);
+        width: min(560px, calc(100vw - min(620px, 94vw)));
+        min-width: 420px;
+        height: 100vh;
+        height: 100dvh;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        border-left: 1px solid #e7e5e4;
+        background: #fbfbfa;
+        box-shadow: -20px 0 50px rgba(15, 23, 42, 0.12);
+        transform: translateX(calc(100% + min(620px, 94vw)));
+        visibility: hidden;
+        transition: transform 0.32s ease, visibility 0.32s ease;
+    }
+
+    .analysis-workbench.is-open {
+        transform: translateX(0);
+        visibility: visible;
+    }
+
+    .analysis-workbench-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.4rem 1.5rem 1.2rem;
+        border-bottom: 1px solid #e9e9e7;
+        background: #fff;
+    }
+
+    .analysis-workbench-body {
+        min-height: 0;
+        overflow-y: auto;
+        padding: 1.35rem 1.5rem 2rem;
+    }
+
+    .analysis-setting-section + .analysis-setting-section {
+        margin-top: 1.7rem;
+        padding-top: 1.7rem;
+        border-top: 1px solid #e9e9e7;
+    }
+
+    .analysis-setting-heading {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        margin-bottom: 0.9rem;
+        color: #37352f;
+    }
+
+    .analysis-setting-heading > div {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+
+    .analysis-setting-heading strong {
+        font-size: 0.92rem;
+    }
+
+    .analysis-setting-heading small,
+    .analysis-purpose-card small,
+    .analysis-check-option small {
+        color: #9b9a97;
+        font-size: 0.72rem;
+        font-weight: 500;
+    }
+
+    .analysis-step {
+        width: 23px;
+        height: 23px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        border-radius: 7px;
+        background: #f0eafa;
+        color: #6940a5;
+        font-size: 0.7rem;
+        font-weight: 800;
+    }
+
+    .analysis-purpose-grid {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .analysis-purpose-card {
+        position: relative;
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.75rem;
+        border: 1px solid #e9e9e7;
+        border-radius: 11px;
+        background: #fff;
+        cursor: pointer;
+    }
+
+    .analysis-purpose-card:has(input:checked) {
+        border-color: #b292c6;
+        box-shadow: 0 0 0 2px rgba(142, 68, 173, 0.08);
+    }
+
+    .analysis-purpose-card input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .analysis-purpose-card > span:last-child,
+    .analysis-check-option > span {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+    .analysis-purpose-card strong {
+        color: #37352f;
+        font-size: 0.82rem;
+    }
+
+    .analysis-purpose-icon {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9px;
+    }
+
+    .analysis-purpose-icon.purple { background: #f0eafa; color: #6940a5; }
+    .analysis-purpose-icon.green { background: #e8f3ec; color: #2f6b45; }
+    .analysis-purpose-icon.blue { background: #e7f3f8; color: #245b78; }
+
+    .analysis-instruction {
+        width: 100%;
+        padding: 0.8rem 0.9rem;
+        border: 1px solid #dededb;
+        border-radius: 11px;
+        background: #fff;
+        color: #37352f;
+        font-size: 0.82rem;
+        line-height: 1.55;
+        outline: none;
+        resize: vertical;
+    }
+
+    .analysis-instruction:focus {
+        border-color: #b292c6;
+        box-shadow: 0 0 0 3px rgba(142, 68, 173, 0.08);
+    }
+
+    .analysis-suggestion-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.65rem;
+    }
+
+    .analysis-suggestion {
+        padding: 0.28rem 0.55rem;
+        border: 1px solid #e4e4e1;
+        border-radius: 999px;
+        background: #fff;
+        color: #787774;
+        font-size: 0.7rem;
+    }
+
+    .analysis-suggestion:hover {
+        border-color: #cfcfca;
+        background: #f7f7f5;
+        color: #37352f;
+    }
+
+    .analysis-output-options {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .analysis-output-options > label:first-child {
+        display: grid;
+        grid-template-columns: 90px minmax(0, 1fr);
+        align-items: center;
+        gap: 0.75rem;
+        color: #787774;
+        font-size: 0.78rem;
+    }
+
+    .analysis-output-options select {
+        min-height: 38px;
+        padding: 0 0.7rem;
+        border: 1px solid #dededb;
+        border-radius: 9px;
+        background: #fff;
+        color: #37352f;
+        font-size: 0.78rem;
+    }
+
+    .analysis-check-option {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.7rem 0.8rem;
+        border: 1px solid #e9e9e7;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .analysis-check-option strong {
+        color: #37352f;
+        font-size: 0.78rem;
+    }
+
+    .analysis-workbench-footer {
+        padding: 0.9rem 1.5rem 1rem;
+        border-top: 1px solid #e9e9e7;
+        background: #fff;
+    }
+
+    .analysis-selection-summary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        margin-bottom: 0.65rem;
+        color: #787774;
+        font-size: 0.75rem;
+    }
+
+    .analysis-continue-btn {
+        min-height: 46px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        border-radius: 12px;
+        background: #37352f;
+        color: #fff;
+        font-weight: 750;
+        text-decoration: none;
+    }
+
+    .analysis-continue-btn:hover {
+        background: #24231f;
+        color: #fff;
     }
 
     .answer-peek-footer-hint {
@@ -347,6 +717,18 @@
             padding-right: 1rem;
             padding-left: 1rem;
         }
+
+        .analysis-workbench {
+            z-index: 1070;
+            right: 0;
+            width: 100vw;
+            min-width: 0;
+            transform: translateX(102%);
+        }
+
+        .analysis-workbench.is-open {
+            transform: translateX(0);
+        }
     }
 </style>
 
@@ -362,10 +744,20 @@
         const school = document.getElementById('answerPeekSchool');
         const question = document.getElementById('answerPeekQuestion');
         const content = document.getElementById('answerPeekContent');
-        const analysisLink = document.getElementById('answerPeekAnalysisLink');
-        const analysisBaseUrl = analysisLink.getAttribute('href');
+        const analysisButton = document.getElementById('answerPeekAnalysisButton');
+        const workbench = document.getElementById('analysisWorkbench');
+        const workbenchClose = document.getElementById('analysisWorkbenchClose');
+        const workbenchStudent = document.getElementById('analysisWorkbenchStudent');
+        const selectedStudent = document.getElementById('analysisSelectedStudent');
+        const continueLink = document.getElementById('analysisContinueLink');
+        const analysisBaseUrl = continueLink.getAttribute('href');
+        const customInstruction = document.getElementById('analysisCustomInstruction');
+        const analysisLength = document.getElementById('analysisLength');
+        const includeQuote = document.getElementById('analysisIncludeQuote');
+        let currentStudentName = '';
 
         function closeAnswerPeek() {
+            closeAnalysisWorkbench();
             panel.classList.remove('is-open');
             backdrop.classList.remove('is-open');
             panel.setAttribute('aria-hidden', 'true');
@@ -373,9 +765,25 @@
             document.body.classList.remove('answer-peek-open');
         }
 
+        function closeAnalysisWorkbench() {
+            workbench.classList.remove('is-open');
+            workbench.setAttribute('aria-hidden', 'true');
+        }
+
+        function buildAnalysisUrl() {
+            const query = new URLSearchParams(continueLink.dataset.studentQuery || '');
+            const purpose = document.querySelector('input[name="analysis_purpose"]:checked');
+            if (purpose) query.set('analysis_purpose', purpose.value);
+            if (customInstruction.value.trim()) query.set('analysis_instruction', customInstruction.value.trim());
+            query.set('analysis_length', analysisLength.value);
+            query.set('include_quote', includeQuote.checked ? '1' : '0');
+            continueLink.href = `${analysisBaseUrl}?${query.toString()}`;
+        }
+
         window.openAnswerModal = function (buttonEl) {
             const data = buttonEl.dataset;
             const studentName = data.studentName || '학생';
+            currentStudentName = studentName;
             const studentInfo = [data.grade && `${data.grade}학년`, data.classNo && `${data.classNo}반`, data.number && `${data.number}번`]
                 .filter(Boolean)
                 .join(' ');
@@ -392,7 +800,10 @@
             if (data.studentId) {
                 query.set('target_students', data.studentId);
             }
-            analysisLink.href = query.toString() ? `${analysisBaseUrl}?${query.toString()}` : analysisBaseUrl;
+            continueLink.dataset.studentQuery = query.toString();
+            buildAnalysisUrl();
+            workbenchStudent.textContent = `${studentName} 학생 · 답안을 보면서 분석 기준을 설정합니다.`;
+            selectedStudent.textContent = `${studentName} 학생`;
 
             panel.classList.add('is-open');
             backdrop.classList.add('is-open');
@@ -402,11 +813,37 @@
             closeButton.focus();
         };
 
+        analysisButton.addEventListener('click', function () {
+            workbench.classList.add('is-open');
+            workbench.setAttribute('aria-hidden', 'false');
+            workbenchClose.focus();
+        });
+
         closeButton.addEventListener('click', closeAnswerPeek);
+        workbenchClose.addEventListener('click', closeAnalysisWorkbench);
         backdrop.addEventListener('click', closeAnswerPeek);
+        document.querySelectorAll('input[name="analysis_purpose"], #analysisLength, #analysisIncludeQuote')
+            .forEach(function (control) {
+                control.addEventListener('change', buildAnalysisUrl);
+            });
+        customInstruction.addEventListener('input', buildAnalysisUrl);
+        document.querySelectorAll('.analysis-suggestion').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const value = button.textContent.trim();
+                const current = customInstruction.value.trim();
+                if (!current.includes(value)) {
+                    customInstruction.value = current ? `${current}, ${value}` : value;
+                    customInstruction.dispatchEvent(new Event('input'));
+                }
+            });
+        });
         document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && panel.classList.contains('is-open')) {
-                closeAnswerPeek();
+            if (event.key === 'Escape') {
+                if (workbench.classList.contains('is-open')) {
+                    closeAnalysisWorkbench();
+                } else if (panel.classList.contains('is-open')) {
+                    closeAnswerPeek();
+                }
             }
         });
     })();

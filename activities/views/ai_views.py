@@ -394,6 +394,26 @@ def activity_analysis_work(request, activity_id):
         for student_id in request.GET.getlist('target_students')
         if student_id.isdigit()
     ]
+    analysis_purpose = request.GET.get('analysis_purpose', '').strip()
+    analysis_instruction = request.GET.get('analysis_instruction', '').strip()
+    analysis_length = request.GET.get('analysis_length', '').strip()
+    include_quote = request.GET.get('include_quote') == '1'
+
+    length_labels = {
+        'short': '핵심 내용을 3줄 안팎으로 간단히',
+        'medium': '항목별로 구분한 보통 분량',
+        'long': '근거와 예시를 포함해 상세히',
+    }
+    analysis_task_parts = []
+    if analysis_purpose:
+        analysis_task_parts.append(f"분석 목적: {analysis_purpose}")
+    if analysis_instruction:
+        analysis_task_parts.append(f"중점 분석 지시: {analysis_instruction}")
+    if analysis_length in length_labels:
+        analysis_task_parts.append(f"결과 분량: {length_labels[analysis_length]}")
+    if include_quote:
+        analysis_task_parts.append("학생 답안의 문장을 짧게 인용하여 분석 근거를 설명해 주세요.")
+    analysis_task_seed = "\n".join(analysis_task_parts)
     work_name = ""
     answer_list = []
     
@@ -454,6 +474,7 @@ def activity_analysis_work(request, activity_id):
         'student_tree': get_student_tree(request.user),
         'current_targets': selected_student_ids, # 템플릿에 전달
         'work_name': work_name, # 작업명 템플릿에 전달
+        'analysis_task_seed': analysis_task_seed,
     }
     return render(request, 'activities/activity_analysis_work.html', context)
 
