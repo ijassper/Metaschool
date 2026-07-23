@@ -20,7 +20,7 @@ from .main_views import get_accessible_students
 # [1] 제출 현황(답안) 목록 페이지
 @login_required
 @teacher_required
-def activity_result(request, activity_id):
+def activity_result(request, activity_id, template_name='activities/activity_result.html'):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     
     # 1. [항상 실행] 필터 메뉴 구성을 위한 '전체 대상 학생' 가져오기
@@ -128,7 +128,7 @@ def activity_result(request, activity_id):
         'selected_targets': selected_targets,
         'current_q': name_query,
     }
-    return render(request, 'activities/activity_result.html', context)
+    return render(request, template_name, context)
 
 # [2] 답안 상세 페이지
 @login_required

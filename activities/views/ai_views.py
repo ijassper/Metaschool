@@ -389,7 +389,11 @@ def integrated_analysis(request):
 @teacher_required
 def activity_analysis_work(request, activity_id):
     # [함수 시작] 변수 초기화 (기본값 설정)
-    selected_student_ids = []
+    selected_student_ids = [
+        int(student_id)
+        for student_id in request.GET.getlist('target_students')
+        if student_id.isdigit()
+    ]
     work_name = ""
     answer_list = []
     
@@ -429,7 +433,11 @@ def activity_analysis_work(request, activity_id):
     
     # [POST 요청 시] 화면에서 넘어온 work_name과 target_students 리스트를 업데이트
     if request.method == 'POST':
-        selected_student_ids = request.POST.getlist('target_students')
+        selected_student_ids = [
+            int(student_id)
+            for student_id in request.POST.getlist('target_students')
+            if student_id.isdigit()
+        ]
         work_name = request.POST.get('work_name', work_name)  # POST 값이 있으면 업데이트, 없으면 기존 값 유지
         print(f"DEBUG: 현재 선택된 학생들 -> {selected_student_ids}")
         print(f"DEBUG: 현재 작업명 -> {work_name}")

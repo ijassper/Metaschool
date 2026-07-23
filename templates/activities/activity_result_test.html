@@ -1,0 +1,414 @@
+{% extends 'activities/activity_result.html' %}
+
+{% block content %}
+{{ block.super }}
+
+<div id="answerSidePeekBackdrop" class="answer-peek-backdrop" aria-hidden="true"></div>
+<aside id="answerSidePeek"
+       class="answer-peek"
+       aria-hidden="true"
+       aria-labelledby="answerPeekTitle">
+    <header class="answer-peek-header">
+        <div class="min-w-0">
+            <span class="answer-peek-eyebrow">STUDENT ANSWER</span>
+            <h4 id="answerPeekTitle" class="answer-peek-title">학생 답안</h4>
+            <p id="answerPeekStudentMeta" class="answer-peek-student-meta mb-0"></p>
+        </div>
+        <button type="button" id="answerPeekClose" class="answer-peek-close" aria-label="답안 패널 닫기">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </header>
+
+    <div class="answer-peek-body">
+        <div class="answer-peek-properties">
+            <div class="answer-peek-property">
+                <span class="answer-peek-property-label">상태</span>
+                <span class="answer-peek-pill answer-peek-pill-complete">
+                    <span class="answer-peek-dot"></span>
+                    <span id="answerPeekStatus">제출 완료</span>
+                </span>
+            </div>
+            <div class="answer-peek-property">
+                <span class="answer-peek-property-label">제출 일시</span>
+                <span id="answerPeekSubmitted" class="answer-peek-property-value">-</span>
+            </div>
+            <div class="answer-peek-property">
+                <span class="answer-peek-property-label">학교</span>
+                <span id="answerPeekSchool" class="answer-peek-property-value">-</span>
+            </div>
+        </div>
+
+        <section class="answer-peek-section">
+            <div class="answer-peek-section-heading">
+                <i class="bi bi-chat-left-text"></i>
+                <span>평가 문항</span>
+            </div>
+            <div id="answerPeekQuestion" class="answer-peek-question"></div>
+        </section>
+
+        <section class="answer-peek-section answer-peek-answer-section">
+            <div class="answer-peek-section-heading">
+                <i class="bi bi-file-earmark-text"></i>
+                <span>작성한 답안</span>
+            </div>
+            <div id="answerPeekContent" class="answer-peek-content"></div>
+        </section>
+    </div>
+
+    <footer class="answer-peek-footer">
+        <a id="answerPeekAnalysisLink"
+           href="{% url 'activity_analysis_work' activity.id %}"
+           class="answer-peek-ai-btn">
+            <i class="bi bi-stars"></i>
+            <span>이 학생 답안 AI 분석하기</span>
+            <i class="bi bi-arrow-right"></i>
+        </a>
+        <p class="answer-peek-footer-hint mb-0">분석 화면에서 현재 학생이 자동으로 선택됩니다.</p>
+    </footer>
+</aside>
+
+<style>
+    /* 테스트 페이지에서만 적용되는 Notion형 제출 현황 */
+    .container.mt-5.mb-5 {
+        width: 100%;
+        max-width: none;
+        margin-top: 2rem !important;
+        padding-right: 2rem;
+        padding-left: 2rem;
+    }
+
+    .container.mt-5.mb-5 > .card {
+        overflow: hidden;
+        border: 1px solid #e9e9e7;
+        border-radius: 14px;
+        box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04) !important;
+    }
+
+    .container.mt-5.mb-5 > .card table {
+        min-width: 1080px;
+        color: #37352f;
+        line-height: 1.5;
+    }
+
+    .container.mt-5.mb-5 > .card thead th {
+        padding: 0.95rem 0.75rem;
+        border-color: #e9e9e7;
+        background: #fbfbfa;
+        color: #787774;
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+
+    .container.mt-5.mb-5 > .card tbody td {
+        padding: 1rem 0.75rem;
+        border-color: #e9e9e7;
+        background: #fff;
+    }
+
+    .container.mt-5.mb-5 > .card tbody tr:hover td {
+        background: #f7f7f5;
+    }
+
+    .container.mt-5.mb-5 > .card tbody .badge {
+        border-radius: 999px !important;
+        box-shadow: none;
+        font-size: 0.72rem;
+        line-height: 1.2;
+    }
+
+    /* 원본 답안 모달은 테스트 페이지에서만 사용하지 않음 */
+    #answerViewModal {
+        display: none !important;
+    }
+
+    .answer-peek-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1060;
+        background: rgba(15, 23, 42, 0.28);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+
+    .answer-peek-backdrop.is-open {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .answer-peek {
+        position: fixed;
+        z-index: 1065;
+        top: 0;
+        right: 0;
+        width: min(620px, 94vw);
+        height: 100vh;
+        height: 100dvh;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        border-left: 1px solid #e7e5e4;
+        background: #fff;
+        box-shadow: -24px 0 60px rgba(15, 23, 42, 0.16);
+        transform: translateX(102%);
+        visibility: hidden;
+        transition: transform 0.28s ease, visibility 0.28s ease;
+    }
+
+    .answer-peek.is-open {
+        transform: translateX(0);
+        visibility: visible;
+    }
+
+    .answer-peek-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.4rem 1.6rem 1.25rem;
+        border-bottom: 1px solid #efefed;
+    }
+
+    .answer-peek-eyebrow {
+        display: inline-block;
+        margin-bottom: 0.5rem;
+        color: #8e44ad;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+    }
+
+    .answer-peek-title {
+        margin: 0 0 0.3rem;
+        color: #25241f;
+        font-size: 1.35rem;
+        font-weight: 800;
+    }
+
+    .answer-peek-student-meta {
+        color: #787774;
+        font-size: 0.86rem;
+    }
+
+    .answer-peek-close {
+        width: 36px;
+        height: 36px;
+        flex: 0 0 auto;
+        border: 0;
+        border-radius: 9px;
+        background: #f5f5f3;
+        color: #5f5e5a;
+    }
+
+    .answer-peek-close:hover {
+        background: #e9e9e7;
+        color: #25241f;
+    }
+
+    .answer-peek-body {
+        min-height: 0;
+        overflow-y: auto;
+        padding: 1.4rem 1.6rem 2rem;
+    }
+
+    .answer-peek-properties {
+        display: grid;
+        gap: 0.8rem;
+        padding-bottom: 1.3rem;
+        border-bottom: 1px solid #efefed;
+    }
+
+    .answer-peek-property {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr);
+        align-items: center;
+        gap: 0.75rem;
+        min-height: 30px;
+    }
+
+    .answer-peek-property-label {
+        color: #9b9a97;
+        font-size: 0.78rem;
+        font-weight: 650;
+    }
+
+    .answer-peek-property-value {
+        overflow: hidden;
+        color: #4b4a46;
+        font-size: 0.86rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .answer-peek-pill {
+        width: fit-content;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        padding: 0.32rem 0.62rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 750;
+    }
+
+    .answer-peek-pill-complete {
+        background: #f0eafa;
+        color: #6940a5;
+    }
+
+    .answer-peek-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .answer-peek-section {
+        margin-top: 1.6rem;
+    }
+
+    .answer-peek-section-heading {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.7rem;
+        color: #5f5e5a;
+        font-size: 0.8rem;
+        font-weight: 750;
+    }
+
+    .answer-peek-question,
+    .answer-peek-content {
+        border: 1px solid #e9e9e7;
+        border-radius: 12px;
+        color: #37352f;
+        line-height: 1.75;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
+    .answer-peek-question {
+        padding: 1rem;
+        background: #f7f7f5;
+        font-size: 0.88rem;
+    }
+
+    .answer-peek-content {
+        min-height: 260px;
+        padding: 1.15rem;
+        background: #fff;
+        font-size: 0.98rem;
+    }
+
+    .answer-peek-footer {
+        padding: 1rem 1.6rem 1.15rem;
+        border-top: 1px solid #efefed;
+        background: rgba(255, 255, 255, 0.96);
+    }
+
+    .answer-peek-ai-btn {
+        min-height: 46px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #ff80b5, #8e44ad);
+        color: #fff;
+        font-weight: 750;
+        text-decoration: none;
+        box-shadow: 0 8px 22px rgba(142, 68, 173, 0.2);
+    }
+
+    .answer-peek-ai-btn:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .answer-peek-footer-hint {
+        margin-top: 0.55rem;
+        color: #9b9a97;
+        font-size: 0.72rem;
+        text-align: center;
+    }
+
+    body.answer-peek-open {
+        overflow: hidden;
+    }
+
+    @media (max-width: 767.98px) {
+        .container.mt-5.mb-5 {
+            padding-right: 1rem;
+            padding-left: 1rem;
+        }
+
+        .answer-peek-header,
+        .answer-peek-body,
+        .answer-peek-footer {
+            padding-right: 1rem;
+            padding-left: 1rem;
+        }
+    }
+</style>
+
+<script>
+    (function () {
+        const panel = document.getElementById('answerSidePeek');
+        const backdrop = document.getElementById('answerSidePeekBackdrop');
+        const closeButton = document.getElementById('answerPeekClose');
+        const title = document.getElementById('answerPeekTitle');
+        const studentMeta = document.getElementById('answerPeekStudentMeta');
+        const submitted = document.getElementById('answerPeekSubmitted');
+        const status = document.getElementById('answerPeekStatus');
+        const school = document.getElementById('answerPeekSchool');
+        const question = document.getElementById('answerPeekQuestion');
+        const content = document.getElementById('answerPeekContent');
+        const analysisLink = document.getElementById('answerPeekAnalysisLink');
+        const analysisBaseUrl = analysisLink.getAttribute('href');
+
+        function closeAnswerPeek() {
+            panel.classList.remove('is-open');
+            backdrop.classList.remove('is-open');
+            panel.setAttribute('aria-hidden', 'true');
+            backdrop.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('answer-peek-open');
+        }
+
+        window.openAnswerModal = function (buttonEl) {
+            const data = buttonEl.dataset;
+            const studentName = data.studentName || '학생';
+            const studentInfo = [data.grade && `${data.grade}학년`, data.classNo && `${data.classNo}반`, data.number && `${data.number}번`]
+                .filter(Boolean)
+                .join(' ');
+
+            title.textContent = `${studentName} 학생 답안`;
+            studentMeta.textContent = studentInfo;
+            status.textContent = data.answerStatus || '제출 완료';
+            submitted.textContent = data.submitted || '-';
+            school.textContent = data.schoolName || '-';
+            question.textContent = data.questionContent || '문항 정보가 없습니다.';
+            content.textContent = data.answerContent || '작성된 답안이 없습니다.';
+
+            const query = new URLSearchParams();
+            if (data.studentId) {
+                query.set('target_students', data.studentId);
+            }
+            analysisLink.href = query.toString() ? `${analysisBaseUrl}?${query.toString()}` : analysisBaseUrl;
+
+            panel.classList.add('is-open');
+            backdrop.classList.add('is-open');
+            panel.setAttribute('aria-hidden', 'false');
+            backdrop.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('answer-peek-open');
+            closeButton.focus();
+        };
+
+        closeButton.addEventListener('click', closeAnswerPeek);
+        backdrop.addEventListener('click', closeAnswerPeek);
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && panel.classList.contains('is-open')) {
+                closeAnswerPeek();
+            }
+        });
+    })();
+</script>
+{% endblock %}

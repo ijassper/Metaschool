@@ -13,8 +13,6 @@ urlpatterns = [
     # 1. 공통 및 목록 (main_views)
     path('find-account/', find_account, name='find_account'), 
     path('list/', unified_list, name='unified_list'),
-    # 비공개 테스트용
-    path('list/test/', unified_list_test, name='unified_list_test'),
     path('creative/', creative_list, name='creative_list'),
     path('detail/<int:activity_id>/', activity_detail, name='activity_detail'),
     path('creative/<int:pk>/', creative_detail, name='creative_detail'),
@@ -56,6 +54,13 @@ urlpatterns = [
     path('api/update-absence/', update_absence, name='update_absence'),
 
     # 4. 결과 및 답안 관리 (result_views)
+    # 비공개 Side-Peek 테스트용
+    path(
+        'result/test/<int:activity_id>/',
+        activity_result,
+        {'template_name': 'activities/activity_result_test.html'},
+        name='activity_result_test',
+    ),
     path('result/<int:activity_id>/', activity_result, name='activity_result'),
     path('answer/detail/<int:answer_id>/', answer_detail, name='answer_detail'),
     path('answer/delete/<int:answer_id>/', answer_delete, name='answer_delete'),

@@ -333,31 +333,6 @@ def unified_list(request):
         'config': config  # 템플릿에서 머리글로 사용하기 위해 전달
     })
 
-# 비공개 레이아웃 테스트용 통합 목록 페이지
-@login_required
-def unified_list_test(request):
-    cat_code = request.GET.get('category', 'ESSAY')
-    sub_name = request.GET.get('sub', '과목별 수행평가')
-    config = get_form_config(sub_name)
-
-    activities = Activity.objects.filter(
-        teacher=request.user,
-        category=cat_code,
-    )
-    if sub_name:
-        activities = activities.filter(sub_category=sub_name)
-
-    category_map = dict(Activity.CATEGORY_CHOICES)
-    display_name = sub_name if sub_name else category_map.get(cat_code, "평가/활동")
-
-    return render(request, 'activities/unified_list_test.html', {
-        'activities': activities.order_by('-created_at'),
-        'category_name': display_name,
-        'cat_code': cat_code,
-        'sub_menu': sub_name,
-        'config': config,
-    })
-
 # 창의적체험활동 목록
 @login_required
 def creative_list(request):
