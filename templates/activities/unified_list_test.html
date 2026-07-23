@@ -1,0 +1,477 @@
+{% extends 'base.html' %}
+{% load static tz %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4 notion-list-page">
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="notion-test-label">TEST VIEW</span>
+                <h3 class="fw-bold text-dark mb-0">{{ category_name }} 관리</h3>
+            </div>
+            <p class="text-muted small mb-0">제출 현황 목록의 새 레이아웃을 확인하는 비공개 테스트 페이지입니다.</p>
+        </div>
+
+        <a href="{% url 'unified_create' %}?category={{ cat_code }}&sub={{ sub_menu }}"
+           class="btn notion-create-btn rounded-pill fw-bold">
+            <i class="bi bi-plus-lg"></i>
+            새 {{ sub_menu|default:category_name }} 만들기
+        </a>
+    </div>
+
+    <div class="notion-table-shell">
+        <div class="table-responsive notion-table-wrap">
+            <table class="table align-middle mb-0 notion-table">
+                <colgroup>
+                    <col style="width: 5%;">
+                    <col style="width: 15%;">
+                    <col style="width: 25%;">
+                    <col style="width: 11%;">
+                    <col style="width: 9%;">
+                    <col style="width: 12%;">
+                    <col style="width: 10%;">
+                    <col style="width: 13%;">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th class="text-center">번호</th>
+                        <th>{{ config.basic.section }}</th>
+                        <th>{{ config.basic.title }}</th>
+                        <th class="text-center">응시 유형</th>
+                        <th class="text-center">상태</th>
+                        <th class="text-center">제출 기한</th>
+                        <th class="text-center">제출 현황</th>
+                        <th class="text-center">관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for act in activities %}
+                    <tr class="{% if act.status_code == 'CLOSED' %}is-closed{% endif %}">
+                        <td class="text-center text-muted">{{ forloop.revcounter }}</td>
+                        <td>
+                            <span class="notion-property notion-property-section">{{ act.section }}</span>
+                        </td>
+                        <td>
+                            <a href="{% url 'activity_detail' act.id %}?category={{ cat_code }}&sub={{ sub_menu }}"
+                               class="notion-title-link">
+                                {{ act.title }}
+                            </a>
+                        </td>
+                        <td class="text-center">
+                            {% if act.exam_mode == 'CLOSED_LOCK' %}
+                                <span class="rounded-full notion-badge badge-red">폐쇄형 · 복사금지</span>
+                            {% elif act.exam_mode == 'CLOSED_FREE' or act.exam_mode == 'CLOSED' %}
+                                <span class="rounded-full notion-badge badge-red">폐쇄형 · 복사허용</span>
+                            {% elif act.exam_mode == 'OPEN_LOCK' %}
+                                <span class="rounded-full notion-badge badge-blue">개방형 · 복사금지</span>
+                            {% else %}
+                                <span class="rounded-full notion-badge badge-blue">개방형 · 복사허용</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="rounded-full notion-badge {% if act.is_active %}badge-green{% else %}badge-gray{% endif %}">
+                                <span class="notion-status-dot"></span>
+                                {% if act.is_active %}진행 중{% else %}비활성{% endif %}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="rounded-full notion-badge {% if act.status_code == 'CLOSED' %}badge-red{% else %}badge-gray{% endif %}">
+                                {% if act.deadline %}
+                                    {{ act.deadline|localtime|date:"m.d H:i" }}
+                                {% else %}
+                                    기한 없음
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="rounded-full notion-badge badge-purple">
+                                {{ act.submit_count }} / {{ act.target_count }}명
+                            </span>
+                        </td>
+                        <td>
+                            <div class="notion-icon-tools">
+                                <a href="{% url 'activity_result' act.id %}?category={{ cat_code }}&sub={{ sub_menu }}"
+                                   class="notion-icon-btn icon-purple"
+                                   aria-label="제출 현황 보기"
+                                   title="제출 현황 보기">
+                                    <i class="bi bi-people"></i>
+                                </a>
+                                <a href="{% url 'activity_analysis_work' act.id %}?category={{ cat_code }}&sub={{ sub_menu }}"
+                                   class="notion-icon-btn icon-green"
+                                   aria-label="AI 분석"
+                                   title="AI 분석">
+                                    <i class="bi bi-stars"></i>
+                                </a>
+                                <a href="{% url 'activity_analysis' act.id %}?category={{ cat_code }}&sub={{ sub_menu }}"
+                                   class="notion-icon-btn icon-blue"
+                                   aria-label="결과 보기"
+                                   title="결과 보기">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <button type="button"
+                                   class="notion-icon-btn icon-red"
+                                   aria-label="삭제 아이콘 디자인 미리보기"
+                                   title="삭제 (테스트 페이지에서는 비활성)"
+                                   disabled>
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="notion-empty">
+                            <i class="bi bi-inbox"></i>
+                            <span>해당 영역에 등록된 활동이 없습니다.</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Side-Peek 디자인 골격: 클릭 이벤트는 추후 연결 -->
+<div class="side-peek-backdrop" aria-hidden="true"></div>
+<aside class="side-peek-panel" aria-hidden="true" aria-label="활동 상세 미리보기">
+    <header class="side-peek-header">
+        <div>
+            <span class="notion-test-label">DETAIL</span>
+            <h4 class="mb-0 mt-2 fw-bold">활동 상세</h4>
+        </div>
+        <button type="button" class="side-peek-close" aria-label="상세 패널 닫기" disabled>
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </header>
+    <div class="side-peek-body">
+        <div class="side-peek-placeholder side-peek-placeholder-title"></div>
+        <div class="d-flex gap-2">
+            <div class="side-peek-placeholder side-peek-placeholder-pill"></div>
+            <div class="side-peek-placeholder side-peek-placeholder-pill short"></div>
+        </div>
+        <div class="side-peek-section">
+            <span class="side-peek-label">기본 정보</span>
+            <div class="side-peek-placeholder"></div>
+            <div class="side-peek-placeholder medium"></div>
+        </div>
+        <div class="side-peek-section">
+            <span class="side-peek-label">제출 현황</span>
+            <div class="side-peek-preview-card"></div>
+        </div>
+    </div>
+</aside>
+
+<style>
+    .notion-list-page {
+        --notion-border: #e9e9e7;
+        --notion-muted: #787774;
+        --notion-hover: #f7f7f5;
+        color: #37352f;
+    }
+
+    .notion-test-label {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        background: #f3f0ff;
+        color: #7c3aed;
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+    }
+
+    .notion-create-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.65rem 1.1rem;
+        border: 0;
+        background: #37352f;
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(55, 53, 47, 0.14);
+    }
+
+    .notion-create-btn:hover {
+        background: #24231f;
+        color: #fff;
+    }
+
+    .notion-table-shell {
+        padding: 16px;
+        border: 1px solid var(--notion-border);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 8px 30px rgba(15, 23, 42, 0.04);
+    }
+
+    .notion-table-wrap {
+        border: 1px solid var(--notion-border);
+        border-radius: 12px;
+    }
+
+    .notion-table {
+        min-width: 1120px;
+        table-layout: fixed;
+        line-height: 1.5;
+    }
+
+    .notion-table thead th {
+        padding: 0.9rem 0.75rem;
+        border-bottom: 1px solid var(--notion-border);
+        background: #fbfbfa;
+        color: var(--notion-muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+    }
+
+    .notion-table thead th + th,
+    .notion-table tbody td + td {
+        border-left: 1px solid #f1f1ef;
+    }
+
+    .notion-table tbody td {
+        padding: 1.05rem 0.75rem;
+        border-bottom: 1px solid var(--notion-border);
+        background: transparent;
+        font-size: 0.87rem;
+        vertical-align: middle;
+    }
+
+    .notion-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .notion-table tbody tr:hover td {
+        background: var(--notion-hover);
+    }
+
+    .notion-table tbody tr.is-closed {
+        opacity: 0.72;
+    }
+
+    .notion-property,
+    .notion-title-link {
+        display: block;
+        overflow-wrap: anywhere;
+        word-break: keep-all;
+    }
+
+    .notion-property-section {
+        font-weight: 650;
+        color: #4b5563;
+    }
+
+    .notion-title-link {
+        color: #25241f;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .notion-title-link:hover {
+        color: #7c3aed;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    .rounded-full {
+        border-radius: 999px;
+    }
+
+    .notion-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        max-width: 100%;
+        padding: 0.34rem 0.62rem;
+        font-size: 0.7rem;
+        font-weight: 750;
+        line-height: 1.25;
+        white-space: nowrap;
+    }
+
+    .badge-red { background: #fdebec; color: #9f2f32; }
+    .badge-blue { background: #e7f3f8; color: #245b78; }
+    .badge-green { background: #e8f3ec; color: #2f6b45; }
+    .badge-gray { background: #efefed; color: #5f5e5a; }
+    .badge-purple { background: #f0eafa; color: #6940a5; }
+
+    .notion-status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .notion-icon-tools {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+    }
+
+    .notion-icon-btn {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        background: #f5f5f3;
+        color: #5f5e5a;
+        text-decoration: none;
+        transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .notion-icon-btn:hover {
+        transform: translateY(-1px);
+        background: #fff;
+    }
+
+    .notion-icon-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+    }
+
+    .notion-icon-btn:disabled:hover {
+        transform: none;
+        background: #f5f5f3;
+    }
+
+    .icon-purple:hover { color: #6940a5; border-color: #d9c9f2; }
+    .icon-green:hover { color: #2f6b45; border-color: #c5dfce; }
+    .icon-blue:hover { color: #245b78; border-color: #c2dce8; }
+    .icon-red:hover { color: #b4232a; border-color: #f0c7ca; }
+
+    .notion-empty {
+        height: 260px;
+        text-align: center;
+        color: var(--notion-muted);
+    }
+
+    .notion-empty i,
+    .notion-empty span {
+        display: block;
+    }
+
+    .notion-empty i {
+        margin-bottom: 0.65rem;
+        font-size: 2rem;
+        opacity: 0.45;
+    }
+
+    .side-peek-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1040;
+        background: rgba(15, 23, 42, 0.22);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    .side-peek-panel {
+        position: fixed;
+        z-index: 1045;
+        top: 0;
+        right: 0;
+        width: min(480px, 92vw);
+        height: 100vh;
+        height: 100dvh;
+        border-left: 1px solid #e7e5e4;
+        background: #fff;
+        box-shadow: -18px 0 50px rgba(15, 23, 42, 0.12);
+        transform: translateX(100%);
+        visibility: hidden;
+        pointer-events: none;
+        transition: transform 0.28s ease, visibility 0.28s ease;
+    }
+
+    .side-peek-header {
+        min-height: 92px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.35rem 1.5rem;
+        border-bottom: 1px solid #efefed;
+    }
+
+    .side-peek-close {
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 9px;
+        background: #f5f5f3;
+        color: #787774;
+    }
+
+    .side-peek-body {
+        padding: 1.5rem;
+    }
+
+    .side-peek-section {
+        margin-top: 2rem;
+    }
+
+    .side-peek-label {
+        display: block;
+        margin-bottom: 0.75rem;
+        color: #787774;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .side-peek-placeholder,
+    .side-peek-preview-card {
+        height: 11px;
+        margin-bottom: 0.7rem;
+        border-radius: 999px;
+        background: #efefed;
+    }
+
+    .side-peek-placeholder-title {
+        width: 72%;
+        height: 24px;
+        margin-bottom: 1rem;
+    }
+
+    .side-peek-placeholder-pill {
+        width: 110px;
+        height: 28px;
+    }
+
+    .side-peek-placeholder-pill.short { width: 76px; }
+    .side-peek-placeholder.medium { width: 66%; }
+
+    .side-peek-preview-card {
+        width: 100%;
+        height: 150px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #f7f7f5, #efefed);
+    }
+
+    @media (max-width: 767.98px) {
+        .notion-list-page {
+            padding-right: 1rem !important;
+            padding-left: 1rem !important;
+        }
+
+        .notion-list-page > .d-flex:first-child {
+            align-items: flex-start !important;
+            flex-direction: column;
+        }
+
+        .notion-table-shell {
+            padding: 10px;
+        }
+    }
+</style>
+{% endblock %}
