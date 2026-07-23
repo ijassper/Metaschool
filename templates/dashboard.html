@@ -27,21 +27,28 @@
     .teacher-hero-title {
         font-weight: 800;
         font-size: 2rem;
-        margin-bottom: 5px;
+        margin: 0;
         color: #fff;
+    }
+
+    .teacher-identity-row {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 8px 14px;
     }
 
     .teacher-hero-meta {
         opacity: 0.9;
         font-size: 1.1rem;
-        margin-bottom: 0;
+        margin: 0;
     }
 
     .teacher-hero-actions {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-        margin-top: 24px;
+        margin-top: 16px;
     }
 
     .teacher-hero-btn {
@@ -266,6 +273,12 @@
 
     @media (max-width: 575.98px) {
         .teacher-hero-title { font-size: 1.55rem; }
+        .teacher-identity-row {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .teacher-hero-meta { font-size: 0.95rem; }
         .teacher-hero-actions { width: 100%; }
         .teacher-hero-actions .btn,
         .teacher-hero-actions form { flex: 1 1 100%; }
@@ -277,8 +290,10 @@
 <div class="container-fluid px-4 py-2">
     <div class="teacher-hero">
         <div>
-            <h2 class="teacher-hero-title">안녕하세요, {{ user.name }} 선생님</h2>
-            <p class="teacher-hero-meta">{{ user.school.name|default:"소속 학교 없음" }} | {{ user.get_role_display }}</p>
+            <div class="teacher-identity-row">
+                <h2 class="teacher-hero-title">{{ user.name }} 선생님</h2>
+                <p class="teacher-hero-meta">{{ user.school.name|default:"소속 학교 없음" }} | {{ user.get_role_display }}</p>
+            </div>
             <div class="teacher-hero-actions">
                 <a href="{% url 'profile_settings' %}?tab=profile" class="btn btn-sm border-white rounded-pill px-3 teacher-hero-btn">내 정보 수정</a>
                 <a href="{% url 'profile_settings' %}?tab=security" class="btn btn-sm border-white rounded-pill px-3 teacher-hero-btn">비밀번호 변경</a>
