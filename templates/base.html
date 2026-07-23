@@ -237,11 +237,10 @@
             backdrop-filter: blur(10px);
         }
 
-        /* 4. 메인 콘텐츠 영역 (사이드바 너비만큼 왼쪽 마진 — 숨김 시 0) */
+        /* 4. 메인 콘텐츠 영역 */
         .main-wrapper {
-            margin-left: var(--sidebar-expanded-width);
+            margin-left: 0;
             min-height: 100vh;
-            transition: margin-left 0.3s ease;
         }
 
         /* 데스크톱: 완전 숨김(AI Studio 스타일) — 아이콘 띠 없이 화면 밖으로 슬라이드 */
@@ -251,12 +250,8 @@
             border-right-color: transparent;
         }
 
-        body.sidebar-collapsed .main-wrapper {
-            margin-left: 0;
-        }
-
         .main-content-shell {
-            padding: 1.75rem 1.5rem 1.5rem;
+            padding: 1.75rem 1.5rem 1.5rem calc(var(--sidebar-expanded-width) + 1.5rem);
             transition: padding-left 0.3s ease, padding-top 0.3s ease;
         }
 
@@ -301,8 +296,11 @@
             }
         }
 
-        /* 로그인 페이지 여백 제거 로직 */
+        /* 사이드바가 없는 로그인/학생 화면 여백 */
         .no-sidebar { margin-left: 0 !important; }
+        .no-sidebar .main-content-shell {
+            padding-left: 1.5rem;
+        }
 
         /* 브랜드 컬러 클래스 추가 (설정 아이콘용) */
         .text-ingrid { color: #8E44AD !important; }
@@ -580,7 +578,7 @@
             {% endif %}
 
             <!-- [오른쪽 메인 콘텐츠 영역] -->
-            <div class="{% if user.role == 'STUDENT' %}col-12{% else %}col{% endif %} main-wrapper {% if request.resolver_match.url_name == 'login' or user.role == 'STUDENT' %}no-sidebar{% endif %}">
+            <div class="{% if user.role == 'STUDENT' %}col-12{% else %}col{% endif %} main-wrapper {% if not user.is_authenticated or user.role == 'STUDENT' %}no-sidebar{% endif %}">
                 {% if user.is_authenticated and user.role != 'STUDENT' %}
                 <button type="button" id="sidebarToggleBtnFloating" class="sidebar-toggle-btn sidebar-toggle-floating" aria-label="메뉴 열기" aria-expanded="false">
                     <i class="bi bi-list"></i>

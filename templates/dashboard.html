@@ -2,12 +2,11 @@
 
 {% block content %}
 <style>
-    /* 1. 대시보드 전체 레이아웃 (4열 고정) */
+    /* 1. 대시보드 전체 레이아웃 */
     .dashboard-grid {
         display: grid;
-        /* 화면이 넓을 때 무조건 4열 배치 */
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
         align-items: start;
         width: 100%;
     }
@@ -15,9 +14,9 @@
     .teacher-hero {
         background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);
         border-radius: 28px;
-        padding: 40px 50px;
+        padding: 28px 36px;
         color: #fff;
-        margin-bottom: 30px;
+        margin-bottom: 22px;
         box-shadow: 0 15px 35px rgba(142, 68, 173, 0.2);
         display: flex;
         justify-content: space-between;
@@ -54,40 +53,49 @@
 
     .teacher-stats {
         display: flex;
-        gap: 15px;
+        gap: 0;
         flex-shrink: 0;
+        min-height: 64px;
+        padding: 8px 10px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 8px 24px rgba(81, 45, 168, 0.12);
     }
 
     .teacher-stat-box {
-        background: rgba(255, 255, 255, 0.92);
-        border-radius: 20px;
-        width: 120px;
-        height: 105px;
+        width: 108px;
+        min-height: 48px;
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         align-items: center;
         justify-content: center;
         text-align: center;
+        gap: 8px;
+        padding: 0 12px;
+    }
+
+    .teacher-stat-box + .teacher-stat-box {
+        border-left: 1px solid rgba(142, 68, 173, 0.16);
     }
 
     .teacher-stat-box .num {
-        font-size: 2rem;
+        font-size: 1.5rem;
         line-height: 1;
         font-weight: 900;
         color: var(--ingrid-primary);
     }
 
     .teacher-stat-box .lab {
-        margin-top: 8px;
         color: #64748b;
         font-weight: 800;
-        font-size: 0.85rem;
+        font-size: 0.72rem;
+        white-space: nowrap;
     }
 
     /* 2. 카테고리 블록 (파스텔 박스) */
     .category-block {
         border-radius: 24px;
-        padding: 15px; /* 패딩 축소 */
+        padding: 12px;
         height: 600px; /* 블록 높이 유지 */
         display: flex;
         flex-direction: column;
@@ -116,8 +124,8 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
-        padding: 0 5px;
+        margin-bottom: 12px;
+        padding: 0 4px;
     }
 
     .block-title { font-weight: 800; color: #495057; font-size: 1rem; }
@@ -126,7 +134,7 @@
     .scroll-area {
         flex-grow: 1;
         overflow-y: auto; /* 내용이 넘치면 스크롤 생성 */
-        padding: 8px 10px 8px 5px; /* 상단(8px) 패딩 추가로 테두리 공간 확보 */
+        padding: 6px 8px 6px 4px;
         /* 카드 3개의 대략적인 높이로 설정하여 3개가 넘어가면 스크롤 발생 */
         max-height: 520px; 
     }
@@ -139,8 +147,8 @@
     .eval-item-card {
         background: rgba(255, 255, 255, 0.8);
         border-radius: 16px;
-        padding: 12px 14px;
-        margin-bottom: 10px;
+        padding: 10px 11px;
+        margin-bottom: 8px;
         border: 2px solid transparent;
         transition: 0.2s;
         cursor: pointer;
@@ -153,7 +161,7 @@
 
     /* 1. 상단 행 간격 조정 */
     .card-row-top {
-        margin-bottom: 6px !important;
+        margin-bottom: 4px !important;
     }
     .sub-cat-text { font-size: 0.7rem; font-weight: 700; color: #8E44AD; }
     .subject-tag { font-size: 0.75rem; font-weight: 800; color: #8E44AD; }
@@ -162,8 +170,8 @@
         display: flex;
         justify-content: space-between; /* 양끝 정렬의 핵심 */
         align-items: center;
-        margin-top: 4px;  /* 타이틀과의 간격 최소화 */
-        padding-top: 6px;
+        margin-top: 3px;
+        padding-top: 4px;
         border-top: 1px solid rgba(0,0,0,0.03);
     }
 
@@ -179,7 +187,7 @@
 
     /* 오른쪽 그룹 내 간격 */
     .gap-2 {
-        gap: 0.5rem !important;
+        gap: 0.35rem !important;
     }
     
     /* 우측 상단 강조 텍스트 스타일 */
@@ -239,7 +247,6 @@
         font-size: 0.78rem;
     }
 
-    @media (max-width: 1400px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 991.98px) {
         .teacher-hero {
             padding: 30px 24px;
@@ -263,7 +270,7 @@
         .teacher-hero-actions .btn,
         .teacher-hero-actions form { flex: 1 1 100%; }
         .teacher-hero-actions .btn { width: 100%; }
-        .teacher-stats { flex-direction: column; }
+        .teacher-stats { flex-direction: row; }
     }
 </style>
 
