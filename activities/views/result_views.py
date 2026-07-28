@@ -134,8 +134,20 @@ def activity_result(request, activity_id, template_name='activities/activity_res
 @login_required
 @teacher_required
 def answer_detail(request, answer_id):
-    answer = get_object_or_404(Answer, id=answer_id)
-    return render(request, 'activities/answer_detail.html', {'answer': answer})
+    answer = get_object_or_404(
+        Answer.objects.select_related(
+            'student',
+            'student__school',
+            'question',
+            'question__activity',
+        ),
+        id=answer_id,
+        question__activity__teacher=request.user,
+    )
+    return render(request, 'activities/answer_detail.html', {
+        'answer': answer,
+        'activity': answer.question.activity,
+    })
 
 # [3] 답안 삭제(폐기) 처리
 @login_required

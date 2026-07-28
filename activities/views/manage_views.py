@@ -71,6 +71,14 @@ def unified_create(request):
     # 메뉴별 설정 가져오기
     config = get_form_config(sub_menu)
     category_name = dict(Activity.CATEGORY_CHOICES).get(cat_code, "평가/활동")
+    source_answer = None
+    source_answer_id = request.GET.get('source_answer')
+    if source_answer_id and source_answer_id.isdigit():
+        source_answer = get_object_or_404(
+            Answer.objects.select_related('student', 'question__activity'),
+            id=source_answer_id,
+            question__activity__teacher=request.user,
+        )
 
     if request.method == 'POST':
         # [내부 함수] 날짜 파싱
@@ -259,12 +267,33 @@ def unified_create(request):
             })
 
     # 7. GET 요청 시
+    form_data = None
+    if source_answer:
+        source_activity = source_answer.question.activity
+        student = source_answer.student
+        form_data = {
+            'section': source_activity.section,
+            'title': f"{student.name} 학생 후속 활동",
+            'exam_mode': source_activity.exam_mode,
+            'question': (
+                f"{student.name} 학생의 이전 답안을 바탕으로 생각을 확장하거나 "
+                "보완할 수 있는 내용을 작성하세요."
+            ),
+            'reference_material': (
+                f"[이전 활동]\n{source_activity.title}\n\n"
+                f"[{student.name} 학생 답안]\n{source_answer.content}"
+            ),
+        }
+
     return render(request, 'activities/unified_form.html', {
         'cat_code': cat_code, 
         'sub_menu': sub_menu, 
         'config': config,
         'student_tree': get_student_tree(request.user),
-        'action': '생성'
+        'action': '생성',
+        'form_data': form_data,
+        'source_answer': source_answer,
+        'current_targets': [source_answer.student_id] if source_answer else [],
     })
 
 # 통합 수정 페이지 (카테고리와 소메뉴에 따라 유동적으로 필드 라벨과 저장 방식 결정)

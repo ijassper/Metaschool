@@ -106,7 +106,19 @@
                         <td>{{ item.student.grade }}</td>
                         <td>{{ item.student.class_no }}</td>
                         <td>{{ item.student.number }}</td>
-                        <td class="fw-bold">{{ item.student.name }}</td>
+                        <td class="fw-bold">
+                            {% if item.answer_id %}
+                                <a href="{% url 'answer_detail' item.answer_id %}"
+                                   class="student-answer-detail-link"
+                                   title="{{ item.student.name }} 학생 상세 답안 보기">
+                                    {{ item.student.name }}
+                                    <span class="student-answer-detail-label">상세</span>
+                                    <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+                                </a>
+                            {% else %}
+                                {{ item.student.name }}
+                            {% endif %}
+                        </td>
                         
                         <!-- 상태 -->
                         <td>
@@ -268,6 +280,46 @@
 <div id="final-print-area" aria-hidden="true"></div>
 
 <style>
+    .student-answer-detail-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.28rem 0.5rem;
+        border-radius: 8px;
+        background: #f3f0ff;
+        color: var(--ingrid-primary);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .student-answer-detail-label {
+        padding: 0.1rem 0.3rem;
+        border-radius: 999px;
+        background: rgba(142, 68, 173, 0.12);
+        font-size: 0.58rem;
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    .student-answer-detail-link .bi {
+        color: #adb5bd;
+        font-size: 0.68rem;
+        transition: transform 0.18s ease, color 0.18s ease;
+    }
+
+    .student-answer-detail-link:hover {
+        color: var(--ingrid-primary);
+        background: #ece5ff;
+        box-shadow: 0 3px 10px rgba(142, 68, 173, 0.12);
+        transform: translateY(-1px);
+    }
+
+    .student-answer-detail-link:hover .bi {
+        color: var(--ingrid-primary);
+        transform: translateX(2px);
+    }
+
     .answer-view-content {
         border-radius: 24px !important;
         overflow: hidden;

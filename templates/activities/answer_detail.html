@@ -2,47 +2,866 @@
 {% load tz %}
 
 {% block content %}
-<div class="container mt-5 mb-5">
-    <div class="card shadow border-primary">
-        <div class="card-header bg-primary text-white py-3">
-            <h4 class="mb-0 fw-bold">
-                <i class="bi bi-file-text"></i> 학생 답안지
-            </h4>
+<div class="student-file-page">
+    <header class="student-file-header">
+        <div>
+            <span class="student-file-kicker">STUDENT PORTFOLIO</span>
+            <h2>{{ answer.student.name }} 학생 활동 서류철</h2>
+            <p>{{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번 · {{ answer.student.school.name|default:"소속 학교 없음" }}</p>
         </div>
-        <div class="card-body p-4">
-            <!-- 상단 정보 -->
-            <div class="alert alert-light border d-flex justify-content-between align-items-center">
+        <a href="{% url 'activity_result' activity.id %}?q={{ answer.student.name|urlencode }}" class="student-file-back">
+            <i class="bi bi-arrow-left"></i> 제출 현황으로
+        </a>
+    </header>
+
+    <main class="student-file-folder">
+        <div class="folder-index-tabs" aria-label="서류철 색인">
+            <button type="button" class="folder-index-tab is-active" data-index-target="fileOverview"><span>01</span>개요</button>
+            <button type="button" class="folder-index-tab" data-open-answer-layer><span>02</span>답안</button>
+            <button type="button" class="folder-index-tab" data-index-target="analysisIndex"><span>03</span>분석</button>
+            <button type="button" class="folder-index-tab" data-open-answer-layer><span>04</span>후속 활동</button>
+        </div>
+
+        <div class="student-file-paper">
+            <section id="fileOverview" class="file-summary-grid">
+                <article class="file-profile-card">
+                    <div class="file-avatar">{{ answer.student.name|slice:":1" }}</div>
+                    <div>
+                        <span class="file-card-label">학생</span>
+                        <strong>{{ answer.student.name }}</strong>
+                        <p>{{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번</p>
+                    </div>
+                </article>
+
+                <article class="file-stat-card">
+                    <span class="file-card-label">제출 상태</span>
+                    <span class="file-status-pill"><i></i>{% if answer.submitted_at %}제출 완료{% else %}작성 중{% endif %}</span>
+                    <p>{% if answer.submitted_at %}{{ answer.submitted_at|localtime|date:"Y.m.d H:i" }}{% else %}제출 기록 없음{% endif %}</p>
+                </article>
+
+                <article class="file-stat-card">
+                    <span class="file-card-label">원본 활동</span>
+                    <strong>{{ activity.title }}</strong>
+                    <p>{{ activity.get_category_display }} · {{ activity.sub_category }}</p>
+                </article>
+            </section>
+
+            <section class="file-dashboard-section">
+                <div class="file-section-heading">
+                    <div>
+                        <span class="file-section-number">01</span>
+                        <div>
+                            <h3>활동 기록</h3>
+                            <p>학생의 제출물과 연결된 기본 자료입니다.</p>
+                        </div>
+                    </div>
+                    <span class="file-section-chip">원본 1건</span>
+                </div>
+
+                <div class="file-record-row">
+                    <span class="file-record-icon"><i class="bi bi-file-earmark-text"></i></span>
+                    <div class="file-record-main">
+                        <strong>{{ activity.title }}</strong>
+                        <p>{{ answer.question.content|truncatechars:120 }}</p>
+                    </div>
+                    <span class="file-record-date">{% if answer.submitted_at %}{{ answer.submitted_at|localtime|date:"m.d" }}{% else %}-{% endif %}</span>
+                </div>
+            </section>
+
+            <section id="analysisIndex" class="file-dashboard-section">
+                <div class="file-section-heading">
+                    <div>
+                        <span class="file-section-number">02</span>
+                        <div>
+                            <h3>분석 색인</h3>
+                            <p>이 서류철에서 이어갈 분석 활동을 모아봅니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="file-analysis-grid">
+                    <article class="file-analysis-card is-ready">
+                        <span class="file-analysis-icon purple"><i class="bi bi-search"></i></span>
+                        <div>
+                            <strong>학생 답안 검토</strong>
+                            <p>문항과 원문 답안을 나란히 확인합니다.</p>
+                        </div>
+                        <span class="file-analysis-state">준비됨</span>
+                    </article>
+                    <article class="file-analysis-card">
+                        <span class="file-analysis-icon blue"><i class="bi bi-stars"></i></span>
+                        <div>
+                            <strong>AI 답안 분석</strong>
+                            <p>강점, 보완점과 성장 피드백을 생성합니다.</p>
+                        </div>
+                        <span class="file-analysis-state muted">예정</span>
+                    </article>
+                    <article class="file-analysis-card">
+                        <span class="file-analysis-icon green"><i class="bi bi-diagram-3"></i></span>
+                        <div>
+                            <strong>후속 활동 연결</strong>
+                            <p>현재 답안을 다음 학습 활동의 자료로 활용합니다.</p>
+                        </div>
+                        <span class="file-analysis-state muted">예정</span>
+                    </article>
+                </div>
+            </section>
+
+            {% if answer.note %}
+            <section class="file-dashboard-section">
+                <div class="file-section-heading">
+                    <div>
+                        <span class="file-section-number">03</span>
+                        <div>
+                            <h3>교사 메모</h3>
+                            <p>학생 지도에 참고할 비공개 기록입니다.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="file-teacher-note">{{ answer.note }}</div>
+            </section>
+            {% endif %}
+
+            <section class="file-primary-action">
                 <div>
-                    <span class="badge bg-secondary me-2">{{ answer.student.school.name }}</span>
-                    <span class="fs-5 fw-bold me-3">
-                        {{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번 
-                        {{ answer.student.name }}
-                    </span>
+                    <span class="file-action-icon"><i class="bi bi-folder-plus"></i></span>
+                    <div>
+                        <strong>학생의 답안을 다음 활동으로 연결하세요.</strong>
+                        <p>답안 원문을 넓게 검토한 뒤 후속 활동 생성으로 이동할 수 있습니다.</p>
+                    </div>
                 </div>
-                <div class="text-muted small">
-                    제출일시: {{ answer.submitted_at|localtime|date:"Y년 m월 d일 H시 i분" }}
-                </div>
-            </div>
-
-            <!-- 문제 정보 (간략) -->
-            <div class="mb-4">
-                <label class="fw-bold text-secondary">평가 문항</label>
-                <div class="p-3 bg-light rounded border">{{ answer.question.content }}</div>
-            </div>
-
-            <hr>
-
-            <!-- 학생 답안 (메인) -->
-            <div class="mb-4">
-                <label class="fw-bold text-primary mb-2">작성한 답안</label>
-                <div class="p-4 border rounded bg-white text-break" style="min-height: 300px; font-size: 1.1rem; line-height: 1.8; white-space: pre-wrap;">{{ answer.content }}</div>
-            </div>
-            
-            <!-- 닫기 버튼 -->
-            <div class="text-center">
-                <button onclick="window.close()" class="btn btn-secondary px-5">창 닫기</button>
-            </div>
+                <button type="button" id="openAnswerActivityLayer" class="file-action-button">
+                    학생 답안으로 추후 활동 생성하기
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </section>
         </div>
-    </div>
+    </main>
 </div>
+
+<div id="answerActivityBackdrop" class="answer-activity-backdrop" aria-hidden="true"></div>
+<aside id="answerActivityLayer" class="answer-activity-layer" aria-hidden="true" aria-labelledby="answerActivityTitle">
+    <header class="answer-layer-header">
+        <div>
+            <span class="student-file-kicker">SOURCE DOCUMENT</span>
+            <h3 id="answerActivityTitle">{{ answer.student.name }} 학생 답안</h3>
+            <p>후속 활동을 만들기 전에 원본 문서의 맥락을 확인하세요.</p>
+        </div>
+        <button type="button" id="closeAnswerActivityLayer" class="answer-layer-close" aria-label="답안 레이어 닫기">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </header>
+
+    <div class="answer-layer-body">
+        <div class="answer-layer-meta">
+            <span class="file-status-pill"><i></i>{% if answer.submitted_at %}제출 완료{% else %}작성 중{% endif %}</span>
+            <span>{{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번</span>
+            <span>{% if answer.submitted_at %}{{ answer.submitted_at|localtime|date:"Y.m.d H:i" }}{% else %}-{% endif %}</span>
+        </div>
+
+        <section class="answer-layer-section">
+            <h4><span>01</span> 평가 문항</h4>
+            <div class="answer-layer-question">{{ answer.question.content|default:"문항 정보가 없습니다." }}</div>
+        </section>
+
+        <section class="answer-layer-section">
+            <h4><span>02</span> 작성한 답안</h4>
+            <div class="answer-layer-content">{{ answer.content|default:"작성된 답안이 없습니다." }}</div>
+        </section>
+    </div>
+
+    <footer class="answer-layer-footer">
+        <div>
+            <strong>이 답안을 참고자료로 가져갑니다.</strong>
+            <p>학생은 활동 대상으로 자동 선택됩니다.</p>
+        </div>
+        <a href="{% url 'unified_create' %}?category={{ activity.category|urlencode }}&sub={{ activity.sub_category|urlencode }}&source_answer={{ answer.id }}"
+           class="answer-layer-create">
+            <i class="bi bi-plus-lg"></i>
+            후속 활동 생성 화면으로
+        </a>
+    </footer>
+</aside>
+
+<style>
+    .student-file-page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem 3rem;
+        color: #383833;
+    }
+
+    .student-file-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1.5rem;
+        margin-bottom: 1.4rem;
+    }
+
+    .student-file-kicker {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: #8e6e4e;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+    }
+
+    .student-file-header h2 {
+        margin: 0 0 0.3rem;
+        color: #34332e;
+        font-size: 1.7rem;
+        font-weight: 800;
+    }
+
+    .student-file-header p,
+    .answer-layer-header p {
+        margin: 0;
+        color: #88857d;
+        font-size: 0.86rem;
+    }
+
+    .student-file-back {
+        min-height: 38px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex: 0 0 auto;
+        padding: 0 0.85rem;
+        border: 1px solid #d9d4ca;
+        border-radius: 999px;
+        background: #fffdf8;
+        color: #67645d;
+        font-size: 0.8rem;
+        font-weight: 650;
+        text-decoration: none;
+    }
+
+    .student-file-folder {
+        position: relative;
+        padding-top: 44px;
+    }
+
+    .folder-index-tabs {
+        position: absolute;
+        top: 0;
+        left: 24px;
+        z-index: 1;
+        display: flex;
+        align-items: flex-end;
+        gap: 5px;
+    }
+
+    .folder-index-tab {
+        min-width: 105px;
+        height: 45px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0 0.85rem;
+        border: 1px solid #d9d1c2;
+        border-bottom: 0;
+        border-radius: 10px 10px 0 0;
+        background: #e9dfcf;
+        color: #777168;
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+
+    .folder-index-tab span {
+        font-size: 0.62rem;
+        opacity: 0.65;
+    }
+
+    .folder-index-tab.is-active {
+        height: 49px;
+        background: #fffdf8;
+        color: #5b5147;
+    }
+
+    .student-file-paper {
+        position: relative;
+        z-index: 2;
+        overflow: hidden;
+        padding: 2rem;
+        border: 1px solid #d9d1c2;
+        border-radius: 5px 18px 18px 18px;
+        background:
+            linear-gradient(rgba(145, 126, 101, 0.035) 1px, transparent 1px),
+            #fffdf8;
+        background-size: 100% 32px;
+        box-shadow: 0 18px 46px rgba(92, 73, 50, 0.13), 0 3px 8px rgba(92, 73, 50, 0.07);
+    }
+
+    .student-file-paper::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 34px;
+        width: 1px;
+        background: rgba(199, 99, 99, 0.14);
+        pointer-events: none;
+    }
+
+    .file-summary-grid {
+        display: grid;
+        grid-template-columns: 1.25fr 0.85fr 1.35fr;
+        gap: 0.85rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .file-profile-card,
+    .file-stat-card {
+        min-height: 118px;
+        padding: 1rem;
+        border: 1px solid #e6dfd3;
+        border-radius: 13px;
+        background: rgba(255,255,255,0.88);
+        box-shadow: 0 5px 14px rgba(92,73,50,0.045);
+    }
+
+    .file-profile-card {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+    }
+
+    .file-avatar {
+        width: 48px;
+        height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        border-radius: 14px;
+        background: #eee3d5;
+        color: #725a44;
+        font-size: 1.15rem;
+        font-weight: 850;
+    }
+
+    .file-card-label {
+        display: block;
+        margin-bottom: 0.35rem;
+        color: #a09b92;
+        font-size: 0.68rem;
+        font-weight: 750;
+        letter-spacing: 0.03em;
+    }
+
+    .file-profile-card strong,
+    .file-stat-card strong {
+        display: block;
+        overflow: hidden;
+        color: #403e38;
+        font-size: 0.9rem;
+        font-weight: 780;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .file-profile-card p,
+    .file-stat-card p {
+        margin: 0.35rem 0 0;
+        color: #928e85;
+        font-size: 0.72rem;
+    }
+
+    .file-status-pill {
+        width: fit-content;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.32rem 0.62rem;
+        border-radius: 999px;
+        background: #eee8f5;
+        color: #704b91;
+        font-size: 0.7rem;
+        font-weight: 750;
+    }
+
+    .file-status-pill i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    .file-dashboard-section {
+        position: relative;
+        z-index: 1;
+        margin-top: 1.8rem;
+        padding-top: 1.55rem;
+        border-top: 1px solid #e3dccf;
+    }
+
+    .file-section-heading,
+    .file-section-heading > div {
+        display: flex;
+        align-items: center;
+    }
+
+    .file-section-heading {
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .file-section-heading > div {
+        gap: 0.7rem;
+    }
+
+    .file-section-number {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #d8cfbf;
+        border-radius: 8px;
+        background: #f2eadf;
+        color: #7b6854;
+        font-size: 0.68rem;
+        font-weight: 800;
+    }
+
+    .file-section-heading h3 {
+        margin: 0;
+        color: #45423c;
+        font-size: 0.94rem;
+        font-weight: 780;
+    }
+
+    .file-section-heading p {
+        margin: 0.1rem 0 0;
+        color: #9a968d;
+        font-size: 0.7rem;
+    }
+
+    .file-section-chip {
+        padding: 0.25rem 0.52rem;
+        border-radius: 999px;
+        background: #f0ece4;
+        color: #817a70;
+        font-size: 0.65rem;
+        font-weight: 700;
+    }
+
+    .file-record-row {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.85rem;
+        border: 1px solid #e6dfd3;
+        border-radius: 11px;
+        background: rgba(255,255,255,0.82);
+    }
+
+    .file-record-icon,
+    .file-analysis-icon,
+    .file-action-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
+    .file-record-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        background: #efe6da;
+        color: #82684d;
+    }
+
+    .file-record-main strong {
+        display: block;
+        color: #45423c;
+        font-size: 0.82rem;
+    }
+
+    .file-record-main p {
+        overflow: hidden;
+        margin: 0.15rem 0 0;
+        color: #969189;
+        font-size: 0.7rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .file-record-date {
+        color: #aaa59d;
+        font-size: 0.7rem;
+    }
+
+    .file-analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0,1fr));
+        gap: 0.7rem;
+    }
+
+    .file-analysis-card {
+        position: relative;
+        min-height: 128px;
+        padding: 0.9rem;
+        border: 1px dashed #d8d2c8;
+        border-radius: 11px;
+        background: rgba(248,246,241,0.72);
+    }
+
+    .file-analysis-card.is-ready {
+        border-style: solid;
+        background: rgba(255,255,255,0.88);
+    }
+
+    .file-analysis-icon {
+        width: 32px;
+        height: 32px;
+        margin-bottom: 0.65rem;
+        border-radius: 8px;
+    }
+
+    .file-analysis-icon.purple { background:#eee8f5; color:#704b91; }
+    .file-analysis-icon.blue { background:#e5eff3; color:#3b7087; }
+    .file-analysis-icon.green { background:#e5efe7; color:#4c7655; }
+
+    .file-analysis-card strong {
+        display: block;
+        color: #4a4741;
+        font-size: 0.78rem;
+    }
+
+    .file-analysis-card p {
+        margin: 0.22rem 0 0;
+        color: #9b978e;
+        font-size: 0.68rem;
+        line-height: 1.45;
+    }
+
+    .file-analysis-state {
+        position: absolute;
+        top: 0.8rem;
+        right: 0.8rem;
+        color: #6e5585;
+        font-size: 0.62rem;
+        font-weight: 750;
+    }
+
+    .file-analysis-state.muted { color:#aaa59d; }
+
+    .file-teacher-note {
+        padding: 0.95rem 1rem;
+        border: 1px solid #eadca9;
+        border-radius: 10px;
+        background: #fff9df;
+        color: #6f622d;
+        font-size: 0.8rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
+    .file-primary-action {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        margin-top: 1.8rem;
+        padding: 1.15rem;
+        border: 1px solid #ddcfbe;
+        border-radius: 13px;
+        background: linear-gradient(135deg, #f7efe4, #f3e5e9);
+        box-shadow: 0 6px 16px rgba(92,73,50,.06);
+    }
+
+    .file-primary-action > div {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        min-width: 0;
+    }
+
+    .file-action-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: #fffaf3;
+        color: #886e53;
+    }
+
+    .file-primary-action strong {
+        display: block;
+        color: #4c463f;
+        font-size: 0.84rem;
+    }
+
+    .file-primary-action p {
+        margin: 0.15rem 0 0;
+        color: #91877d;
+        font-size: 0.7rem;
+    }
+
+    .file-action-button {
+        min-height: 43px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        flex: 0 0 auto;
+        padding: 0 1rem;
+        border: 0;
+        border-radius: 10px;
+        background: #655344;
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 750;
+        box-shadow: 0 7px 16px rgba(85,67,51,.16);
+    }
+
+    .answer-activity-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1080;
+        background: rgba(48,42,35,.32);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity .25s ease, visibility .25s ease;
+    }
+
+    .answer-activity-layer {
+        position: fixed;
+        z-index: 1085;
+        top: 0;
+        right: 0;
+        width: 66.666vw;
+        min-width: 720px;
+        height: 100vh;
+        height: 100dvh;
+        display: grid;
+        grid-template-rows: auto minmax(0,1fr) auto;
+        border-left: 1px solid #d8d0c4;
+        background: #fffdf8;
+        box-shadow: -28px 0 70px rgba(48,42,35,.2);
+        transform: translateX(102%);
+        visibility: hidden;
+        transition: transform .3s ease, visibility .3s ease;
+    }
+
+    .answer-activity-backdrop.is-open {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .answer-activity-layer.is-open {
+        transform: translateX(0);
+        visibility: visible;
+    }
+
+    .answer-layer-header,
+    .answer-layer-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.3rem 1.6rem;
+        border-bottom: 1px solid #e7dfd3;
+        background: #fffdf8;
+    }
+
+    .answer-layer-header h3 {
+        margin: 0 0 .25rem;
+        color: #3f3d38;
+        font-size: 1.35rem;
+        font-weight: 800;
+    }
+
+    .answer-layer-close {
+        width: 38px;
+        height: 38px;
+        border: 1px solid #ddd5c9;
+        border-radius: 10px;
+        background: #f6f1e9;
+        color: #6f6a62;
+    }
+
+    .answer-layer-body {
+        min-height: 0;
+        overflow-y: auto;
+        padding: 1.5rem 1.8rem 2.5rem;
+    }
+
+    .answer-layer-meta {
+        display: flex;
+        align-items: center;
+        gap: .65rem;
+        padding-bottom: 1.2rem;
+        border-bottom: 1px solid #e7dfd3;
+        color: #8e8980;
+        font-size: .75rem;
+    }
+
+    .answer-layer-meta > span + span {
+        padding-left: .65rem;
+        border-left: 1px solid #ddd6cc;
+    }
+
+    .answer-layer-section {
+        margin-top: 1.6rem;
+    }
+
+    .answer-layer-section h4 {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        margin: 0 0 .7rem;
+        color: #5c5851;
+        font-size: .85rem;
+        font-weight: 760;
+    }
+
+    .answer-layer-section h4 span {
+        color: #a09689;
+        font-size: .65rem;
+    }
+
+    .answer-layer-question,
+    .answer-layer-content {
+        padding: 1.15rem 1.25rem;
+        border: 1px solid #e3dccf;
+        border-radius: 12px;
+        line-height: 1.8;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
+    .answer-layer-question {
+        background: #f6f2eb;
+        color: #57534d;
+        font-size: .9rem;
+    }
+
+    .answer-layer-content {
+        min-height: 380px;
+        background: #fff;
+        color: #383630;
+        font-size: 1rem;
+    }
+
+    .answer-layer-footer {
+        border-top: 1px solid #e7dfd3;
+        border-bottom: 0;
+    }
+
+    .answer-layer-footer strong {
+        display: block;
+        color: #4d4943;
+        font-size: .82rem;
+    }
+
+    .answer-layer-footer p {
+        margin: .12rem 0 0;
+        color: #99938a;
+        font-size: .7rem;
+    }
+
+    .answer-layer-create {
+        min-height: 43px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        padding: 0 1rem;
+        border-radius: 10px;
+        background: linear-gradient(135deg,#8d7358,#665143);
+        color: #fff;
+        font-size: .78rem;
+        font-weight: 750;
+        text-decoration: none;
+    }
+
+    .answer-layer-create:hover { color:#fff; transform:translateY(-1px); }
+    body.answer-activity-layer-open { overflow:hidden; }
+
+    @media (max-width: 991.98px) {
+        .file-summary-grid,
+        .file-analysis-grid { grid-template-columns:1fr; }
+        .answer-activity-layer { width:85vw; min-width:0; }
+    }
+
+    @media (max-width: 767.98px) {
+        .student-file-page { padding:1.25rem 1rem 2rem; }
+        .student-file-header,
+        .file-primary-action,
+        .answer-layer-footer { align-items:stretch; flex-direction:column; }
+        .student-file-back { width:fit-content; }
+        .folder-index-tabs { left:10px; max-width:calc(100vw - 42px); overflow-x:auto; }
+        .folder-index-tab { min-width:88px; }
+        .student-file-paper { padding:1.2rem 1rem; }
+        .student-file-paper::before { display:none; }
+        .file-action-button,
+        .answer-layer-create { width:100%; }
+        .answer-activity-layer { width:100vw; }
+        .answer-layer-header,
+        .answer-layer-body,
+        .answer-layer-footer { padding-right:1rem; padding-left:1rem; }
+        .answer-layer-meta { align-items:flex-start; flex-direction:column; }
+        .answer-layer-meta > span + span { padding-left:0; border-left:0; }
+    }
+</style>
+
+<script>
+    (function () {
+        const openButton = document.getElementById('openAnswerActivityLayer');
+        const closeButton = document.getElementById('closeAnswerActivityLayer');
+        const layer = document.getElementById('answerActivityLayer');
+        const backdrop = document.getElementById('answerActivityBackdrop');
+        const indexTabs = Array.from(document.querySelectorAll('.folder-index-tab'));
+
+        function openLayer() {
+            layer.classList.add('is-open');
+            backdrop.classList.add('is-open');
+            layer.setAttribute('aria-hidden', 'false');
+            backdrop.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('answer-activity-layer-open');
+            closeButton.focus();
+        }
+
+        function closeLayer() {
+            layer.classList.remove('is-open');
+            backdrop.classList.remove('is-open');
+            layer.setAttribute('aria-hidden', 'true');
+            backdrop.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('answer-activity-layer-open');
+            openButton.focus();
+        }
+
+        openButton.addEventListener('click', openLayer);
+        document.querySelectorAll('[data-open-answer-layer]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                indexTabs.forEach(function (tab) { tab.classList.toggle('is-active', tab === button); });
+                openLayer();
+            });
+        });
+        document.querySelectorAll('[data-index-target]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const target = document.getElementById(button.dataset.indexTarget);
+                indexTabs.forEach(function (tab) { tab.classList.toggle('is-active', tab === button); });
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+        closeButton.addEventListener('click', closeLayer);
+        backdrop.addEventListener('click', closeLayer);
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && layer.classList.contains('is-open')) {
+                closeLayer();
+            }
+        });
+    })();
+</script>
 {% endblock %}
