@@ -192,40 +192,87 @@
 <aside id="answerSourceLayer" class="answer-source-layer" aria-hidden="true" aria-labelledby="answerSourceTitle">
     <header class="source-layer-header">
         <div>
-            <span class="source-layer-meta">{{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번 · {{ answer.student.school.name|default:"소속 학교 없음" }}</span>
-            <h3 id="answerSourceTitle">{{ answer.student.name }} 학생 답안</h3>
-            <p>후속 활동에 참고할 원본 답안을 확인하세요.</p>
+            <span class="source-layer-meta">FOLLOW-UP ACTIVITY WORKBENCH</span>
+            <h3 id="answerSourceTitle">학생답안 추후 활동 생성</h3>
+            <p>{{ answer.student.name }} 학생 답안을 가지고 추후 활동을 생성합니다.</p>
         </div>
         <button type="button" id="closeAnswerSource" class="source-layer-close" aria-label="답안 레이어 닫기">
             <i class="bi bi-x-lg"></i>
         </button>
     </header>
 
-    <div class="source-layer-body">
-        <section class="source-section">
-            <h4><span>01</span> 평가 문항</h4>
-            <div class="source-question">{{ answer.question.content|default:"문항 정보가 없습니다." }}</div>
-        </section>
-        <section class="source-section">
-            <h4><span>02</span> 작성한 답안</h4>
-            <div class="source-answer">
-                {% if answer.ans_q1 or answer.ans_q2 or answer.ans_q3 %}
-                    {% if answer.ans_q1 %}<strong>{{ activity.q1_title|default:"항목 1" }}</strong><p>{{ answer.ans_q1 }}</p>{% endif %}
-                    {% if answer.ans_q2 %}<strong>{{ activity.q2_title|default:"항목 2" }}</strong><p>{{ answer.ans_q2 }}</p>{% endif %}
-                    {% if answer.ans_q3 %}<strong>{{ activity.q3_title|default:"항목 3" }}</strong><p>{{ answer.ans_q3 }}</p>{% endif %}
-                {% else %}
-                    {{ answer.content|default:"작성된 답안이 없습니다." }}
-                {% endif %}
+    <div class="source-layer-body followup-workbench-body">
+        <section class="followup-workbench-section">
+            <div class="followup-section-heading">
+                <span>01</span>
+                <div>
+                    <h4>활동 종류</h4>
+                    <p>학생 답안을 어떻게 다음 배움으로 연결할지 선택하세요.</p>
+                </div>
             </div>
+
+            <div class="followup-type-grid">
+                <label class="followup-type-card">
+                    <input type="radio" name="followup_type" value="grading" checked>
+                    <span class="followup-type-icon pink"><i class="bi bi-clipboard2-check"></i></span>
+                    <span class="followup-type-copy">
+                        <strong>답안 채점/분석</strong>
+                        <small>평가 기준에 따라 답안의 강점과 보완점을 분석합니다.</small>
+                    </span>
+                    <i class="bi bi-check-circle-fill followup-selected-icon"></i>
+                </label>
+
+                <label class="followup-type-card">
+                    <input type="radio" name="followup_type" value="feedback">
+                    <span class="followup-type-icon purple"><i class="bi bi-chat-square-heart"></i></span>
+                    <span class="followup-type-copy">
+                        <strong>피드백 제공</strong>
+                        <small>학생에게 전달할 성장 중심 피드백 활동을 만듭니다.</small>
+                    </span>
+                    <i class="bi bi-check-circle-fill followup-selected-icon"></i>
+                </label>
+
+                <label class="followup-type-card">
+                    <input type="radio" name="followup_type" value="rewrite">
+                    <span class="followup-type-icon blue"><i class="bi bi-pencil-square"></i></span>
+                    <span class="followup-type-copy">
+                        <strong>고쳐쓰기 활동</strong>
+                        <small>기존 답안을 보완하고 발전시키는 재작성 활동입니다.</small>
+                    </span>
+                    <i class="bi bi-check-circle-fill followup-selected-icon"></i>
+                </label>
+
+                <label class="followup-type-card">
+                    <input type="radio" name="followup_type" value="relay">
+                    <span class="followup-type-icon green"><i class="bi bi-people"></i></span>
+                    <span class="followup-type-copy">
+                        <strong>릴레이쓰기 활동</strong>
+                        <small>학생의 생각을 출발점으로 다음 이야기를 이어갑니다.</small>
+                    </span>
+                    <i class="bi bi-check-circle-fill followup-selected-icon"></i>
+                </label>
+            </div>
+        </section>
+
+        <section class="followup-source-summary">
+            <div>
+                <span class="followup-source-label">연결할 원본 활동</span>
+                <strong>{{ activity.title }}</strong>
+                <small>{{ activity.get_category_display }}{% if activity.sub_category %} · {{ activity.sub_category }}{% endif %}</small>
+            </div>
+            <span class="followup-answer-ready"><i class="bi bi-check2"></i> 답안 연결됨</span>
         </section>
     </div>
 
     <footer class="source-layer-footer">
         <div>
-            <strong>학생 답안을 참고자료로 가져갑니다.</strong>
-            <p>해당 학생은 활동 대상으로 자동 선택됩니다.</p>
+            <strong id="followupSelectionSummary">답안 채점/분석 활동을 생성합니다.</strong>
+            <p>학생 답안은 참고자료로, 해당 학생은 활동 대상으로 자동 연결됩니다.</p>
         </div>
-        <a href="{% url 'unified_create' %}?category={{ activity.category|urlencode }}&sub={{ activity.sub_category|urlencode }}&source_answer={{ answer.id }}" class="source-create-button">
+        <a id="followupCreateLink"
+           href="{% url 'unified_create' %}?category={{ activity.category|urlencode }}&sub={{ activity.sub_category|urlencode }}&source_answer={{ answer.id }}&followup_type=grading"
+           data-base-url="{% url 'unified_create' %}?category={{ activity.category|urlencode }}&sub={{ activity.sub_category|urlencode }}&source_answer={{ answer.id }}"
+           class="source-create-button">
             <i class="bi bi-plus-lg"></i> 후속 활동 생성 화면으로
         </a>
     </footer>
@@ -775,6 +822,186 @@
         padding: 1.5rem 1.7rem 2.5rem;
     }
 
+    .followup-workbench-body {
+        background: linear-gradient(145deg, #fff 0%, #fff9fc 58%, #f8f4ff 100%);
+    }
+
+    .followup-workbench-section {
+        max-width: 880px;
+        margin: 0 auto;
+    }
+
+    .followup-section-heading {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        margin-bottom: 1rem;
+    }
+
+    .followup-section-heading > span {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        border-radius: 9px;
+        background: linear-gradient(135deg, #ffebf4, #eee7fa);
+        color: var(--ingrid-primary);
+        font-size: 0.68rem;
+        font-weight: 850;
+    }
+
+    .followup-section-heading h4 {
+        margin: 0;
+        color: #433b47;
+        font-size: 0.94rem;
+        font-weight: 820;
+    }
+
+    .followup-section-heading p {
+        margin: 0.15rem 0 0;
+        color: #9c91a1;
+        font-size: 0.72rem;
+    }
+
+    .followup-type-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.8rem;
+    }
+
+    .followup-type-card {
+        position: relative;
+        min-height: 122px;
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        align-items: center;
+        gap: 0.8rem;
+        padding: 1rem;
+        border: 1px solid #e9deec;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.92);
+        box-shadow: 0 7px 22px rgba(83,48,99,0.055);
+        cursor: pointer;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+
+    .followup-type-card:hover {
+        border-color: #d8c4df;
+        box-shadow: 0 10px 26px rgba(83,48,99,0.09);
+        transform: translateY(-1px);
+    }
+
+    .followup-type-card:has(input:checked) {
+        border-color: #bd8ccc;
+        background: linear-gradient(145deg, #fff, #fcf6ff);
+        box-shadow: 0 0 0 3px rgba(142,68,173,0.09), 0 10px 25px rgba(83,48,99,0.08);
+    }
+
+    .followup-type-card input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .followup-type-icon {
+        width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        font-size: 1.05rem;
+    }
+
+    .followup-type-icon.pink { background:#ffe7f2; color:#d94d91; }
+    .followup-type-icon.purple { background:#f0e8fa; color:#8051a5; }
+    .followup-type-icon.blue { background:#e8f2ff; color:#3978b8; }
+    .followup-type-icon.green { background:#e6f4ec; color:#3d8660; }
+
+    .followup-type-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 0;
+    }
+
+    .followup-type-copy strong {
+        color: #4b424e;
+        font-size: 0.84rem;
+        font-weight: 820;
+    }
+
+    .followup-type-copy small {
+        color: #9b91a0;
+        font-size: 0.7rem;
+        line-height: 1.5;
+    }
+
+    .followup-selected-icon {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        color: var(--ingrid-primary);
+        font-size: 0.9rem;
+        opacity: 0;
+        transform: scale(0.75);
+        transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .followup-type-card:has(input:checked) .followup-selected-icon {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    .followup-source-summary {
+        max-width: 880px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin: 1.25rem auto 0;
+        padding: 0.9rem 1rem;
+        border: 1px solid #eadfeb;
+        border-radius: 13px;
+        background: rgba(255,255,255,0.72);
+    }
+
+    .followup-source-summary > div {
+        min-width: 0;
+    }
+
+    .followup-source-label,
+    .followup-source-summary small {
+        display: block;
+        color: #9d92a2;
+        font-size: 0.65rem;
+    }
+
+    .followup-source-summary strong {
+        display: block;
+        overflow: hidden;
+        margin: 0.2rem 0;
+        color: #514755;
+        font-size: 0.8rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .followup-answer-ready {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        flex: 0 0 auto;
+        padding: 0.3rem 0.58rem;
+        border-radius: 999px;
+        background: #eaf5ee;
+        color: #3f7e58;
+        font-size: 0.66rem;
+        font-weight: 780;
+    }
+
     .source-section + .source-section { margin-top:1.5rem; }
 
     .source-section h4 {
@@ -861,6 +1088,8 @@
         .source-layer-header,
         .source-layer-body,
         .source-layer-footer { padding-right:1rem; padding-left:1rem; }
+        .followup-type-grid { grid-template-columns:1fr; }
+        .followup-source-summary { align-items:flex-start; flex-direction:column; }
     }
 </style>
 
@@ -870,6 +1099,14 @@
         const closeButton = document.getElementById('closeAnswerSource');
         const layer = document.getElementById('answerSourceLayer');
         const backdrop = document.getElementById('answerSourceBackdrop');
+        const followupCreateLink = document.getElementById('followupCreateLink');
+        const followupSelectionSummary = document.getElementById('followupSelectionSummary');
+        const followupLabels = {
+            grading: '답안 채점/분석',
+            feedback: '피드백 제공',
+            rewrite: '고쳐쓰기',
+            relay: '릴레이쓰기'
+        };
 
         function openLayer() {
             layer.classList.add('is-open');
@@ -890,6 +1127,14 @@
         }
 
         openButton.addEventListener('click', openLayer);
+        document.querySelectorAll('input[name="followup_type"]').forEach(function (input) {
+            input.addEventListener('change', function () {
+                if (!input.checked) return;
+                const label = followupLabels[input.value] || followupLabels.grading;
+                followupSelectionSummary.textContent = `${label} 활동을 생성합니다.`;
+                followupCreateLink.href = `${followupCreateLink.dataset.baseUrl}&followup_type=${encodeURIComponent(input.value)}`;
+            });
+        });
         closeButton.addEventListener('click', closeLayer);
         backdrop.addEventListener('click', closeLayer);
         document.querySelectorAll('[data-scroll-target]').forEach(function (button) {

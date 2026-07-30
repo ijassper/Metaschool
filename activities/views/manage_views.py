@@ -73,6 +73,7 @@ def unified_create(request):
     category_name = dict(Activity.CATEGORY_CHOICES).get(cat_code, "평가/활동")
     source_answer = None
     source_answer_id = request.GET.get('source_answer')
+    followup_type = request.GET.get('followup_type', 'grading')
     if source_answer_id and source_answer_id.isdigit():
         source_answer = get_object_or_404(
             Answer.objects.select_related('student', 'question__activity'),
@@ -271,14 +272,42 @@ def unified_create(request):
     if source_answer:
         source_activity = source_answer.question.activity
         student = source_answer.student
+        followup_presets = {
+            'grading': {
+                'title': f"{student.name} 학생 답안 채점 및 분석",
+                'question': (
+                    "이전 답안을 평가 기준에 따라 검토하고, 잘된 점과 보완할 점을 "
+                    "구체적인 근거와 함께 정리하세요."
+                ),
+            },
+            'feedback': {
+                'title': f"{student.name} 학생 피드백 활동",
+                'question': (
+                    "이전 답안에 대한 피드백을 확인하고, 피드백에서 새롭게 알게 된 점과 "
+                    "다음 활동에서 실천할 내용을 작성하세요."
+                ),
+            },
+            'rewrite': {
+                'title': f"{student.name} 학생 고쳐쓰기 활동",
+                'question': (
+                    "이전 답안의 강점은 유지하고 보완할 부분을 수정하여 더 나은 글로 "
+                    "다시 작성하세요."
+                ),
+            },
+            'relay': {
+                'title': f"{student.name} 학생 릴레이쓰기 활동",
+                'question': (
+                    "이전 답안의 마지막 생각을 출발점으로 삼아 내용을 자연스럽게 이어 쓰고, "
+                    "새로운 관점이나 사건을 더하세요."
+                ),
+            },
+        }
+        followup_preset = followup_presets.get(followup_type, followup_presets['grading'])
         form_data = {
             'section': source_activity.section,
-            'title': f"{student.name} 학생 후속 활동",
+            'title': followup_preset['title'],
             'exam_mode': source_activity.exam_mode,
-            'question': (
-                f"{student.name} 학생의 이전 답안을 바탕으로 생각을 확장하거나 "
-                "보완할 수 있는 내용을 작성하세요."
-            ),
+            'question': followup_preset['question'],
             'reference_material': (
                 f"[이전 활동]\n{source_activity.title}\n\n"
                 f"[{student.name} 학생 답안]\n{source_answer.content}"
