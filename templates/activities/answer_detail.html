@@ -6,15 +6,14 @@
     <header class="portfolio-header">
         <div class="portfolio-header-main">
             <div class="portfolio-student-meta">
-                <span>{{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번</span>
-                <i aria-hidden="true"></i>
                 <span>{{ answer.student.school.name|default:"소속 학교 없음" }}</span>
+                <i aria-hidden="true"></i>
+                <span>{{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번</span>
             </div>
             <div class="portfolio-title-row">
                 <h2>{{ answer.student.name }} 학생 활동 포트폴리오</h2>
                 <div class="portfolio-header-cards">
                     <section class="portfolio-path-card" aria-label="활동 경로">
-                        <span class="portfolio-header-card-label">활동 경로</span>
                         <nav class="portfolio-path">
                             <span>{{ activity.get_category_display }}</span>
                             {% if activity.sub_category %}
@@ -282,7 +281,7 @@
     .student-portfolio {
         max-width: 1180px;
         margin: 0 auto;
-        padding: 0.75rem 1.5rem 3rem;
+        padding: 0.08rem 1.5rem 3rem;
         color: #34313a;
     }
 
@@ -303,17 +302,23 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        margin-bottom: 0.32rem;
+        margin-bottom: 0.08rem;
         color: #7d7482;
         font-size: 0.72rem;
         font-weight: 700;
     }
 
     .portfolio-student-meta i {
-        width: 3px;
-        height: 3px;
-        border-radius: 50%;
-        background: #c5b5ca;
+        width: auto;
+        height: auto;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .portfolio-student-meta i::before {
+        content: "-";
+        color: #b3a7b7;
+        font-style: normal;
     }
 
     .portfolio-title-row {
@@ -342,7 +347,7 @@
 
     .portfolio-path-card,
     .portfolio-date-card {
-        min-height: 46px;
+        min-height: 42px;
         display: flex;
         align-items: center;
         border: 1px solid #e8dcea;
@@ -353,9 +358,8 @@
 
     .portfolio-path-card {
         flex: 1 1 auto;
-        gap: 0.65rem;
         min-width: 0;
-        padding: 0.5rem 0.75rem;
+        padding: 0.35rem 0.5rem;
     }
 
     .portfolio-date-card {
