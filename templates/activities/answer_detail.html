@@ -4,13 +4,26 @@
 {% block content %}
 <div class="student-portfolio">
     <header class="portfolio-header">
-        <div>
-            <div class="portfolio-student-meta">
-                <span>{{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번</span>
-                <i aria-hidden="true"></i>
-                <span>{{ answer.student.school.name|default:"소속 학교 없음" }}</span>
-            </div>
+        <div class="portfolio-title-row">
             <h2>{{ answer.student.name }} 학생 활동 포트폴리오</h2>
+            <span class="portfolio-title-divider" aria-hidden="true"></span>
+            <nav class="portfolio-path" aria-label="활동 위치">
+                <span>{{ activity.get_category_display }}</span>
+                {% if activity.sub_category %}
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                <span>{{ activity.sub_category }}</span>
+                {% endif %}
+                {% if activity.section %}
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                <span>{{ activity.section }}</span>
+                {% endif %}
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                <strong>{{ activity.title }}</strong>
+            </nav>
+            <span class="portfolio-title-divider" aria-hidden="true"></span>
+            <time class="portfolio-submitted-date" datetime="{{ answer.submitted_at|date:'c' }}">
+                {% if answer.submitted_at %}{{ answer.submitted_at|localtime|date:"Y.m.d H:i" }}{% else %}-{% endif %}
+            </time>
         </div>
         <a href="{% url 'activity_result' activity.id %}?q={{ answer.student.name|urlencode }}" class="portfolio-back">
             <i class="bi bi-arrow-left"></i> 제출 현황으로
@@ -32,45 +45,20 @@
         </nav>
 
         <div class="portfolio-sheet">
-            <section class="portfolio-summary" aria-label="제출 요약">
-                <article class="summary-card">
-                    <span class="summary-icon pink"><i class="bi bi-check2-circle"></i></span>
-                    <div>
-                        <span class="summary-label">제출 상태</span>
-                        <span class="summary-status"><i></i>{% if answer.submitted_at %}제출 완료{% else %}작성 중{% endif %}</span>
-                    </div>
-                </article>
-                <article class="summary-card">
-                    <span class="summary-icon purple"><i class="bi bi-clock"></i></span>
-                    <div>
-                        <span class="summary-label">제출 일시</span>
-                        <strong>{% if answer.submitted_at %}{{ answer.submitted_at|localtime|date:"Y.m.d H:i" }}{% else %}-{% endif %}</strong>
-                    </div>
-                </article>
-                <article class="summary-card summary-card-wide">
-                    <span class="summary-icon blue"><i class="bi bi-journal-text"></i></span>
-                    <div>
-                        <span class="summary-label">활동명</span>
-                        <strong>{{ activity.title }}</strong>
-                        <small>{{ activity.get_category_display }}{% if activity.sub_category %} · {{ activity.sub_category }}{% endif %}</small>
-                    </div>
-                </article>
-            </section>
-
-            <section class="portfolio-section activity-content-section">
+            <section class="portfolio-section activity-content-section first-section">
                 <header class="section-header">
                     <div>
                         <span class="section-number">01</span>
                         <div>
-                            <h3>활동 내용</h3>
-                            <p>학생이 답안을 작성한 원본 평가 문항입니다.</p>
+                            <h3>평가 문항</h3>
+                            <p>학생에게 제시된 원본 문항입니다.</p>
                         </div>
                     </div>
                 </header>
                 <article class="question-card">
                     <div class="question-card-label">
                         <i class="bi bi-chat-square-text"></i>
-                        평가 문항
+                        문항 내용
                     </div>
                     <div class="question-card-content">{{ answer.question.content|default:"문항 정보가 없습니다." }}</div>
                     {% if answer.question.conditions %}
@@ -245,29 +233,76 @@
         margin-bottom: 0.8rem;
     }
 
-    .portfolio-student-meta {
+    .portfolio-title-row {
         display: flex;
         align-items: center;
-        gap: 0.55rem;
-        margin-bottom: 0.25rem;
-        color: #777080;
-        font-size: 0.76rem;
-        font-weight: 650;
-    }
-
-    .portfolio-student-meta i {
-        width: 3px;
-        height: 3px;
-        border-radius: 50%;
-        background: #c7baca;
+        flex: 1 1 auto;
+        gap: 0.75rem;
+        min-width: 0;
     }
 
     .portfolio-header h2 {
         margin: 0;
+        flex: 0 0 auto;
         color: #302d36;
-        font-size: 1.55rem;
+        font-size: 1.42rem;
         font-weight: 850;
         letter-spacing: -0.035em;
+    }
+
+    .portfolio-title-divider {
+        width: 1px;
+        height: 22px;
+        flex: 0 0 auto;
+        background: #dfd3e3;
+    }
+
+    .portfolio-path {
+        display: flex;
+        align-items: center;
+        flex: 1 1 auto;
+        gap: 0.28rem;
+        min-width: 0;
+        color: #817687;
+        font-size: 0.7rem;
+        font-weight: 650;
+        white-space: nowrap;
+    }
+
+    .portfolio-path span,
+    .portfolio-path strong {
+        display: inline-block;
+        overflow: hidden;
+        max-width: 150px;
+        padding: 0.26rem 0.48rem;
+        border: 1px solid #eadfeb;
+        border-radius: 7px;
+        background: #fff;
+        text-overflow: ellipsis;
+        box-shadow: 0 3px 8px rgba(88,50,105,0.035);
+    }
+
+    .portfolio-path span:nth-of-type(2) { transform: translateY(2px); }
+    .portfolio-path span:nth-of-type(3) { transform: translateY(4px); }
+    .portfolio-path strong {
+        max-width: 190px;
+        color: var(--ingrid-primary);
+        background: linear-gradient(135deg, #fff2f8, #f5effc);
+        transform: translateY(6px);
+    }
+
+    .portfolio-path .bi {
+        flex: 0 0 auto;
+        color: #c3b4c8;
+        font-size: 0.58rem;
+    }
+
+    .portfolio-submitted-date {
+        flex: 0 0 auto;
+        color: #85798a;
+        font-size: 0.72rem;
+        font-weight: 750;
+        white-space: nowrap;
     }
 
     .portfolio-back {
@@ -340,93 +375,17 @@
         box-shadow: 0 18px 48px rgba(94, 57, 112, 0.1), 0 3px 10px rgba(94, 57, 112, 0.05);
     }
 
-    .portfolio-summary {
-        display: grid;
-        grid-template-columns: 0.8fr 1fr 1.55fr;
-        gap: 0.75rem;
-    }
-
-    .summary-card {
-        min-height: 104px;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        min-width: 0;
-        padding: 0.9rem;
-        border: 1px solid #eee5f0;
-        border-radius: 14px;
-        background: rgba(255,255,255,0.88);
-        box-shadow: 0 5px 16px rgba(88,50,105,0.04);
-    }
-
-    .summary-icon {
-        width: 38px;
-        height: 38px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex: 0 0 auto;
-        border-radius: 11px;
-        font-size: 1rem;
-    }
-
-    .summary-icon.pink { background:#ffe8f2; color:#d94d91; }
-    .summary-icon.purple { background:#f0e8fa; color:#8051a5; }
-    .summary-icon.blue { background:#e8f2ff; color:#3978b8; }
-
-    .summary-label {
-        display: block;
-        margin-bottom: 0.32rem;
-        color: #9b93a0;
-        font-size: 0.66rem;
-        font-weight: 750;
-    }
-
-    .summary-card strong {
-        display: block;
-        overflow: hidden;
-        color: #403a44;
-        font-size: 0.84rem;
-        font-weight: 800;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .summary-card small {
-        display: block;
-        margin-top: 0.2rem;
-        overflow: hidden;
-        color: #a097a5;
-        font-size: 0.66rem;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .summary-status {
-        width: fit-content;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.38rem;
-        padding: 0.3rem 0.58rem;
-        border-radius: 999px;
-        background: linear-gradient(135deg, #ffe6f2, #eee4fa);
-        color: #8e44ad;
-        font-size: 0.7rem;
-        font-weight: 800;
-    }
-
-    .summary-status i {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: currentColor;
-    }
-
     .portfolio-section {
         margin-top: 1.45rem;
         padding-top: 1.35rem;
         border-top: 1px solid #eee5f0;
         scroll-margin-top: 1rem;
+    }
+
+    .portfolio-section.first-section {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: 0;
     }
 
     .section-header,
@@ -811,8 +770,13 @@
     body.answer-source-open { overflow:hidden; }
 
     @media (max-width: 991.98px) {
-        .portfolio-summary { grid-template-columns:1fr 1fr; }
-        .summary-card-wide { grid-column:1 / -1; }
+        .portfolio-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .portfolio-title-row { flex-wrap: wrap; }
+        .portfolio-path { order: 3; flex-basis: 100%; overflow-x: auto; padding-bottom: 0.4rem; }
+        .portfolio-title-row > .portfolio-title-divider:last-of-type { display:none; }
         .answer-source-layer { width:85vw; min-width:0; }
     }
 
@@ -822,9 +786,10 @@
         .portfolio-action,
         .source-layer-footer { align-items:stretch; flex-direction:column; }
         .portfolio-back { width:fit-content; }
+        .portfolio-header h2 { font-size:1.25rem; }
+        .portfolio-title-divider { display:none; }
+        .portfolio-submitted-date { margin-left:auto; }
         .portfolio-sheet { padding:1rem; }
-        .portfolio-summary { grid-template-columns:1fr; }
-        .summary-card-wide { grid-column:auto; }
         .portfolio-action-button,
         .source-create-button { width:100%; }
         .answer-source-layer { width:100vw; }
