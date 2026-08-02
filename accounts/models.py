@@ -87,6 +87,38 @@ class CustomUser(AbstractUser):
     def __str__(self):
         return f"[{self.get_role_display()}] {self.name}"
 
+
+class Persona(models.Model):
+    """교사가 AI 분석에 사용할 역할과 응답 스타일을 정의합니다."""
+
+    name = models.CharField(max_length=100, verbose_name="페르소나 이름")
+    description = models.TextField(blank=True, verbose_name="역할 설명")
+    system_prompt = models.TextField(verbose_name="시스템 프롬프트")
+    tone_default = models.CharField(max_length=50, default="친절한", verbose_name="기본 어조")
+    creator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="personas",
+        verbose_name="생성 교사",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일시")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
+
+    class Meta:
+        verbose_name = "AI 페르소나"
+        verbose_name_plural = "AI 페르소나 목록"
+        ordering = ["creator_id", "name", "id"]
+
+    @property
+    def is_system(self):
+        return self.creator_id is None
+
+    def __str__(self):
+        owner = "시스템" if self.is_system else self.creator.name
+        return f"[{owner}] {self.name}"
+
 # 3. 학생 모델
 class Student(models.Model):
     teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="담당 교사 (레거시)")

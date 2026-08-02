@@ -124,6 +124,39 @@
                                    required>
                         </div>
 
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-7">
+                                <label class="form-label fw-bold small text-dark">
+                                    <i class="bi bi-person-badge-fill me-1" style="color: #8E44AD;"></i>AI 페르소나
+                                </label>
+                                <select id="persona_select" class="form-select rounded-4">
+                                    {% for persona in personas %}
+                                    <option value="{{ persona.id }}"
+                                            data-tone="{{ persona.tone_default }}"
+                                            data-description="{{ persona.description|escape }}">
+                                        {% if persona.is_system %}[시스템]{% else %}[개인]{% endif %} {{ persona.name }}
+                                    </option>
+                                    {% empty %}
+                                    <option value="">기본 학생 분석 교사</option>
+                                    {% endfor %}
+                                </select>
+                                <div id="persona_description" class="form-text mt-2"></div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fw-bold small text-dark">
+                                    <i class="bi bi-chat-heart-fill me-1" style="color: #8E44AD;"></i>응답 어조
+                                </label>
+                                <select id="persona_tone" class="form-select rounded-4">
+                                    <option value="친절한">친절한</option>
+                                    <option value="신뢰있는">신뢰있는</option>
+                                    <option value="친구같은">친구같은</option>
+                                    <option value="격려하는">격려하는</option>
+                                    <option value="간결한">간결한</option>
+                                </select>
+                                <div class="form-text mt-2">페르소나의 기본 어조를 필요에 따라 바꿀 수 있습니다.</div>
+                            </div>
+                        </div>
+
                         <!-- 학생 선택 컴포넌트 추가 -->
                         <div style="position: relative; z-index: 1050; overflow: visible !important;">
                             {% include "components/student_selector.html" with selector_label="분석 대상" %}
@@ -235,7 +268,9 @@
             task: document.getElementById('p_task').value,
             example: document.getElementById('p_example').value,
             length: document.getElementById('p_length').value,
-            temp: document.getElementById('temperature').value
+            temp: document.getElementById('temperature').value,
+            persona: document.getElementById('persona_select').value,
+            tone: document.getElementById('persona_tone').value
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(draftData));
     }
@@ -250,6 +285,8 @@
             document.getElementById('p_example').value = data.example || "";
             document.getElementById('p_length').value = data.length || "";
             document.getElementById('temperature').value = data.temp || "0.7";
+            if (data.persona) document.getElementById('persona_select').value = data.persona;
+            if (data.tone) document.getElementById('persona_tone').value = data.tone;
             if(document.getElementById('tempVal')) document.getElementById('tempVal').innerText = data.temp || "0.7";
         }
         
@@ -262,6 +299,8 @@
             document.getElementById('p_example').value = data.example || "";
             document.getElementById('p_length').value = data.length || "";
             document.getElementById('temperature').value = data.temperature || "0.7";
+            if (data.persona) document.getElementById('persona_select').value = data.persona;
+            if (data.tone) document.getElementById('persona_tone').value = data.tone;
             if(document.getElementById('tempVal')) document.getElementById('tempVal').innerText = data.temperature || "0.7";
             
             // 임시 데이터 삭제
@@ -279,7 +318,7 @@
         }
         updateSummary(); // 초기 선택된 학생 수 표시
 
-        const inputs = ['p_context', 'p_task', 'p_example', 'p_length', 'temperature'];
+        const inputs = ['p_context', 'p_task', 'p_example', 'p_length', 'temperature', 'persona_select', 'persona_tone'];
         inputs.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
@@ -296,6 +335,7 @@
 
         // 초기 요약 업데이트
         updateSummary();
+        syncPersonaDetails(false);
         
         // 서버에서 넘어온 saved_target_ids로 체크박스 초기화
         const savedTargets = JSON.parse('{{ current_targets|safe }}');
@@ -318,6 +358,18 @@
         document.getElementById('targetSummary').innerText = summaryText;
         document.getElementById('selectedCount').innerText = count;
     }
+
+    function syncPersonaDetails(resetTone = true) {
+        const select = document.getElementById('persona_select');
+        const selected = select.options[select.selectedIndex];
+        document.getElementById('persona_description').textContent = selected?.dataset.description || '';
+        if (resetTone && selected?.dataset.tone) {
+            document.getElementById('persona_tone').value = selected.dataset.tone;
+        }
+        savePromptDraft();
+    }
+
+    document.getElementById('persona_select').addEventListener('change', () => syncPersonaDetails(true));
 
     function toggleAllStudents(checked) {
         const checkboxes = document.querySelectorAll('input[name="target_students"]');
@@ -436,6 +488,8 @@
         const p_example = document.getElementById('p_example').value;
         const p_length = document.getElementById('p_length').value;
         const temperature = document.getElementById('temperature').value;
+        const selectedPersonaId = document.getElementById('persona_select').value;
+        const selectedTone = document.getElementById('persona_tone').value;
         
         if (!p_task.trim()) {
             alert("메인 지시사항을 입력해주세요.");
@@ -471,7 +525,10 @@
                         'answer_id': current.id,
                         'prompt_system': full_instruction,
                         'temperature': temperature,
-                        'ai_model': 'gemini-2.0-flash',
+                        'ai_model': 'gpt-4o-mini',
+                        'selected_persona_id': selectedPersonaId,
+                        'selected_tone': selectedTone,
+                        'requested_length': p_length,
                         'work_name': workName,
                         'batch_id': batchId  // Step 1에서 확정된 단 하나의 batch_id를 모든 학생에게 강제 전송
                     };
@@ -520,6 +577,8 @@
             example: document.getElementById('p_example').value,
             length: document.getElementById('p_length').value,
             temperature: document.getElementById('temperature').value,
+            persona: document.getElementById('persona_select').value,
+            tone: document.getElementById('persona_tone').value,
             target_students: Array.from(document.querySelectorAll('input[name="target_students"]:checked')).map(cb => cb.value)
         };
         

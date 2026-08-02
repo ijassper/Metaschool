@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="persona-page container-fluid px-4 py-3">
+    <header class="persona-page-header">
+        <div>
+            <span class="persona-eyebrow">AI PERSONA</span>
+            <h2>AI 페르소나 설정</h2>
+            <p>학생 분석에 사용할 교사의 역할, 관점과 말투를 관리합니다.</p>
+        </div>
+        <a href="{% url 'persona_create' %}" class="persona-primary-btn"><i class="bi bi-plus-lg"></i> 새 페르소나</a>
+    </header>
+
+    <section class="persona-section">
+        <div class="persona-section-heading">
+            <div><h3>기본 제공 페르소나</h3><p>모든 교사가 사용할 수 있는 읽기 전용 시스템 페르소나입니다.</p></div>
+            <span>{{ system_personas|length }}개</span>
+        </div>
+        <div class="persona-grid">
+            {% for persona in system_personas %}
+            <article class="persona-card system-card">
+                <div class="persona-card-top"><span class="persona-kind system">SYSTEM</span><span class="persona-tone">{{ persona.tone_default }}</span></div>
+                <h4>{{ persona.name }}</h4>
+                <p>{{ persona.description|default:"설명이 없습니다." }}</p>
+                <details><summary>프롬프트 미리보기</summary><div>{{ persona.system_prompt }}</div></details>
+            </article>
+            {% empty %}<div class="persona-empty">마이그레이션 후 기본 페르소나가 표시됩니다.</div>{% endfor %}
+        </div>
+    </section>
+
+    <section class="persona-section">
+        <div class="persona-section-heading">
+            <div><h3>내 페르소나</h3><p>직접 만든 페르소나는 본인만 수정하거나 삭제할 수 있습니다.</p></div>
+            <span>{{ personal_personas|length }}개</span>
+        </div>
+        <div class="persona-grid">
+            {% for persona in personal_personas %}
+            <article class="persona-card">
+                <div class="persona-card-top"><span class="persona-kind personal">MY PERSONA</span><span class="persona-tone">{{ persona.tone_default }}</span></div>
+                <h4>{{ persona.name }}</h4>
+                <p>{{ persona.description|default:"설명이 없습니다." }}</p>
+                <details><summary>프롬프트 미리보기</summary><div>{{ persona.system_prompt }}</div></details>
+                <div class="persona-actions">
+                    <a href="{% url 'persona_update' persona.id %}"><i class="bi bi-pencil"></i> 수정</a>
+                    <form method="post" action="{% url 'persona_delete' persona.id %}" onsubmit="return confirm('이 페르소나를 삭제할까요?');">{% csrf_token %}<button type="submit"><i class="bi bi-trash3"></i> 삭제</button></form>
+                </div>
+            </article>
+            {% empty %}<div class="persona-empty"><i class="bi bi-person-plus"></i><p>아직 만든 페르소나가 없습니다.</p><a href="{% url 'persona_create' %}">첫 페르소나 만들기</a></div>{% endfor %}
+        </div>
+    </section>
+</div>
+
+<style>
+    .persona-page{max-width:1220px;margin:0 auto;color:#39333d}.persona-page-header{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1.5rem}.persona-eyebrow{color:#8e44ad;font-size:.66rem;font-weight:850;letter-spacing:.1em}.persona-page-header h2{margin:.2rem 0;font-size:1.55rem;font-weight:850}.persona-page-header p,.persona-section-heading p{margin:0;color:#958b99;font-size:.76rem}.persona-primary-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.68rem 1rem;border-radius:11px;background:var(--ingrid-gradient);color:#fff;font-size:.8rem;font-weight:780;text-decoration:none;box-shadow:0 8px 20px rgba(142,68,173,.18)}.persona-primary-btn:hover{color:#fff}.persona-section+.persona-section{margin-top:2rem}.persona-section-heading{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:.8rem}.persona-section-heading h3{margin:0 0 .15rem;font-size:1rem;font-weight:820}.persona-section-heading>span{padding:.25rem .55rem;border-radius:999px;background:#f1e9f5;color:#7c5189;font-size:.67rem;font-weight:750}.persona-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.85rem}.persona-card{padding:1rem;border:1px solid #eadfeb;border-radius:15px;background:#fff;box-shadow:0 7px 22px rgba(82,47,98,.055)}.persona-card.system-card{background:linear-gradient(145deg,#fff,#faf7ff)}.persona-card-top{display:flex;justify-content:space-between;align-items:center}.persona-kind,.persona-tone{padding:.22rem .48rem;border-radius:999px;font-size:.58rem;font-weight:820}.persona-kind.system{background:#ece7f7;color:#725294}.persona-kind.personal{background:#ffe7f2;color:#b33e78}.persona-tone{background:#f5f2f6;color:#817885}.persona-card h4{margin:.8rem 0 .35rem;font-size:.92rem;font-weight:830}.persona-card>p{min-height:42px;margin:0;color:#817985;font-size:.74rem;line-height:1.55}.persona-card details{margin-top:.8rem;border-top:1px solid #f0e8f1;padding-top:.7rem}.persona-card summary{color:#80538d;font-size:.7rem;font-weight:750;cursor:pointer}.persona-card details div{max-height:150px;overflow:auto;margin-top:.6rem;padding:.7rem;border-radius:9px;background:#f8f5fa;color:#655c69;font-size:.7rem;line-height:1.55;white-space:pre-wrap}.persona-actions{display:flex;gap:.45rem;margin-top:.8rem}.persona-actions a,.persona-actions button{display:inline-flex;align-items:center;gap:.3rem;padding:.4rem .65rem;border:1px solid #e5dae8;border-radius:8px;background:#fff;color:#746878;font-size:.68rem;font-weight:700;text-decoration:none}.persona-actions button{color:#bd4d67}.persona-empty{grid-column:1/-1;padding:2.5rem;border:1px dashed #dfd2e3;border-radius:14px;color:#a096a5;text-align:center}.persona-empty i{font-size:1.5rem}.persona-empty p{margin:.4rem 0}.persona-empty a{color:#8e44ad;font-size:.75rem;font-weight:750}@media(max-width:767px){.persona-page-header{align-items:flex-start;flex-direction:column}.persona-primary-btn{width:100%;justify-content:center}}
+</style>
+{% endblock %}

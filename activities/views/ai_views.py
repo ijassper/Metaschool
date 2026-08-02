@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 # 커스텀 데코레이터 및 계정 모델 임포트
 from accounts.decorators import teacher_required
-from accounts.models import Student, SystemConfig, PromptTemplate, PromptLengthOption
+from accounts.models import Persona, Student, SystemConfig, PromptTemplate, PromptLengthOption
 from ..models import Activity, Question, Answer, AnalysisResult
 from .main_views import get_accessible_students, get_student_tree
 
@@ -475,32 +475,64 @@ def activity_analysis_work(request, activity_id):
         'current_targets': selected_student_ids, # 템플릿에 전달
         'work_name': work_name, # 작업명 템플릿에 전달
         'analysis_task_seed': analysis_task_seed,
+        'personas': Persona.objects.filter(
+            Q(creator__isnull=True) | Q(creator=request.user)
+        ).select_related('creator'),
     }
     return render(request, 'activities/activity_analysis_work.html', context)
 
 # [4] AI API 호출 및 DB 저장 (멀티 모델 지원 핵심 로직)
 @csrf_exempt
 @login_required
+@teacher_required
 def api_process_db_row(request):
     if request.method == 'POST':
         try:
             print("DEBUG: 분석 요청 수신 시작")
-            print(f"DEBUG: 수신 데이터 -> {request.body}")
             body = json.loads(request.body)
             answer_id = body.get('answer_id')
-            prompt_system = body.get('prompt_system')
-            temperature = float(body.get('temperature', 0.7))
+            prompt_system = (body.get('prompt_system') or '').strip()
+            temperature = min(max(float(body.get('temperature', 0.7)), 0.0), 1.0)
             work_name = body.get('work_name', '')
             batch_id = body.get('batch_id', '')
+            selected_persona_id = body.get('selected_persona_id')
+            selected_tone = (body.get('selected_tone') or '').strip()[:50]
+            requested_length = (body.get('requested_length') or '').strip()[:200]
             print(f"DEBUG: 분석 요청 수신 -> answer_id: {answer_id}, work_name: {work_name}, batch_id: {batch_id}")
             
             # 분석 모델은 설정값/요청값을 사용하지 않고 서버에서 고정합니다.
             ai_model = FORCED_AI_ANALYSIS_MODEL
 
             # 2. 답안 및 활동 정보 가져오기
-            answer = Answer.objects.get(id=answer_id)
+            answer = Answer.objects.select_related(
+                'question__activity', 'student'
+            ).get(id=answer_id, question__activity__teacher=request.user)
             activity = answer.question.activity # 역참조로 활동 정보 획득
             student = answer.student
+
+            visible_personas = Persona.objects.filter(
+                Q(creator__isnull=True) | Q(creator=request.user)
+            )
+            if selected_persona_id:
+                persona = visible_personas.filter(id=selected_persona_id).first()
+                if persona is None:
+                    return JsonResponse(
+                        {'status': 'error', 'message': '선택한 페르소나를 사용할 권한이 없습니다.'},
+                        status=403,
+                    )
+            else:
+                persona = visible_personas.filter(creator__isnull=True).first() or visible_personas.first()
+
+            persona_prompt = (
+                persona.system_prompt
+                if persona
+                else '당신은 학생의 성장 과정을 존중하며 근거 중심으로 답안을 분석하는 교사입니다.'
+            )
+            effective_tone = selected_tone or (persona.tone_default if persona else '친절한')
+            effective_length = requested_length or '교사의 분석 지시에 맞는 적절한 분량'
+            effective_system_prompt = (
+                f"{persona_prompt}\n\n어조: {effective_tone}\n\n분량: {effective_length}"
+            )
             
             # 3. batch_id 처리 - 프론트엔드에서 결정한 값 그대로 사용
             print(f"DEBUG: 프론트엔드에서 받은 Batch ID: {batch_id}")
@@ -571,7 +603,7 @@ def api_process_db_row(request):
                 payload = {
                     "model": ai_model,
                     "messages": [
-                        {"role": "system", "content": "당신은 생활기록부 작성 및 학생 분석 전문가입니다."},
+                        {"role": "system", "content": effective_system_prompt},
                         {"role": "user", "content": final_prompt}
                     ],
                     "temperature": temperature
@@ -626,7 +658,7 @@ def api_process_db_row(request):
                         batch_id=batch_id,
                         defaults={
                             'result_content': result_text,
-                            'prompt_system': prompt_system,
+                            'prompt_system': f"{effective_system_prompt}\n\n[교사 분석 지시]\n{prompt_system}",
                             'temperature': temperature,
                             'ai_model': ai_model,
                         }
@@ -641,7 +673,12 @@ def api_process_db_row(request):
                     answer.save()
                     
                     print(f"DEBUG: 단일 학생(answer_id: {answer.id}) 처리 완료 - result_id: {created_result.id}")
-                    return JsonResponse({'status': 'success', 'result': '저장 완료'})
+                    return JsonResponse({
+                        'status': 'success',
+                        'result': result_text,
+                        'analysis_result_id': created_result.id,
+                        'persona_name': persona.name if persona else '기본 학생 분석 교사',
+                    })
                 except Exception as e:
                     print(f"ERROR: AnalysisResult 저장 실패 - {str(e)}")
                     print(f"ERROR: 실패 상세 - answer_id: {answer.id}, work_name: {work_name}, batch_id: {batch_id}")

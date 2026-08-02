@@ -10,6 +10,12 @@ from .views.export_views import *
 from .views.typing_views import *
 
 urlpatterns = [
+    # 교사별 AI 페르소나 관리
+    path('personas/', persona_list, name='persona_list'),
+    path('personas/create/', persona_create, name='persona_create'),
+    path('personas/<int:persona_id>/edit/', persona_update, name='persona_update'),
+    path('personas/<int:persona_id>/delete/', persona_delete, name='persona_delete'),
+
     # 1. 공통 및 목록 (main_views)
     path('find-account/', find_account, name='find_account'), 
     path('list/', unified_list, name='unified_list'),

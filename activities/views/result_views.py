@@ -13,7 +13,7 @@ from django.utils import timezone
 
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
-from accounts.models import Student
+from accounts.models import Persona, Student
 from ..models import Activity, Answer
 from .main_views import get_accessible_students
 
@@ -127,6 +127,9 @@ def activity_result(request, activity_id, template_name='activities/activity_res
         'filter_data': filter_data,
         'selected_targets': selected_targets,
         'current_q': name_query,
+        'personas': Persona.objects.filter(
+            Q(creator__isnull=True) | Q(creator=request.user)
+        ).select_related('creator'),
     }
     return render(request, template_name, context)
 

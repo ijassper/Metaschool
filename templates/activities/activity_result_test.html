@@ -74,11 +74,11 @@
     <header class="analysis-workbench-header">
         <div>
             <span class="answer-peek-eyebrow">AI ANALYSIS</span>
-            <h4 id="analysisWorkbenchTitle" class="answer-peek-title">분석 워크벤치</h4>
+            <h4 id="analysisWorkbenchTitle" class="answer-peek-title">학생 답안 AI 분석</h4>
             <p id="analysisWorkbenchStudent" class="answer-peek-student-meta mb-0"></p>
         </div>
         <button type="button" id="analysisWorkbenchClose" class="answer-peek-close" aria-label="분석 패널 닫기">
-            <i class="bi bi-chevron-right"></i>
+            <i class="bi bi-x-lg"></i>
         </button>
     </header>
 
@@ -87,55 +87,32 @@
             <div class="analysis-setting-heading">
                 <span class="analysis-step">1</span>
                 <div>
-                    <strong>분석 목적</strong>
-                    <small>원하는 결과 유형을 하나 선택하세요.</small>
+                    <strong>AI 페르소나</strong>
+                    <small>이 답안을 분석할 교사의 관점과 역할을 선택하세요.</small>
                 </div>
             </div>
-            <div class="analysis-purpose-grid">
-                <label class="analysis-purpose-card">
-                    <input type="radio" name="analysis_purpose" value="종합 피드백" checked>
-                    <span class="analysis-purpose-icon purple"><i class="bi bi-stars"></i></span>
-                    <span>
-                        <strong>종합 피드백</strong>
-                        <small>내용·구조·표현을 균형 있게 분석</small>
-                    </span>
-                </label>
-                <label class="analysis-purpose-card">
-                    <input type="radio" name="analysis_purpose" value="강점과 보완점">
-                    <span class="analysis-purpose-icon green"><i class="bi bi-graph-up-arrow"></i></span>
-                    <span>
-                        <strong>강점·보완점</strong>
-                        <small>잘한 점과 다음 성장 과제 제안</small>
-                    </span>
-                </label>
-                <label class="analysis-purpose-card">
-                    <input type="radio" name="analysis_purpose" value="교사 코멘트">
-                    <span class="analysis-purpose-icon blue"><i class="bi bi-chat-square-heart"></i></span>
-                    <span>
-                        <strong>교사 코멘트</strong>
-                        <small>학생에게 전달할 짧은 피드백 작성</small>
-                    </span>
-                </label>
-            </div>
+            <select id="sidePeekPersona" class="analysis-select">
+                {% for persona in personas %}
+                <option value="{{ persona.id }}" data-tone="{{ persona.tone_default }}" data-description="{{ persona.description|escape }}">
+                    {% if persona.is_system %}[시스템]{% else %}[개인]{% endif %} {{ persona.name }}
+                </option>
+                {% empty %}<option value="">기본 학생 분석 교사</option>{% endfor %}
+            </select>
+            <p id="sidePeekPersonaDescription" class="analysis-persona-description"></p>
         </section>
 
         <section class="analysis-setting-section">
             <div class="analysis-setting-heading">
                 <span class="analysis-step">2</span>
                 <div>
-                    <strong>중점적으로 볼 내용</strong>
-                    <small>이 답안에서 특별히 확인할 기준을 적어주세요.</small>
+                    <strong>피드백 어조</strong>
+                    <small>학생에게 전달할 말투를 선택하세요.</small>
                 </div>
             </div>
-            <textarea id="analysisCustomInstruction"
-                      class="analysis-instruction"
-                      rows="4"
-                      placeholder="예: 주장과 근거가 자연스럽게 연결되는지, 학생의 표현을 존중하는 어조로 피드백해 주세요."></textarea>
-            <div class="analysis-suggestion-row" aria-label="추천 지시어">
-                <button type="button" class="analysis-suggestion">논리성</button>
-                <button type="button" class="analysis-suggestion">근거의 타당성</button>
-                <button type="button" class="analysis-suggestion">표현력</button>
-                <button type="button" class="analysis-suggestion">성장 중심</button>
+            <div class="analysis-tone-options">
+                <label><input type="radio" name="side_peek_tone" value="친절한" checked><span>친절한</span></label>
+                <label><input type="radio" name="side_peek_tone" value="신뢰있는"><span>신뢰있는</span></label>
+                <label><input type="radio" name="side_peek_tone" value="친구같은"><span>친구같은</span></label>
             </div>
         </section>
 
@@ -143,27 +120,25 @@
             <div class="analysis-setting-heading">
                 <span class="analysis-step">3</span>
                 <div>
-                    <strong>결과 형태</strong>
-                    <small>수업 활용 방식에 맞게 결과 분량을 선택하세요.</small>
+                    <strong>피드백 분량</strong>
+                    <small>원하는 분석 결과의 밀도를 선택하세요.</small>
                 </div>
             </div>
             <div class="analysis-output-options">
-                <label>
+                <label class="analysis-length-label">
                     <span>결과 분량</span>
-                    <select id="analysisLength">
-                        <option value="short">간단히 · 핵심 3줄</option>
-                        <option value="medium" selected>보통 · 항목별 피드백</option>
-                        <option value="long">상세히 · 근거와 예시 포함</option>
+                    <select id="analysisLength" class="analysis-select">
+                        <option value="핵심 내용을 3줄 안팎으로 간단히">간단히 · 핵심 3줄</option>
+                        <option value="항목별로 구분한 보통 분량" selected>보통 · 항목별 피드백</option>
+                        <option value="근거와 예시를 포함해 상세히">상세히 · 근거와 예시 포함</option>
                     </select>
                 </label>
-                <label class="analysis-check-option">
-                    <input id="analysisIncludeQuote" type="checkbox" checked>
-                    <span>
-                        <strong>답안 근거 인용</strong>
-                        <small>학생 문장을 짧게 인용해 설명</small>
-                    </span>
-                </label>
             </div>
+        </section>
+
+        <section id="sidePeekAnalysisResult" class="analysis-result-section" hidden aria-live="polite">
+            <div class="analysis-result-heading"><i class="bi bi-stars"></i><strong>AI 분석 결과</strong></div>
+            <div id="sidePeekAnalysisResultText" class="analysis-result-text"></div>
         </section>
     </div>
 
@@ -172,13 +147,11 @@
             <i class="bi bi-person-check"></i>
             <span><strong id="analysisSelectedStudent">학생 1명</strong>의 답안을 분석합니다.</span>
         </div>
-        <a id="analysisContinueLink"
-           href="{% url 'activity_analysis_work' activity.id %}"
-           class="analysis-continue-btn">
-            <span>선택한 학생으로 분석 계속하기</span>
-            <i class="bi bi-arrow-right"></i>
-        </a>
-        <p class="answer-peek-footer-hint mb-0">현재 설정은 다음 단계의 분석 지시 초안으로 전달됩니다.</p>
+        <button id="sidePeekAnalysisStart" type="button" class="analysis-continue-btn">
+            <span class="analysis-button-idle"><i class="bi bi-stars me-1"></i> AI 분석 시작하기</span>
+            <span class="analysis-button-loading" hidden><span class="analysis-spinner"></span> 답안을 분석하고 있습니다</span>
+        </button>
+        <p id="sidePeekAnalysisError" class="analysis-error mb-0" hidden></p>
     </footer>
 </aside>
 
@@ -443,19 +416,18 @@
 
     .analysis-workbench {
         position: fixed;
-        z-index: 1064;
+        z-index: 1070;
         top: 0;
-        right: min(620px, 94vw);
-        width: min(560px, calc(100vw - min(620px, 94vw)));
-        min-width: 420px;
+        right: 0;
+        width: min(540px, 88vw);
         height: 100vh;
         height: 100dvh;
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto;
         border-left: 1px solid #e7e5e4;
-        background: #fbfbfa;
-        box-shadow: -20px 0 50px rgba(15, 23, 42, 0.12);
-        transform: translateX(calc(100% + min(620px, 94vw)));
+        background: #fff;
+        box-shadow: -28px 0 70px rgba(15, 23, 42, 0.22);
+        transform: translateX(102%);
         visibility: hidden;
         transition: transform 0.32s ease, visibility 0.32s ease;
     }
@@ -645,6 +617,86 @@
         font-size: 0.78rem;
     }
 
+    .analysis-select {
+        width: 100%;
+        min-height: 42px;
+        padding: 0 0.8rem;
+        border: 1px solid #dededb;
+        border-radius: 10px;
+        background: #fff;
+        color: #37352f;
+        font-size: 0.8rem;
+        outline: none;
+    }
+
+    .analysis-select:focus {
+        border-color: #a86fba;
+        box-shadow: 0 0 0 3px rgba(142, 68, 173, 0.09);
+    }
+
+    .analysis-persona-description {
+        margin: 0.55rem 0 0;
+        color: #8a8985;
+        font-size: 0.72rem;
+        line-height: 1.5;
+    }
+
+    .analysis-tone-options {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+    }
+
+    .analysis-tone-options label { position: relative; margin: 0; }
+    .analysis-tone-options input { position: absolute; opacity: 0; }
+    .analysis-tone-options span {
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #e3dce5;
+        border-radius: 10px;
+        background: #fff;
+        color: #716873;
+        font-size: 0.76rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .analysis-tone-options input:checked + span {
+        border-color: #a86fba;
+        background: #f6edf8;
+        color: #7d3c98;
+        box-shadow: 0 0 0 2px rgba(142, 68, 173, 0.07);
+    }
+
+    .analysis-length-label {
+        display: grid;
+        grid-template-columns: 80px minmax(0, 1fr);
+        align-items: center;
+        gap: 0.75rem;
+        color: #787774;
+        font-size: 0.78rem;
+    }
+
+    .analysis-result-section {
+        margin-top: 1.7rem;
+        padding-top: 1.7rem;
+        border-top: 1px solid #e9e9e7;
+    }
+    .analysis-result-heading { display:flex; align-items:center; gap:.45rem; color:#7d3c98; font-size:.86rem; }
+    .analysis-result-text {
+        margin-top: 0.75rem;
+        padding: 1rem;
+        border: 1px solid #eadfeb;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #fff, #fcf8fd);
+        color: #423b45;
+        font-size: 0.84rem;
+        line-height: 1.75;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
     .analysis-check-option {
         display: flex;
         align-items: center;
@@ -677,6 +729,7 @@
     }
 
     .analysis-continue-btn {
+        width: 100%;
         min-height: 46px;
         display: flex;
         align-items: center;
@@ -686,8 +739,14 @@
         background: #37352f;
         color: #fff;
         font-weight: 750;
+        border: 0;
         text-decoration: none;
     }
+
+    .analysis-continue-btn:disabled { opacity: .72; cursor: wait; }
+    .analysis-spinner { width:16px; height:16px; display:inline-block; margin-right:.4rem; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:analysis-spin .75s linear infinite; vertical-align:-3px; }
+    @keyframes analysis-spin { to { transform:rotate(360deg); } }
+    .analysis-error { margin-top:.55rem; color:#b4233c; font-size:.72rem; text-align:center; }
 
     .analysis-continue-btn:hover {
         background: #24231f;
@@ -749,12 +808,17 @@
         const workbenchClose = document.getElementById('analysisWorkbenchClose');
         const workbenchStudent = document.getElementById('analysisWorkbenchStudent');
         const selectedStudent = document.getElementById('analysisSelectedStudent');
-        const continueLink = document.getElementById('analysisContinueLink');
-        const analysisBaseUrl = continueLink.getAttribute('href');
-        const customInstruction = document.getElementById('analysisCustomInstruction');
+        const personaSelect = document.getElementById('sidePeekPersona');
+        const personaDescription = document.getElementById('sidePeekPersonaDescription');
         const analysisLength = document.getElementById('analysisLength');
-        const includeQuote = document.getElementById('analysisIncludeQuote');
+        const analysisStart = document.getElementById('sidePeekAnalysisStart');
+        const idleLabel = analysisStart.querySelector('.analysis-button-idle');
+        const loadingLabel = analysisStart.querySelector('.analysis-button-loading');
+        const resultSection = document.getElementById('sidePeekAnalysisResult');
+        const resultText = document.getElementById('sidePeekAnalysisResultText');
+        const errorText = document.getElementById('sidePeekAnalysisError');
         let currentStudentName = '';
+        let currentAnswerId = '';
 
         function closeAnswerPeek() {
             closeAnalysisWorkbench();
@@ -770,20 +834,28 @@
             workbench.setAttribute('aria-hidden', 'true');
         }
 
-        function buildAnalysisUrl() {
-            const query = new URLSearchParams(continueLink.dataset.studentQuery || '');
-            const purpose = document.querySelector('input[name="analysis_purpose"]:checked');
-            if (purpose) query.set('analysis_purpose', purpose.value);
-            if (customInstruction.value.trim()) query.set('analysis_instruction', customInstruction.value.trim());
-            query.set('analysis_length', analysisLength.value);
-            query.set('include_quote', includeQuote.checked ? '1' : '0');
-            continueLink.href = `${analysisBaseUrl}?${query.toString()}`;
+        function syncPersona() {
+            const option = personaSelect.options[personaSelect.selectedIndex];
+            personaDescription.textContent = option?.dataset.description || '';
+            const defaultTone = option?.dataset.tone;
+            if (defaultTone) {
+                const tone = Array.from(document.querySelectorAll('input[name="side_peek_tone"]'))
+                    .find((input) => input.value === defaultTone);
+                if (tone) tone.checked = true;
+            }
+        }
+
+        function setLoading(isLoading) {
+            analysisStart.disabled = isLoading;
+            idleLabel.hidden = isLoading;
+            loadingLabel.hidden = !isLoading;
         }
 
         window.openAnswerModal = function (buttonEl) {
             const data = buttonEl.dataset;
             const studentName = data.studentName || '학생';
             currentStudentName = studentName;
+            currentAnswerId = data.answerId || '';
             const studentInfo = [data.grade && `${data.grade}학년`, data.classNo && `${data.classNo}반`, data.number && `${data.number}번`]
                 .filter(Boolean)
                 .join(' ');
@@ -796,14 +868,12 @@
             question.textContent = data.questionContent || '문항 정보가 없습니다.';
             content.textContent = data.answerContent || '작성된 답안이 없습니다.';
 
-            const query = new URLSearchParams();
-            if (data.studentId) {
-                query.set('target_students', data.studentId);
-            }
-            continueLink.dataset.studentQuery = query.toString();
-            buildAnalysisUrl();
             workbenchStudent.textContent = `${studentName} 학생 · 답안을 보면서 분석 기준을 설정합니다.`;
             selectedStudent.textContent = `${studentName} 학생`;
+            resultSection.hidden = true;
+            resultText.textContent = '';
+            errorText.hidden = true;
+            closeAnalysisWorkbench();
 
             panel.classList.add('is-open');
             backdrop.classList.add('is-open');
@@ -816,27 +886,60 @@
         analysisButton.addEventListener('click', function () {
             workbench.classList.add('is-open');
             workbench.setAttribute('aria-hidden', 'false');
+            syncPersona();
             workbenchClose.focus();
+        });
+
+        analysisStart.addEventListener('click', async function () {
+            if (!currentAnswerId) {
+                errorText.textContent = '분석할 답안 정보를 찾을 수 없습니다.';
+                errorText.hidden = false;
+                return;
+            }
+
+            const selectedTone = document.querySelector('input[name="side_peek_tone"]:checked')?.value || '친절한';
+            errorText.hidden = true;
+            resultSection.hidden = true;
+            setLoading(true);
+
+            try {
+                const response = await fetch('{% url "api_process_db_row" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        answer_id: currentAnswerId,
+                        selected_persona_id: personaSelect.value,
+                        selected_tone: selectedTone,
+                        requested_length: analysisLength.value,
+                        prompt_system: '학생 답안의 구체적인 근거를 바탕으로 강점, 보완점, 다음 학습 제안을 구분해 작성해 주세요.',
+                        temperature: 0.7,
+                        work_name: '답안 Side-Peek 분석',
+                        batch_id: `side_peek_${Date.now()}`
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') {
+                    throw new Error(data.message || 'AI 분석 요청에 실패했습니다.');
+                }
+                resultText.textContent = data.result;
+                resultSection.hidden = false;
+                resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (error) {
+                errorText.textContent = error.message || '분석 중 오류가 발생했습니다.';
+                errorText.hidden = false;
+            } finally {
+                setLoading(false);
+            }
         });
 
         closeButton.addEventListener('click', closeAnswerPeek);
         workbenchClose.addEventListener('click', closeAnalysisWorkbench);
         backdrop.addEventListener('click', closeAnswerPeek);
-        document.querySelectorAll('input[name="analysis_purpose"], #analysisLength, #analysisIncludeQuote')
-            .forEach(function (control) {
-                control.addEventListener('change', buildAnalysisUrl);
-            });
-        customInstruction.addEventListener('input', buildAnalysisUrl);
-        document.querySelectorAll('.analysis-suggestion').forEach(function (button) {
-            button.addEventListener('click', function () {
-                const value = button.textContent.trim();
-                const current = customInstruction.value.trim();
-                if (!current.includes(value)) {
-                    customInstruction.value = current ? `${current}, ${value}` : value;
-                    customInstruction.dispatchEvent(new Event('input'));
-                }
-            });
-        });
+        personaSelect.addEventListener('change', syncPersona);
+        syncPersona();
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 if (workbench.classList.contains('is-open')) {

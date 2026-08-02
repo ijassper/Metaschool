@@ -10,6 +10,8 @@ from django.contrib import messages
 from django.utils import timezone
 from django.utils.timezone import make_aware
 from django.http import JsonResponse
+from django.db.models import Q
+from django.views.decorators.http import require_POST
 
 # [핵심] 같은 폴더(views) 내의 main_views에서 공통 함수 가져오기
 from .main_views import get_accessible_student_ids, get_form_config, get_student_tree
@@ -19,8 +21,83 @@ from ..models import Activity, Question, Answer, ActivityFile
 
 # [중요] 교사 권한 데코레이터 가져오기 (accounts 앱에서)
 from accounts.decorators import teacher_required
+from accounts.models import Persona
 
 logger = logging.getLogger(__name__)
+
+PERSONA_TONES = ["친절한", "신뢰있는", "친구같은", "격려하는", "간결한", "전문적인"]
+
+
+def _persona_form_values(request):
+    return {
+        "name": request.POST.get("name", "").strip(),
+        "description": request.POST.get("description", "").strip(),
+        "system_prompt": request.POST.get("system_prompt", "").strip(),
+        "tone_default": request.POST.get("tone_default", "친절한").strip() or "친절한",
+    }
+
+
+@login_required
+@teacher_required
+def persona_list(request):
+    personas = Persona.objects.filter(Q(creator__isnull=True) | Q(creator=request.user)).select_related("creator")
+    return render(request, "activities/persona_list.html", {
+        "system_personas": personas.filter(creator__isnull=True),
+        "personal_personas": personas.filter(creator=request.user),
+    })
+
+
+@login_required
+@teacher_required
+def persona_create(request):
+    form_data = {}
+    if request.method == "POST":
+        form_data = _persona_form_values(request)
+        if not form_data["name"] or not form_data["system_prompt"]:
+            messages.error(request, "페르소나 이름과 시스템 프롬프트는 필수입니다.")
+        else:
+            Persona.objects.create(creator=request.user, **form_data)
+            messages.success(request, f"'{form_data['name']}' 페르소나를 등록했습니다.")
+            return redirect("persona_list")
+    return render(request, "activities/persona_form.html", {
+        "form_data": form_data,
+        "tone_options": PERSONA_TONES,
+        "action": "등록",
+    })
+
+
+@login_required
+@teacher_required
+def persona_update(request, persona_id):
+    persona = get_object_or_404(Persona, id=persona_id, creator=request.user)
+    form_data = None
+    if request.method == "POST":
+        form_data = _persona_form_values(request)
+        if not form_data["name"] or not form_data["system_prompt"]:
+            messages.error(request, "페르소나 이름과 시스템 프롬프트는 필수입니다.")
+        else:
+            for field, value in form_data.items():
+                setattr(persona, field, value)
+            persona.save()
+            messages.success(request, f"'{persona.name}' 페르소나를 수정했습니다.")
+            return redirect("persona_list")
+    return render(request, "activities/persona_form.html", {
+        "persona": persona,
+        "form_data": form_data,
+        "tone_options": PERSONA_TONES,
+        "action": "수정",
+    })
+
+
+@require_POST
+@login_required
+@teacher_required
+def persona_delete(request, persona_id):
+    persona = get_object_or_404(Persona, id=persona_id, creator=request.user)
+    name = persona.name
+    persona.delete()
+    messages.success(request, f"'{name}' 페르소나를 삭제했습니다.")
+    return redirect("persona_list")
 
 def normalize_typing_duration(value):
     try:
