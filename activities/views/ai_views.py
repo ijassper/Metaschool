@@ -498,6 +498,14 @@ def api_process_db_row(request):
             selected_persona_id = body.get('selected_persona_id')
             selected_tone = (body.get('selected_tone') or '').strip()[:50]
             requested_length = (body.get('requested_length') or '').strip()[:200]
+            allowed_feedback_components = ('인사말', '답안 요약', '공감', '강점/약점')
+            requested_components = body.get('feedback_components') or []
+            if not isinstance(requested_components, list):
+                requested_components = []
+            feedback_components = [
+                component for component in allowed_feedback_components
+                if component in requested_components
+            ]
             print(f"DEBUG: 분석 요청 수신 -> answer_id: {answer_id}, work_name: {work_name}, batch_id: {batch_id}")
             
             # 분석 모델은 설정값/요청값을 사용하지 않고 서버에서 고정합니다.
@@ -533,6 +541,20 @@ def api_process_db_row(request):
             effective_system_prompt = (
                 f"{persona_prompt}\n\n어조: {effective_tone}\n\n분량: {effective_length}"
             )
+            if feedback_components:
+                selected_component_text = ', '.join(feedback_components)
+                excluded_components = [
+                    component for component in allowed_feedback_components
+                    if component not in feedback_components
+                ]
+                effective_system_prompt += (
+                    f"\n\n피드백 구성: {selected_component_text}. "
+                    "결과에는 선택된 구성 항목만 명확히 반영하세요."
+                )
+                if excluded_components:
+                    effective_system_prompt += (
+                        f" 선택하지 않은 항목({', '.join(excluded_components)})은 별도 구성으로 작성하지 마세요."
+                    )
             
             # 3. batch_id 처리 - 프론트엔드에서 결정한 값 그대로 사용
             print(f"DEBUG: 프론트엔드에서 받은 Batch ID: {batch_id}")

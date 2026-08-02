@@ -190,18 +190,24 @@
 <div id="answerSourceBackdrop" class="answer-source-backdrop" aria-hidden="true"></div>
 <aside id="answerSourceLayer" class="answer-source-layer" aria-hidden="true" aria-labelledby="answerSourceTitle">
     <header class="source-layer-header">
-        <div>
-            <span class="source-layer-meta">FOLLOW-UP ACTIVITY WORKBENCH</span>
-            <h3 id="answerSourceTitle">학생답안 추후 활동 생성</h3>
-            <p>{{ answer.student.name }} 학생 답안을 가지고 추후 활동을 생성합니다.</p>
-        </div>
+        <h3 id="answerSourceTitle" class="source-student-title">
+            {{ answer.student.school.name|default:"소속 학교 미등록" }} · {{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번 · {{ answer.student.name }}
+        </h3>
         <button type="button" id="closeAnswerSource" class="source-layer-close" aria-label="답안 레이어 닫기">
             <i class="bi bi-x-lg"></i>
         </button>
     </header>
 
-    <div class="source-layer-body followup-workbench-body">
-        <section class="followup-workbench-section">
+    <div class="source-layer-body followup-workbench-body followup-split-view">
+        <section class="followup-answer-pane">
+            <div class="followup-pane-heading"><i class="bi bi-file-earmark-text"></i><strong>학생 답안지</strong></div>
+            <div class="followup-question-card">
+                <span>평가 문항</span>
+                <p>{{ answer.question.content|default:activity.question|default:"문항 정보가 없습니다." }}</p>
+            </div>
+            <div class="followup-answer-card">{{ answer.content|default:"작성된 답안이 없습니다." }}</div>
+        </section>
+        <section class="followup-workbench-section followup-tool-pane">
             <div class="followup-section-heading">
                 <span>01</span>
                 <div>
@@ -251,15 +257,14 @@
                     <i class="bi bi-check-circle-fill followup-selected-icon"></i>
                 </label>
             </div>
-        </section>
-
-        <section class="followup-source-summary">
-            <div>
-                <span class="followup-source-label">연결할 원본 활동</span>
-                <strong>{{ activity.title }}</strong>
-                <small>{{ activity.get_category_display }}{% if activity.sub_category %} · {{ activity.sub_category }}{% endif %}</small>
+            <div class="followup-source-summary">
+                <div>
+                    <span class="followup-source-label">연결할 원본 활동</span>
+                    <strong>{{ activity.title }}</strong>
+                    <small>{{ activity.get_category_display }}{% if activity.sub_category %} · {{ activity.sub_category }}{% endif %}</small>
+                </div>
+                <span class="followup-answer-ready"><i class="bi bi-check2"></i> 답안 연결됨</span>
             </div>
-            <span class="followup-answer-ready"><i class="bi bi-check2"></i> 답안 연결됨</span>
         </section>
     </div>
 
@@ -277,9 +282,7 @@
 <aside id="followupDesignLayer" class="followup-design-layer" aria-hidden="true" aria-labelledby="followupDesignTitle">
     <header class="source-layer-header">
         <div>
-            <span class="source-layer-meta">AI FOLLOW-UP DESIGN</span>
-            <h3 id="followupDesignTitle">후속 활동 AI 설계</h3>
-            <p><span id="followupDesignStudent">{{ answer.student.name }}</span> 학생 답안을 바탕으로 활동 초안을 만듭니다.</p>
+            <h3 id="followupDesignTitle">답안 채점/분석 AI 설계</h3>
         </div>
         <button type="button" id="closeFollowupDesign" class="source-layer-close" aria-label="2차 패널 닫기"><i class="bi bi-x-lg"></i></button>
     </header>
@@ -288,6 +291,15 @@
             <span>선택한 활동</span>
             <strong id="followupDesignType">답안 채점/분석</strong>
         </div>
+        <section class="followup-design-section">
+            <label>피드백 구성 메뉴 <small>복수 선택 가능</small></label>
+            <div class="feedback-component-toggles">
+                <button type="button" class="feedback-toggle is-selected" data-component="인사말" aria-pressed="true">인사말</button>
+                <button type="button" class="feedback-toggle is-selected" data-component="답안 요약" aria-pressed="true">답안 요약</button>
+                <button type="button" class="feedback-toggle is-selected" data-component="공감" aria-pressed="true">공감</button>
+                <button type="button" class="feedback-toggle is-selected" data-component="강점/약점" aria-pressed="true">강점/약점</button>
+            </div>
+        </section>
         <section class="followup-design-section">
             <label for="followupPersona">AI 페르소나</label>
             <select id="followupPersona" class="followup-design-control">
@@ -299,29 +311,28 @@
         </section>
         <section class="followup-design-section">
             <label>피드백 어조</label>
-            <div class="followup-tone-options">
-                <label><input type="radio" name="followup_tone" value="친절한" checked><span>친절한</span></label>
-                <label><input type="radio" name="followup_tone" value="신뢰있는"><span>신뢰있는</span></label>
-                <label><input type="radio" name="followup_tone" value="친구같은"><span>친구같은</span></label>
-            </div>
+            <select id="followupTone" class="followup-design-control">
+                <option value="친절한">친절한</option><option value="신뢰있는">신뢰있는</option><option value="친구같은">친구같은</option>
+            </select>
         </section>
         <section class="followup-design-section">
             <label for="followupLength">초안 분량</label>
             <select id="followupLength" class="followup-design-control">
-                <option value="핵심 활동 안내와 문항을 간단히">간단히</option>
-                <option value="활동 목표, 안내, 문항을 포함한 보통 분량" selected>보통</option>
-                <option value="활동 목표, 단계별 안내, 문항, 평가 기준을 포함해 상세히">상세히</option>
+                <option value="A4 1장">A4 1장</option>
+                <option value="A4 절반" selected>A4 절반</option>
+                <option value="A4 절반의 반">A4 절반의 반</option>
+                <option value="짧은 한 문단">짧은 한 문단</option>
             </select>
         </section>
         <section id="followupDraftResult" class="followup-draft-result" hidden aria-live="polite">
-            <h4><i class="bi bi-stars"></i> 생성된 후속 활동 초안</h4>
-            <div id="followupDraftText"></div>
+            <h4><i class="bi bi-stars"></i> AI 초안 미리보기</h4>
+            <textarea id="followupDraftText" rows="14" aria-label="수정 가능한 AI 초안"></textarea>
         </section>
     </div>
     <footer class="source-layer-footer followup-design-footer">
         <p id="followupDesignError" class="followup-design-error" hidden></p>
         <button id="generateFollowupDraft" type="button" class="source-create-button">
-            <span class="followup-generate-idle"><i class="bi bi-stars"></i> AI로 후속 활동 초안 만들기</span>
+            <span class="followup-generate-idle"><i class="bi bi-stars"></i> AI 초안 만들기</span>
             <span class="followup-generate-loading" hidden><span class="followup-spinner"></span> 생성하고 있습니다</span>
         </button>
     </footer>
@@ -811,8 +822,8 @@
         z-index: 1085;
         top: 0;
         right: 0;
-        width: 66.666vw;
-        min-width: 720px;
+        width: min(1600px, 100vw);
+        min-width: 0;
         height: 100vh;
         height: 100dvh;
         display: grid;
@@ -827,6 +838,8 @@
 
     .answer-source-backdrop.is-open { opacity:1; visibility:visible; }
     .answer-source-layer.is-open { transform:translateX(0); visibility:visible; }
+    .answer-source-layer::after { content:""; position:absolute; inset:0; z-index:20; background:rgba(43,32,48,.16); opacity:0; visibility:hidden; pointer-events:none; transition:opacity .22s ease,visibility .22s ease; }
+    .answer-source-layer.is-dimmed::after { opacity:1; visibility:visible; }
 
     .source-layer-header,
     .source-layer-footer {
@@ -853,6 +866,7 @@
         font-size: 1.3rem;
         font-weight: 830;
     }
+    .source-layer-header .source-student-title { margin:0; font-size:1.5rem; line-height:1.3; font-weight:850; }
 
     .source-layer-header p,
     .source-layer-footer p {
@@ -879,9 +893,17 @@
     .followup-workbench-body {
         background: linear-gradient(145deg, #fff 0%, #fff9fc 58%, #f8f4ff 100%);
     }
+    .followup-split-view { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1.5rem; }
+    .followup-answer-pane,.followup-tool-pane { min-width:0; }
+    .followup-answer-pane { padding-right:1.5rem; border-right:1px solid #eadfeb; }
+    .followup-pane-heading { display:flex; align-items:center; gap:.5rem; margin-bottom:1rem; color:#514755; font-size:.9rem; }
+    .followup-question-card { padding:1rem; border:1px solid #e7dce9; border-radius:13px; background:#f8f3fa; }
+    .followup-question-card span { color:#8b6a93; font-size:.68rem; font-weight:800; }
+    .followup-question-card p { margin:.45rem 0 0; color:#544b57; font-size:.82rem; line-height:1.65; white-space:pre-wrap; }
+    .followup-answer-card { min-height:420px; margin-top:.8rem; padding:1.1rem; border:1px solid #e7dce9; border-radius:13px; background:#fff; color:#49404c; font-size:.9rem; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; }
 
     .followup-workbench-section {
-        max-width: 880px;
+        max-width: none;
         margin: 0 auto;
     }
 
@@ -1119,8 +1141,8 @@
         z-index: 1090;
         top: 0;
         right: 0;
-        width: 56vw;
-        min-width: 620px;
+        width: min(800px, 50vw);
+        min-width: 0;
         height: 100vh;
         height: 100dvh;
         display: grid;
@@ -1139,17 +1161,17 @@
     .followup-design-current strong { color:#7d3c98; font-size:.82rem; }
     .followup-design-section { margin-top:1.4rem; }
     .followup-design-section>label { display:block; margin-bottom:.5rem; }
+    .followup-design-section>label small { margin-left:.35rem; color:#aa9caf; font-weight:500; }
     .followup-design-control { width:100%; min-height:43px; padding:0 .8rem; border:1px solid #e3d8e6; border-radius:10px; background:#fff; color:#4f4652; font-size:.8rem; outline:none; }
     .followup-design-control:focus { border-color:#ad79bc; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
     .followup-design-section>small { display:block; margin-top:.45rem; color:#9c919f; font-size:.7rem; line-height:1.5; }
-    .followup-tone-options { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; }
-    .followup-tone-options label { position:relative; margin:0; }
-    .followup-tone-options input { position:absolute; opacity:0; }
-    .followup-tone-options span { min-height:40px; display:flex; align-items:center; justify-content:center; border:1px solid #e3d8e6; border-radius:10px; color:#776b7a; font-size:.75rem; font-weight:720; cursor:pointer; }
-    .followup-tone-options input:checked+span { border-color:#a86fba; background:#f6edf8; color:#7d3c98; box-shadow:0 0 0 2px rgba(142,68,173,.07); }
+    .feedback-component-toggles { display:flex; flex-wrap:wrap; gap:.5rem; }
+    .feedback-toggle { padding:.42rem .75rem; border:1px solid #e1d5e4; border-radius:999px; background:#fff; color:#796d7d; font-size:.73rem; font-weight:720; }
+    .feedback-toggle.is-selected { border-color:#a86fba; background:#f3e8f6; color:#7d3c98; box-shadow:0 0 0 2px rgba(142,68,173,.06); }
     .followup-draft-result { margin-top:1.6rem; padding-top:1.4rem; border-top:1px solid #eadfeb; }
     .followup-draft-result h4 { margin:0 0 .7rem; color:#7d3c98; font-size:.86rem; font-weight:780; }
-    .followup-draft-result>div { padding:1rem; border:1px solid #eadfeb; border-radius:12px; background:#fff; color:#4e4651; font-size:.82rem; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .followup-draft-result textarea { width:100%; padding:1rem; border:1px solid #eadfeb; border-radius:12px; background:#fff; color:#4e4651; font-size:.82rem; line-height:1.75; resize:vertical; outline:none; }
+    .followup-draft-result textarea:focus { border-color:#a86fba; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
     .followup-design-footer { justify-content:flex-end; }
     .followup-design-error { margin-right:auto!important; color:#b4233c!important; }
     .source-create-button:disabled { opacity:.72; cursor:wait; }
@@ -1165,8 +1187,10 @@
         .portfolio-title-row { align-items:flex-start; flex-direction:column; }
         .portfolio-header-cards { width:100%; }
         .portfolio-path { overflow-x:auto; }
-        .answer-source-layer { width:85vw; min-width:0; }
-        .followup-design-layer { width:72vw; min-width:0; }
+        .answer-source-layer { width:100vw; min-width:0; }
+        .followup-design-layer { width:50vw; min-width:0; }
+        .followup-split-view { gap:1rem; }
+        .followup-answer-pane { padding-right:1rem; }
     }
 
     @media (max-width: 767.98px) {
@@ -1183,6 +1207,8 @@
         .source-create-button { width:100%; }
         .answer-source-layer { width:100vw; }
         .followup-design-layer { width:100vw; min-width:0; }
+        .followup-split-view { grid-template-columns:1fr; }
+        .followup-answer-pane { padding-right:0; border-right:0; }
         .source-layer-header,
         .source-layer-body,
         .source-layer-footer { padding-right:1rem; padding-left:1rem; }
@@ -1201,6 +1227,7 @@
         const followupSelectionSummary = document.getElementById('followupSelectionSummary');
         const designLayer = document.getElementById('followupDesignLayer');
         const closeDesignButton = document.getElementById('closeFollowupDesign');
+        const designTitle = document.getElementById('followupDesignTitle');
         const designType = document.getElementById('followupDesignType');
         const personaSelect = document.getElementById('followupPersona');
         const personaDescription = document.getElementById('followupPersonaDescription');
@@ -1240,7 +1267,9 @@
         function openDesignLayer() {
             const label = followupLabels[selectedFollowupType] || followupLabels.grading;
             designType.textContent = label;
+            designTitle.textContent = `${label} AI 설계`;
             designLayer.classList.add('is-open');
+            layer.classList.add('is-dimmed');
             designLayer.setAttribute('aria-hidden', 'false');
             syncFollowupPersona();
             closeDesignButton.focus();
@@ -1248,6 +1277,7 @@
 
         function closeDesignLayer() {
             designLayer.classList.remove('is-open');
+            layer.classList.remove('is-dimmed');
             designLayer.setAttribute('aria-hidden', 'true');
         }
 
@@ -1255,9 +1285,10 @@
             const option = personaSelect.options[personaSelect.selectedIndex];
             personaDescription.textContent = option?.dataset.description || '';
             const defaultTone = option?.dataset.tone;
-            const tone = Array.from(document.querySelectorAll('input[name="followup_tone"]'))
-                .find((input) => input.value === defaultTone);
-            if (tone) tone.checked = true;
+            const toneSelect = document.getElementById('followupTone');
+            if (defaultTone && Array.from(toneSelect.options).some((option) => option.value === defaultTone)) {
+                toneSelect.value = defaultTone;
+            }
         }
 
         function setFollowupLoading(isLoading) {
@@ -1278,10 +1309,23 @@
         followupCreateLink.addEventListener('click', openDesignLayer);
         closeDesignButton.addEventListener('click', closeDesignLayer);
         personaSelect.addEventListener('change', syncFollowupPersona);
+        document.querySelectorAll('.feedback-toggle').forEach(function (button) {
+            button.addEventListener('click', function () {
+                button.classList.toggle('is-selected');
+                button.setAttribute('aria-pressed', button.classList.contains('is-selected') ? 'true' : 'false');
+            });
+        });
         generateButton.addEventListener('click', async function () {
-            const selectedTone = document.querySelector('input[name="followup_tone"]:checked')?.value || '친절한';
+            const selectedTone = document.getElementById('followupTone').value;
             const requestedLength = document.getElementById('followupLength').value;
             const activityLabel = followupLabels[selectedFollowupType] || followupLabels.grading;
+            const feedbackComponents = Array.from(document.querySelectorAll('.feedback-toggle.is-selected'))
+                .map((button) => button.dataset.component);
+            if (!feedbackComponents.length) {
+                designError.textContent = '피드백 구성 메뉴를 하나 이상 선택해주세요.';
+                designError.hidden = false;
+                return;
+            }
             designError.hidden = true;
             draftResult.hidden = true;
             setFollowupLoading(true);
@@ -1294,6 +1338,7 @@
                         selected_persona_id: personaSelect.value,
                         selected_tone: selectedTone,
                         requested_length: requestedLength,
+                        feedback_components: feedbackComponents,
                         prompt_system: `학생의 기존 답안을 출발점으로 '${activityLabel}' 후속 활동 초안을 작성해 주세요. 활동 제목, 학습 목표, 학생 안내문, 구체적인 문항 또는 수행 절차를 포함하고 학생이 기존 답안을 발전시킬 수 있게 구성하세요.`,
                         temperature: 0.7,
                         work_name: `후속 활동 초안 - ${activityLabel}`,
@@ -1302,7 +1347,7 @@
                 });
                 const data = await response.json();
                 if (!response.ok || data.status !== 'success') throw new Error(data.message || '후속 활동 초안 생성에 실패했습니다.');
-                draftText.textContent = data.result;
+                draftText.value = data.result;
                 draftResult.hidden = false;
                 draftResult.scrollIntoView({behavior:'smooth',block:'start'});
             } catch (error) {
