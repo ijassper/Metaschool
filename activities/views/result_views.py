@@ -150,6 +150,9 @@ def answer_detail(request, answer_id):
     return render(request, 'activities/answer_detail.html', {
         'answer': answer,
         'activity': answer.question.activity,
+        'personas': Persona.objects.filter(
+            Q(creator__isnull=True) | Q(creator=request.user)
+        ).select_related('creator'),
     })
 
 # [3] 답안 삭제(폐기) 처리

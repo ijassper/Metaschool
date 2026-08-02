@@ -268,12 +268,62 @@
             <strong id="followupSelectionSummary">답안 채점/분석 활동을 생성합니다.</strong>
             <p>학생 답안은 참고자료로, 해당 학생은 활동 대상으로 자동 연결됩니다.</p>
         </div>
-        <a id="followupCreateLink"
-           href="{% url 'unified_create' %}?category={{ activity.category|urlencode }}&sub={{ activity.sub_category|urlencode }}&source_answer={{ answer.id }}&followup_type=grading"
-           data-base-url="{% url 'unified_create' %}?category={{ activity.category|urlencode }}&sub={{ activity.sub_category|urlencode }}&source_answer={{ answer.id }}"
-           class="source-create-button">
+        <button id="followupCreateLink" type="button" class="source-create-button">
             <i class="bi bi-plus-lg"></i> 후속 활동 생성 화면으로
-        </a>
+        </button>
+    </footer>
+</aside>
+
+<aside id="followupDesignLayer" class="followup-design-layer" aria-hidden="true" aria-labelledby="followupDesignTitle">
+    <header class="source-layer-header">
+        <div>
+            <span class="source-layer-meta">AI FOLLOW-UP DESIGN</span>
+            <h3 id="followupDesignTitle">후속 활동 AI 설계</h3>
+            <p><span id="followupDesignStudent">{{ answer.student.name }}</span> 학생 답안을 바탕으로 활동 초안을 만듭니다.</p>
+        </div>
+        <button type="button" id="closeFollowupDesign" class="source-layer-close" aria-label="2차 패널 닫기"><i class="bi bi-x-lg"></i></button>
+    </header>
+    <div class="source-layer-body followup-design-body">
+        <div class="followup-design-current">
+            <span>선택한 활동</span>
+            <strong id="followupDesignType">답안 채점/분석</strong>
+        </div>
+        <section class="followup-design-section">
+            <label for="followupPersona">AI 페르소나</label>
+            <select id="followupPersona" class="followup-design-control">
+                {% for persona in personas %}
+                <option value="{{ persona.id }}" data-tone="{{ persona.tone_default }}" data-description="{{ persona.description|escape }}">{% if persona.is_system %}[시스템]{% else %}[개인]{% endif %} {{ persona.name }}</option>
+                {% empty %}<option value="">기본 학생 분석 교사</option>{% endfor %}
+            </select>
+            <small id="followupPersonaDescription"></small>
+        </section>
+        <section class="followup-design-section">
+            <label>피드백 어조</label>
+            <div class="followup-tone-options">
+                <label><input type="radio" name="followup_tone" value="친절한" checked><span>친절한</span></label>
+                <label><input type="radio" name="followup_tone" value="신뢰있는"><span>신뢰있는</span></label>
+                <label><input type="radio" name="followup_tone" value="친구같은"><span>친구같은</span></label>
+            </div>
+        </section>
+        <section class="followup-design-section">
+            <label for="followupLength">초안 분량</label>
+            <select id="followupLength" class="followup-design-control">
+                <option value="핵심 활동 안내와 문항을 간단히">간단히</option>
+                <option value="활동 목표, 안내, 문항을 포함한 보통 분량" selected>보통</option>
+                <option value="활동 목표, 단계별 안내, 문항, 평가 기준을 포함해 상세히">상세히</option>
+            </select>
+        </section>
+        <section id="followupDraftResult" class="followup-draft-result" hidden aria-live="polite">
+            <h4><i class="bi bi-stars"></i> 생성된 후속 활동 초안</h4>
+            <div id="followupDraftText"></div>
+        </section>
+    </div>
+    <footer class="source-layer-footer followup-design-footer">
+        <p id="followupDesignError" class="followup-design-error" hidden></p>
+        <button id="generateFollowupDraft" type="button" class="source-create-button">
+            <span class="followup-generate-idle"><i class="bi bi-stars"></i> AI로 후속 활동 초안 만들기</span>
+            <span class="followup-generate-loading" hidden><span class="followup-spinner"></span> 생성하고 있습니다</span>
+        </button>
     </footer>
 </aside>
 
@@ -1054,6 +1104,7 @@
         justify-content: center;
         gap: 0.45rem;
         padding: 0 1rem;
+        border: 0;
         border-radius: 11px;
         background: var(--ingrid-gradient);
         color: #fff;
@@ -1063,6 +1114,47 @@
     }
 
     .source-create-button:hover { color:#fff; transform:translateY(-1px); }
+    .followup-design-layer {
+        position: fixed;
+        z-index: 1090;
+        top: 0;
+        right: 0;
+        width: 56vw;
+        min-width: 620px;
+        height: 100vh;
+        height: 100dvh;
+        display: grid;
+        grid-template-rows: auto minmax(0,1fr) auto;
+        border-left: 1px solid #e5d9e8;
+        background: #fff;
+        box-shadow: -32px 0 80px rgba(53,30,63,.25);
+        transform: translateX(102%);
+        visibility: hidden;
+        transition: transform .3s ease, visibility .3s ease;
+    }
+    .followup-design-layer.is-open { transform:translateX(0); visibility:visible; }
+    .followup-design-body { background:linear-gradient(145deg,#fff,#fff9fc); }
+    .followup-design-current { display:flex; justify-content:space-between; align-items:center; padding:.9rem 1rem; border:1px solid #eadfeb; border-radius:12px; background:#faf5fc; }
+    .followup-design-current span,.followup-design-section>label { color:#8e8192; font-size:.72rem; font-weight:700; }
+    .followup-design-current strong { color:#7d3c98; font-size:.82rem; }
+    .followup-design-section { margin-top:1.4rem; }
+    .followup-design-section>label { display:block; margin-bottom:.5rem; }
+    .followup-design-control { width:100%; min-height:43px; padding:0 .8rem; border:1px solid #e3d8e6; border-radius:10px; background:#fff; color:#4f4652; font-size:.8rem; outline:none; }
+    .followup-design-control:focus { border-color:#ad79bc; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
+    .followup-design-section>small { display:block; margin-top:.45rem; color:#9c919f; font-size:.7rem; line-height:1.5; }
+    .followup-tone-options { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; }
+    .followup-tone-options label { position:relative; margin:0; }
+    .followup-tone-options input { position:absolute; opacity:0; }
+    .followup-tone-options span { min-height:40px; display:flex; align-items:center; justify-content:center; border:1px solid #e3d8e6; border-radius:10px; color:#776b7a; font-size:.75rem; font-weight:720; cursor:pointer; }
+    .followup-tone-options input:checked+span { border-color:#a86fba; background:#f6edf8; color:#7d3c98; box-shadow:0 0 0 2px rgba(142,68,173,.07); }
+    .followup-draft-result { margin-top:1.6rem; padding-top:1.4rem; border-top:1px solid #eadfeb; }
+    .followup-draft-result h4 { margin:0 0 .7rem; color:#7d3c98; font-size:.86rem; font-weight:780; }
+    .followup-draft-result>div { padding:1rem; border:1px solid #eadfeb; border-radius:12px; background:#fff; color:#4e4651; font-size:.82rem; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .followup-design-footer { justify-content:flex-end; }
+    .followup-design-error { margin-right:auto!important; color:#b4233c!important; }
+    .source-create-button:disabled { opacity:.72; cursor:wait; }
+    .followup-spinner { width:15px; height:15px; display:inline-block; margin-right:.35rem; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:followup-spin .75s linear infinite; vertical-align:-3px; }
+    @keyframes followup-spin { to { transform:rotate(360deg); } }
     body.answer-source-open { overflow:hidden; }
 
     @media (max-width: 991.98px) {
@@ -1074,6 +1166,7 @@
         .portfolio-header-cards { width:100%; }
         .portfolio-path { overflow-x:auto; }
         .answer-source-layer { width:85vw; min-width:0; }
+        .followup-design-layer { width:72vw; min-width:0; }
     }
 
     @media (max-width: 767.98px) {
@@ -1089,6 +1182,7 @@
         .portfolio-action-button,
         .source-create-button { width:100%; }
         .answer-source-layer { width:100vw; }
+        .followup-design-layer { width:100vw; min-width:0; }
         .source-layer-header,
         .source-layer-body,
         .source-layer-footer { padding-right:1rem; padding-left:1rem; }
@@ -1105,6 +1199,18 @@
         const backdrop = document.getElementById('answerSourceBackdrop');
         const followupCreateLink = document.getElementById('followupCreateLink');
         const followupSelectionSummary = document.getElementById('followupSelectionSummary');
+        const designLayer = document.getElementById('followupDesignLayer');
+        const closeDesignButton = document.getElementById('closeFollowupDesign');
+        const designType = document.getElementById('followupDesignType');
+        const personaSelect = document.getElementById('followupPersona');
+        const personaDescription = document.getElementById('followupPersonaDescription');
+        const generateButton = document.getElementById('generateFollowupDraft');
+        const draftResult = document.getElementById('followupDraftResult');
+        const draftText = document.getElementById('followupDraftText');
+        const designError = document.getElementById('followupDesignError');
+        const generateIdle = generateButton.querySelector('.followup-generate-idle');
+        const generateLoading = generateButton.querySelector('.followup-generate-loading');
+        let selectedFollowupType = 'grading';
         const followupLabels = {
             grading: '답안 채점/분석',
             feedback: '피드백 제공',
@@ -1122,6 +1228,7 @@
         }
 
         function closeLayer() {
+            closeDesignLayer();
             layer.classList.remove('is-open');
             backdrop.classList.remove('is-open');
             layer.setAttribute('aria-hidden', 'true');
@@ -1130,14 +1237,80 @@
             openButton.focus();
         }
 
+        function openDesignLayer() {
+            const label = followupLabels[selectedFollowupType] || followupLabels.grading;
+            designType.textContent = label;
+            designLayer.classList.add('is-open');
+            designLayer.setAttribute('aria-hidden', 'false');
+            syncFollowupPersona();
+            closeDesignButton.focus();
+        }
+
+        function closeDesignLayer() {
+            designLayer.classList.remove('is-open');
+            designLayer.setAttribute('aria-hidden', 'true');
+        }
+
+        function syncFollowupPersona() {
+            const option = personaSelect.options[personaSelect.selectedIndex];
+            personaDescription.textContent = option?.dataset.description || '';
+            const defaultTone = option?.dataset.tone;
+            const tone = Array.from(document.querySelectorAll('input[name="followup_tone"]'))
+                .find((input) => input.value === defaultTone);
+            if (tone) tone.checked = true;
+        }
+
+        function setFollowupLoading(isLoading) {
+            generateButton.disabled = isLoading;
+            generateIdle.hidden = isLoading;
+            generateLoading.hidden = !isLoading;
+        }
+
         openButton.addEventListener('click', openLayer);
         document.querySelectorAll('input[name="followup_type"]').forEach(function (input) {
             input.addEventListener('change', function () {
                 if (!input.checked) return;
+                selectedFollowupType = input.value;
                 const label = followupLabels[input.value] || followupLabels.grading;
                 followupSelectionSummary.textContent = `${label} 활동을 생성합니다.`;
-                followupCreateLink.href = `${followupCreateLink.dataset.baseUrl}&followup_type=${encodeURIComponent(input.value)}`;
             });
+        });
+        followupCreateLink.addEventListener('click', openDesignLayer);
+        closeDesignButton.addEventListener('click', closeDesignLayer);
+        personaSelect.addEventListener('change', syncFollowupPersona);
+        generateButton.addEventListener('click', async function () {
+            const selectedTone = document.querySelector('input[name="followup_tone"]:checked')?.value || '친절한';
+            const requestedLength = document.getElementById('followupLength').value;
+            const activityLabel = followupLabels[selectedFollowupType] || followupLabels.grading;
+            designError.hidden = true;
+            draftResult.hidden = true;
+            setFollowupLoading(true);
+            try {
+                const response = await fetch('{% url "api_process_db_row" %}', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+                    body: JSON.stringify({
+                        answer_id: '{{ answer.id }}',
+                        selected_persona_id: personaSelect.value,
+                        selected_tone: selectedTone,
+                        requested_length: requestedLength,
+                        prompt_system: `학생의 기존 답안을 출발점으로 '${activityLabel}' 후속 활동 초안을 작성해 주세요. 활동 제목, 학습 목표, 학생 안내문, 구체적인 문항 또는 수행 절차를 포함하고 학생이 기존 답안을 발전시킬 수 있게 구성하세요.`,
+                        temperature: 0.7,
+                        work_name: `후속 활동 초안 - ${activityLabel}`,
+                        batch_id: `followup_${Date.now()}`
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') throw new Error(data.message || '후속 활동 초안 생성에 실패했습니다.');
+                draftText.textContent = data.result;
+                draftResult.hidden = false;
+                draftResult.scrollIntoView({behavior:'smooth',block:'start'});
+            } catch (error) {
+                designError.textContent = error.message || '생성 중 오류가 발생했습니다.';
+                designError.hidden = false;
+            } finally {
+                setFollowupLoading(false);
+            }
         });
         closeButton.addEventListener('click', closeLayer);
         backdrop.addEventListener('click', closeLayer);
@@ -1148,7 +1321,10 @@
             });
         });
         document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && layer.classList.contains('is-open')) closeLayer();
+            if (event.key === 'Escape') {
+                if (designLayer.classList.contains('is-open')) closeDesignLayer();
+                else if (layer.classList.contains('is-open')) closeLayer();
+            }
         });
     })();
 </script>
