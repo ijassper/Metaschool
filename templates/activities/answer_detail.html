@@ -38,7 +38,7 @@
                 </div>
             </div>
         </div>
-        <a href="{% url 'activity_result' activity.id %}?q={{ answer.student.name|urlencode }}" class="portfolio-back">
+        <a href="{% url 'activity_result' activity.id %}?show_all=1" class="portfolio-back">
             <i class="bi bi-arrow-left"></i> 제출 현황으로
         </a>
     </header>
@@ -190,9 +190,10 @@
 <div id="answerSourceBackdrop" class="answer-source-backdrop" aria-hidden="true"></div>
 <aside id="answerSourceLayer" class="answer-source-layer" aria-hidden="true" aria-labelledby="answerSourceTitle">
     <header class="source-layer-header">
-        <h3 id="answerSourceTitle" class="source-student-title">
-            {{ answer.student.school.name|default:"소속 학교 미등록" }} · {{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번 · {{ answer.student.name }}
-        </h3>
+        <div>
+            <span class="source-layer-meta">{{ answer.student.school.name|default:"소속 학교 미등록" }} · {{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번</span>
+            <h3 id="answerSourceTitle" class="source-student-title">학생답안 추후 활동 생성</h3>
+        </div>
         <button type="button" id="closeAnswerSource" class="source-layer-close" aria-label="답안 레이어 닫기">
             <i class="bi bi-x-lg"></i>
         </button>

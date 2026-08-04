@@ -47,9 +47,10 @@ def activity_result(request, activity_id, template_name='activities/activity_res
     # 3. 검색 조건 처리
     selected_targets = request.GET.getlist('target') 
     name_query = request.GET.get('q', '')
+    show_all = request.GET.get('show_all') == '1'
 
     # 4. [선택적 실행] 목록 데이터 필터링
-    if not selected_targets and not name_query:
+    if not selected_targets and not name_query and not show_all:
         target_students = Student.objects.none() # 최초 진입 시 데이터 없음
     else:
         target_students = all_students_for_filter
