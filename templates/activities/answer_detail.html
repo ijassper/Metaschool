@@ -292,17 +292,13 @@
             </div>
         </section>
         <section class="followup-design-section">
-            <label for="followupPersona">교사 유형</label>
-            <select id="followupPersona" class="followup-design-control">
-                {% if request.user.subject %}
-                <option value="subject_expert" data-tone="신뢰있는" data-description="{{ request.user.subject.name }} 교과의 핵심 개념과 평가 기준을 중심으로 전문적인 피드백을 제공합니다.">{{ request.user.subject.name }} 교과 전문 교사</option>
-                <option value="subject_growth" data-tone="친절한" data-description="{{ request.user.subject.name }} 교과 학습에서 학생의 강점과 다음 성장 단계를 구체적으로 안내합니다.">{{ request.user.subject.name }} 성장 피드백 교사</option>
-                {% endif %}
-                {% for persona in personas %}
-                <option value="{{ persona.id }}" data-tone="{{ persona.tone_default }}" data-description="{{ persona.description|escape }}">{% if not persona.is_system %}[개인] {% endif %}{{ persona.name }}</option>
-                {% empty %}<option value="">기본 학생 분석 교사</option>{% endfor %}
-            </select>
-            <small id="followupPersonaDescription"></small>
+            <label>교사 유형 <small>복수 선택 가능</small></label>
+            <div class="teacher-type-toggles">
+                <button type="button" class="teacher-type-toggle is-selected" data-teacher-type="grade_expert" aria-pressed="true"><i class="bi bi-check-lg"></i>{{ answer.student.grade }}학년 전문 교사</button>
+                <button type="button" class="teacher-type-toggle is-selected" data-teacher-type="subject_expert" aria-pressed="true"><i class="bi bi-check-lg"></i>{{ request.user.subject.name|default:"교과" }} 전문 교사</button>
+                <button type="button" class="teacher-type-toggle" data-teacher-type="homeroom" aria-pressed="false"><i class="bi bi-check-lg"></i>담임 교사</button>
+                <button type="button" class="teacher-type-toggle" data-teacher-type="activity" aria-pressed="false"><i class="bi bi-check-lg"></i>활동 교사</button>
+            </div>
         </section>
         <section class="followup-design-section">
             <label>피드백 어조</label>
@@ -1168,6 +1164,11 @@
     .feedback-component-toggles { display:flex; flex-wrap:wrap; gap:.5rem; }
     .feedback-toggle { padding:.42rem .75rem; border:1px solid #e1d5e4; border-radius:999px; background:#fff; color:#796d7d; font-size:.73rem; font-weight:720; }
     .feedback-toggle.is-selected { border-color:#a86fba; background:#f3e8f6; color:#7d3c98; box-shadow:0 0 0 2px rgba(142,68,173,.06); }
+    .teacher-type-toggles { display:flex; flex-wrap:wrap; gap:.5rem; }
+    .teacher-type-toggle { display:inline-flex; align-items:center; gap:.3rem; padding:.42rem .75rem; border:1px solid #e1d5e4; border-radius:999px; background:#fff; color:#796d7d; font-size:.73rem; font-weight:720; }
+    .teacher-type-toggle i { width:0; overflow:hidden; opacity:0; transition:width .15s ease,opacity .15s ease; }
+    .teacher-type-toggle.is-selected { border-color:#a86fba; background:#f3e8f6; color:#7d3c98; box-shadow:0 0 0 2px rgba(142,68,173,.06); }
+    .teacher-type-toggle.is-selected i { width:auto; opacity:1; }
     .followup-draft-result { margin-top:1.6rem; padding-top:1.4rem; border-top:1px solid #eadfeb; }
     .followup-draft-result h4 { margin:0 0 .7rem; color:#7d3c98; font-size:.86rem; font-weight:780; }
     .followup-draft-result textarea { width:100%; padding:1rem; border:1px solid #eadfeb; border-radius:12px; background:#fff; color:#4e4651; font-size:.82rem; line-height:1.75; resize:vertical; outline:none; }
@@ -1230,8 +1231,6 @@
         const designLayer = document.getElementById('followupDesignLayer');
         const closeDesignButton = document.getElementById('closeFollowupDesign');
         const designTitle = document.getElementById('followupDesignTitle');
-        const personaSelect = document.getElementById('followupPersona');
-        const personaDescription = document.getElementById('followupPersonaDescription');
         const generateButton = document.getElementById('generateFollowupDraft');
         const draftResult = document.getElementById('followupDraftResult');
         const draftText = document.getElementById('followupDraftText');
@@ -1271,7 +1270,6 @@
             designLayer.classList.add('is-open');
             layer.classList.add('is-dimmed');
             designLayer.setAttribute('aria-hidden', 'false');
-            syncFollowupPersona();
             closeDesignButton.focus();
         }
 
@@ -1279,16 +1277,6 @@
             designLayer.classList.remove('is-open');
             layer.classList.remove('is-dimmed');
             designLayer.setAttribute('aria-hidden', 'true');
-        }
-
-        function syncFollowupPersona() {
-            const option = personaSelect.options[personaSelect.selectedIndex];
-            personaDescription.textContent = option?.dataset.description || '';
-            const defaultTone = option?.dataset.tone;
-            const toneSelect = document.getElementById('followupTone');
-            if (defaultTone && Array.from(toneSelect.options).some((option) => option.value === defaultTone)) {
-                toneSelect.value = defaultTone;
-            }
         }
 
         function setFollowupLoading(isLoading) {
@@ -1302,12 +1290,16 @@
             input.addEventListener('change', function () {
                 if (!input.checked) return;
                 selectedFollowupType = input.value;
-                const label = followupLabels[input.value] || followupLabels.grading;
             });
         });
         followupCreateLink.addEventListener('click', openDesignLayer);
         closeDesignButton.addEventListener('click', closeDesignLayer);
-        personaSelect.addEventListener('change', syncFollowupPersona);
+        document.querySelectorAll('.teacher-type-toggle').forEach(function (button) {
+            button.addEventListener('click', function () {
+                button.classList.toggle('is-selected');
+                button.setAttribute('aria-pressed', button.classList.contains('is-selected') ? 'true' : 'false');
+            });
+        });
         document.querySelectorAll('.feedback-toggle').forEach(function (button) {
             button.addEventListener('click', function () {
                 button.classList.toggle('is-selected');
@@ -1320,8 +1312,15 @@
             const activityLabel = followupLabels[selectedFollowupType] || followupLabels.grading;
             const feedbackComponents = Array.from(document.querySelectorAll('.feedback-toggle.is-selected'))
                 .map((button) => button.dataset.component);
+            const selectedTeacherTypes = Array.from(document.querySelectorAll('.teacher-type-toggle.is-selected'))
+                .map((button) => button.dataset.teacherType);
             if (!feedbackComponents.length) {
                 designError.textContent = '피드백 구성 메뉴를 하나 이상 선택해주세요.';
+                designError.hidden = false;
+                return;
+            }
+            if (!selectedTeacherTypes.length) {
+                designError.textContent = '교사 유형을 하나 이상 선택해주세요.';
                 designError.hidden = false;
                 return;
             }
@@ -1334,7 +1333,7 @@
                     headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
                     body: JSON.stringify({
                         answer_id: '{{ answer.id }}',
-                        selected_persona_id: personaSelect.value,
+                        teacher_types: selectedTeacherTypes,
                         selected_tone: selectedTone,
                         requested_length: requestedLength,
                         feedback_components: feedbackComponents,
