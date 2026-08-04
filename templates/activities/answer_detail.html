@@ -202,7 +202,6 @@
         <section class="followup-answer-pane">
             <div class="followup-pane-heading"><i class="bi bi-file-earmark-text"></i><strong>학생 답안지</strong></div>
             <div class="followup-question-card">
-                <span>평가 문항</span>
                 <p>{{ answer.question.content|default:activity.question|default:"문항 정보가 없습니다." }}</p>
             </div>
             <div class="followup-answer-card">{{ answer.content|default:"작성된 답안이 없습니다." }}</div>
@@ -846,6 +845,7 @@
         border-bottom: 1px solid #eadfeb;
         background: rgba(255,255,255,0.94);
     }
+    .answer-source-layer > .source-layer-header { padding-top:.8rem; padding-bottom:.8rem; }
 
     .source-layer-meta {
         display: block;
@@ -887,17 +887,20 @@
 
     .followup-workbench-body {
         background: linear-gradient(145deg, #fff 0%, #fff9fc 58%, #f8f4ff 100%);
+        overflow: hidden;
+        padding-top: .7rem;
+        padding-bottom: .7rem;
     }
-    .followup-split-view { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1.5rem; }
-    .followup-answer-pane,.followup-tool-pane { min-width:0; }
+    .followup-split-view { height:100%; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1.5rem; }
+    .followup-answer-pane,.followup-tool-pane { min-width:0; min-height:0; }
+    .followup-answer-pane { display:grid; grid-template-rows:auto auto minmax(0,1fr); align-content:stretch; }
     .followup-answer-pane { padding-right:1.5rem; border-right:1px solid #eadfeb; }
-    .followup-pane-heading { display:flex; align-items:center; gap:.5rem; margin-bottom:1rem; color:#514755; font-size:.9rem; }
-    .followup-question-card { height:180px; overflow-y:auto; padding:1rem; border:1px solid #e7dce9; border-radius:13px; background:#f8f3fa; scrollbar-gutter:stable; }
-    .followup-question-card span { color:#8b6a93; font-size:.68rem; font-weight:800; }
-    .followup-question-card p { margin:.45rem 0 0; color:#544b57; font-size:.82rem; line-height:1.65; white-space:pre-wrap; }
-    .followup-answer-card { height:460px; overflow-y:auto; margin-top:.8rem; padding:1.1rem; border:1px solid #e7dce9; border-radius:13px; background:#fff; color:#49404c; font-size:.9rem; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; scrollbar-gutter:stable; }
-    .followup-question-card::-webkit-scrollbar,.followup-answer-card::-webkit-scrollbar { width:8px; }
-    .followup-question-card::-webkit-scrollbar-thumb,.followup-answer-card::-webkit-scrollbar-thumb { border:2px solid transparent; border-radius:999px; background:#cfc1d3; background-clip:padding-box; }
+    .followup-pane-heading { display:flex; align-items:center; gap:.5rem; margin-bottom:.45rem; color:#514755; font-size:.9rem; }
+    .followup-question-card { padding:.72rem .9rem; border:1px solid #e7dce9; border-radius:13px; background:#f8f3fa; }
+    .followup-question-card p { margin:0; color:#544b57; font-size:.82rem; line-height:1.55; white-space:pre-wrap; }
+    .followup-answer-card { height:auto; min-height:0; overflow-y:auto; margin-top:.6rem; padding:1.1rem; border:1px solid #e7dce9; border-radius:13px; background:#fff; color:#49404c; font-size:.9rem; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; scrollbar-gutter:stable; }
+    .followup-answer-card::-webkit-scrollbar { width:8px; }
+    .followup-answer-card::-webkit-scrollbar-thumb { border:2px solid transparent; border-radius:999px; background:#cfc1d3; background-clip:padding-box; }
     .followup-open-design-row { display:flex; justify-content:flex-end; margin-top:1rem; }
 
     .followup-workbench-section {
@@ -1207,6 +1210,9 @@
         .followup-design-layer { width:100vw; min-width:0; }
         .followup-split-view { grid-template-columns:1fr; }
         .followup-answer-pane { padding-right:0; border-right:0; }
+        .followup-workbench-body { overflow-y:auto; }
+        .followup-split-view { height:auto; }
+        .followup-answer-card { height:420px; }
         .source-layer-header,
         .source-layer-body,
         .source-layer-footer { padding-right:1rem; padding-left:1rem; }
