@@ -521,22 +521,52 @@ def api_process_db_row(request):
             visible_personas = Persona.objects.filter(
                 Q(creator__isnull=True) | Q(creator=request.user)
             )
-            if selected_persona_id:
-                persona = visible_personas.filter(id=selected_persona_id).first()
-                if persona is None:
+            subject_name = request.user.subject.name if getattr(request.user, 'subject', None) else ''
+            dynamic_teacher_types = {}
+            if subject_name:
+                dynamic_teacher_types = {
+                    'subject_expert': {
+                        'name': f'{subject_name} 교과 전문 교사',
+                        'tone': '신뢰있는',
+                        'prompt': (
+                            f'당신은 {subject_name} 교과의 교육과정, 핵심 개념과 평가 기준에 전문성을 갖춘 교사입니다. '
+                            '학생 답안의 구체적인 근거를 사용해 교과 이해도와 표현을 정확히 분석하세요.'
+                        ),
+                    },
+                    'subject_growth': {
+                        'name': f'{subject_name} 성장 피드백 교사',
+                        'tone': '친절한',
+                        'prompt': (
+                            f'당신은 {subject_name} 교과 학습에서 학생의 성장을 돕는 피드백 교사입니다. '
+                            '학생의 강점을 먼저 인정하고 다음 학습 단계에서 실천할 수 있는 구체적인 방법을 안내하세요.'
+                        ),
+                    },
+                }
+
+            persona = None
+            dynamic_type = dynamic_teacher_types.get(str(selected_persona_id or ''))
+            if dynamic_type:
+                persona_name = dynamic_type['name']
+                persona_prompt = dynamic_type['prompt']
+                persona_default_tone = dynamic_type['tone']
+            elif selected_persona_id:
+                selected_persona_text = str(selected_persona_id)
+                persona = visible_personas.filter(id=selected_persona_text).first() if selected_persona_text.isdigit() else None
+                if not persona:
                     return JsonResponse(
-                        {'status': 'error', 'message': '선택한 페르소나를 사용할 권한이 없습니다.'},
+                        {'status': 'error', 'message': '선택한 교사 유형을 사용할 권한이 없습니다.'},
                         status=403,
                     )
+                persona_name = persona.name
+                persona_prompt = persona.system_prompt
+                persona_default_tone = persona.tone_default
             else:
                 persona = visible_personas.filter(creator__isnull=True).first() or visible_personas.first()
+                persona_name = persona.name if persona else '기본 학생 분석 교사'
+                persona_prompt = persona.system_prompt if persona else '당신은 학생의 성장 과정을 존중하며 근거 중심으로 답안을 분석하는 교사입니다.'
+                persona_default_tone = persona.tone_default if persona else '친절한'
 
-            persona_prompt = (
-                persona.system_prompt
-                if persona
-                else '당신은 학생의 성장 과정을 존중하며 근거 중심으로 답안을 분석하는 교사입니다.'
-            )
-            effective_tone = selected_tone or (persona.tone_default if persona else '친절한')
+            effective_tone = selected_tone or persona_default_tone
             effective_length = requested_length or '교사의 분석 지시에 맞는 적절한 분량'
             effective_system_prompt = (
                 f"{persona_prompt}\n\n어조: {effective_tone}\n\n분량: {effective_length}"
@@ -699,7 +729,7 @@ def api_process_db_row(request):
                         'status': 'success',
                         'result': result_text,
                         'analysis_result_id': created_result.id,
-                        'persona_name': persona.name if persona else '기본 학생 분석 교사',
+                        'persona_name': persona_name,
                     })
                 except Exception as e:
                     print(f"ERROR: AnalysisResult 저장 실패 - {str(e)}")

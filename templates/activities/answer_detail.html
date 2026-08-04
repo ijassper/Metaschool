@@ -191,7 +191,7 @@
 <aside id="answerSourceLayer" class="answer-source-layer" aria-hidden="true" aria-labelledby="answerSourceTitle">
     <header class="source-layer-header">
         <div>
-            <span class="source-layer-meta">{{ answer.student.school.name|default:"소속 학교 미등록" }} · {{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번</span>
+            <span class="source-layer-meta">{{ answer.student.school.name|default:"소속 학교 미등록" }} · {{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번 · {{ answer.student.name }}</span>
             <h3 id="answerSourceTitle" class="source-student-title">학생답안 추후 활동 생성</h3>
         </div>
         <button type="button" id="closeAnswerSource" class="source-layer-close" aria-label="답안 레이어 닫기">
@@ -282,10 +282,6 @@
         <button type="button" id="closeFollowupDesign" class="source-layer-close" aria-label="2차 패널 닫기"><i class="bi bi-x-lg"></i></button>
     </header>
     <div class="source-layer-body followup-design-body">
-        <div class="followup-design-current">
-            <span>선택한 활동</span>
-            <strong id="followupDesignType">답안 채점/분석</strong>
-        </div>
         <section class="followup-design-section">
             <label>피드백 구성 메뉴 <small>복수 선택 가능</small></label>
             <div class="feedback-component-toggles">
@@ -296,10 +292,14 @@
             </div>
         </section>
         <section class="followup-design-section">
-            <label for="followupPersona">AI 페르소나</label>
+            <label for="followupPersona">교사 유형</label>
             <select id="followupPersona" class="followup-design-control">
+                {% if request.user.subject %}
+                <option value="subject_expert" data-tone="신뢰있는" data-description="{{ request.user.subject.name }} 교과의 핵심 개념과 평가 기준을 중심으로 전문적인 피드백을 제공합니다.">{{ request.user.subject.name }} 교과 전문 교사</option>
+                <option value="subject_growth" data-tone="친절한" data-description="{{ request.user.subject.name }} 교과 학습에서 학생의 강점과 다음 성장 단계를 구체적으로 안내합니다.">{{ request.user.subject.name }} 성장 피드백 교사</option>
+                {% endif %}
                 {% for persona in personas %}
-                <option value="{{ persona.id }}" data-tone="{{ persona.tone_default }}" data-description="{{ persona.description|escape }}">{% if persona.is_system %}[시스템]{% else %}[개인]{% endif %} {{ persona.name }}</option>
+                <option value="{{ persona.id }}" data-tone="{{ persona.tone_default }}" data-description="{{ persona.description|escape }}">{% if not persona.is_system %}[개인] {% endif %}{{ persona.name }}</option>
                 {% empty %}<option value="">기본 학생 분석 교사</option>{% endfor %}
             </select>
             <small id="followupPersonaDescription"></small>
@@ -1158,9 +1158,7 @@
     }
     .followup-design-layer.is-open { transform:translateX(0); visibility:visible; }
     .followup-design-body { background:linear-gradient(145deg,#fff,#fff9fc); }
-    .followup-design-current { display:flex; justify-content:space-between; align-items:center; padding:.9rem 1rem; border:1px solid #eadfeb; border-radius:12px; background:#faf5fc; }
-    .followup-design-current span,.followup-design-section>label { color:#8e8192; font-size:.72rem; font-weight:700; }
-    .followup-design-current strong { color:#7d3c98; font-size:.82rem; }
+    .followup-design-section>label { color:#8e8192; font-size:.72rem; font-weight:700; }
     .followup-design-section { margin-top:1.4rem; }
     .followup-design-section>label { display:block; margin-bottom:.5rem; }
     .followup-design-section>label small { margin-left:.35rem; color:#aa9caf; font-weight:500; }
@@ -1232,7 +1230,6 @@
         const designLayer = document.getElementById('followupDesignLayer');
         const closeDesignButton = document.getElementById('closeFollowupDesign');
         const designTitle = document.getElementById('followupDesignTitle');
-        const designType = document.getElementById('followupDesignType');
         const personaSelect = document.getElementById('followupPersona');
         const personaDescription = document.getElementById('followupPersonaDescription');
         const generateButton = document.getElementById('generateFollowupDraft');
@@ -1270,7 +1267,6 @@
 
         function openDesignLayer() {
             const label = followupLabels[selectedFollowupType] || followupLabels.grading;
-            designType.textContent = label;
             designTitle.textContent = `${label} AI 설계`;
             designLayer.classList.add('is-open');
             layer.classList.add('is-dimmed');
