@@ -223,6 +223,35 @@ class Answer(models.Model):
     ai_result = models.TextField(blank=True, null=True, verbose_name="AI 분석 결과")
     ai_updated_at = models.DateTimeField(null=True, blank=True, verbose_name="AI 분석 일시")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="마지막 수정 시간")
+
+    @property
+    def display_content(self):
+        """실제로 작성된 답안만 조합하여 비활성 문항의 빈 [] 표기를 제거합니다."""
+        activity = self.question.activity
+        answer_items = [
+            (activity.q1_title, self.ans_q1),
+            (activity.q2_title, self.ans_q2),
+            (activity.q3_title, self.ans_q3),
+        ]
+        written_items = [
+            ((title or '').strip(), (answer or '').strip())
+            for title, answer in answer_items
+            if (answer or '').strip()
+        ]
+
+        if len(written_items) == 1:
+            return written_items[0][1]
+        if written_items:
+            return '\n\n'.join(
+                f'[{title}]\n{answer}' if title else answer
+                for title, answer in written_items
+            )
+
+        # 레거시 통합 답안은 독립된 빈 대괄호 행만 제거합니다.
+        return '\n'.join(
+            line for line in (self.content or '').splitlines()
+            if line.strip() != '[]'
+        ).strip()
     
      # 결시 사유 선택지
     class Absence(models.TextChoices):

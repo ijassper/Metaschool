@@ -387,7 +387,7 @@ def unified_create(request):
             'question': followup_preset['question'],
             'reference_material': (
                 f"[이전 활동]\n{source_activity.title}\n\n"
-                f"[{student.name} 학생 답안]\n{source_answer.content}"
+                f"[{student.name} 학생 답안]\n{source_answer.display_content}"
             ),
         }
 

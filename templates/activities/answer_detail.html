@@ -138,7 +138,7 @@
                                 <span class="kanban-order">01</span>
                                 <h4>{{ activity.q1_title|default:"작성한 답안" }}</h4>
                             </header>
-                            <div class="kanban-answer">{{ answer.content }}</div>
+                            <div class="kanban-answer">{{ answer.display_content }}</div>
                         </article>
                     {% else %}
                         <div class="answer-empty">
@@ -205,7 +205,7 @@
             <div class="followup-question-card">
                 <p>{{ answer.question.content|default:activity.question|default:"문항 정보가 없습니다." }}</p>
             </div>
-            <div class="followup-answer-card">{{ answer.content|default:"작성된 답안이 없습니다." }}</div>
+            <div class="followup-answer-card">{{ answer.display_content|default:"작성된 답안이 없습니다." }}</div>
         </section>
         <section class="followup-workbench-section followup-tool-pane">
             <div class="followup-section-heading">
@@ -1197,13 +1197,15 @@
     .teacher-type-toggle i { width:0; overflow:hidden; opacity:0; transition:width .15s ease,opacity .15s ease; }
     .teacher-type-toggle.is-selected { border-color:#a86fba; background:#f3e8f6; color:#7d3c98; box-shadow:0 0 0 2px rgba(142,68,173,.06); }
     .teacher-type-toggle.is-selected i { width:auto; opacity:1; }
-    .tone-slider-engine { display:grid; gap:.7rem; padding:.85rem; border:1px solid #eadfeb; border-radius:13px; background:linear-gradient(145deg,#fff,#fcf8fd); }
-    .tone-slider-row { min-width:0; }
-    .tone-slider-heading,.tone-slider-labels { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
-    .tone-slider-heading strong { color:#5b505f; font-size:.74rem; }
-    .tone-slider-heading output { min-width:28px; padding:.12rem .34rem; border-radius:999px; background:#f1e8f4; color:#7d3c98; font-size:.62rem; font-weight:780; text-align:center; }
-    .tone-slider-labels { margin:.22rem 0 .15rem; color:#9b8fa0; font-size:.62rem; }
-    .tone-range { width:100%; height:18px; margin:0; background:transparent; accent-color:#9b55ad; cursor:pointer; -webkit-appearance:none; appearance:none; }
+    .tone-slider-engine { display:grid; gap:.48rem; padding:.72rem .8rem; border:1px solid #eadfeb; border-radius:13px; background:linear-gradient(145deg,#fff,#fcf8fd); }
+    .tone-slider-row { min-width:0; display:grid; grid-template-columns:58px 28px 88px minmax(80px,1fr) 88px; align-items:center; gap:.45rem; }
+    .tone-slider-heading,.tone-slider-labels { display:contents; }
+    .tone-slider-heading strong { grid-column:1; color:#5b505f; font-size:.72rem; }
+    .tone-slider-heading output { grid-column:2; min-width:28px; padding:.12rem .34rem; border-radius:999px; background:#f1e8f4; color:#7d3c98; font-size:.62rem; font-weight:780; text-align:center; }
+    .tone-slider-labels span { color:#766a7a; font-size:.63rem; font-weight:800; white-space:nowrap; }
+    .tone-slider-labels span:first-child { grid-column:3; text-align:right; }
+    .tone-slider-labels span:last-child { grid-column:5; text-align:left; }
+    .tone-range { grid-column:4; grid-row:1; width:100%; height:18px; margin:0; background:transparent; accent-color:#9b55ad; cursor:pointer; -webkit-appearance:none; appearance:none; }
     .tone-range::-webkit-slider-runnable-track { height:5px; border-radius:999px; background:linear-gradient(90deg,#f2b4d0,#b785c6); }
     .tone-range::-webkit-slider-thumb { width:16px; height:16px; margin-top:-5.5px; border:3px solid #fff; border-radius:50%; background:#8e44ad; box-shadow:0 1px 5px rgba(76,38,88,.32); -webkit-appearance:none; }
     .tone-range::-moz-range-track { height:5px; border-radius:999px; background:linear-gradient(90deg,#f2b4d0,#b785c6); }
@@ -1252,6 +1254,8 @@
         .followup-workbench-body { overflow-y:auto; }
         .followup-split-view { height:auto; }
         .followup-answer-card { height:420px; }
+        .tone-slider-row { grid-template-columns:46px 26px 68px minmax(48px,1fr) 68px; gap:.3rem; }
+        .tone-slider-labels span { font-size:.56rem; }
         .source-layer-header,
         .source-layer-body,
         .source-layer-footer { padding-right:1rem; padding-left:1rem; }

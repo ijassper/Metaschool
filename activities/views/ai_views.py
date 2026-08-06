@@ -714,7 +714,8 @@ def api_process_db_row(request):
             print(f"DEBUG: 단일 학생(answer_id: {answer.id}) 분석 시작")
             
             # [방어 로직] 답안이 비어있으면 AI 호출 없이 리턴
-            if not answer.content or not answer.content.strip():
+            answer_content = answer.display_content
+            if not answer_content:
                 return JsonResponse({
                     'status': 'skipped', 
                     'message': '내용이 없는 답안은 분석하지 않습니다.'
@@ -734,7 +735,7 @@ def api_process_db_row(request):
             student_info = f"[대상 학생: {student.name}({student.grade}-{student.class_no}-{student.number})]"
             
             # 최종 지시사항 조립 (활동 정보 + 학생 답안 + 교사 지시사항)
-            final_prompt = f"{activity_context}\n{student_info}\n[학생 답안 내용]\n{answer.content}\n\n[AI 지시사항]\n{prompt_system}"
+            final_prompt = f"{activity_context}\n{student_info}\n[학생 답안 내용]\n{answer_content}\n\n[AI 지시사항]\n{prompt_system}"
             
             result_text = ""
 

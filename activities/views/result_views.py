@@ -71,7 +71,10 @@ def activity_result(request, activity_id, template_name='activities/activity_res
     is_deadline_passed = bool(activity.deadline and timezone.now() > activity.deadline)
 
     for student in target_students:
-        answer = Answer.objects.filter(student=student, question=question).first()
+        answer = Answer.objects.filter(
+            student=student,
+            question=question,
+        ).select_related('question__activity').first()
         status = "미응시"
         submitted_at = "-"
         answer_id = None
@@ -85,7 +88,7 @@ def activity_result(request, activity_id, template_name='activities/activity_res
             note = answer.note
             absence = answer.absence_type
             log_data = answer.activity_log 
-            content = answer.content
+            content = answer.display_content
             
             structured_text = " ".join([
                 answer.ans_q1 or "",
