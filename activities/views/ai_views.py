@@ -509,7 +509,7 @@ def api_process_db_row(request):
             requested_teacher_types = body.get('teacher_types') or []
             if not isinstance(requested_teacher_types, list):
                 requested_teacher_types = []
-            allowed_teacher_types = ('homeroom', 'subject_expert', 'grade_expert', 'activity')
+            allowed_teacher_types = ('school_level', 'subject_expert', 'homeroom', 'activity')
             selected_teacher_types = [
                 teacher_type for teacher_type in allowed_teacher_types
                 if teacher_type in requested_teacher_types
@@ -530,6 +530,11 @@ def api_process_db_row(request):
                 Q(creator__isnull=True) | Q(creator=request.user)
             )
             subject_name = request.user.subject.name if getattr(request.user, 'subject', None) else ''
+            school_level_name = (
+                request.user.school.get_level_display()
+                if getattr(request.user, 'school', None)
+                else '학교급'
+            )
             dynamic_teacher_types = {}
             if subject_name:
                 dynamic_teacher_types = {
@@ -560,28 +565,28 @@ def api_process_db_row(request):
                 )
             if selected_teacher_types:
                 teacher_type_prompts = {
-                    'homeroom': (
-                        '담임 교사 관점(최우선): 학생의 전반적인 성장과 정서적 맥락을 존중하고, '
-                        '낙인 없이 격려하며 지속적으로 실천할 수 있는 피드백을 제공하세요.'
+                    'school_level': (
+                        f'{school_level_name} 교사 관점(최우선): {school_level_name} 학생의 발달 단계, '
+                        '교육과정 수준과 학교생활 맥락에 적합한 용어와 피드백 깊이를 사용하세요.'
                     ),
                     'subject_expert': (
-                        f'{subject_name or "해당"} 교과 전문 교사 관점: 교과의 핵심 개념, 교육과정과 평가 기준에 근거해 '
+                        f'{subject_name or "해당"} 교과 교사 관점: 교과의 핵심 개념, 교육과정과 평가 기준에 근거해 '
                         '답안의 정확성과 사고 과정을 전문적으로 분석하세요.'
                     ),
-                    'grade_expert': (
-                        f'{student.grade}학년 전문 교사 관점: {student.grade}학년 학생의 발달 수준과 학습 기대 수준에 맞는 '
-                        '용어, 설명과 다음 단계 과제를 제시하세요.'
+                    'homeroom': (
+                        '담임 교사 관점: 학생의 전반적인 성장과 정서적 맥락을 존중하고, '
+                        '낙인 없이 격려하며 지속적으로 실천할 수 있는 피드백을 제공하세요.'
                     ),
                     'activity': (
-                        '활동 교사 관점: 학생이 실제로 수행한 과정과 참여 경험을 중심으로, '
+                        '활동 지도교사 관점: 학생이 실제로 수행한 과정과 참여 경험을 중심으로, '
                         '다음 활동에서 바로 실행할 수 있는 구체적인 제안을 작성하세요.'
                     ),
                 }
                 teacher_type_names = {
+                    'school_level': f'{school_level_name} 교사',
                     'homeroom': '담임 교사',
-                    'subject_expert': f'{subject_name or "교과"} 전문 교사',
-                    'grade_expert': f'{student.grade}학년 전문 교사',
-                    'activity': '활동 교사',
+                    'subject_expert': f'{subject_name or "교과"} 교사',
+                    'activity': '활동 지도교사',
                 }
                 combined_roles = '\n'.join(
                     f'- {teacher_type_prompts[teacher_type]}'
@@ -590,7 +595,7 @@ def api_process_db_row(request):
                 persona_name = ' + '.join(teacher_type_names[teacher_type] for teacher_type in selected_teacher_types)
                 persona_prompt = (
                     '다음 교사 관점을 하나의 일관된 목소리로 종합하여 피드백을 작성하세요. '
-                    '관점이 충돌하면 담임 교사, 교과 전문 교사, 학년 전문 교사, 활동 교사 순으로 우선하되, '
+                    '관점이 충돌하면 학교급 교사, 교과 교사, 담임 교사, 활동 지도교사 순으로 우선하되, '
                     '동일한 내용을 반복하지 말고 각 관점의 강점을 자연스럽게 결합하세요.\n'
                     f'{combined_roles}'
                 )

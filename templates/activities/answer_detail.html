@@ -294,10 +294,10 @@
         <section class="followup-design-section">
             <label>교사 유형 <small>복수 선택 가능</small></label>
             <div class="teacher-type-toggles">
-                <button type="button" class="teacher-type-toggle is-selected" data-teacher-type="grade_expert" aria-pressed="true"><i class="bi bi-check-lg"></i>{{ answer.student.grade }}학년 전문 교사</button>
-                <button type="button" class="teacher-type-toggle is-selected" data-teacher-type="subject_expert" aria-pressed="true"><i class="bi bi-check-lg"></i>{{ request.user.subject.name|default:"교과" }} 전문 교사</button>
+                <button type="button" class="teacher-type-toggle is-selected" data-teacher-type="school_level" aria-pressed="true"><i class="bi bi-check-lg"></i>{{ request.user.school.get_level_display|default:"학교급" }} 교사</button>
+                <button type="button" class="teacher-type-toggle is-selected" data-teacher-type="subject_expert" aria-pressed="true"><i class="bi bi-check-lg"></i>{{ request.user.subject.name|default:"교과" }} 교사</button>
                 <button type="button" class="teacher-type-toggle" data-teacher-type="homeroom" aria-pressed="false"><i class="bi bi-check-lg"></i>담임 교사</button>
-                <button type="button" class="teacher-type-toggle" data-teacher-type="activity" aria-pressed="false"><i class="bi bi-check-lg"></i>활동 교사</button>
+                <button type="button" class="teacher-type-toggle" data-teacher-type="activity" aria-pressed="false"><i class="bi bi-check-lg"></i>활동 지도교사</button>
             </div>
         </section>
         <section class="followup-design-section">
