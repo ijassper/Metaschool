@@ -305,10 +305,34 @@
             </div>
         </section>
         <section class="followup-design-section">
-            <label>피드백 어조</label>
-            <select id="followupTone" class="followup-design-control">
-                <option value="친절한">친절한</option><option value="신뢰있는">신뢰있는</option><option value="친구같은">친구같은</option>
-            </select>
+            <label>피드백 어조 조절 <small>각 성격을 세밀하게 조절하세요.</small></label>
+            <div class="tone-slider-engine">
+                <div class="tone-slider-row">
+                    <div class="tone-slider-heading"><strong>성별</strong><output for="toneGender">5</output></div>
+                    <div class="tone-slider-labels"><span>여성적</span><span>남성적</span></div>
+                    <input id="toneGender" class="tone-range" data-tone-key="gender" type="range" min="0" max="10" value="5">
+                </div>
+                <div class="tone-slider-row">
+                    <div class="tone-slider-heading"><strong>형식성</strong><output for="toneFormality">5</output></div>
+                    <div class="tone-slider-labels"><span>친근함</span><span>예의 갖춤</span></div>
+                    <input id="toneFormality" class="tone-range" data-tone-key="formality" type="range" min="0" max="10" value="5">
+                </div>
+                <div class="tone-slider-row">
+                    <div class="tone-slider-heading"><strong>솔직성</strong><output for="toneDirectness">5</output></div>
+                    <div class="tone-slider-labels"><span>단도직입적</span><span>우회적</span></div>
+                    <input id="toneDirectness" class="tone-range" data-tone-key="directness" type="range" min="0" max="10" value="5">
+                </div>
+                <div class="tone-slider-row">
+                    <div class="tone-slider-heading"><strong>상세성</strong><output for="toneDetail">5</output></div>
+                    <div class="tone-slider-labels"><span>친절한 안내형</span><span>간략한 명확형</span></div>
+                    <input id="toneDetail" class="tone-range" data-tone-key="detail" type="range" min="0" max="10" value="5">
+                </div>
+                <div class="tone-slider-row">
+                    <div class="tone-slider-heading"><strong>첨삭 성격</strong><output for="toneEditing">5</output></div>
+                    <div class="tone-slider-labels"><span>미시적</span><span>거시적</span></div>
+                    <input id="toneEditing" class="tone-range" data-tone-key="editing" type="range" min="0" max="10" value="5">
+                </div>
+            </div>
         </section>
         <section class="followup-design-section">
             <label for="followupLength">초안 분량</label>
@@ -1173,6 +1197,17 @@
     .teacher-type-toggle i { width:0; overflow:hidden; opacity:0; transition:width .15s ease,opacity .15s ease; }
     .teacher-type-toggle.is-selected { border-color:#a86fba; background:#f3e8f6; color:#7d3c98; box-shadow:0 0 0 2px rgba(142,68,173,.06); }
     .teacher-type-toggle.is-selected i { width:auto; opacity:1; }
+    .tone-slider-engine { display:grid; gap:.7rem; padding:.85rem; border:1px solid #eadfeb; border-radius:13px; background:linear-gradient(145deg,#fff,#fcf8fd); }
+    .tone-slider-row { min-width:0; }
+    .tone-slider-heading,.tone-slider-labels { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+    .tone-slider-heading strong { color:#5b505f; font-size:.74rem; }
+    .tone-slider-heading output { min-width:28px; padding:.12rem .34rem; border-radius:999px; background:#f1e8f4; color:#7d3c98; font-size:.62rem; font-weight:780; text-align:center; }
+    .tone-slider-labels { margin:.22rem 0 .15rem; color:#9b8fa0; font-size:.62rem; }
+    .tone-range { width:100%; height:18px; margin:0; background:transparent; accent-color:#9b55ad; cursor:pointer; -webkit-appearance:none; appearance:none; }
+    .tone-range::-webkit-slider-runnable-track { height:5px; border-radius:999px; background:linear-gradient(90deg,#f2b4d0,#b785c6); }
+    .tone-range::-webkit-slider-thumb { width:16px; height:16px; margin-top:-5.5px; border:3px solid #fff; border-radius:50%; background:#8e44ad; box-shadow:0 1px 5px rgba(76,38,88,.32); -webkit-appearance:none; }
+    .tone-range::-moz-range-track { height:5px; border-radius:999px; background:linear-gradient(90deg,#f2b4d0,#b785c6); }
+    .tone-range::-moz-range-thumb { width:12px; height:12px; border:3px solid #fff; border-radius:50%; background:#8e44ad; box-shadow:0 1px 5px rgba(76,38,88,.32); }
     .followup-draft-result { margin-top:1.6rem; padding-top:1.4rem; border-top:1px solid #eadfeb; }
     .followup-draft-result h4 { margin:0 0 .7rem; color:#7d3c98; font-size:.86rem; font-weight:780; }
     .followup-draft-result textarea { width:100%; padding:1rem; border:1px solid #eadfeb; border-radius:12px; background:#fff; color:#4e4651; font-size:.82rem; line-height:1.75; resize:vertical; outline:none; }
@@ -1310,10 +1345,19 @@
                 button.setAttribute('aria-pressed', button.classList.contains('is-selected') ? 'true' : 'false');
             });
         });
+        document.querySelectorAll('.tone-range').forEach(function (slider) {
+            slider.addEventListener('input', function () {
+                const output = slider.closest('.tone-slider-row').querySelector('output');
+                if (output) output.value = slider.value;
+            });
+        });
         generateButton.addEventListener('click', async function () {
-            const selectedTone = document.getElementById('followupTone').value;
             const requestedLength = document.getElementById('followupLength').value;
             const activityLabel = followupLabels[selectedFollowupType] || followupLabels.grading;
+            const toneAttributes = {};
+            document.querySelectorAll('.tone-range').forEach(function (slider) {
+                toneAttributes[slider.dataset.toneKey] = Number(slider.value);
+            });
             const feedbackComponents = Array.from(document.querySelectorAll('.feedback-toggle.is-selected'))
                 .map((button) => button.dataset.component);
             const selectedTeacherTypes = Array.from(document.querySelectorAll('.teacher-type-toggle.is-selected'))
@@ -1338,7 +1382,7 @@
                     body: JSON.stringify({
                         answer_id: '{{ answer.id }}',
                         teacher_types: selectedTeacherTypes,
-                        selected_tone: selectedTone,
+                        tone_attributes: toneAttributes,
                         requested_length: requestedLength,
                         feedback_components: feedbackComponents,
                         prompt_system: `학생의 기존 답안을 출발점으로 '${activityLabel}' 후속 활동 초안을 작성해 주세요. 활동 제목, 학습 목표, 학생 안내문, 구체적인 문항 또는 수행 절차를 포함하고 학생이 기존 답안을 발전시킬 수 있게 구성하세요.`,

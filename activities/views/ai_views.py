@@ -17,6 +17,47 @@ from .main_views import get_accessible_students, get_student_tree
 
 FORCED_AI_ANALYSIS_MODEL = 'gpt-4o-mini'
 
+TONE_AXIS_LABELS = {
+    'gender': ('여성적 표현', '남성적 표현'),
+    'formality': ('친근함', '예의를 갖춘 형식성'),
+    'directness': ('단도직입적 표현', '우회적 표현'),
+    'detail': ('친절하고 상세한 안내', '간략하고 명확한 안내'),
+    'editing': ('문장·어휘·표현 단위의 미시적 첨삭', '전체 구조·맥락·방향 중심의 거시적 첨삭'),
+}
+
+
+def build_tone_style_guide(tone_attributes):
+    """0~10 다축 값을 모델이 따라야 하는 자연어 스타일 가이드로 변환합니다."""
+    if not tone_attributes:
+        return ''
+
+    def describe_axis(value, left_label, right_label):
+        if value <= 2:
+            return f'{left_label} 성향을 매우 강하게 적용'
+        if value <= 4:
+            return f'{left_label} 성향을 다소 강하게 적용'
+        if value <= 6:
+            return f'{left_label}과 {right_label}의 균형을 유지'
+        if value <= 8:
+            return f'{right_label} 성향을 다소 강하게 적용'
+        return f'{right_label} 성향을 매우 강하게 적용'
+
+    guide_lines = []
+    for attribute, (left_label, right_label) in TONE_AXIS_LABELS.items():
+        if attribute not in tone_attributes:
+            continue
+        value = tone_attributes[attribute]
+        guide_lines.append(
+            f'- {describe_axis(value, left_label, right_label)} (강도 {value}/10)'
+        )
+
+    return (
+        '[필수 스타일 가이드]\n'
+        + '\n'.join(guide_lines)
+        + '\n위 스타일 가이드는 선택 사항이 아니라 전체 답변에서 반드시 유지해야 합니다. '
+        '각 축을 하나의 자연스러운 교사 목소리로 통합하고, 답변 본문에는 설정명·수치·스타일 가이드를 노출하지 마세요.'
+    )
+
 # [1] 결과 분석 페이지 (활동별)
 @login_required
 @teacher_required
@@ -497,6 +538,18 @@ def api_process_db_row(request):
             batch_id = body.get('batch_id', '')
             selected_persona_id = body.get('selected_persona_id')
             selected_tone = (body.get('selected_tone') or '').strip()[:50]
+            requested_tone_attributes = body.get('tone_attributes') or {}
+            if not isinstance(requested_tone_attributes, dict):
+                requested_tone_attributes = {}
+            allowed_tone_attributes = ('gender', 'formality', 'directness', 'detail', 'editing')
+            tone_attributes = {}
+            for attribute in allowed_tone_attributes:
+                if attribute not in requested_tone_attributes:
+                    continue
+                try:
+                    tone_attributes[attribute] = min(max(int(requested_tone_attributes[attribute]), 0), 10)
+                except (TypeError, ValueError):
+                    continue
             requested_length = (body.get('requested_length') or '').strip()[:200]
             allowed_feedback_components = (
                 '인사말',
@@ -630,11 +683,17 @@ def api_process_db_row(request):
                 persona_prompt = persona.system_prompt if persona else '당신은 학생의 성장 과정을 존중하며 근거 중심으로 답안을 분석하는 교사입니다.'
                 persona_default_tone = persona.tone_default if persona else '친절한'
 
-            effective_tone = selected_tone or persona_default_tone
+            effective_tone = (
+                '아래 다층 어조 설정을 우선 적용'
+                if tone_attributes
+                else (selected_tone or persona_default_tone)
+            )
             effective_length = requested_length or '교사의 분석 지시에 맞는 적절한 분량'
             effective_system_prompt = (
                 f"{persona_prompt}\n\n어조: {effective_tone}\n\n분량: {effective_length}"
             )
+            if tone_attributes:
+                effective_system_prompt += f'\n\n{build_tone_style_guide(tone_attributes)}'
             if feedback_components:
                 selected_component_text = ', '.join(feedback_components)
                 excluded_components = [
