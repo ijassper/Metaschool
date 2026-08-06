@@ -498,7 +498,16 @@ def api_process_db_row(request):
             selected_persona_id = body.get('selected_persona_id')
             selected_tone = (body.get('selected_tone') or '').strip()[:50]
             requested_length = (body.get('requested_length') or '').strip()[:200]
-            allowed_feedback_components = ('인사말', '답안 요약', '공감', '강점/약점')
+            allowed_feedback_components = (
+                '인사말',
+                '답안 요약',
+                '내용에 대한 공감과 칭찬',
+                '강점',
+                '약점',
+                '개선 방향',
+                '지속 학습에 대한 격려',
+                '마지막 인사말',
+            )
             requested_components = body.get('feedback_components') or []
             if not isinstance(requested_components, list):
                 requested_components = []
