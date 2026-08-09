@@ -1385,6 +1385,7 @@
                     headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
                     body: JSON.stringify({
                         answer_id: '{{ answer.id }}',
+                        task_type: selectedFollowupType,
                         teacher_types: selectedTeacherTypes,
                         tone_attributes: toneAttributes,
                         requested_length: requestedLength,

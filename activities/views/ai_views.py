@@ -58,6 +58,46 @@ def build_tone_style_guide(tone_attributes):
         '각 축을 하나의 자연스러운 교사 목소리로 통합하고, 답변 본문에는 설정명·수치·스타일 가이드를 노출하지 마세요.'
     )
 
+
+TASK_TYPE_ALIASES = {
+    'grading': Persona.TaskType.GRADING,
+    '채점': Persona.TaskType.GRADING,
+    '채점/분석': Persona.TaskType.GRADING,
+    'feedback': Persona.TaskType.FEEDBACK,
+    '피드백': Persona.TaskType.FEEDBACK,
+    '피드백 제공': Persona.TaskType.FEEDBACK,
+    'rewrite': Persona.TaskType.REWRITE,
+    '고쳐쓰기': Persona.TaskType.REWRITE,
+    'relay': Persona.TaskType.RELAY,
+    '릴레이쓰기': Persona.TaskType.RELAY,
+}
+
+ACTIVITY_CONTEXT_ALIASES = {
+    'ESSAY': Persona.CategoryContext.ESSAY,
+    'SUBJECT_ACTIVITY': Persona.CategoryContext.ESSAY,
+    'CLUB': Persona.CategoryContext.CLUB,
+    'CAREER': Persona.CategoryContext.CAREER,
+    'CREATIVE': Persona.CategoryContext.AUTONOMY,
+}
+
+
+def get_matching_persona(activity, requested_task_type, user=None):
+    """활동 맥락과 작업 유형을 함께 사용하고, 없으면 시스템 기본값으로 폴백합니다."""
+    category_context = ACTIVITY_CONTEXT_ALIASES.get(activity.category)
+    task_type = TASK_TYPE_ALIASES.get(str(requested_task_type or '').strip())
+    if category_context and task_type:
+        matching_personas = Persona.objects.filter(
+            category_context=category_context,
+            task_type=task_type,
+        )
+        persona = (
+            matching_personas.filter(creator=user).order_by('id').first()
+            if user is not None else None
+        ) or matching_personas.filter(creator__isnull=True).order_by('-is_default', 'id').first()
+        if persona:
+            return persona
+    return Persona.objects.filter(creator__isnull=True, is_default=True).order_by('id').first()
+
 # [1] 결과 분석 페이지 (활동별)
 @login_required
 @teacher_required
@@ -537,6 +577,7 @@ def api_process_db_row(request):
             work_name = body.get('work_name', '')
             batch_id = body.get('batch_id', '')
             selected_persona_id = body.get('selected_persona_id')
+            requested_task_type = body.get('task_type') or body.get('followup_type')
             selected_tone = (body.get('selected_tone') or '').strip()[:50]
             requested_tone_attributes = body.get('tone_attributes') or {}
             if not isinstance(requested_tone_attributes, dict):
@@ -587,6 +628,7 @@ def api_process_db_row(request):
             ).get(id=answer_id, question__activity__teacher=request.user)
             activity = answer.question.activity # 역참조로 활동 정보 획득
             student = answer.student
+            matched_persona = get_matching_persona(activity, requested_task_type, request.user)
 
             visible_personas = Persona.objects.filter(
                 Q(creator__isnull=True) | Q(creator=request.user)
@@ -654,12 +696,17 @@ def api_process_db_row(request):
                     f'- {teacher_type_prompts[teacher_type]}'
                     for teacher_type in selected_teacher_types
                 )
-                persona_name = ' + '.join(teacher_type_names[teacher_type] for teacher_type in selected_teacher_types)
-                persona_prompt = (
-                    '다음 교사 관점을 하나의 일관된 목소리로 종합하여 피드백을 작성하세요. '
+                role_name = ' + '.join(teacher_type_names[teacher_type] for teacher_type in selected_teacher_types)
+                persona_name = f'{matched_persona.name} · {role_name}' if matched_persona else role_name
+                role_prompt = (
+                    '다음 교사 관점을 하나의 일관된 목소리로 종합하여 현재 작업 유형에 맞는 결과물을 작성하세요. '
                     '관점이 충돌하면 학교급 교사, 교과 교사, 담임 교사, 활동 지도교사 순으로 우선하되, '
                     '동일한 내용을 반복하지 말고 각 관점의 강점을 자연스럽게 결합하세요.\n'
                     f'{combined_roles}'
+                )
+                persona_prompt = (
+                    f'{matched_persona.system_prompt}\n\n{role_prompt}'
+                    if matched_persona else role_prompt
                 )
                 persona_default_tone = '친절한' if 'homeroom' in selected_teacher_types else '신뢰있는'
             elif dynamic_type:
@@ -678,7 +725,7 @@ def api_process_db_row(request):
                 persona_prompt = persona.system_prompt
                 persona_default_tone = persona.tone_default
             else:
-                persona = visible_personas.filter(creator__isnull=True).first() or visible_personas.first()
+                persona = matched_persona or visible_personas.filter(creator__isnull=True).first() or visible_personas.first()
                 persona_name = persona.name if persona else '기본 학생 분석 교사'
                 persona_prompt = persona.system_prompt if persona else '당신은 학생의 성장 과정을 존중하며 근거 중심으로 답안을 분석하는 교사입니다.'
                 persona_default_tone = persona.tone_default if persona else '친절한'

@@ -91,10 +91,37 @@ class CustomUser(AbstractUser):
 class Persona(models.Model):
     """교사가 AI 분석에 사용할 역할과 응답 스타일을 정의합니다."""
 
+    class CategoryContext(models.TextChoices):
+        ESSAY = "ESSAY", "논술"
+        CLUB = "CLUB", "동아리"
+        CAREER = "CAREER", "진로"
+        AUTONOMY = "CREATIVE", "자율"
+
+    class TaskType(models.TextChoices):
+        GRADING = "grading", "채점/분석"
+        FEEDBACK = "feedback", "피드백 제공"
+        REWRITE = "rewrite", "고쳐쓰기"
+        RELAY = "relay", "릴레이쓰기"
+
     name = models.CharField(max_length=100, verbose_name="페르소나 이름")
     description = models.TextField(blank=True, verbose_name="역할 설명")
     system_prompt = models.TextField(verbose_name="시스템 프롬프트")
     tone_default = models.CharField(max_length=50, default="친절한", verbose_name="기본 어조")
+    category_context = models.CharField(
+        max_length=20,
+        choices=CategoryContext.choices,
+        blank=True,
+        default="",
+        verbose_name="활동 맥락",
+    )
+    task_type = models.CharField(
+        max_length=20,
+        choices=TaskType.choices,
+        blank=True,
+        default="",
+        verbose_name="작업 유형",
+    )
+    is_default = models.BooleanField(default=False, verbose_name="시스템 기본 제공")
     creator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -110,6 +137,9 @@ class Persona(models.Model):
         verbose_name = "AI 페르소나"
         verbose_name_plural = "AI 페르소나 목록"
         ordering = ["creator_id", "name", "id"]
+        indexes = [
+            models.Index(fields=["category_context", "task_type", "is_default"], name="persona_match_idx"),
+        ]
 
     @property
     def is_system(self):

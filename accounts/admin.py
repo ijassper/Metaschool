@@ -9,8 +9,8 @@ from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, P
 
 @admin.register(Persona)
 class PersonaAdmin(admin.ModelAdmin):
-    list_display = ['name', 'tone_default', 'creator', 'updated_at']
-    list_filter = ['tone_default', 'creator']
+    list_display = ['name', 'category_context', 'task_type', 'is_default', 'tone_default', 'creator', 'updated_at']
+    list_filter = ['category_context', 'task_type', 'is_default', 'tone_default', 'creator']
     search_fields = ['name', 'description', 'system_prompt']
 
 # 일괄 변경 액션 함수

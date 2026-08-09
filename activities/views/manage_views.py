@@ -29,11 +29,17 @@ PERSONA_TONES = ["친절한", "신뢰있는", "친구같은", "격려하는", "�
 
 
 def _persona_form_values(request):
+    valid_contexts = {value for value, _ in Persona.CategoryContext.choices}
+    valid_task_types = {value for value, _ in Persona.TaskType.choices}
+    category_context = request.POST.get("category_context", "").strip()
+    task_type = request.POST.get("task_type", "").strip()
     return {
         "name": request.POST.get("name", "").strip(),
         "description": request.POST.get("description", "").strip(),
         "system_prompt": request.POST.get("system_prompt", "").strip(),
         "tone_default": request.POST.get("tone_default", "친절한").strip() or "친절한",
+        "category_context": category_context if category_context in valid_contexts else "",
+        "task_type": task_type if task_type in valid_task_types else "",
     }
 
 
@@ -62,6 +68,8 @@ def persona_create(request):
     return render(request, "activities/persona_form.html", {
         "form_data": form_data,
         "tone_options": PERSONA_TONES,
+        "category_options": Persona.CategoryContext.choices,
+        "task_type_options": Persona.TaskType.choices,
         "action": "등록",
     })
 
@@ -85,6 +93,8 @@ def persona_update(request, persona_id):
         "persona": persona,
         "form_data": form_data,
         "tone_options": PERSONA_TONES,
+        "category_options": Persona.CategoryContext.choices,
+        "task_type_options": Persona.TaskType.choices,
         "action": "수정",
     })
 
