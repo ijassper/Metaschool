@@ -10,11 +10,12 @@ from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
 from accounts.models import Persona, Student
-from ..models import Activity, Answer
+from ..models import Activity, Answer, FeedbackResult
 from .main_views import get_accessible_students
 
 # [1] 제출 현황(답안) 목록 페이지
@@ -154,9 +155,50 @@ def answer_detail(request, answer_id):
     return render(request, 'activities/answer_detail.html', {
         'answer': answer,
         'activity': answer.question.activity,
+        'feedback_logs': answer.feedback_results.all(),
         'personas': Persona.objects.filter(
             Q(creator__isnull=True) | Q(creator=request.user)
         ).select_related('creator'),
+    })
+
+
+@require_POST
+@login_required
+@teacher_required
+def save_feedback_result(request, answer_id):
+    answer = get_object_or_404(
+        Answer.objects.select_related('student', 'question__activity'),
+        id=answer_id,
+        question__activity__teacher=request.user,
+    )
+    try:
+        payload = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': '저장 요청 형식이 올바르지 않습니다.'}, status=400)
+
+    feedback_content = str(payload.get('feedback_content') or '').strip()
+    task_type = str(payload.get('task_type') or '').strip()
+    persona_used = payload.get('persona_used') or {}
+    valid_task_types = {value for value, _ in FeedbackResult.TaskType.choices}
+    if not feedback_content:
+        return JsonResponse({'status': 'error', 'message': '저장할 결과 내용을 입력해주세요.'}, status=400)
+    if task_type not in valid_task_types:
+        return JsonResponse({'status': 'error', 'message': '지원하지 않는 작업 유형입니다.'}, status=400)
+    if not isinstance(persona_used, dict):
+        persona_used = {'summary': str(persona_used)[:500]}
+
+    feedback = FeedbackResult.objects.create(
+        student=answer.student,
+        activity=answer.question.activity,
+        answer=answer,
+        task_type=task_type,
+        feedback_content=feedback_content,
+        persona_used=persona_used,
+    )
+    return JsonResponse({
+        'status': 'success',
+        'feedback_id': feedback.id,
+        'type_name': feedback.type_name,
     })
 
 # [3] 답안 삭제(폐기) 처리

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Activity, Question, Answer
+from .models import Activity, Question, Answer, FeedbackResult
 
 # 1. 문항(Question)을 평가(Activity) 수정 화면에서 바로 볼 수 있게 설정
 class QuestionInline(admin.StackedInline):
@@ -35,3 +35,11 @@ class AnswerAdmin(admin.ModelAdmin):
 
 # 문항 모델도 단독으로 관리하고 싶을 경우 등록
 admin.site.register(Question)
+
+
+@admin.register(FeedbackResult)
+class FeedbackResultAdmin(admin.ModelAdmin):
+    list_display = ['student', 'activity', 'task_type', 'created_at']
+    list_filter = ['task_type', 'activity', 'created_at']
+    search_fields = ['student__name', 'activity__title', 'feedback_content']
+    readonly_fields = ['created_at']

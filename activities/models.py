@@ -291,6 +291,51 @@ class AnalysisResult(models.Model):
         created_at = timezone.localtime(self.created_at)
         return f"{self.answer.student.name} - {created_at.strftime('%Y-%m-%d %H:%M')}"
 
+
+class FeedbackResult(models.Model):
+    """학생 답안을 기반으로 생성하고 교사가 최종 확정한 작업 기록입니다."""
+
+    class TaskType(models.TextChoices):
+        GRADING = 'grading', '채점/분석'
+        FEEDBACK = 'feedback', '피드백'
+        REWRITE = 'rewrite', '고쳐쓰기'
+        RELAY = 'relay', '릴레이쓰기'
+
+    student = models.ForeignKey(
+        'accounts.Student', on_delete=models.CASCADE, related_name='feedback_results', verbose_name='학생'
+    )
+    activity = models.ForeignKey(
+        Activity, on_delete=models.CASCADE, related_name='feedback_results', verbose_name='활동'
+    )
+    answer = models.ForeignKey(
+        'Answer', on_delete=models.CASCADE, related_name='feedback_results', verbose_name='원본 답안'
+    )
+    task_type = models.CharField(
+        max_length=20, choices=TaskType.choices, default=TaskType.FEEDBACK, verbose_name='작업 유형'
+    )
+    feedback_content = models.TextField(verbose_name='AI 피드백 본문')
+    persona_used = models.JSONField(default=dict, blank=True, verbose_name='사용된 페르소나/어조 정보')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='저장 일시')
+
+    class Meta:
+        verbose_name = '학생 답안 작업 기록'
+        verbose_name_plural = '학생 답안 작업 기록 목록'
+        ordering = ['created_at', 'id']
+        indexes = [models.Index(fields=['answer', 'created_at'], name='feedback_answer_idx')]
+
+    @property
+    def type_name(self):
+        return self.get_task_type_display()
+
+    @property
+    def persona_name(self):
+        if isinstance(self.persona_used, dict):
+            return self.persona_used.get('persona_name', '')
+        return str(self.persona_used or '')
+
+    def __str__(self):
+        return f'{self.student.name} - {self.type_name}'
+
 # 다중 파일을 저장하기 위한 모델 (ActivityFile)
 class ActivityFile(models.Model):
     # 어떤 활동에 속한 파일인지 연결 (ForeignKey)

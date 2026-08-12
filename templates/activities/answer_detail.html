@@ -48,16 +48,17 @@
             <!-- 개발 방향 확정 후 활성화
             <button type="button" class="portfolio-index-tab">개요</button>
             -->
-            <button type="button" class="portfolio-index-tab is-active" data-scroll-target="answerKanban">
+            <button type="button" class="portfolio-index-tab is-active" data-history-target="original">
                 <span>01</span> 답안
             </button>
-            <!-- 분석 및 후속 활동 색인은 개발 방향 확정 전까지 보류
-            <button type="button" class="portfolio-index-tab">분석</button>
-            <button type="button" class="portfolio-index-tab">후속 활동</button>
-            -->
+            {% for feedback in feedback_logs %}
+            <button type="button" class="portfolio-index-tab" data-history-target="feedback-{{ feedback.id }}">
+                <span>{{ forloop.counter|add:1|stringformat:"02d" }}</span> {{ feedback.type_name }}
+            </button>
+            {% endfor %}
         </nav>
 
-        <div class="portfolio-sheet">
+        <div id="portfolio-panel-original" class="portfolio-sheet portfolio-history-panel" data-history-panel="original">
             <section class="portfolio-section activity-content-section first-section">
                 <header class="section-header">
                     <div>
@@ -184,6 +185,23 @@
                 </button>
             </section>
         </div>
+        {% for feedback in feedback_logs %}
+        <div id="portfolio-panel-feedback-{{ feedback.id }}" class="portfolio-sheet portfolio-history-panel feedback-history-sheet" data-history-panel="feedback-{{ feedback.id }}" hidden>
+            <section class="portfolio-section first-section feedback-history-section">
+                <header class="section-header">
+                    <div>
+                        <span class="section-number">{{ forloop.counter|add:1|stringformat:"02d" }}</span>
+                        <div>
+                            <h3>{{ feedback.type_name }}</h3>
+                            <p>{{ feedback.created_at|localtime|date:"Y.m.d H:i" }}에 최종 저장된 작업입니다.</p>
+                        </div>
+                    </div>
+                    {% if feedback.persona_name %}<span class="feedback-persona-chip">{{ feedback.persona_name }}</span>{% endif %}
+                </header>
+                <article class="feedback-history-content">{{ feedback.feedback_content|linebreaksbr }}</article>
+            </section>
+        </div>
+        {% endfor %}
     </main>
 </div>
 
@@ -353,6 +371,9 @@
         <button id="generateFollowupDraft" type="button" class="source-create-button">
             <span class="followup-generate-idle"><i class="bi bi-stars"></i> AI 초안 만들기</span>
             <span class="followup-generate-loading" hidden><span class="followup-spinner"></span> 생성하고 있습니다</span>
+        </button>
+        <button id="saveFollowupDraft" type="button" class="source-create-button followup-save-button" hidden>
+            <i class="bi bi-check2-circle"></i> 최종 저장
         </button>
     </footer>
 </aside>
@@ -533,9 +554,14 @@
         top: 0;
         left: 18px;
         z-index: 1;
+        max-width: calc(100% - 36px);
+        display: flex;
+        overflow-x: auto;
+        scrollbar-width: thin;
     }
 
     .portfolio-index-tab {
+        flex: 0 0 auto;
         min-width: 112px;
         height: 42px;
         display: inline-flex;
@@ -570,6 +596,9 @@
         background: linear-gradient(145deg, #fff 0%, #fffafd 58%, #f9f6ff 100%);
         box-shadow: 0 18px 48px rgba(94, 57, 112, 0.1), 0 3px 10px rgba(94, 57, 112, 0.05);
     }
+    .feedback-history-section { min-height:360px; }
+    .feedback-history-content { margin-top:1rem; padding:1.25rem; border:1px solid #eadfeb; border-radius:14px; background:#fff; color:#4e4651; font-size:.86rem; line-height:1.85; white-space:normal; }
+    .feedback-persona-chip { max-width:45%; overflow:hidden; padding:.32rem .65rem; border-radius:999px; background:#f4eaf7; color:#7d3c98; font-size:.66rem; font-weight:760; text-overflow:ellipsis; white-space:nowrap; }
 
     .portfolio-section {
         margin-top: 1.45rem;
@@ -1215,6 +1244,7 @@
     .followup-draft-result textarea { width:100%; padding:1rem; border:1px solid #eadfeb; border-radius:12px; background:#fff; color:#4e4651; font-size:.82rem; line-height:1.75; resize:vertical; outline:none; }
     .followup-draft-result textarea:focus { border-color:#a86fba; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
     .followup-design-footer { justify-content:flex-end; }
+    .followup-save-button { background:linear-gradient(135deg,#269b68,#168454); }
     .followup-design-error { margin-right:auto!important; color:#b4233c!important; }
     .source-create-button:disabled { opacity:.72; cursor:wait; }
     .followup-spinner { width:15px; height:15px; display:inline-block; margin-right:.35rem; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:followup-spin .75s linear infinite; vertical-align:-3px; }
@@ -1275,12 +1305,14 @@
         const closeDesignButton = document.getElementById('closeFollowupDesign');
         const designTitle = document.getElementById('followupDesignTitle');
         const generateButton = document.getElementById('generateFollowupDraft');
+        const saveButton = document.getElementById('saveFollowupDraft');
         const draftResult = document.getElementById('followupDraftResult');
         const draftText = document.getElementById('followupDraftText');
         const designError = document.getElementById('followupDesignError');
         const generateIdle = generateButton.querySelector('.followup-generate-idle');
         const generateLoading = generateButton.querySelector('.followup-generate-loading');
         let selectedFollowupType = 'grading';
+        let lastPersonaUsed = {};
         const followupLabels = {
             grading: '답안 채점/분석',
             feedback: '피드백 제공',
@@ -1378,6 +1410,7 @@
             }
             designError.hidden = true;
             draftResult.hidden = true;
+            saveButton.hidden = true;
             setFollowupLoading(true);
             try {
                 const response = await fetch('{% url "api_process_db_row" %}', {
@@ -1399,13 +1432,51 @@
                 const data = await response.json();
                 if (!response.ok || data.status !== 'success') throw new Error(data.message || '후속 활동 초안 생성에 실패했습니다.');
                 draftText.value = data.result;
+                lastPersonaUsed = {
+                    persona_name: data.persona_name || '',
+                    teacher_types: selectedTeacherTypes,
+                    tone_attributes: toneAttributes,
+                    requested_length: requestedLength
+                };
                 draftResult.hidden = false;
+                saveButton.hidden = false;
                 draftResult.scrollIntoView({behavior:'smooth',block:'start'});
             } catch (error) {
                 designError.textContent = error.message || '생성 중 오류가 발생했습니다.';
                 designError.hidden = false;
             } finally {
                 setFollowupLoading(false);
+            }
+        });
+        saveButton.addEventListener('click', async function () {
+            const feedbackContent = draftText.value.trim();
+            if (!feedbackContent) {
+                designError.textContent = '최종 저장할 결과 내용을 입력해주세요.';
+                designError.hidden = false;
+                return;
+            }
+            designError.hidden = true;
+            saveButton.disabled = true;
+            const originalLabel = saveButton.innerHTML;
+            saveButton.innerHTML = '<span class="followup-spinner"></span> 저장하고 있습니다';
+            try {
+                const response = await fetch('{% url "save_feedback_result" answer.id %}', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+                    body: JSON.stringify({
+                        task_type: selectedFollowupType,
+                        feedback_content: feedbackContent,
+                        persona_used: lastPersonaUsed
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') throw new Error(data.message || '최종 결과 저장에 실패했습니다.');
+                window.location.href = `${window.location.pathname}?saved=${data.feedback_id}#feedback-${data.feedback_id}`;
+            } catch (error) {
+                designError.textContent = error.message || '저장 중 오류가 발생했습니다.';
+                designError.hidden = false;
+                saveButton.disabled = false;
+                saveButton.innerHTML = originalLabel;
             }
         });
         closeButton.addEventListener('click', closeLayer);
@@ -1416,6 +1487,27 @@
                 if (target) target.scrollIntoView({ behavior:'smooth', block:'start' });
             });
         });
+        function showHistoryPanel(targetName) {
+            const requestedPanel = Array.from(document.querySelectorAll('[data-history-panel]'))
+                .find((panel) => panel.dataset.historyPanel === targetName);
+            const selectedPanel = requestedPanel || document.querySelector('[data-history-panel="original"]');
+            document.querySelectorAll('[data-history-panel]').forEach(function (panel) {
+                panel.hidden = panel !== selectedPanel;
+            });
+            document.querySelectorAll('[data-history-target]').forEach(function (tab) {
+                const isActive = tab.dataset.historyTarget === selectedPanel.dataset.historyPanel;
+                tab.classList.toggle('is-active', isActive);
+                tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+        }
+        document.querySelectorAll('[data-history-target]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                showHistoryPanel(button.dataset.historyTarget);
+                window.history.replaceState(null, '', `#${button.dataset.historyTarget}`);
+            });
+        });
+        const initialHistoryTarget = window.location.hash.replace(/^#/, '');
+        showHistoryPanel(initialHistoryTarget || 'original');
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 if (designLayer.classList.contains('is-open')) closeDesignLayer();
