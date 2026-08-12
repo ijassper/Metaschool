@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import Activity, Question, Answer, FeedbackResult
+from .models import (
+    AIUsageLog,
+    Activity,
+    ActivityAnalysisContext,
+    ActivityFile,
+    Answer,
+    FeedbackResult,
+    Question,
+)
 
 # 1. 문항(Question)을 평가(Activity) 수정 화면에서 바로 볼 수 있게 설정
 class QuestionInline(admin.StackedInline):
@@ -43,3 +51,29 @@ class FeedbackResultAdmin(admin.ModelAdmin):
     list_filter = ['task_type', 'activity', 'created_at']
     search_fields = ['student__name', 'activity__title', 'feedback_content']
     readonly_fields = ['created_at']
+
+
+@admin.register(ActivityFile)
+class ActivityFileAdmin(admin.ModelAdmin):
+    list_display = ['filename', 'activity', 'extraction_status', 'extracted_char_count', 'extracted_at']
+    list_filter = ['extraction_status', 'created_at']
+    search_fields = ['activity__title', 'file', 'content_hash']
+    readonly_fields = ['content_hash', 'extracted_text', 'extracted_char_count', 'extracted_at', 'extraction_error']
+
+
+@admin.register(ActivityAnalysisContext)
+class ActivityAnalysisContextAdmin(admin.ModelAdmin):
+    list_display = ['activity', 'summary_model', 'updated_at']
+    search_fields = ['activity__title', 'source_fingerprint']
+    readonly_fields = ['source_fingerprint', 'structured_context', 'summary_text', 'summary_usage', 'created_at', 'updated_at']
+
+
+@admin.register(AIUsageLog)
+class AIUsageLogAdmin(admin.ModelAdmin):
+    list_display = ['teacher', 'activity', 'operation', 'ai_model', 'total_tokens', 'estimated_cost_usd', 'created_at']
+    list_filter = ['operation', 'ai_model', 'created_at']
+    search_fields = ['teacher__name', 'activity__title']
+    readonly_fields = [
+        'teacher', 'activity', 'answer', 'operation', 'ai_model', 'prompt_tokens',
+        'cached_tokens', 'completion_tokens', 'total_tokens', 'estimated_cost_usd', 'created_at',
+    ]

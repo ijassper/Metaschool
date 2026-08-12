@@ -8,6 +8,11 @@ from django.urls import reverse
 from django.conf import settings
 
 from .views.exam_views import pdf_viewer
+from .attachment_context import (
+    estimate_openai_cost_usd,
+    extract_text_from_upload,
+    normalize_openai_usage,
+)
 
 
 @override_settings(
@@ -266,6 +271,7 @@ class PdfViewerTests(SimpleTestCase):
         )
         self.assertIn('window.location.href = card.dataset.href', dashboard_source)
 
+
     def test_answer_print_layout_is_compact_and_fragmentable(self):
         modal_source = get_template(
             'components/answer_view_modal.html'
@@ -352,7 +358,6 @@ class PdfViewerTests(SimpleTestCase):
                 missing_tz_load.append(str(template_path.relative_to(template_root)))
 
         self.assertEqual([], missing_tz_load)
-
     def test_activity_date_field_is_disabled_in_unified_form_and_save_logic(self):
         form_source = get_template(
             'activities/unified_form.html'
@@ -425,3 +430,29 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('{% if config.show_writing_rules %}', form_source)
         self.assertIn('apply_typing_settings_from_post', manage_source)
         self.assertIn("if config.get('typing_fields'):", manage_source)
+
+
+class AttachmentContextUnitTests(SimpleTestCase):
+    def test_utf8_text_attachment_is_extracted_without_api_call(self):
+        extracted = extract_text_from_upload('reference.txt', '평가 참고 자료'.encode('utf-8'))
+        self.assertEqual('평가 참고 자료', extracted)
+
+    def test_unsupported_attachment_is_rejected(self):
+        with self.assertRaises(ValueError):
+            extract_text_from_upload('archive.zip', b'not-supported')
+
+    def test_gpt_4o_mini_cost_uses_cached_token_discount(self):
+        cost = estimate_openai_cost_usd('gpt-4o-mini', {
+            'prompt_tokens': 10_000,
+            'cached_tokens': 4_000,
+            'completion_tokens': 1_000,
+        })
+        self.assertEqual('0.001800', str(cost))
+
+    def test_responses_api_usage_is_normalized_for_ocr_cost_log(self):
+        usage = normalize_openai_usage({
+            'usage': {'input_tokens': 800, 'output_tokens': 200, 'total_tokens': 1000}
+        })
+        self.assertEqual(800, usage['prompt_tokens'])
+        self.assertEqual(200, usage['completion_tokens'])
+        self.assertEqual(1000, usage['total_tokens'])

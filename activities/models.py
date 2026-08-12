@@ -338,10 +338,27 @@ class FeedbackResult(models.Model):
 
 # 다중 파일을 저장하기 위한 모델 (ActivityFile)
 class ActivityFile(models.Model):
+    class ExtractionStatus(models.TextChoices):
+        PENDING = 'PENDING', '추출 대기'
+        READY = 'READY', '추출 완료'
+        UNSUPPORTED = 'UNSUPPORTED', '미지원 형식'
+        ERROR = 'ERROR', '추출 실패'
+
     # 어떤 활동에 속한 파일인지 연결 (ForeignKey)
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name='files')
     file = models.FileField(upload_to='activity_files/%Y/%m/%d/', verbose_name="첨부파일")
     created_at = models.DateTimeField(auto_now_add=True)
+    content_hash = models.CharField(max_length=64, blank=True, db_index=True, verbose_name='파일 해시')
+    extraction_status = models.CharField(
+        max_length=16,
+        choices=ExtractionStatus.choices,
+        default=ExtractionStatus.PENDING,
+        verbose_name='텍스트 추출 상태',
+    )
+    extracted_text = models.TextField(blank=True, verbose_name='추출 텍스트')
+    extracted_char_count = models.PositiveIntegerField(default=0, verbose_name='추출 글자 수')
+    extracted_at = models.DateTimeField(null=True, blank=True, verbose_name='추출 일시')
+    extraction_error = models.CharField(max_length=500, blank=True, verbose_name='추출 오류')
 
     # 파일명만 추출하는 프로퍼티 (기존 Activity에 있던 로직을 여기로 이동)
     @property
@@ -353,3 +370,65 @@ class ActivityFile(models.Model):
     class Meta:
         verbose_name = "평가/활동 첨부파일"
         verbose_name_plural = "평가/활동 첨부파일 목록"
+
+
+class ActivityAnalysisContext(models.Model):
+    """활동 공통 자료를 학생별 분석에서 재사용하기 위한 캐시입니다."""
+
+    activity = models.OneToOneField(
+        Activity,
+        on_delete=models.CASCADE,
+        related_name='analysis_context_cache',
+        verbose_name='활동',
+    )
+    source_fingerprint = models.CharField(max_length=64, db_index=True, verbose_name='원본 지문')
+    structured_context = models.TextField(blank=True, verbose_name='구조화된 활동 컨텍스트')
+    summary_text = models.TextField(blank=True, verbose_name='AI 분석용 요약본')
+    summary_model = models.CharField(max_length=50, blank=True, verbose_name='요약 모델')
+    summary_usage = models.JSONField(default=dict, blank=True, verbose_name='요약 토큰 사용량')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성 일시')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='갱신 일시')
+
+    class Meta:
+        verbose_name = '활동 AI 컨텍스트 캐시'
+        verbose_name_plural = '활동 AI 컨텍스트 캐시 목록'
+
+    def __str__(self):
+        return f'{self.activity.title} 분석 컨텍스트'
+
+
+class AIUsageLog(models.Model):
+    class Operation(models.TextChoices):
+        ATTACHMENT_OCR = 'ATTACHMENT_OCR', '첨부자료 OCR'
+        CONTEXT_SUMMARY = 'CONTEXT_SUMMARY', '활동 자료 요약'
+        STUDENT_ANALYSIS = 'STUDENT_ANALYSIS', '학생 답안 분석'
+
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='ai_usage_logs',
+        verbose_name='교사',
+    )
+    activity = models.ForeignKey(
+        Activity, on_delete=models.CASCADE, related_name='ai_usage_logs', verbose_name='활동'
+    )
+    answer = models.ForeignKey(
+        'Answer', on_delete=models.SET_NULL, null=True, blank=True, related_name='ai_usage_logs', verbose_name='답안'
+    )
+    operation = models.CharField(max_length=24, choices=Operation.choices, verbose_name='작업')
+    ai_model = models.CharField(max_length=50, verbose_name='AI 모델')
+    prompt_tokens = models.PositiveIntegerField(default=0, verbose_name='입력 토큰')
+    cached_tokens = models.PositiveIntegerField(default=0, verbose_name='캐시 입력 토큰')
+    completion_tokens = models.PositiveIntegerField(default=0, verbose_name='출력 토큰')
+    total_tokens = models.PositiveIntegerField(default=0, verbose_name='전체 토큰')
+    estimated_cost_usd = models.DecimalField(max_digits=12, decimal_places=6, default=0, verbose_name='예상 비용(USD)')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='사용 일시')
+
+    class Meta:
+        verbose_name = 'AI 토큰 사용 기록'
+        verbose_name_plural = 'AI 토큰 사용 기록 목록'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['teacher', 'created_at'], name='ai_usage_teacher_idx')]
+
+    def __str__(self):
+        return f'{self.teacher} · {self.operation} · {self.total_tokens}'
