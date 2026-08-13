@@ -308,15 +308,11 @@
             <div class="feedback-session-field feedback-session-version-field">
                 <label for="feedbackSessionSelect">버전 선택</label>
                 <select id="feedbackSessionSelect">
-                    <option value="">새 피드백</option>
+                    <option value="">--- 새 피드백 생성 ---</option>
                     {% for session in feedback_sessions %}
                     <option value="{{ session.id }}">v{{ session.version }} · {{ session.feedback_title|default:"제목 없는 피드백" }} · {{ session.get_status_display }}</option>
                     {% endfor %}
                 </select>
-            </div>
-            <div class="feedback-session-actions">
-                <button id="newFeedbackSession" type="button" class="feedback-session-button is-secondary"><i class="bi bi-plus-lg"></i> 신규 생성</button>
-                <button id="saveFeedbackSession" type="button" class="feedback-session-button" disabled><i class="bi bi-cloud-check"></i> 임시 저장</button>
             </div>
         </section>
         <section class="followup-design-section">
@@ -387,13 +383,18 @@
     </div>
     <footer class="source-layer-footer followup-design-footer">
         <p id="followupDesignError" class="followup-design-error" hidden></p>
-        <button id="generateFollowupDraft" type="button" class="source-create-button">
-            <span class="followup-generate-idle"><i class="bi bi-stars"></i> AI 초안 만들기</span>
-            <span class="followup-generate-loading" hidden><span class="followup-spinner"></span> 생성하고 있습니다</span>
-        </button>
-        <button id="saveFollowupDraft" type="button" class="source-create-button followup-save-button" hidden>
-            <i class="bi bi-check2-circle"></i> 최종 저장
-        </button>
+        <div class="followup-footer-left">
+            <button id="saveFeedbackSession" type="button" class="feedback-session-button is-secondary" disabled><i class="bi bi-cloud-check"></i> 임시 저장</button>
+        </div>
+        <div class="followup-footer-right">
+            <button id="generateFollowupDraft" type="button" class="source-create-button">
+                <span class="followup-generate-idle"><i class="bi bi-stars"></i> AI 초안 만들기</span>
+                <span class="followup-generate-loading" hidden><span class="followup-spinner"></span> 생성하고 있습니다</span>
+            </button>
+            <button id="saveFollowupDraft" type="button" class="source-create-button followup-save-button" hidden>
+                <i class="bi bi-check2-circle"></i> 최종 저장
+            </button>
+        </div>
     </footer>
 </aside>
 
@@ -1239,15 +1240,14 @@
     }
     .followup-design-layer.is-open { transform:translateX(0); visibility:visible; }
     .followup-design-body { background:linear-gradient(145deg,#fff,#fff9fc); }
-    .feedback-session-toolbar { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:.7rem; padding:.85rem; border:1px solid #eadfeb; border-radius:14px; background:#fff; box-shadow:0 8px 24px rgba(84,52,91,.05); }
-    .feedback-session-field label { display:block; margin-bottom:.35rem; color:#8e8192; font-size:.68rem; font-weight:750; }
+    .feedback-session-toolbar { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:.55rem; padding:.5rem .6rem; border:1px solid #eadfeb; border-radius:12px; background:#fff; box-shadow:0 5px 16px rgba(84,52,91,.045); }
+    .feedback-session-field label { display:block; margin-bottom:.18rem; color:#8e8192; font-size:.62rem; font-weight:750; }
     .feedback-session-field input,
-    .feedback-session-field select { width:100%; min-height:40px; padding:.55rem .7rem; border:1px solid #e5d9e7; border-radius:10px; background:#fff; color:#4b414e; font-size:.76rem; outline:none; }
+    .feedback-session-field select { width:100%; min-height:32px; padding:.35rem .55rem; border:1px solid #e5d9e7; border-radius:8px; background:#fff; color:#4b414e; font-size:.72rem; outline:none; }
     .feedback-session-field input:focus,
     .feedback-session-field select:focus { border-color:#a86fba; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
-    .feedback-session-actions { grid-column:1/-1; display:flex; justify-content:flex-end; gap:.45rem; }
     .feedback-session-button { min-height:34px; padding:.45rem .75rem; border:1px solid #a85cbc; border-radius:9px; background:#a85cbc; color:#fff; font-size:.7rem; font-weight:750; }
-    .feedback-session-button.is-secondary { border-color:#ddd0e1; background:#fff; color:#7d6683; }
+    .feedback-session-button.is-secondary { border-color:#cfc6d2; background:#fff; color:#6f6573; }
     .feedback-session-button:disabled { cursor:not-allowed; opacity:.45; }
     .feedback-session-modal { position:fixed; inset:0; z-index:1300; display:grid; place-items:center; padding:1rem; background:rgba(45,34,48,.28); }
     .feedback-session-modal[hidden] { display:none; }
@@ -1258,6 +1258,7 @@
     .feedback-session-modal-card button { padding:.55rem 1.2rem; border:0; border-radius:9px; background:#a64fba; color:#fff; font-size:.74rem; font-weight:750; }
     .followup-design-section>label { color:#8e8192; font-size:.72rem; font-weight:700; }
     .followup-design-section { margin-top:1.4rem; }
+    .feedback-session-toolbar + .followup-design-section { margin-top:.85rem; }
     .followup-design-section>label { display:block; margin-bottom:.5rem; }
     .followup-design-section>label small { margin-left:.35rem; color:#aa9caf; font-weight:500; }
     .followup-design-control { width:100%; min-height:43px; padding:0 .8rem; border:1px solid #e3d8e6; border-radius:10px; background:#fff; color:#4f4652; font-size:.8rem; outline:none; }
@@ -1284,11 +1285,14 @@
     .tone-range::-webkit-slider-thumb { width:16px; height:16px; margin-top:-5.5px; border:3px solid #fff; border-radius:50%; background:#8e44ad; box-shadow:0 1px 5px rgba(76,38,88,.32); -webkit-appearance:none; }
     .tone-range::-moz-range-track { height:5px; border-radius:999px; background:linear-gradient(90deg,#f2b4d0,#b785c6); }
     .tone-range::-moz-range-thumb { width:12px; height:12px; border:3px solid #fff; border-radius:50%; background:#8e44ad; box-shadow:0 1px 5px rgba(76,38,88,.32); }
-    .followup-draft-result { margin-top:1.6rem; padding-top:1.4rem; border-top:1px solid #eadfeb; }
+    .followup-draft-result { margin-top:1rem; padding-top:1rem; border-top:1px solid #eadfeb; }
     .followup-draft-result h4 { margin:0 0 .7rem; color:#7d3c98; font-size:.86rem; font-weight:780; }
-    .followup-draft-result textarea { width:100%; padding:1rem; border:1px solid #eadfeb; border-radius:12px; background:#fff; color:#4e4651; font-size:.82rem; line-height:1.75; resize:vertical; outline:none; }
+    .followup-draft-result textarea { width:100%; min-height:360px; padding:1rem; border:1px solid #eadfeb; border-radius:12px; background:#fff; color:#4e4651; font-size:.82rem; line-height:1.75; resize:vertical; outline:none; }
     .followup-draft-result textarea:focus { border-color:#a86fba; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
-    .followup-design-footer { justify-content:flex-end; }
+    .followup-design-footer { position:sticky; bottom:0; z-index:4; justify-content:space-between; gap:.75rem; background:rgba(255,255,255,.97); box-shadow:0 -8px 24px rgba(71,45,77,.06); backdrop-filter:blur(8px); }
+    .followup-footer-left,
+    .followup-footer-right { display:flex; align-items:center; gap:.55rem; }
+    .followup-footer-right { margin-left:auto; }
     .followup-save-button { background:linear-gradient(135deg,#269b68,#168454); }
     .followup-design-error { margin-right:auto!important; color:#b4233c!important; }
     .source-create-button:disabled { opacity:.72; cursor:wait; }
@@ -1334,6 +1338,11 @@
         .source-layer-header,
         .source-layer-body,
         .source-layer-footer { padding-right:1rem; padding-left:1rem; }
+        .feedback-session-toolbar { grid-template-columns:1fr; }
+        .followup-design-footer { align-items:center; flex-direction:row; }
+        .followup-footer-left { flex:0 0 auto; }
+        .followup-footer-right { flex:1 1 auto; justify-content:flex-end; }
+        .followup-footer-right .source-create-button { width:auto; }
         .followup-type-grid { grid-template-columns:1fr; }
         .followup-source-summary { align-items:flex-start; flex-direction:column; }
     }
@@ -1356,7 +1365,6 @@
         const designError = document.getElementById('followupDesignError');
         const sessionTitle = document.getElementById('feedbackSessionTitle');
         const sessionSelect = document.getElementById('feedbackSessionSelect');
-        const newSessionButton = document.getElementById('newFeedbackSession');
         const saveSessionButton = document.getElementById('saveFeedbackSession');
         const sessionSavedModal = document.getElementById('feedbackSessionSavedModal');
         const closeSessionSavedModal = document.getElementById('closeFeedbackSessionSavedModal');
@@ -1502,6 +1510,19 @@
             }
         }
 
+        function resetFeedbackSession() {
+            currentFeedbackSessionId = null;
+            sessionSelect.value = '';
+            sessionTitle.value = '';
+            draftText.value = '';
+            draftResult.hidden = true;
+            saveButton.hidden = true;
+            saveSessionButton.disabled = true;
+            lastPersonaUsed = {};
+            designError.hidden = true;
+            sessionTitle.focus();
+        }
+
         openButton.addEventListener('click', openLayer);
         document.querySelectorAll('input[name="followup_type"]').forEach(function (input) {
             input.addEventListener('change', function () {
@@ -1531,18 +1552,7 @@
         });
         sessionSelect.addEventListener('change', function () {
             if (sessionSelect.value) loadSessionData(sessionSelect.value);
-        });
-        newSessionButton.addEventListener('click', function () {
-            currentFeedbackSessionId = null;
-            sessionSelect.value = '';
-            sessionTitle.value = '';
-            draftText.value = '';
-            draftResult.hidden = true;
-            saveButton.hidden = true;
-            saveSessionButton.disabled = true;
-            lastPersonaUsed = {};
-            designError.hidden = true;
-            sessionTitle.focus();
+            else resetFeedbackSession();
         });
         saveSessionButton.addEventListener('click', async function () {
             if (!currentFeedbackSessionId) {
