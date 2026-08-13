@@ -70,6 +70,8 @@ urlpatterns = [
     path('result/<int:activity_id>/', activity_result, name='activity_result'),
     path('answer/detail/<int:answer_id>/', answer_detail, name='answer_detail'),
     path('answer/detail/<int:answer_id>/feedback/save/', save_feedback_result, name='save_feedback_result'),
+    path('answer/detail/<int:answer_id>/feedback-sessions/<int:session_id>/', feedback_session_detail, name='feedback_session_detail'),
+    path('answer/detail/<int:answer_id>/feedback-sessions/<int:session_id>/save/', save_feedback_session, name='save_feedback_session'),
     path('answer/delete/<int:answer_id>/', answer_delete, name='answer_delete'),
     path('answer/note/<int:activity_id>/<int:student_id>/', save_note, name='save_note'),
 

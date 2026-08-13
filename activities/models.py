@@ -336,6 +336,48 @@ class FeedbackResult(models.Model):
     def __str__(self):
         return f'{self.student.name} - {self.type_name}'
 
+
+class FeedbackSession(models.Model):
+    """AI 초안과 교사의 수정 내용을 답안별 버전으로 보관하는 임시 작업 세션입니다."""
+
+    class Status(models.TextChoices):
+        DRAFT = 'DRAFT', '임시 저장'
+        FINAL = 'FINAL', '최종 저장'
+
+    student = models.ForeignKey(
+        'accounts.Student', on_delete=models.CASCADE, related_name='feedback_sessions', verbose_name='학생'
+    )
+    activity = models.ForeignKey(
+        Activity, on_delete=models.CASCADE, related_name='feedback_sessions', verbose_name='활동'
+    )
+    answer = models.ForeignKey(
+        'Answer', on_delete=models.CASCADE, related_name='feedback_sessions', verbose_name='원본 답안'
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='feedback_sessions', verbose_name='작성 교사'
+    )
+    feedback_title = models.CharField(max_length=150, blank=True, verbose_name='피드백 제목')
+    content = models.TextField(blank=True, verbose_name='피드백 본문')
+    options_snapshot = models.JSONField(default=dict, blank=True, verbose_name='생성 옵션 스냅샷')
+    version = models.PositiveIntegerField(verbose_name='버전')
+    status = models.CharField(
+        max_length=10, choices=Status.choices, default=Status.DRAFT, verbose_name='저장 상태'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성 일시')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='수정 일시')
+
+    class Meta:
+        verbose_name = 'AI 피드백 작업 세션'
+        verbose_name_plural = 'AI 피드백 작업 세션 목록'
+        ordering = ['-version', '-id']
+        constraints = [
+            models.UniqueConstraint(fields=['answer', 'version'], name='unique_feedback_session_version')
+        ]
+        indexes = [models.Index(fields=['answer', '-version'], name='feedback_session_ver_idx')]
+
+    def __str__(self):
+        return f'{self.student.name} - v{self.version} {self.feedback_title}'
+
 # 다중 파일을 저장하기 위한 모델 (ActivityFile)
 class ActivityFile(models.Model):
     class ExtractionStatus(models.TextChoices):

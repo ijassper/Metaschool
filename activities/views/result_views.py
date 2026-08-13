@@ -10,12 +10,12 @@ from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
 from accounts.models import Persona, Student
-from ..models import Activity, Answer, FeedbackResult
+from ..models import Activity, Answer, FeedbackResult, FeedbackSession
 from .main_views import get_accessible_students
 
 # [1] 제출 현황(답안) 목록 페이지
@@ -152,10 +152,14 @@ def answer_detail(request, answer_id):
         id=answer_id,
         question__activity__teacher=request.user,
     )
+    feedback_sessions = answer.feedback_sessions.filter(
+        created_by=request.user
+    ).order_by('-version', '-id')
     return render(request, 'activities/answer_detail.html', {
         'answer': answer,
         'activity': answer.question.activity,
         'feedback_logs': answer.feedback_results.all(),
+        'feedback_sessions': feedback_sessions,
         'personas': Persona.objects.filter(
             Q(creator__isnull=True) | Q(creator=request.user)
         ).select_related('creator'),
@@ -179,6 +183,11 @@ def save_feedback_result(request, answer_id):
     feedback_content = str(payload.get('feedback_content') or '').strip()
     task_type = str(payload.get('task_type') or '').strip()
     persona_used = payload.get('persona_used') or {}
+    feedback_session_id = payload.get('feedback_session_id')
+    feedback_title = str(payload.get('feedback_title') or '').strip()[:150]
+    options_snapshot = payload.get('options_snapshot')
+    if not isinstance(options_snapshot, dict):
+        options_snapshot = persona_used
     valid_task_types = {value for value, _ in FeedbackResult.TaskType.choices}
     if not feedback_content:
         return JsonResponse({'status': 'error', 'message': '저장할 결과 내용을 입력해주세요.'}, status=400)
@@ -195,11 +204,88 @@ def save_feedback_result(request, answer_id):
         feedback_content=feedback_content,
         persona_used=persona_used,
     )
+    if feedback_session_id:
+        session_updates = {
+            'content': feedback_content,
+            'options_snapshot': options_snapshot,
+            'status': FeedbackSession.Status.FINAL,
+            'updated_at': timezone.now(),
+        }
+        if feedback_title:
+            session_updates['feedback_title'] = feedback_title
+        FeedbackSession.objects.filter(
+            id=feedback_session_id,
+            answer=answer,
+            created_by=request.user,
+        ).update(**session_updates)
     return JsonResponse({
         'status': 'success',
         'feedback_id': feedback.id,
         'type_name': feedback.type_name,
     })
+
+
+def _serialize_feedback_session(session):
+    return {
+        'id': session.id,
+        'feedback_title': session.feedback_title,
+        'content': session.content,
+        'options_snapshot': session.options_snapshot,
+        'version': session.version,
+        'status': session.status,
+        'status_label': session.get_status_display(),
+        'created_at': timezone.localtime(session.created_at).strftime('%Y.%m.%d %H:%M'),
+        'updated_at': timezone.localtime(session.updated_at).strftime('%Y.%m.%d %H:%M'),
+    }
+
+
+@require_GET
+@login_required
+@teacher_required
+def feedback_session_detail(request, answer_id, session_id):
+    session = get_object_or_404(
+        FeedbackSession.objects.select_related('answer__question__activity'),
+        id=session_id,
+        answer_id=answer_id,
+        answer__question__activity__teacher=request.user,
+        created_by=request.user,
+    )
+    return JsonResponse({'status': 'success', 'session': _serialize_feedback_session(session)})
+
+
+@require_POST
+@login_required
+@teacher_required
+def save_feedback_session(request, answer_id, session_id):
+    session = get_object_or_404(
+        FeedbackSession.objects.select_related('answer__question__activity'),
+        id=session_id,
+        answer_id=answer_id,
+        answer__question__activity__teacher=request.user,
+        created_by=request.user,
+    )
+    try:
+        payload = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': '저장 요청 형식이 올바르지 않습니다.'}, status=400)
+
+    title = str(payload.get('feedback_title') or '').strip()[:150]
+    content = str(payload.get('content') or '')
+    options_snapshot = payload.get('options_snapshot')
+    if options_snapshot is not None and not isinstance(options_snapshot, dict):
+        return JsonResponse({'status': 'error', 'message': '생성 옵션 형식이 올바르지 않습니다.'}, status=400)
+    if not title:
+        title = f'피드백 v{session.version}'
+
+    session.feedback_title = title
+    session.content = content
+    session.status = FeedbackSession.Status.DRAFT
+    update_fields = ['feedback_title', 'content', 'status', 'updated_at']
+    if options_snapshot is not None:
+        session.options_snapshot = options_snapshot
+        update_fields.append('options_snapshot')
+    session.save(update_fields=update_fields)
+    return JsonResponse({'status': 'success', 'session': _serialize_feedback_session(session)})
 
 # [3] 답안 삭제(폐기) 처리
 @login_required

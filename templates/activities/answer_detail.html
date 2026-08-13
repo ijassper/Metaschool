@@ -300,6 +300,25 @@
         <button type="button" id="closeFollowupDesign" class="source-layer-close" aria-label="2차 패널 닫기"><i class="bi bi-x-lg"></i></button>
     </header>
     <div class="source-layer-body followup-design-body">
+        <section class="feedback-session-toolbar" aria-label="피드백 작업 버전 관리">
+            <div class="feedback-session-field feedback-session-title-field">
+                <label for="feedbackSessionTitle">피드백 제목</label>
+                <input id="feedbackSessionTitle" type="text" maxlength="150" placeholder="예: 1학기 성장 피드백">
+            </div>
+            <div class="feedback-session-field feedback-session-version-field">
+                <label for="feedbackSessionSelect">버전 선택</label>
+                <select id="feedbackSessionSelect">
+                    <option value="">새 피드백</option>
+                    {% for session in feedback_sessions %}
+                    <option value="{{ session.id }}">v{{ session.version }} · {{ session.feedback_title|default:"제목 없는 피드백" }} · {{ session.get_status_display }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="feedback-session-actions">
+                <button id="newFeedbackSession" type="button" class="feedback-session-button is-secondary"><i class="bi bi-plus-lg"></i> 신규 생성</button>
+                <button id="saveFeedbackSession" type="button" class="feedback-session-button" disabled><i class="bi bi-cloud-check"></i> 임시 저장</button>
+            </div>
+        </section>
         <section class="followup-design-section">
             <label>피드백 구성 메뉴 <small>복수 선택 가능</small></label>
             <div class="feedback-component-toggles">
@@ -377,6 +396,15 @@
         </button>
     </footer>
 </aside>
+
+<div id="feedbackSessionSavedModal" class="feedback-session-modal" hidden role="dialog" aria-modal="true" aria-labelledby="feedbackSessionSavedTitle">
+    <div class="feedback-session-modal-card">
+        <span class="feedback-session-modal-icon"><i class="bi bi-check2"></i></span>
+        <h4 id="feedbackSessionSavedTitle">임시 저장 완료</h4>
+        <p>현재 피드백 내용과 생성 옵션을 안전하게 저장했습니다.</p>
+        <button id="closeFeedbackSessionSavedModal" type="button">확인</button>
+    </div>
+</div>
 
 <style>
     .student-portfolio {
@@ -1211,6 +1239,23 @@
     }
     .followup-design-layer.is-open { transform:translateX(0); visibility:visible; }
     .followup-design-body { background:linear-gradient(145deg,#fff,#fff9fc); }
+    .feedback-session-toolbar { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:.7rem; padding:.85rem; border:1px solid #eadfeb; border-radius:14px; background:#fff; box-shadow:0 8px 24px rgba(84,52,91,.05); }
+    .feedback-session-field label { display:block; margin-bottom:.35rem; color:#8e8192; font-size:.68rem; font-weight:750; }
+    .feedback-session-field input,
+    .feedback-session-field select { width:100%; min-height:40px; padding:.55rem .7rem; border:1px solid #e5d9e7; border-radius:10px; background:#fff; color:#4b414e; font-size:.76rem; outline:none; }
+    .feedback-session-field input:focus,
+    .feedback-session-field select:focus { border-color:#a86fba; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
+    .feedback-session-actions { grid-column:1/-1; display:flex; justify-content:flex-end; gap:.45rem; }
+    .feedback-session-button { min-height:34px; padding:.45rem .75rem; border:1px solid #a85cbc; border-radius:9px; background:#a85cbc; color:#fff; font-size:.7rem; font-weight:750; }
+    .feedback-session-button.is-secondary { border-color:#ddd0e1; background:#fff; color:#7d6683; }
+    .feedback-session-button:disabled { cursor:not-allowed; opacity:.45; }
+    .feedback-session-modal { position:fixed; inset:0; z-index:1300; display:grid; place-items:center; padding:1rem; background:rgba(45,34,48,.28); }
+    .feedback-session-modal[hidden] { display:none; }
+    .feedback-session-modal-card { width:min(340px,100%); padding:1.5rem; border:1px solid #eadfeb; border-radius:18px; background:#fff; box-shadow:0 24px 70px rgba(53,35,58,.24); text-align:center; }
+    .feedback-session-modal-icon { display:grid; place-items:center; width:42px; height:42px; margin:0 auto .7rem; border-radius:50%; background:#f4e7f7; color:#9649aa; font-size:1.1rem; }
+    .feedback-session-modal-card h4 { margin:0; color:#403544; font-size:1rem; }
+    .feedback-session-modal-card p { margin:.45rem 0 1rem; color:#857887; font-size:.76rem; line-height:1.55; }
+    .feedback-session-modal-card button { padding:.55rem 1.2rem; border:0; border-radius:9px; background:#a64fba; color:#fff; font-size:.74rem; font-weight:750; }
     .followup-design-section>label { color:#8e8192; font-size:.72rem; font-weight:700; }
     .followup-design-section { margin-top:1.4rem; }
     .followup-design-section>label { display:block; margin-bottom:.5rem; }
@@ -1309,10 +1354,19 @@
         const draftResult = document.getElementById('followupDraftResult');
         const draftText = document.getElementById('followupDraftText');
         const designError = document.getElementById('followupDesignError');
+        const sessionTitle = document.getElementById('feedbackSessionTitle');
+        const sessionSelect = document.getElementById('feedbackSessionSelect');
+        const newSessionButton = document.getElementById('newFeedbackSession');
+        const saveSessionButton = document.getElementById('saveFeedbackSession');
+        const sessionSavedModal = document.getElementById('feedbackSessionSavedModal');
+        const closeSessionSavedModal = document.getElementById('closeFeedbackSessionSavedModal');
         const generateIdle = generateButton.querySelector('.followup-generate-idle');
         const generateLoading = generateButton.querySelector('.followup-generate-loading');
         let selectedFollowupType = 'grading';
         let lastPersonaUsed = {};
+        let currentFeedbackSessionId = null;
+        const sessionDetailUrlTemplate = '{% url "feedback_session_detail" answer.id 999999 %}';
+        const sessionSaveUrlTemplate = '{% url "save_feedback_session" answer.id 999999 %}';
         const followupLabels = {
             grading: '답안 채점/분석',
             feedback: '피드백 제공',
@@ -1360,6 +1414,94 @@
             generateLoading.hidden = !isLoading;
         }
 
+        function collectSessionOptions() {
+            const toneAttributes = {};
+            document.querySelectorAll('.tone-range').forEach(function (slider) {
+                toneAttributes[slider.dataset.toneKey] = Number(slider.value);
+            });
+            return {
+                task_type: selectedFollowupType,
+                teacher_types: Array.from(document.querySelectorAll('.teacher-type-toggle.is-selected')).map((button) => button.dataset.teacherType),
+                tone_attributes: toneAttributes,
+                requested_length: document.getElementById('followupLength').value,
+                feedback_components: Array.from(document.querySelectorAll('.feedback-toggle.is-selected')).map((button) => button.dataset.component),
+                persona_name: lastPersonaUsed.persona_name || ''
+            };
+        }
+
+        function setToggleSelection(selector, dataKey, selectedValues) {
+            const values = Array.isArray(selectedValues) ? selectedValues : [];
+            document.querySelectorAll(selector).forEach(function (button) {
+                const selected = values.includes(button.dataset[dataKey]);
+                button.classList.toggle('is-selected', selected);
+                button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+            });
+        }
+
+        function applySessionOptions(options) {
+            if (!options || typeof options !== 'object') return;
+            if (options.task_type && followupLabels[options.task_type]) {
+                selectedFollowupType = options.task_type;
+                const input = document.querySelector(`input[name="followup_type"][value="${options.task_type}"]`);
+                if (input) input.checked = true;
+                designTitle.textContent = `${followupLabels[selectedFollowupType]} AI 설계`;
+            }
+            setToggleSelection('.teacher-type-toggle', 'teacherType', options.teacher_types);
+            setToggleSelection('.feedback-toggle', 'component', options.feedback_components);
+            Object.entries(options.tone_attributes || {}).forEach(function ([key, value]) {
+                const slider = document.querySelector(`.tone-range[data-tone-key="${key}"]`);
+                if (!slider) return;
+                slider.value = value;
+                const output = slider.closest('.tone-slider-row').querySelector('output');
+                if (output) output.value = value;
+            });
+            if (options.requested_length) document.getElementById('followupLength').value = options.requested_length;
+            lastPersonaUsed = {
+                persona_name: options.persona_name || '',
+                teacher_types: options.teacher_types || [],
+                tone_attributes: options.tone_attributes || {},
+                requested_length: options.requested_length || ''
+            };
+        }
+
+        function upsertSessionOption(session) {
+            let option = sessionSelect.querySelector(`option[value="${session.id}"]`);
+            if (!option) {
+                option = document.createElement('option');
+                option.value = session.id;
+                sessionSelect.appendChild(option);
+            }
+            const statusLabel = session.status_label || (session.status === 'FINAL' ? '최종 저장' : '임시 저장');
+            option.textContent = `v${session.version} · ${session.feedback_title || '제목 없는 피드백'} · ${statusLabel}`;
+            sessionSelect.value = String(session.id);
+        }
+
+        async function loadSessionData(sessionId) {
+            if (!sessionId) return;
+            designError.hidden = true;
+            sessionSelect.disabled = true;
+            try {
+                const response = await fetch(sessionDetailUrlTemplate.replace('999999', sessionId), {
+                    headers: {'X-Requested-With':'XMLHttpRequest'}
+                });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') throw new Error(data.message || '버전을 불러오지 못했습니다.');
+                const session = data.session;
+                currentFeedbackSessionId = session.id;
+                sessionTitle.value = session.feedback_title || '';
+                draftText.value = session.content || '';
+                applySessionOptions(session.options_snapshot);
+                draftResult.hidden = false;
+                saveButton.hidden = !draftText.value.trim();
+                saveSessionButton.disabled = false;
+            } catch (error) {
+                designError.textContent = error.message || '버전 로드 중 오류가 발생했습니다.';
+                designError.hidden = false;
+            } finally {
+                sessionSelect.disabled = false;
+            }
+        }
+
         openButton.addEventListener('click', openLayer);
         document.querySelectorAll('input[name="followup_type"]').forEach(function (input) {
             input.addEventListener('change', function () {
@@ -1386,6 +1528,56 @@
                 const output = slider.closest('.tone-slider-row').querySelector('output');
                 if (output) output.value = slider.value;
             });
+        });
+        sessionSelect.addEventListener('change', function () {
+            if (sessionSelect.value) loadSessionData(sessionSelect.value);
+        });
+        newSessionButton.addEventListener('click', function () {
+            currentFeedbackSessionId = null;
+            sessionSelect.value = '';
+            sessionTitle.value = '';
+            draftText.value = '';
+            draftResult.hidden = true;
+            saveButton.hidden = true;
+            saveSessionButton.disabled = true;
+            lastPersonaUsed = {};
+            designError.hidden = true;
+            sessionTitle.focus();
+        });
+        saveSessionButton.addEventListener('click', async function () {
+            if (!currentFeedbackSessionId) {
+                designError.textContent = 'AI 초안을 먼저 만들거나 저장된 버전을 선택해주세요.';
+                designError.hidden = false;
+                return;
+            }
+            saveSessionButton.disabled = true;
+            designError.hidden = true;
+            try {
+                const response = await fetch(sessionSaveUrlTemplate.replace('999999', currentFeedbackSessionId), {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+                    body: JSON.stringify({
+                        feedback_title: sessionTitle.value.trim(),
+                        content: draftText.value,
+                        options_snapshot: collectSessionOptions()
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') throw new Error(data.message || '임시 저장에 실패했습니다.');
+                sessionTitle.value = data.session.feedback_title;
+                upsertSessionOption(data.session);
+                sessionSavedModal.hidden = false;
+                closeSessionSavedModal.focus();
+            } catch (error) {
+                designError.textContent = error.message || '임시 저장 중 오류가 발생했습니다.';
+                designError.hidden = false;
+            } finally {
+                saveSessionButton.disabled = false;
+            }
+        });
+        closeSessionSavedModal.addEventListener('click', function () { sessionSavedModal.hidden = true; });
+        sessionSavedModal.addEventListener('click', function (event) {
+            if (event.target === sessionSavedModal) sessionSavedModal.hidden = true;
         });
         generateButton.addEventListener('click', async function () {
             const requestedLength = document.getElementById('followupLength').value;
@@ -1423,6 +1615,8 @@
                         tone_attributes: toneAttributes,
                         requested_length: requestedLength,
                         feedback_components: feedbackComponents,
+                        persist_feedback_session: true,
+                        feedback_title: sessionTitle.value.trim(),
                         prompt_system: `학생의 기존 답안을 출발점으로 '${activityLabel}' 후속 활동 초안을 작성해 주세요. 활동 제목, 학습 목표, 학생 안내문, 구체적인 문항 또는 수행 절차를 포함하고 학생이 기존 답안을 발전시킬 수 있게 구성하세요.`,
                         temperature: 0.7,
                         work_name: `후속 활동 초안 - ${activityLabel}`,
@@ -1438,6 +1632,12 @@
                     tone_attributes: toneAttributes,
                     requested_length: requestedLength
                 };
+                if (data.feedback_session) {
+                    currentFeedbackSessionId = data.feedback_session.id;
+                    sessionTitle.value = data.feedback_session.feedback_title;
+                    upsertSessionOption(data.feedback_session);
+                    saveSessionButton.disabled = false;
+                }
                 draftResult.hidden = false;
                 saveButton.hidden = false;
                 draftResult.scrollIntoView({behavior:'smooth',block:'start'});
@@ -1466,7 +1666,10 @@
                     body: JSON.stringify({
                         task_type: selectedFollowupType,
                         feedback_content: feedbackContent,
-                        persona_used: lastPersonaUsed
+                        persona_used: lastPersonaUsed,
+                        options_snapshot: collectSessionOptions(),
+                        feedback_session_id: currentFeedbackSessionId,
+                        feedback_title: sessionTitle.value.trim()
                     })
                 });
                 const data = await response.json();

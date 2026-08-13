@@ -6,7 +6,8 @@ from decimal import Decimal, InvalidOperation
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.db.models import F, Q, Sum, Value
+from django.db import transaction
+from django.db.models import F, Max, Q, Sum, Value
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
@@ -18,7 +19,7 @@ from ..attachment_context import (
     get_or_refresh_activity_context,
     record_openai_usage,
 )
-from ..models import AIUsageLog, Activity, Question, Answer, AnalysisResult
+from ..models import AIUsageLog, Activity, Question, Answer, AnalysisResult, FeedbackSession
 from .main_views import get_accessible_students, get_student_tree
 
 FORCED_AI_ANALYSIS_MODEL = 'gpt-4o-mini'
@@ -605,6 +606,8 @@ def api_process_db_row(request):
             batch_id = body.get('batch_id', '')
             selected_persona_id = body.get('selected_persona_id')
             requested_task_type = body.get('task_type') or body.get('followup_type')
+            persist_feedback_session = body.get('persist_feedback_session') is True
+            requested_feedback_title = str(body.get('feedback_title') or '').strip()[:150]
             selected_tone = (body.get('selected_tone') or '').strip()[:50]
             requested_tone_attributes = body.get('tone_attributes') or {}
             if not isinstance(requested_tone_attributes, dict):
@@ -957,6 +960,51 @@ def api_process_db_row(request):
                     answer.ai_result = result_text
                     answer.ai_updated_at = timezone.now()
                     answer.save()
+
+                    feedback_session_data = None
+                    if persist_feedback_session:
+                        task_labels = {
+                            'grading': '답안 채점/분석',
+                            'feedback': '피드백 제공',
+                            'rewrite': '고쳐쓰기',
+                            'relay': '릴레이쓰기',
+                        }
+                        session_options = {
+                            'task_type': requested_task_type or 'grading',
+                            'persona_name': persona_name,
+                            'teacher_types': selected_teacher_types,
+                            'tone_attributes': tone_attributes,
+                            'requested_length': effective_length,
+                            'feedback_components': feedback_components,
+                            'temperature': temperature,
+                            'ai_model': ai_model,
+                        }
+                        with transaction.atomic():
+                            locked_answer = Answer.objects.select_for_update().get(pk=answer.pk)
+                            next_version = (
+                                FeedbackSession.objects.filter(answer=locked_answer)
+                                .aggregate(max_version=Max('version'))['max_version'] or 0
+                            ) + 1
+                            session_title = requested_feedback_title or (
+                                f"{task_labels.get(requested_task_type, 'AI 피드백')} v{next_version}"
+                            )
+                            feedback_session = FeedbackSession.objects.create(
+                                student=student,
+                                activity=activity,
+                                answer=locked_answer,
+                                created_by=request.user,
+                                feedback_title=session_title,
+                                content=result_text,
+                                options_snapshot=session_options,
+                                version=next_version,
+                            )
+                        feedback_session_data = {
+                            'id': feedback_session.id,
+                            'feedback_title': feedback_session.feedback_title,
+                            'version': feedback_session.version,
+                            'status': feedback_session.status,
+                            'updated_at': timezone.localtime(feedback_session.updated_at).strftime('%Y.%m.%d %H:%M'),
+                        }
                     
                     print(f"DEBUG: 단일 학생(answer_id: {answer.id}) 처리 완료 - result_id: {created_result.id}")
                     return JsonResponse({
@@ -964,6 +1012,7 @@ def api_process_db_row(request):
                         'result': result_text,
                         'analysis_result_id': created_result.id,
                         'persona_name': persona_name,
+                        'feedback_session': feedback_session_data,
                         'usage': analysis_usage,
                         'activity_context_summarized': context_was_summarized,
                         'monthly_budget': (

@@ -6,6 +6,7 @@ from .models import (
     ActivityFile,
     Answer,
     FeedbackResult,
+    FeedbackSession,
     Question,
 )
 
@@ -51,6 +52,14 @@ class FeedbackResultAdmin(admin.ModelAdmin):
     list_filter = ['task_type', 'activity', 'created_at']
     search_fields = ['student__name', 'activity__title', 'feedback_content']
     readonly_fields = ['created_at']
+
+
+@admin.register(FeedbackSession)
+class FeedbackSessionAdmin(admin.ModelAdmin):
+    list_display = ['student', 'feedback_title', 'version', 'status', 'activity', 'created_by', 'updated_at']
+    list_filter = ['status', 'activity', 'created_at']
+    search_fields = ['student__name', 'feedback_title', 'content']
+    readonly_fields = ['version', 'created_at', 'updated_at']
 
 
 @admin.register(ActivityFile)
