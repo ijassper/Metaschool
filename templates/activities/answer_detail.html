@@ -302,13 +302,13 @@
     <div class="source-layer-body followup-design-body">
         <section class="feedback-session-toolbar" aria-label="피드백 작업 버전 관리">
             <div class="feedback-session-field feedback-session-title-field">
-                <label for="feedbackSessionTitle">생성 결과 제목</label>
-                <input id="feedbackSessionTitle" type="text" maxlength="150" placeholder="예: 1학기 성장 활동">
+                <label id="feedbackSessionTitleLabel" for="feedbackSessionTitle">답안 채점/분석 제목</label>
+                <input id="feedbackSessionTitle" type="text" maxlength="150" placeholder="예: 1학기 답안 채점/분석">
             </div>
             <div class="feedback-session-field feedback-session-version-field">
-                <label for="feedbackSessionSelect">이전 작업 불러오기</label>
+                <label id="feedbackSessionSelectLabel" for="feedbackSessionSelect">이전 답안 채점/분석 불러오기</label>
                 <select id="feedbackSessionSelect">
-                    <option value="">--- 새 작업 생성 ---</option>
+                    <option id="newFeedbackSessionOption" value="">--- 새 답안 채점/분석 생성 ---</option>
                     {% for session in feedback_sessions %}
                     <option value="{{ session.id }}">v{{ session.version }} · {{ session.feedback_title|default:"제목 없는 피드백" }} · {{ session.get_status_display }}</option>
                     {% endfor %}
@@ -316,7 +316,7 @@
             </div>
         </section>
         <section class="followup-design-section">
-            <label>결과 구성 메뉴 <small>복수 선택 가능</small></label>
+            <label><span id="feedbackCompositionLabel">답안 채점/분석 구성 메뉴</span> <small>복수 선택 가능</small></label>
             <div class="feedback-component-toggles">
                 <button type="button" class="feedback-toggle is-selected" data-component="인사말" aria-pressed="true">인사말</button>
                 <button type="button" class="feedback-toggle is-selected" data-component="답안 요약" aria-pressed="true">답안 요약</button>
@@ -338,7 +338,7 @@
             </div>
         </section>
         <section class="followup-design-section">
-            <label>문체 및 표현 조절 <small>각 성격을 세밀하게 조절하세요.</small></label>
+            <label><span id="feedbackStyleLabel">답안 채점/분석 문체 및 표현 조절</span> <small>각 성격을 세밀하게 조절하세요.</small></label>
             <div class="tone-slider-engine">
                 <div class="tone-slider-row">
                     <div class="tone-slider-heading"><strong>성별</strong><output for="toneGender">5</output></div>
@@ -368,7 +368,7 @@
             </div>
         </section>
         <section class="followup-design-section">
-            <label for="followupLength">초안 분량</label>
+            <label id="feedbackLengthLabel" for="followupLength">답안 채점/분석 초안 분량</label>
             <select id="followupLength" class="followup-design-control">
                 <option value="A4 1장">A4 1장</option>
                 <option value="A4 절반" selected>A4 절반</option>
@@ -1351,6 +1351,12 @@
         const designError = document.getElementById('followupDesignError');
         const sessionTitle = document.getElementById('feedbackSessionTitle');
         const sessionSelect = document.getElementById('feedbackSessionSelect');
+        const sessionTitleLabel = document.getElementById('feedbackSessionTitleLabel');
+        const sessionSelectLabel = document.getElementById('feedbackSessionSelectLabel');
+        const newSessionOption = document.getElementById('newFeedbackSessionOption');
+        const compositionLabel = document.getElementById('feedbackCompositionLabel');
+        const styleLabel = document.getElementById('feedbackStyleLabel');
+        const lengthLabel = document.getElementById('feedbackLengthLabel');
         const autoSaveStatus = document.getElementById('feedbackAutoSaveStatus');
         const generateIdle = generateButton.querySelector('.followup-generate-idle');
         const generateLoading = generateButton.querySelector('.followup-generate-loading');
@@ -1368,6 +1374,18 @@
             rewrite: '고쳐쓰기',
             relay: '릴레이쓰기'
         };
+
+        function updateWorkbenchLabels() {
+            const label = followupLabels[selectedFollowupType] || followupLabels.grading;
+            designTitle.textContent = `${label} AI 설계`;
+            sessionTitleLabel.textContent = `${label} 제목`;
+            sessionTitle.placeholder = `예: 1학기 ${label}`;
+            sessionSelectLabel.textContent = `이전 ${label} 불러오기`;
+            newSessionOption.textContent = `--- 새 ${label} 생성 ---`;
+            compositionLabel.textContent = `${label} 구성 메뉴`;
+            styleLabel.textContent = `${label} 문체 및 표현 조절`;
+            lengthLabel.textContent = `${label} 초안 분량`;
+        }
 
         function openLayer() {
             layer.classList.add('is-open');
@@ -1389,8 +1407,7 @@
         }
 
         function openDesignLayer() {
-            const label = followupLabels[selectedFollowupType] || followupLabels.grading;
-            designTitle.textContent = `${label} AI 설계`;
+            updateWorkbenchLabels();
             designLayer.classList.add('is-open');
             layer.classList.add('is-dimmed');
             designLayer.setAttribute('aria-hidden', 'false');
@@ -1516,7 +1533,7 @@
                 selectedFollowupType = options.task_type;
                 const input = document.querySelector(`input[name="followup_type"][value="${options.task_type}"]`);
                 if (input) input.checked = true;
-                designTitle.textContent = `${followupLabels[selectedFollowupType]} AI 설계`;
+                updateWorkbenchLabels();
             }
             setToggleSelection('.teacher-type-toggle', 'teacherType', options.teacher_types);
             setToggleSelection('.feedback-toggle', 'component', options.feedback_components);
@@ -1593,6 +1610,7 @@
             input.addEventListener('change', function () {
                 if (!input.checked) return;
                 selectedFollowupType = input.value;
+                updateWorkbenchLabels();
                 scheduleAutoSave();
             });
         });
@@ -1641,7 +1659,7 @@
             const selectedTeacherTypes = Array.from(document.querySelectorAll('.teacher-type-toggle.is-selected'))
                 .map((button) => button.dataset.teacherType);
             if (!feedbackComponents.length) {
-                designError.textContent = '결과 구성 메뉴를 하나 이상 선택해주세요.';
+                designError.textContent = `${activityLabel} 구성 메뉴를 하나 이상 선택해주세요.`;
                 designError.hidden = false;
                 return;
             }
