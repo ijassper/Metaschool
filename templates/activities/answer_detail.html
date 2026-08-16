@@ -306,7 +306,7 @@
                 <input id="feedbackSessionTitle" type="text" maxlength="150" placeholder="예: 1학기 성장 피드백">
             </div>
             <div class="feedback-session-field feedback-session-version-field">
-                <label for="feedbackSessionSelect">버전 선택</label>
+                <label for="feedbackSessionSelect">이전 피드백 불러오기</label>
                 <select id="feedbackSessionSelect">
                     <option value="">--- 새 피드백 생성 ---</option>
                     {% for session in feedback_sessions %}
@@ -384,7 +384,9 @@
     <footer class="source-layer-footer followup-design-footer">
         <p id="followupDesignError" class="followup-design-error" hidden></p>
         <div class="followup-footer-left">
-            <button id="saveFeedbackSession" type="button" class="feedback-session-button is-secondary" disabled><i class="bi bi-cloud-check"></i> 임시 저장</button>
+            <span id="feedbackAutoSaveStatus" class="feedback-auto-save-status" aria-live="polite">
+                <i class="bi bi-cloud-check"></i> 초안은 자동 저장됩니다
+            </span>
         </div>
         <div class="followup-footer-right">
             <button id="generateFollowupDraft" type="button" class="source-create-button">
@@ -397,15 +399,6 @@
         </div>
     </footer>
 </aside>
-
-<div id="feedbackSessionSavedModal" class="feedback-session-modal" hidden role="dialog" aria-modal="true" aria-labelledby="feedbackSessionSavedTitle">
-    <div class="feedback-session-modal-card">
-        <span class="feedback-session-modal-icon"><i class="bi bi-check2"></i></span>
-        <h4 id="feedbackSessionSavedTitle">임시 저장 완료</h4>
-        <p>현재 피드백 내용과 생성 옵션을 안전하게 저장했습니다.</p>
-        <button id="closeFeedbackSessionSavedModal" type="button">확인</button>
-    </div>
-</div>
 
 <style>
     .student-portfolio {
@@ -1246,16 +1239,9 @@
     .feedback-session-field select { width:100%; min-height:32px; padding:.35rem .55rem; border:1px solid #e5d9e7; border-radius:8px; background:#fff; color:#4b414e; font-size:.72rem; outline:none; }
     .feedback-session-field input:focus,
     .feedback-session-field select:focus { border-color:#a86fba; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
-    .feedback-session-button { min-height:34px; padding:.45rem .75rem; border:1px solid #a85cbc; border-radius:9px; background:#a85cbc; color:#fff; font-size:.7rem; font-weight:750; }
-    .feedback-session-button.is-secondary { border-color:#cfc6d2; background:#fff; color:#6f6573; }
-    .feedback-session-button:disabled { cursor:not-allowed; opacity:.45; }
-    .feedback-session-modal { position:fixed; inset:0; z-index:1300; display:grid; place-items:center; padding:1rem; background:rgba(45,34,48,.28); }
-    .feedback-session-modal[hidden] { display:none; }
-    .feedback-session-modal-card { width:min(340px,100%); padding:1.5rem; border:1px solid #eadfeb; border-radius:18px; background:#fff; box-shadow:0 24px 70px rgba(53,35,58,.24); text-align:center; }
-    .feedback-session-modal-icon { display:grid; place-items:center; width:42px; height:42px; margin:0 auto .7rem; border-radius:50%; background:#f4e7f7; color:#9649aa; font-size:1.1rem; }
-    .feedback-session-modal-card h4 { margin:0; color:#403544; font-size:1rem; }
-    .feedback-session-modal-card p { margin:.45rem 0 1rem; color:#857887; font-size:.76rem; line-height:1.55; }
-    .feedback-session-modal-card button { padding:.55rem 1.2rem; border:0; border-radius:9px; background:#a64fba; color:#fff; font-size:.74rem; font-weight:750; }
+    .feedback-auto-save-status { display:inline-flex; align-items:center; gap:.38rem; color:#847989; font-size:.7rem; font-weight:700; white-space:nowrap; }
+    .feedback-auto-save-status.is-saving { color:#8e44ad; }
+    .feedback-auto-save-status.is-error { color:#b4233c; }
     .followup-design-section>label { color:#8e8192; font-size:.72rem; font-weight:700; }
     .followup-design-section { margin-top:1.4rem; }
     .feedback-session-toolbar + .followup-design-section { margin-top:.85rem; }
@@ -1365,14 +1351,15 @@
         const designError = document.getElementById('followupDesignError');
         const sessionTitle = document.getElementById('feedbackSessionTitle');
         const sessionSelect = document.getElementById('feedbackSessionSelect');
-        const saveSessionButton = document.getElementById('saveFeedbackSession');
-        const sessionSavedModal = document.getElementById('feedbackSessionSavedModal');
-        const closeSessionSavedModal = document.getElementById('closeFeedbackSessionSavedModal');
+        const autoSaveStatus = document.getElementById('feedbackAutoSaveStatus');
         const generateIdle = generateButton.querySelector('.followup-generate-idle');
         const generateLoading = generateButton.querySelector('.followup-generate-loading');
         let selectedFollowupType = 'grading';
         let lastPersonaUsed = {};
         let currentFeedbackSessionId = null;
+        let autoSaveTimer = null;
+        let autoSavePromise = null;
+        let autoSaveQueued = false;
         const sessionDetailUrlTemplate = '{% url "feedback_session_detail" answer.id 999999 %}';
         const sessionSaveUrlTemplate = '{% url "save_feedback_session" answer.id 999999 %}';
         const followupLabels = {
@@ -1411,6 +1398,7 @@
         }
 
         function closeDesignLayer() {
+            flushAutoSave({keepalive:true});
             designLayer.classList.remove('is-open');
             layer.classList.remove('is-dimmed');
             designLayer.setAttribute('aria-hidden', 'true');
@@ -1435,6 +1423,82 @@
                 feedback_components: Array.from(document.querySelectorAll('.feedback-toggle.is-selected')).map((button) => button.dataset.component),
                 persona_name: lastPersonaUsed.persona_name || ''
             };
+        }
+
+        function setAutoSaveStatus(state, message) {
+            autoSaveStatus.classList.toggle('is-saving', state === 'saving');
+            autoSaveStatus.classList.toggle('is-error', state === 'error');
+            const icons = {
+                idle: 'bi-cloud-check',
+                saving: 'bi-arrow-repeat',
+                saved: 'bi-cloud-check-fill',
+                error: 'bi-exclamation-circle'
+            };
+            autoSaveStatus.innerHTML = `<i class="bi ${icons[state] || icons.idle}"></i> ${message}`;
+        }
+
+        async function persistCurrentSession(options = {}) {
+            if (!currentFeedbackSessionId) return true;
+            if (autoSavePromise) {
+                autoSaveQueued = true;
+                return autoSavePromise;
+            }
+
+            const sessionId = currentFeedbackSessionId;
+            setAutoSaveStatus('saving', '자동 저장 중');
+            autoSavePromise = (async function () {
+                try {
+                    const response = await fetch(sessionSaveUrlTemplate.replace('999999', sessionId), {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+                        body: JSON.stringify({
+                            feedback_title: sessionTitle.value.trim(),
+                            content: draftText.value,
+                            options_snapshot: collectSessionOptions()
+                        }),
+                        keepalive: options.keepalive === true
+                    });
+                    const data = await response.json();
+                    if (!response.ok || data.status !== 'success') throw new Error(data.message || '자동 저장에 실패했습니다.');
+                    if (currentFeedbackSessionId === sessionId) {
+                        sessionTitle.value = data.session.feedback_title;
+                        upsertSessionOption(data.session);
+                        setAutoSaveStatus('saved', '자동 저장됨');
+                    }
+                    return true;
+                } catch (error) {
+                    if (currentFeedbackSessionId === sessionId) {
+                        setAutoSaveStatus('error', '자동 저장 실패');
+                        designError.textContent = error.message || '자동 저장 중 오류가 발생했습니다.';
+                        designError.hidden = false;
+                    }
+                    return false;
+                } finally {
+                    autoSavePromise = null;
+                    if (autoSaveQueued) {
+                        autoSaveQueued = false;
+                        scheduleAutoSave(150);
+                    }
+                }
+            })();
+            return autoSavePromise;
+        }
+
+        function scheduleAutoSave(delay = 900) {
+            if (!currentFeedbackSessionId) return;
+            window.clearTimeout(autoSaveTimer);
+            setAutoSaveStatus('idle', '저장 대기 중');
+            autoSaveTimer = window.setTimeout(function () {
+                autoSaveTimer = null;
+                persistCurrentSession();
+            }, delay);
+        }
+
+        function flushAutoSave(options = {}) {
+            if (!currentFeedbackSessionId) return Promise.resolve(true);
+            window.clearTimeout(autoSaveTimer);
+            autoSaveTimer = null;
+            return persistCurrentSession(options);
         }
 
         function setToggleSelection(selector, dataKey, selectedValues) {
@@ -1496,12 +1560,13 @@
                 if (!response.ok || data.status !== 'success') throw new Error(data.message || '버전을 불러오지 못했습니다.');
                 const session = data.session;
                 currentFeedbackSessionId = session.id;
+                sessionSelect.value = String(session.id);
                 sessionTitle.value = session.feedback_title || '';
                 draftText.value = session.content || '';
                 applySessionOptions(session.options_snapshot);
                 draftResult.hidden = false;
                 saveButton.hidden = !draftText.value.trim();
-                saveSessionButton.disabled = false;
+                setAutoSaveStatus('saved', session.status === 'FINAL' ? '최종 저장된 버전' : '자동 저장됨');
             } catch (error) {
                 designError.textContent = error.message || '버전 로드 중 오류가 발생했습니다.';
                 designError.hidden = false;
@@ -1517,9 +1582,9 @@
             draftText.value = '';
             draftResult.hidden = true;
             saveButton.hidden = true;
-            saveSessionButton.disabled = true;
             lastPersonaUsed = {};
             designError.hidden = true;
+            setAutoSaveStatus('idle', 'AI 초안 생성 후 자동 저장됩니다');
             sessionTitle.focus();
         }
 
@@ -1528,6 +1593,7 @@
             input.addEventListener('change', function () {
                 if (!input.checked) return;
                 selectedFollowupType = input.value;
+                scheduleAutoSave();
             });
         });
         followupCreateLink.addEventListener('click', openDesignLayer);
@@ -1536,60 +1602,34 @@
             button.addEventListener('click', function () {
                 button.classList.toggle('is-selected');
                 button.setAttribute('aria-pressed', button.classList.contains('is-selected') ? 'true' : 'false');
+                scheduleAutoSave();
             });
         });
         document.querySelectorAll('.feedback-toggle').forEach(function (button) {
             button.addEventListener('click', function () {
                 button.classList.toggle('is-selected');
                 button.setAttribute('aria-pressed', button.classList.contains('is-selected') ? 'true' : 'false');
+                scheduleAutoSave();
             });
         });
         document.querySelectorAll('.tone-range').forEach(function (slider) {
             slider.addEventListener('input', function () {
                 const output = slider.closest('.tone-slider-row').querySelector('output');
                 if (output) output.value = slider.value;
+                scheduleAutoSave();
             });
         });
-        sessionSelect.addEventListener('change', function () {
-            if (sessionSelect.value) loadSessionData(sessionSelect.value);
+        sessionTitle.addEventListener('input', function () { scheduleAutoSave(); });
+        draftText.addEventListener('input', function () { scheduleAutoSave(); });
+        document.getElementById('followupLength').addEventListener('change', function () { scheduleAutoSave(); });
+        sessionSelect.addEventListener('change', async function () {
+            const nextSessionId = sessionSelect.value;
+            await flushAutoSave();
+            if (nextSessionId) loadSessionData(nextSessionId);
             else resetFeedbackSession();
         });
-        saveSessionButton.addEventListener('click', async function () {
-            if (!currentFeedbackSessionId) {
-                designError.textContent = 'AI 초안을 먼저 만들거나 저장된 버전을 선택해주세요.';
-                designError.hidden = false;
-                return;
-            }
-            saveSessionButton.disabled = true;
-            designError.hidden = true;
-            try {
-                const response = await fetch(sessionSaveUrlTemplate.replace('999999', currentFeedbackSessionId), {
-                    method: 'POST',
-                    headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
-                    body: JSON.stringify({
-                        feedback_title: sessionTitle.value.trim(),
-                        content: draftText.value,
-                        options_snapshot: collectSessionOptions()
-                    })
-                });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') throw new Error(data.message || '임시 저장에 실패했습니다.');
-                sessionTitle.value = data.session.feedback_title;
-                upsertSessionOption(data.session);
-                sessionSavedModal.hidden = false;
-                closeSessionSavedModal.focus();
-            } catch (error) {
-                designError.textContent = error.message || '임시 저장 중 오류가 발생했습니다.';
-                designError.hidden = false;
-            } finally {
-                saveSessionButton.disabled = false;
-            }
-        });
-        closeSessionSavedModal.addEventListener('click', function () { sessionSavedModal.hidden = true; });
-        sessionSavedModal.addEventListener('click', function (event) {
-            if (event.target === sessionSavedModal) sessionSavedModal.hidden = true;
-        });
         generateButton.addEventListener('click', async function () {
+            await flushAutoSave();
             const requestedLength = document.getElementById('followupLength').value;
             const activityLabel = followupLabels[selectedFollowupType] || followupLabels.grading;
             const toneAttributes = {};
@@ -1646,7 +1686,7 @@
                     currentFeedbackSessionId = data.feedback_session.id;
                     sessionTitle.value = data.feedback_session.feedback_title;
                     upsertSessionOption(data.feedback_session);
-                    saveSessionButton.disabled = false;
+                    setAutoSaveStatus('saved', '자동 저장됨');
                 }
                 draftResult.hidden = false;
                 saveButton.hidden = false;
@@ -1670,6 +1710,7 @@
             const originalLabel = saveButton.innerHTML;
             saveButton.innerHTML = '<span class="followup-spinner"></span> 저장하고 있습니다';
             try {
+                await flushAutoSave();
                 const response = await fetch('{% url "save_feedback_result" answer.id %}', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
@@ -1721,6 +1762,9 @@
         });
         const initialHistoryTarget = window.location.hash.replace(/^#/, '');
         showHistoryPanel(initialHistoryTarget || 'original');
+        window.addEventListener('pagehide', function () {
+            flushAutoSave({keepalive:true});
+        });
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 if (designLayer.classList.contains('is-open')) closeDesignLayer();
