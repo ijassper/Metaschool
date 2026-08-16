@@ -191,10 +191,28 @@ def save_feedback_result(request, answer_id):
     valid_task_types = {value for value, _ in FeedbackResult.TaskType.choices}
     if not feedback_content:
         return JsonResponse({'status': 'error', 'message': '저장할 결과 내용을 입력해주세요.'}, status=400)
+    if not feedback_title:
+        return JsonResponse({'status': 'error', 'message': '생성 결과 제목을 입력해주세요.'}, status=400)
     if task_type not in valid_task_types:
         return JsonResponse({'status': 'error', 'message': '지원하지 않는 작업 유형입니다.'}, status=400)
     if not isinstance(persona_used, dict):
         persona_used = {'summary': str(persona_used)[:500]}
+
+    feedback_session = None
+    if feedback_session_id:
+        feedback_session = FeedbackSession.objects.filter(
+            id=feedback_session_id,
+            answer=answer,
+            created_by=request.user,
+        ).first()
+        if not feedback_session:
+            return JsonResponse({'status': 'error', 'message': '저장할 작업 버전을 찾을 수 없습니다.'}, status=404)
+        feedback_title = FeedbackSession.make_unique_title(
+            answer=answer,
+            created_by=request.user,
+            title=feedback_title,
+            exclude_session_id=feedback_session.id,
+        )
 
     feedback = FeedbackResult.objects.create(
         student=answer.student,
@@ -204,7 +222,7 @@ def save_feedback_result(request, answer_id):
         feedback_content=feedback_content,
         persona_used=persona_used,
     )
-    if feedback_session_id:
+    if feedback_session:
         session_updates = {
             'content': feedback_content,
             'options_snapshot': options_snapshot,
@@ -213,11 +231,7 @@ def save_feedback_result(request, answer_id):
         }
         if feedback_title:
             session_updates['feedback_title'] = feedback_title
-        FeedbackSession.objects.filter(
-            id=feedback_session_id,
-            answer=answer,
-            created_by=request.user,
-        ).update(**session_updates)
+        FeedbackSession.objects.filter(id=feedback_session.id).update(**session_updates)
     return JsonResponse({
         'status': 'success',
         'feedback_id': feedback.id,
@@ -275,7 +289,14 @@ def save_feedback_session(request, answer_id, session_id):
     if options_snapshot is not None and not isinstance(options_snapshot, dict):
         return JsonResponse({'status': 'error', 'message': '생성 옵션 형식이 올바르지 않습니다.'}, status=400)
     if not title:
-        title = f'피드백 v{session.version}'
+        return JsonResponse({'status': 'error', 'message': '생성 결과 제목을 입력해주세요.'}, status=400)
+
+    title = FeedbackSession.make_unique_title(
+        answer=session.answer,
+        created_by=request.user,
+        title=title,
+        exclude_session_id=session.id,
+    )
 
     session.feedback_title = title
     session.content = content

@@ -303,7 +303,7 @@
         <section class="feedback-session-toolbar" aria-label="피드백 작업 버전 관리">
             <div class="feedback-session-field feedback-session-title-field">
                 <label id="feedbackSessionTitleLabel" for="feedbackSessionTitle">답안 채점/분석 제목</label>
-                <input id="feedbackSessionTitle" type="text" maxlength="150" placeholder="예: 1학기 답안 채점/분석">
+                <input id="feedbackSessionTitle" type="text" maxlength="150" placeholder="예: 1학기 답안 채점/분석" required aria-required="true">
             </div>
             <div class="feedback-session-field feedback-session-version-field">
                 <label id="feedbackSessionSelectLabel" for="feedbackSessionSelect">이전 답안 채점/분석 불러오기</label>
@@ -1387,6 +1387,16 @@
             lengthLabel.textContent = `${label} 초안 분량`;
         }
 
+        function validateSessionTitle() {
+            const hasTitle = Boolean(sessionTitle.value.trim());
+            sessionTitle.setCustomValidity(hasTitle ? '' : '제목을 입력해주세요.');
+            if (!hasTitle) {
+                sessionTitle.reportValidity();
+                sessionTitle.focus();
+            }
+            return hasTitle;
+        }
+
         function openLayer() {
             layer.classList.add('is-open');
             backdrop.classList.add('is-open');
@@ -1637,7 +1647,10 @@
                 scheduleAutoSave();
             });
         });
-        sessionTitle.addEventListener('input', function () { scheduleAutoSave(); });
+        sessionTitle.addEventListener('input', function () {
+            sessionTitle.setCustomValidity('');
+            scheduleAutoSave();
+        });
         draftText.addEventListener('input', function () { scheduleAutoSave(); });
         document.getElementById('followupLength').addEventListener('change', function () { scheduleAutoSave(); });
         sessionSelect.addEventListener('change', async function () {
@@ -1647,6 +1660,7 @@
             else resetFeedbackSession();
         });
         generateButton.addEventListener('click', async function () {
+            if (!validateSessionTitle()) return;
             await flushAutoSave();
             const requestedLength = document.getElementById('followupLength').value;
             const activityLabel = followupLabels[selectedFollowupType] || followupLabels.grading;
@@ -1717,6 +1731,7 @@
             }
         });
         saveButton.addEventListener('click', async function () {
+            if (!validateSessionTitle()) return;
             const feedbackContent = draftText.value.trim();
             if (!feedbackContent) {
                 designError.textContent = '최종 저장할 결과 내용을 입력해주세요.';

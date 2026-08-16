@@ -375,6 +375,27 @@ class FeedbackSession(models.Model):
         ]
         indexes = [models.Index(fields=['answer', '-version'], name='feedback_session_ver_idx')]
 
+    @classmethod
+    def make_unique_title(cls, *, answer, created_by, title, exclude_session_id=None):
+        """같은 답안의 작업 제목이 겹치면 '(n)' 접미사를 붙여 새 제목을 반환합니다."""
+        base_title = str(title or '').strip()[:150]
+        if not base_title:
+            return ''
+
+        sessions = cls.objects.filter(answer=answer, created_by=created_by)
+        if exclude_session_id:
+            sessions = sessions.exclude(pk=exclude_session_id)
+        if not sessions.filter(feedback_title__iexact=base_title).exists():
+            return base_title
+
+        sequence = 1
+        while True:
+            suffix = f' ({sequence})'
+            candidate = f'{base_title[:150 - len(suffix)].rstrip()}{suffix}'
+            if not sessions.filter(feedback_title__iexact=candidate).exists():
+                return candidate
+            sequence += 1
+
     def __str__(self):
         return f'{self.student.name} - v{self.version} {self.feedback_title}'
 

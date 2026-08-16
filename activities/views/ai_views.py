@@ -608,6 +608,11 @@ def api_process_db_row(request):
             requested_task_type = body.get('task_type') or body.get('followup_type')
             persist_feedback_session = body.get('persist_feedback_session') is True
             requested_feedback_title = str(body.get('feedback_title') or '').strip()[:150]
+            if persist_feedback_session and not requested_feedback_title:
+                return JsonResponse(
+                    {'status': 'error', 'message': '생성 결과 제목을 입력해주세요.'},
+                    status=400,
+                )
             selected_tone = (body.get('selected_tone') or '').strip()[:50]
             requested_tone_attributes = body.get('tone_attributes') or {}
             if not isinstance(requested_tone_attributes, dict):
@@ -985,8 +990,13 @@ def api_process_db_row(request):
                                 FeedbackSession.objects.filter(answer=locked_answer)
                                 .aggregate(max_version=Max('version'))['max_version'] or 0
                             ) + 1
-                            session_title = requested_feedback_title or (
+                            requested_title = requested_feedback_title or (
                                 f"{task_labels.get(requested_task_type, 'AI 피드백')} v{next_version}"
+                            )
+                            session_title = FeedbackSession.make_unique_title(
+                                answer=locked_answer,
+                                created_by=request.user,
+                                title=requested_title,
                             )
                             feedback_session = FeedbackSession.objects.create(
                                 student=student,
