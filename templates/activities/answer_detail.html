@@ -302,13 +302,13 @@
     <div class="source-layer-body followup-design-body">
         <section class="feedback-session-toolbar" aria-label="피드백 작업 버전 관리">
             <div class="feedback-session-field feedback-session-title-field">
-                <label for="feedbackSessionTitle">피드백 제목</label>
-                <input id="feedbackSessionTitle" type="text" maxlength="150" placeholder="예: 1학기 성장 피드백">
+                <label for="feedbackSessionTitle">생성 결과 제목</label>
+                <input id="feedbackSessionTitle" type="text" maxlength="150" placeholder="예: 1학기 성장 활동">
             </div>
             <div class="feedback-session-field feedback-session-version-field">
-                <label for="feedbackSessionSelect">이전 피드백 불러오기</label>
+                <label for="feedbackSessionSelect">이전 작업 불러오기</label>
                 <select id="feedbackSessionSelect">
-                    <option value="">--- 새 피드백 생성 ---</option>
+                    <option value="">--- 새 작업 생성 ---</option>
                     {% for session in feedback_sessions %}
                     <option value="{{ session.id }}">v{{ session.version }} · {{ session.feedback_title|default:"제목 없는 피드백" }} · {{ session.get_status_display }}</option>
                     {% endfor %}
@@ -316,7 +316,7 @@
             </div>
         </section>
         <section class="followup-design-section">
-            <label>피드백 구성 메뉴 <small>복수 선택 가능</small></label>
+            <label>결과 구성 메뉴 <small>복수 선택 가능</small></label>
             <div class="feedback-component-toggles">
                 <button type="button" class="feedback-toggle is-selected" data-component="인사말" aria-pressed="true">인사말</button>
                 <button type="button" class="feedback-toggle is-selected" data-component="답안 요약" aria-pressed="true">답안 요약</button>
@@ -338,7 +338,7 @@
             </div>
         </section>
         <section class="followup-design-section">
-            <label>피드백 어조 조절 <small>각 성격을 세밀하게 조절하세요.</small></label>
+            <label>문체 및 표현 조절 <small>각 성격을 세밀하게 조절하세요.</small></label>
             <div class="tone-slider-engine">
                 <div class="tone-slider-row">
                     <div class="tone-slider-heading"><strong>성별</strong><output for="toneGender">5</output></div>
@@ -385,7 +385,7 @@
         <p id="followupDesignError" class="followup-design-error" hidden></p>
         <div class="followup-footer-left">
             <span id="feedbackAutoSaveStatus" class="feedback-auto-save-status" aria-live="polite">
-                <i class="bi bi-cloud-check"></i> 초안은 자동 저장됩니다
+                <i class="bi bi-cloud-check"></i> AI 초안은 임시 보관되며, 최종 저장 후 포트폴리오에 등록됩니다.
             </span>
         </div>
         <div class="followup-footer-right">
@@ -1239,7 +1239,7 @@
     .feedback-session-field select { width:100%; min-height:32px; padding:.35rem .55rem; border:1px solid #e5d9e7; border-radius:8px; background:#fff; color:#4b414e; font-size:.72rem; outline:none; }
     .feedback-session-field input:focus,
     .feedback-session-field select:focus { border-color:#a86fba; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
-    .feedback-auto-save-status { display:inline-flex; align-items:center; gap:.38rem; color:#847989; font-size:.7rem; font-weight:700; white-space:nowrap; }
+    .feedback-auto-save-status { display:inline-flex; align-items:center; gap:.38rem; color:#847989; font-size:.7rem; font-weight:700; line-height:1.4; }
     .feedback-auto-save-status.is-saving { color:#8e44ad; }
     .feedback-auto-save-status.is-error { color:#b4233c; }
     .followup-design-section>label { color:#8e8192; font-size:.72rem; font-weight:700; }
@@ -1584,7 +1584,7 @@
             saveButton.hidden = true;
             lastPersonaUsed = {};
             designError.hidden = true;
-            setAutoSaveStatus('idle', 'AI 초안 생성 후 자동 저장됩니다');
+            setAutoSaveStatus('idle', 'AI 초안은 임시 보관되며, 최종 저장 후 포트폴리오에 등록됩니다.');
             sessionTitle.focus();
         }
 
@@ -1641,7 +1641,7 @@
             const selectedTeacherTypes = Array.from(document.querySelectorAll('.teacher-type-toggle.is-selected'))
                 .map((button) => button.dataset.teacherType);
             if (!feedbackComponents.length) {
-                designError.textContent = '피드백 구성 메뉴를 하나 이상 선택해주세요.';
+                designError.textContent = '결과 구성 메뉴를 하나 이상 선택해주세요.';
                 designError.hidden = false;
                 return;
             }
