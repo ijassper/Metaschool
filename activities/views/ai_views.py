@@ -632,7 +632,9 @@ def api_process_db_row(request):
                 try:
                     raw_value = int(requested_tone_attributes[attribute])
                     # 기존 임시 저장본(0~10)은 새 1~5 척도로 자동 변환합니다.
-                    if body.get('tone_scale') != 5:
+                    if body.get('tone_scale') == 'centered_5':
+                        raw_value += 3
+                    elif body.get('tone_scale') != 5:
                         raw_value = round((raw_value * 4) / 10) + 1
                     tone_attributes[attribute] = min(max(raw_value, 1), 5)
                 except (TypeError, ValueError):

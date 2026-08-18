@@ -341,29 +341,29 @@
             <label><span id="feedbackStyleLabel">답안 채점/분석 문체 및 표현 조절</span> <small>각 성격을 세밀하게 조절하세요.</small></label>
             <div class="tone-slider-engine">
                 <div class="tone-slider-row">
-                    <div class="tone-slider-heading"><strong>성별</strong><output for="toneGender">3</output></div>
+                    <div class="tone-slider-heading"><strong>성별</strong></div>
                     <div class="tone-slider-labels"><span>여성적</span><span>남성적</span></div>
-                    <input id="toneGender" class="tone-range" data-tone-key="gender" type="range" min="1" max="5" value="3">
+                    <input id="toneGender" class="tone-range" data-tone-key="gender" type="range" min="-2" max="2" value="0">
                 </div>
                 <div class="tone-slider-row">
-                    <div class="tone-slider-heading"><strong>형식성</strong><output for="toneFormality">3</output></div>
+                    <div class="tone-slider-heading"><strong>형식성</strong></div>
                     <div class="tone-slider-labels"><span>친근함</span><span>예의 갖춤</span></div>
-                    <input id="toneFormality" class="tone-range" data-tone-key="formality" type="range" min="1" max="5" value="3">
+                    <input id="toneFormality" class="tone-range" data-tone-key="formality" type="range" min="-2" max="2" value="0">
                 </div>
                 <div class="tone-slider-row">
-                    <div class="tone-slider-heading"><strong>솔직성</strong><output for="toneDirectness">3</output></div>
+                    <div class="tone-slider-heading"><strong>솔직성</strong></div>
                     <div class="tone-slider-labels"><span>단도직입적</span><span>우회적</span></div>
-                    <input id="toneDirectness" class="tone-range" data-tone-key="directness" type="range" min="1" max="5" value="3">
+                    <input id="toneDirectness" class="tone-range" data-tone-key="directness" type="range" min="-2" max="2" value="0">
                 </div>
                 <div class="tone-slider-row">
-                    <div class="tone-slider-heading"><strong>상세성</strong><output for="toneDetail">3</output></div>
+                    <div class="tone-slider-heading"><strong>상세성</strong></div>
                     <div class="tone-slider-labels"><span>친절한 안내형</span><span>간략한 명확형</span></div>
-                    <input id="toneDetail" class="tone-range" data-tone-key="detail" type="range" min="1" max="5" value="3">
+                    <input id="toneDetail" class="tone-range" data-tone-key="detail" type="range" min="-2" max="2" value="0">
                 </div>
                 <div class="tone-slider-row">
-                    <div class="tone-slider-heading"><strong>첨삭 성격</strong><output for="toneEditing">3</output></div>
+                    <div class="tone-slider-heading"><strong>첨삭 성격</strong></div>
                     <div class="tone-slider-labels"><span>미시적</span><span>거시적</span></div>
-                    <input id="toneEditing" class="tone-range" data-tone-key="editing" type="range" min="1" max="5" value="3">
+                    <input id="toneEditing" class="tone-range" data-tone-key="editing" type="range" min="-2" max="2" value="0">
                 </div>
             </div>
         </section>
@@ -1259,14 +1259,13 @@
     .teacher-type-toggle.is-selected { border-color:#a86fba; background:#f3e8f6; color:#7d3c98; box-shadow:0 0 0 2px rgba(142,68,173,.06); }
     .teacher-type-toggle.is-selected i { width:auto; opacity:1; }
     .tone-slider-engine { display:grid; gap:.48rem; padding:.72rem .8rem; border:1px solid #eadfeb; border-radius:13px; background:linear-gradient(145deg,#fff,#fcf8fd); }
-    .tone-slider-row { min-width:0; display:grid; grid-template-columns:58px 28px 88px minmax(80px,1fr) 88px; align-items:center; gap:.45rem; }
+    .tone-slider-row { min-width:0; display:grid; grid-template-columns:58px 88px minmax(80px,1fr) 88px; align-items:center; gap:.45rem; }
     .tone-slider-heading,.tone-slider-labels { display:contents; }
     .tone-slider-heading strong { grid-column:1; color:#5b505f; font-size:.72rem; }
-    .tone-slider-heading output { grid-column:2; min-width:28px; padding:.12rem .34rem; border-radius:999px; background:#f1e8f4; color:#7d3c98; font-size:.62rem; font-weight:780; text-align:center; }
     .tone-slider-labels span { color:#766a7a; font-size:.63rem; font-weight:800; white-space:nowrap; }
-    .tone-slider-labels span:first-child { grid-column:3; text-align:right; }
-    .tone-slider-labels span:last-child { grid-column:5; text-align:left; }
-    .tone-range { grid-column:4; grid-row:1; width:100%; height:18px; margin:0; background:transparent; accent-color:#9b55ad; cursor:pointer; -webkit-appearance:none; appearance:none; }
+    .tone-slider-labels span:first-child { grid-column:2; text-align:right; }
+    .tone-slider-labels span:last-child { grid-column:4; text-align:left; }
+    .tone-range { grid-column:3; grid-row:1; width:100%; height:18px; margin:0; background:transparent; accent-color:#9b55ad; cursor:pointer; -webkit-appearance:none; appearance:none; }
     .tone-range::-webkit-slider-runnable-track { height:5px; border-radius:999px; background:linear-gradient(90deg,#f2b4d0,#b785c6); }
     .tone-range::-webkit-slider-thumb { width:16px; height:16px; margin-top:-5.5px; border:3px solid #fff; border-radius:50%; background:#8e44ad; box-shadow:0 1px 5px rgba(76,38,88,.32); -webkit-appearance:none; }
     .tone-range::-moz-range-track { height:5px; border-radius:999px; background:linear-gradient(90deg,#f2b4d0,#b785c6); }
@@ -1319,7 +1318,7 @@
         .followup-workbench-body { overflow-y:auto; }
         .followup-split-view { height:auto; }
         .followup-answer-card { height:420px; }
-        .tone-slider-row { grid-template-columns:46px 26px 68px minmax(48px,1fr) 68px; gap:.3rem; }
+        .tone-slider-row { grid-template-columns:46px 68px minmax(48px,1fr) 68px; gap:.3rem; }
         .tone-slider-labels span { font-size:.56rem; }
         .source-layer-header,
         .source-layer-body,
@@ -1446,7 +1445,7 @@
                 task_type: selectedFollowupType,
                 teacher_types: Array.from(document.querySelectorAll('.teacher-type-toggle.is-selected')).map((button) => button.dataset.teacherType),
                 tone_attributes: toneAttributes,
-                tone_scale: 5,
+                tone_scale: 'centered_5',
                 requested_length: document.getElementById('followupLength').value,
                 feedback_components: Array.from(document.querySelectorAll('.feedback-toggle.is-selected')).map((button) => button.dataset.component),
                 persona_name: lastPersonaUsed.persona_name || ''
@@ -1551,12 +1550,15 @@
             Object.entries(options.tone_attributes || {}).forEach(function ([key, value]) {
                 const slider = document.querySelector(`.tone-range[data-tone-key="${key}"]`);
                 if (!slider) return;
-                const normalizedValue = options.tone_scale === 5
-                    ? Number(value)
-                    : Math.round((Number(value) * 4) / 10) + 1;
-                slider.value = Math.max(1, Math.min(5, normalizedValue));
-                const output = slider.closest('.tone-slider-row').querySelector('output');
-                if (output) output.value = slider.value;
+                let centeredValue;
+                if (options.tone_scale === 'centered_5') {
+                    centeredValue = Number(value);
+                } else if (options.tone_scale === 5) {
+                    centeredValue = Number(value) - 3;
+                } else {
+                    centeredValue = Math.round((Number(value) * 4) / 10) - 2;
+                }
+                slider.value = Math.max(-2, Math.min(2, centeredValue));
             });
             if (options.requested_length) document.getElementById('followupLength').value = options.requested_length;
             lastPersonaUsed = {
@@ -1646,8 +1648,6 @@
         });
         document.querySelectorAll('.tone-range').forEach(function (slider) {
             slider.addEventListener('input', function () {
-                const output = slider.closest('.tone-slider-row').querySelector('output');
-                if (output) output.value = slider.value;
                 scheduleAutoSave();
             });
         });
@@ -1699,7 +1699,7 @@
                         task_type: selectedFollowupType,
                         teacher_types: selectedTeacherTypes,
                         tone_attributes: toneAttributes,
-                        tone_scale: 5,
+                        tone_scale: 'centered_5',
                         requested_length: requestedLength,
                         feedback_components: feedbackComponents,
                         persist_feedback_session: true,
