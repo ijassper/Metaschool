@@ -1,5 +1,6 @@
 urllib3<2.0
-Django>=5.1,<5.2
+# 운영 서버 Python 3.8 및 MySQL 8.0.x 호환 LTS
+Django>=4.2,<4.3
 gunicorn
 pymysql
 lxml
