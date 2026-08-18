@@ -23,6 +23,22 @@ from ..models import Activity, Question, Answer, ActivityFile
 from accounts.decorators import teacher_required
 from accounts.models import Persona
 
+
+ACTIVITY_ITEM_TITLE_MAX_LENGTH = 2000
+
+
+def get_activity_item_title_error(post_data):
+    """DB 저장 전에 답안지 항목 제목 길이를 검증하여 사용자용 오류를 반환합니다."""
+    for index in range(1, 4):
+        field_name = f'q{index}_title'
+        value = str(post_data.get(field_name, '') or '').strip()
+        if len(value) > ACTIVITY_ITEM_TITLE_MAX_LENGTH:
+            return (
+                f"학생 답안지 구성의 '항목 {index} 제목' 글자 수가 너무 많습니다. "
+                f"{ACTIVITY_ITEM_TITLE_MAX_LENGTH:,}자 이하로 입력해주세요."
+            )
+    return ''
+
 logger = logging.getLogger(__name__)
 
 PERSONA_TONES = ["친절한", "신뢰있는", "친구같은", "격려하는", "간결한", "전문적인"]
@@ -199,6 +215,19 @@ def unified_create(request):
                 'student_tree': get_student_tree(request.user),
                 'action': '생성',
                 'form_data': request.POST
+            })
+
+        item_title_error = get_activity_item_title_error(request.POST)
+        if item_title_error:
+            messages.error(request, item_title_error)
+            return render(request, 'activities/unified_form.html', {
+                'cat_code': cat_code,
+                'sub_menu': sub_menu,
+                'config': config,
+                'student_tree': get_student_tree(request.user),
+                'action': '생성',
+                'form_data': request.POST,
+                'source_answer': source_answer,
             })
         
         # 만약 루프 방식(q1, q2...)을 병행해야 한다면 아래 로직을 사용하지만, 
@@ -439,6 +468,21 @@ def unified_update(request, activity_id):
                     naive_dt = datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
                     return make_aware(naive_dt)
                 except: return None
+
+        item_title_error = get_activity_item_title_error(request.POST)
+        if item_title_error:
+            messages.error(request, item_title_error)
+            return render(request, 'activities/unified_form.html', {
+                'activity': activity,
+                'cat_code': activity.category,
+                'sub_menu': sub_menu,
+                'config': config,
+                'category_name': category_name,
+                'current_targets': list(activity.target_students.values_list('id', flat=True)),
+                'student_tree': get_student_tree(request.user),
+                'action': '수정',
+                'form_data': request.POST,
+            })
 
         # ------------------------------------------------
         # 3. [핵심 수정] 데이터 업데이트 (실제 DB 반영)

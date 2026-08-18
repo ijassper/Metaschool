@@ -25,8 +25,8 @@ class Activity(models.Model):
     # --- [2. 소속 및 담당] ---
     teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="담당 교사")
     subject_name = models.CharField(max_length=50, verbose_name="과목명/활동분류") 
-    section = models.CharField(max_length=100, verbose_name="평가영역/활동명") 
-    title = models.CharField(max_length=200, verbose_name="주제")
+    section = models.TextField(verbose_name="평가영역/활동명")
+    title = models.TextField(verbose_name="주제")
 
     # --- [3. 활동 상세 내용] ---
     # 여러 textarea를 합쳐서 저장하거나 단일 문항을 저장하는 필드
@@ -92,9 +92,9 @@ class Activity(models.Model):
 
     # [학생 답안지 문항 제목 커스텀]
     # 교사가 "활동 내용", "성과" 등을 직접 입력하여 저장
-    q1_title = models.CharField(max_length=100, default="항목 1", verbose_name="문항 1 제목")
-    q2_title = models.CharField(max_length=100, default="항목 2", verbose_name="문항 2 제목")
-    q3_title = models.CharField(max_length=100, default="항목 3", verbose_name="문항 3 제목")
+    q1_title = models.TextField(default="항목 1", verbose_name="문항 1 제목")
+    q2_title = models.TextField(default="항목 2", verbose_name="문항 2 제목")
+    q3_title = models.TextField(default="항목 3", verbose_name="문항 3 제목")
 
     # --- [6. 대상 및 상태] ---
     target_students = models.ManyToManyField('accounts.Student', blank=True, related_name='activities', verbose_name="대상 학생")
@@ -278,7 +278,7 @@ class AnalysisResult(models.Model):
     prompt_system = models.TextField(verbose_name="사용된 프롬프트")
     temperature = models.FloatField(default=0.7, verbose_name="창의성 온도")
     ai_model = models.CharField(max_length=50, default='gemini-2.0-flash', verbose_name="AI 모델")
-    work_name = models.CharField(max_length=100, null=True, blank=True, verbose_name="분석 작업명")
+    work_name = models.TextField(null=True, blank=True, verbose_name="분석 작업명")
     batch_id = models.CharField(max_length=50, null=True, blank=True, verbose_name="분석 세션 ID")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="분석 생성일")
     
@@ -356,7 +356,7 @@ class FeedbackSession(models.Model):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='feedback_sessions', verbose_name='작성 교사'
     )
-    feedback_title = models.CharField(max_length=150, blank=True, verbose_name='피드백 제목')
+    feedback_title = models.TextField(max_length=150, blank=True, verbose_name='피드백 제목')
     content = models.TextField(blank=True, verbose_name='피드백 본문')
     options_snapshot = models.JSONField(default=dict, blank=True, verbose_name='생성 옵션 스냅샷')
     version = models.PositiveIntegerField(verbose_name='버전')
