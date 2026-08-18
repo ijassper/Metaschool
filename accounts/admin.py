@@ -4,7 +4,7 @@ from django.utils.safestring import mark_safe # HTML 출력을 위해 필요
 from django.db.models import Case, When # For conditional ordering
 from django.utils.html import format_html   # For custom HTML rendering
 from django.forms import Textarea   
-from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption, Subject, Persona
+from .models import CustomUser, Student, School, SystemConfig, PromptTemplate, PromptCategory, PromptLengthOption, Subject, Persona, ToneStylePreset
 
 
 @admin.register(Persona)
@@ -12,6 +12,13 @@ class PersonaAdmin(admin.ModelAdmin):
     list_display = ['name', 'category_context', 'task_type', 'is_default', 'tone_default', 'creator', 'updated_at']
     list_filter = ['category_context', 'task_type', 'is_default', 'tone_default', 'creator']
     search_fields = ['name', 'description', 'system_prompt']
+
+
+@admin.register(ToneStylePreset)
+class ToneStylePresetAdmin(admin.ModelAdmin):
+    list_display = ['dimension', 'level', 'name', 'version', 'is_active', 'updated_at']
+    list_filter = ['dimension', 'level', 'is_active', 'version']
+    search_fields = ['name', 'prompt_rules', 'source_guide', 'example_text']
 
 # 일괄 변경 액션 함수
 @admin.action(description='✅ 선택된 교사를 [메타고등학교]로 변경')

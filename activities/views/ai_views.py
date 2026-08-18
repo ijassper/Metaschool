@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 # 커스텀 데코레이터 및 계정 모델 임포트
 from accounts.decorators import teacher_required
-from accounts.models import Persona, Student, SystemConfig, PromptTemplate, PromptLengthOption
+from accounts.models import Persona, Student, SystemConfig, PromptTemplate, PromptLengthOption, ToneStylePreset
 from ..attachment_context import (
     get_analysis_ready_context,
     get_or_refresh_activity_context,
@@ -35,35 +35,42 @@ TONE_AXIS_LABELS = {
 
 
 def build_tone_style_guide(tone_attributes):
-    """0~10 다축 값을 모델이 따라야 하는 자연어 스타일 가이드로 변환합니다."""
+    """1~5 단계 값을 DB 프리셋과 기본 규칙으로 조합합니다."""
     if not tone_attributes:
         return ''
 
     def describe_axis(value, left_label, right_label):
-        if value <= 2:
-            return f'{left_label} 성향을 매우 강하게 적용'
-        if value <= 4:
-            return f'{left_label} 성향을 다소 강하게 적용'
-        if value <= 6:
+        if value == 1:
+            return f'{left_label} 성향을 강하게 적용'
+        if value == 2:
+            return f'{left_label} 성향을 적용'
+        if value == 3:
             return f'{left_label}과 {right_label}의 균형을 유지'
-        if value <= 8:
-            return f'{right_label} 성향을 다소 강하게 적용'
-        return f'{right_label} 성향을 매우 강하게 적용'
+        if value == 4:
+            return f'{right_label} 성향을 적용'
+        return f'{right_label} 성향을 강하게 적용'
 
+    presets = {
+        (preset.dimension, preset.level): preset
+        for preset in ToneStylePreset.objects.filter(
+            is_active=True,
+            dimension__in=tone_attributes.keys(),
+            level__in=set(tone_attributes.values()),
+        )
+    }
     guide_lines = []
     for attribute, (left_label, right_label) in TONE_AXIS_LABELS.items():
         if attribute not in tone_attributes:
             continue
         value = tone_attributes[attribute]
-        guide_lines.append(
-            f'- {describe_axis(value, left_label, right_label)} (강도 {value}/10)'
-        )
+        preset = presets.get((attribute, value))
+        rule = preset.prompt_rules if preset else describe_axis(value, left_label, right_label)
+        guide_lines.append(f'- {rule} (강도 {value}/5)')
 
     return (
-        '[필수 스타일 가이드]\n'
+        '[필수 문체 및 표현 가이드]\n'
         + '\n'.join(guide_lines)
-        + '\n위 스타일 가이드는 선택 사항이 아니라 전체 답변에서 반드시 유지해야 합니다. '
-        '각 축을 하나의 자연스러운 교사 목소리로 통합하고, 답변 본문에는 설정명·수치·스타일 가이드를 노출하지 마세요.'
+        + '\n각 축을 하나의 자연스러운 교사 목소리로 통합하고, 설정값이나 단계명을 본문에서 언급하지 마세요.'
     )
 
 
@@ -623,7 +630,11 @@ def api_process_db_row(request):
                 if attribute not in requested_tone_attributes:
                     continue
                 try:
-                    tone_attributes[attribute] = min(max(int(requested_tone_attributes[attribute]), 0), 10)
+                    raw_value = int(requested_tone_attributes[attribute])
+                    # 기존 임시 저장본(0~10)은 새 1~5 척도로 자동 변환합니다.
+                    if body.get('tone_scale') != 5:
+                        raw_value = round((raw_value * 4) / 10) + 1
+                    tone_attributes[attribute] = min(max(raw_value, 1), 5)
                 except (TypeError, ValueError):
                     continue
             requested_length = (body.get('requested_length') or '').strip()[:200]
@@ -979,6 +990,7 @@ def api_process_db_row(request):
                             'persona_name': persona_name,
                             'teacher_types': selected_teacher_types,
                             'tone_attributes': tone_attributes,
+                            'tone_scale': 5,
                             'requested_length': effective_length,
                             'feedback_components': feedback_components,
                             'temperature': temperature,

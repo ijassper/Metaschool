@@ -149,6 +149,38 @@ class Persona(models.Model):
         owner = "시스템" if self.is_system else self.creator.name
         return f"[{owner}] {self.name}"
 
+class ToneStylePreset(models.Model):
+    """AI 결과의 문체 축별 1~5단계 프롬프트 프리셋."""
+
+    class Dimension(models.TextChoices):
+        GENDER = "gender", "성별 표현"
+        FORMALITY = "formality", "형식성"
+        DIRECTNESS = "directness", "솔직성"
+        DETAIL = "detail", "상세성"
+        EDITING = "editing", "첨삭 성격"
+
+    dimension = models.CharField(max_length=20, choices=Dimension.choices)
+    level = models.PositiveSmallIntegerField()
+    name = models.CharField(max_length=100)
+    prompt_rules = models.TextField(help_text="실제 AI 호출에 사용하는 압축 프롬프트")
+    source_guide = models.TextField(blank=True, help_text="프리셋 설계의 근거가 되는 전체 지침")
+    example_text = models.TextField(blank=True, help_text="운영·검수용 결과 예시")
+    is_active = models.BooleanField(default=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["dimension", "level"]
+        constraints = [
+            models.UniqueConstraint(fields=["dimension", "level"], name="unique_tone_dimension_level"),
+            models.CheckConstraint(check=models.Q(level__gte=1, level__lte=5), name="tone_level_between_1_and_5"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_dimension_display()} {self.level}단계 - {self.name}"
+
+
 # 3. 학생 모델
 class Student(models.Model):
     teacher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="담당 교사 (레거시)")
