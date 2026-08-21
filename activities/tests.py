@@ -4,15 +4,22 @@ import re
 
 from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.template.loader import get_template
+from django.template import Context, Template
 from django.urls import reverse
 from django.conf import settings
 
 from .views.exam_views import pdf_viewer
+from .views.ai_views import (
+    FEEDBACK_BASE_PROMPT,
+    TASK_OUTPUT_CONTRACTS,
+    TASK_USER_INSTRUCTIONS,
+)
 from .attachment_context import (
     estimate_openai_cost_usd,
     extract_text_from_upload,
     normalize_openai_usage,
 )
+from .templatetags.answer_extras import non_whitespace_length
 
 
 @override_settings(
@@ -456,3 +463,45 @@ class AttachmentContextUnitTests(SimpleTestCase):
         self.assertEqual(800, usage['prompt_tokens'])
         self.assertEqual(200, usage['completion_tokens'])
         self.assertEqual(1000, usage['total_tokens'])
+
+
+class AIFeedbackPromptContractTests(SimpleTestCase):
+    def test_feedback_contract_requires_letter_and_forbids_activity_sheet(self):
+        contract = TASK_OUTPUT_CONTRACTS['feedback']
+        self.assertIn('한 편의 편지', contract)
+        self.assertIn('소제목·번호·목록 없이', contract)
+        self.assertIn('활동 제목', FEEDBACK_BASE_PROMPT)
+        self.assertIn('만들지 마세요', FEEDBACK_BASE_PROMPT)
+
+    def test_each_task_has_an_independent_instruction_and_contract(self):
+        expected_types = {'grading', 'feedback', 'rewrite', 'relay'}
+        self.assertEqual(expected_types, set(TASK_OUTPUT_CONTRACTS))
+        self.assertEqual(expected_types, set(TASK_USER_INSTRUCTIONS))
+        self.assertNotIn('활동 제목', TASK_USER_INSTRUCTIONS['feedback'])
+
+    def test_feedback_definition_and_component_rules_are_fixed_materials(self):
+        self.assertIn('일상적인 편지글', FEEDBACK_BASE_PROMPT)
+        self.assertIn('답안 요약', FEEDBACK_BASE_PROMPT)
+        self.assertIn('1~2문장', FEEDBACK_BASE_PROMPT)
+        self.assertIn('선택한 항목만', FEEDBACK_BASE_PROMPT)
+
+
+class AnswerCharacterCountTests(SimpleTestCase):
+    def test_non_whitespace_length_excludes_spaces_tabs_and_linebreaks(self):
+        self.assertEqual(6, non_whitespace_length('가 나\t다\n라마바'))
+
+    def test_non_whitespace_length_handles_empty_values(self):
+        self.assertEqual(0, non_whitespace_length(None))
+        self.assertEqual(0, non_whitespace_length(' \n\t '))
+
+    def test_non_whitespace_length_is_registered_as_template_filter(self):
+        rendered = Template(
+            '{% load answer_extras %}{{ value|non_whitespace_length }}'
+        ).render(Context({'value': '한 글 \n테스트'}))
+        self.assertEqual('5', rendered)
+
+    def test_answer_modal_contains_per_item_counter_renderer(self):
+        source = get_template('components/answer_view_modal.html').template.source
+        self.assertIn('countNonWhitespace', source)
+        self.assertIn('answer-character-count', source)
+        self.assertIn('currentCountBadge', source)

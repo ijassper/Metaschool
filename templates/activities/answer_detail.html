@@ -1373,6 +1373,12 @@
             rewrite: '고쳐쓰기',
             relay: '릴레이쓰기'
         };
+        const followupPromptInstructions = {
+            grading: '제공된 활동 맥락, 평가 문항, 작성 조건과 학생 답안을 근거로 채점·분석 보고서를 작성하세요.',
+            feedback: '학생 답안을 충분히 읽고 선택된 구성과 문체를 반영하여, 학생에게 직접 전달하는 한 편의 편지 피드백을 작성하세요. 소제목이나 목록은 사용하지 마세요.',
+            rewrite: '학생의 기존 생각과 목소리를 보존하면서 학생이 직접 수행할 수 있는 고쳐쓰기 활동을 설계하세요.',
+            relay: '학생 답안의 핵심 생각과 분위기에서 자연스럽게 이어지는 릴레이쓰기 활동을 설계하세요.'
+        };
 
         function updateWorkbenchLabels() {
             const label = followupLabels[selectedFollowupType] || followupLabels.grading;
@@ -1676,7 +1682,7 @@
                 .map((button) => button.dataset.component);
             const selectedTeacherTypes = Array.from(document.querySelectorAll('.teacher-type-toggle.is-selected'))
                 .map((button) => button.dataset.teacherType);
-            if (!feedbackComponents.length) {
+            if (selectedFollowupType === 'feedback' && !feedbackComponents.length) {
                 designError.textContent = `${activityLabel} 구성 메뉴를 하나 이상 선택해주세요.`;
                 designError.hidden = false;
                 return;
@@ -1704,7 +1710,7 @@
                         feedback_components: feedbackComponents,
                         persist_feedback_session: true,
                         feedback_title: sessionTitle.value.trim(),
-                        prompt_system: `학생의 기존 답안을 출발점으로 '${activityLabel}' 후속 활동 초안을 작성해 주세요. 활동 제목, 학습 목표, 학생 안내문, 구체적인 문항 또는 수행 절차를 포함하고 학생이 기존 답안을 발전시킬 수 있게 구성하세요.`,
+                        prompt_system: followupPromptInstructions[selectedFollowupType] || followupPromptInstructions.grading,
                         temperature: 0.7,
                         work_name: `후속 활동 초안 - ${activityLabel}`,
                         batch_id: `followup_${Date.now()}`

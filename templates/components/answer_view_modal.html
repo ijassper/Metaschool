@@ -27,7 +27,10 @@
                 </div>
 
                 <div class="mb-1 answer-section">
-                    <label class="fw-bold text-primary mb-2 answer-section-title" id="answerModalContentLabel">작성한 답안</label>
+                    <div class="answer-section-heading mb-2">
+                        <label class="fw-bold text-primary answer-section-title m-0" id="answerModalContentLabel">작성한 답안</label>
+                        <span id="answerModalTotalCount" class="answer-character-count" hidden>0자</span>
+                    </div>
                     <div id="modalAnswerContent" class="p-4 border rounded-4 bg-white text-break answer-content-box">
                         <!-- 답안 내용 주입 -->
                     </div>
@@ -199,14 +202,43 @@
     }
 
     .answer-content-title {
-        margin: 0 0 0.45rem;
+        margin: 0;
         font-weight: 700;
         color: #212529;
         line-height: 1.5;
     }
 
-    .answer-content-text + .answer-content-title {
+    .answer-content-text + .answer-item-heading {
         margin-top: 1.25rem;
+    }
+
+    .answer-section-heading,
+    .answer-item-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .answer-item-heading {
+        margin: 0 0 0.45rem;
+    }
+
+    .answer-character-count {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.8rem;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        background: #6c757d;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1.35;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
 
     .answer-content-text {
@@ -367,14 +399,17 @@
         }
 
         const contentLabel = document.getElementById('answerModalContentLabel');
+        const totalCountBadge = document.getElementById('answerModalTotalCount');
         if (contentType === 'ai') {
             contentLabel.innerText = 'AI 분석 결과';
             contentLabel.classList.replace('text-primary', 'text-success');
             document.getElementById('answerPdfBtn').style.display = 'none';
+            totalCountBadge.hidden = true;
         } else {
             contentLabel.innerText = '작성한 답안';
             contentLabel.classList.replace('text-success', 'text-primary');
             document.getElementById('answerPdfBtn').style.display = showPdfBtn ? 'inline-flex' : 'none';
+            totalCountBadge.hidden = false;
         }
 
         renderAnswerContent(document.getElementById('modalAnswerContent'), content, contentType);
@@ -406,9 +441,15 @@
             .replace(/'/g, '&#39;');
     }
 
+    function countNonWhitespace(value) {
+        return ((value || '').toString().match(/\S/g) || []).length;
+    }
+
     function renderAnswerContent(container, content, contentType) {
         const normalizedContent = (content || '').toString().replace(/\r\n?/g, '\n');
         container.replaceChildren();
+        const totalCountBadge = document.getElementById('answerModalTotalCount');
+        if (totalCountBadge) totalCountBadge.textContent = `${countNonWhitespace(normalizedContent)}자`;
 
         if (!normalizedContent.trim()) {
             const emptyEl = document.createElement('p');
@@ -427,12 +468,14 @@
         let textLines = [];
         let questionCounter = 0;
         let hasHeader = false;
+        let currentCountBadge = null;
 
         const appendText = () => {
             const text = textLines.join('\n').replace(/^\n+|\n+$/g, '');
             textLines = [];
             
             if (hasHeader) {
+                if (currentCountBadge) currentCountBadge.textContent = `${countNonWhitespace(text)}자`;
                 const textElement = document.createElement('div');
                 if (!text.trim()) {
                     textElement.className = 'answer-content-text text-gray-400 italic font-medium';
@@ -463,13 +506,20 @@
 
             hasHeader = true;
             questionCounter++;
+            const headingElement = document.createElement('div');
+            headingElement.className = 'answer-item-heading';
             const titleElement = document.createElement('div');
             titleElement.className = 'answer-content-title font-bold fw-bold';
             titleElement.innerText = `문항 ${questionCounter}. ${title}`;
-            container.appendChild(titleElement);
+            currentCountBadge = document.createElement('span');
+            currentCountBadge.className = 'answer-character-count';
+            currentCountBadge.innerText = '0자';
+            headingElement.append(titleElement, currentCountBadge);
+            container.appendChild(headingElement);
         });
 
         appendText();
+        if (totalCountBadge) totalCountBadge.hidden = hasHeader;
     }
 
     function formatPrintAnswerContent(content) {
@@ -510,11 +560,19 @@
 
             hasHeader = true;
             questionCounter++;
-            chunks.push(`<div class="print-answer-title font-bold fw-bold">문항 ${questionCounter}. ${escapeHtml(title)}</div>`);
+            chunks.push(`<div class="print-answer-heading"><div class="print-answer-title font-bold fw-bold">문항 ${questionCounter}. ${escapeHtml(title)}</div><span class="print-character-count" data-answer-count>0자</span></div>`);
         });
 
         appendText();
-        return chunks.join('');
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = chunks.join('');
+        const headings = Array.from(wrapper.querySelectorAll('.print-answer-heading'));
+        headings.forEach((heading) => {
+            const textElement = heading.nextElementSibling;
+            const badge = heading.querySelector('[data-answer-count]');
+            if (badge) badge.textContent = `${countNonWhitespace(textElement?.textContent || '')}자`;
+        });
+        return wrapper.innerHTML;
     }
 
     function savePdf() {
@@ -529,6 +587,7 @@
         const formattedDate = submittedDate ? submittedDate.replace(/-/g, '') : '날짜없음';
         const safeName = name.replace(/[\\/:*?"<>|]/g, '');
         const printTitle = `${grade}${classNo}${number}${safeName}_답안지_${formattedDate}`;
+        const hasStructuredAnswers = /^\s*\[[^\]]+\]\s*$/m.test((data.answerContent || '').toString());
         
         const originalTitle = document.title;
         const iframe = document.createElement('iframe');
@@ -595,6 +654,28 @@
                         break-inside: auto;
                     }
                     .print-section-title { font-size: 11pt; font-weight: 700; margin: 0 0 8px; }
+                    .print-section-heading,
+                    .print-answer-heading {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        gap: 10px;
+                    }
+                    .print-section-heading { margin: 0 0 8px; }
+                    .print-section-heading .print-section-title { margin: 0; }
+                    .print-character-count {
+                        flex: 0 0 auto;
+                        min-width: 34px;
+                        padding: 2px 7px;
+                        border-radius: 999px;
+                        background: #6c757d;
+                        color: #fff;
+                        font-size: 8pt;
+                        font-weight: 700;
+                        text-align: center;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
                     .text-primary { color: #8E44AD !important; }
                     .text-secondary { color: #6c757d !important; }
                     .print-question-panel,
@@ -645,8 +726,9 @@
                     }
                     .print-box::before, .print-box::after { content: ""; display: block; height: 0; }
                     .print-answer { min-height: 0; }
-                    .print-answer-title { font-weight: 700; margin: 0 0 0.35rem; }
-                    .print-answer-text + .print-answer-title { margin-top: 1rem; }
+                    .print-answer-heading { margin: 0 0 0.35rem; }
+                    .print-answer-title { font-weight: 700; margin: 0; }
+                    .print-answer-text + .print-answer-heading { margin-top: 1rem; }
                     .print-answer-text { white-space: pre-wrap; }
                     @media print {
                         body { padding: 0; }
@@ -706,7 +788,10 @@
                         <div class="print-question">${escapeHtml(data.questionContent || '문항 정보 없음')}</div>
                     </div>
                     <div class="print-section">
-                        <h2 class="print-section-title">작성한 답안</h2>
+                        <div class="print-section-heading">
+                            <h2 class="print-section-title">작성한 답안</h2>
+                            ${hasStructuredAnswers ? '' : `<span class="print-character-count">${countNonWhitespace(data.answerContent)}자</span>`}
+                        </div>
                         <div class="print-box print-answer">${formatPrintAnswerContent(data.answerContent)}</div>
                     </div>
                 </div>
