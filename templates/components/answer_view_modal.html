@@ -29,7 +29,7 @@
                 <div class="mb-1 answer-section">
                     <div class="answer-section-heading mb-2">
                         <label class="fw-bold text-primary answer-section-title m-0" id="answerModalContentLabel">작성한 답안</label>
-                        <span id="answerModalTotalCount" class="answer-character-count" hidden>0자</span>
+                        <span id="answerModalTotalCount" class="answer-character-count answer-total-character-count" hidden>0자</span>
                     </div>
                     <div id="modalAnswerContent" class="p-4 border rounded-4 bg-white text-break answer-content-box">
                         <!-- 답안 내용 주입 -->
@@ -215,9 +215,17 @@
     .answer-section-heading,
     .answer-item-heading {
         display: flex;
-        justify-content: space-between;
         align-items: center;
         gap: 0.75rem;
+    }
+
+    .answer-section-heading {
+        justify-content: flex-start;
+        gap: 0.5rem;
+    }
+
+    .answer-item-heading {
+        justify-content: space-between;
     }
 
     .answer-item-heading {
@@ -239,6 +247,13 @@
         line-height: 1.35;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+    }
+
+    .answer-total-character-count {
+        min-width: 0;
+        padding: 0.18rem 0.6rem;
+        font-size: 1rem;
+        font-weight: 700;
     }
 
     .answer-content-text {
@@ -678,8 +693,9 @@
                         align-items: center;
                         gap: 10px;
                     }
-                    .print-section-heading { margin: 0 0 8px; }
+                    .print-section-heading { justify-content: flex-start; margin: 0 0 8px; }
                     .print-section-heading .print-section-title { margin: 0; }
+                    .print-section-heading .print-character-count { min-width: 0; font-size: 11pt; }
                     .print-character-count {
                         flex: 0 0 auto;
                         min-width: 34px;
