@@ -503,5 +503,8 @@ class AnswerCharacterCountTests(SimpleTestCase):
     def test_answer_modal_contains_per_item_counter_renderer(self):
         source = get_template('components/answer_view_modal.html').template.source
         self.assertIn('countNonWhitespace', source)
+        self.assertIn('countAnswerBodyCharacters', source)
+        self.assertIn('normalizeAnswerTitle', source)
         self.assertIn('answer-character-count', source)
         self.assertIn('currentCountBadge', source)
+        self.assertNotIn('totalCountBadge.hidden = hasHeader', source)

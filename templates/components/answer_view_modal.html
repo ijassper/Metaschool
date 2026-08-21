@@ -445,11 +445,27 @@
         return ((value || '').toString().match(/\S/g) || []).length;
     }
 
+    function countAnswerBodyCharacters(value) {
+        const bodyOnly = (value || '').toString()
+            .replace(/\r\n?/g, '\n')
+            .split('\n')
+            .filter((line) => !/^\s*\[[^\]]*\]\s*$/.test(line))
+            .join('\n');
+        return countNonWhitespace(bodyOnly);
+    }
+
+    function normalizeAnswerTitle(value) {
+        return (value || '').toString()
+            .trim()
+            .replace(/^(?:문항|답안)\s*\d+\s*[.．:：、-]?\s*/i, '')
+            .trim();
+    }
+
     function renderAnswerContent(container, content, contentType) {
         const normalizedContent = (content || '').toString().replace(/\r\n?/g, '\n');
         container.replaceChildren();
         const totalCountBadge = document.getElementById('answerModalTotalCount');
-        if (totalCountBadge) totalCountBadge.textContent = `${countNonWhitespace(normalizedContent)}자`;
+        if (totalCountBadge) totalCountBadge.textContent = `${countAnswerBodyCharacters(normalizedContent)}자`;
 
         if (!normalizedContent.trim()) {
             const emptyEl = document.createElement('p');
@@ -501,8 +517,9 @@
             }
 
             appendText();
-            const title = titleMatch[1].trim();
-            if (!title) return;
+            const originalTitle = titleMatch[1].trim();
+            if (!originalTitle) return;
+            const title = normalizeAnswerTitle(originalTitle);
 
             hasHeader = true;
             questionCounter++;
@@ -510,7 +527,7 @@
             headingElement.className = 'answer-item-heading';
             const titleElement = document.createElement('div');
             titleElement.className = 'answer-content-title font-bold fw-bold';
-            titleElement.innerText = `문항 ${questionCounter}. ${title}`;
+            titleElement.innerText = `문항 ${questionCounter}.${title ? ` ${title}` : ''}`;
             currentCountBadge = document.createElement('span');
             currentCountBadge.className = 'answer-character-count';
             currentCountBadge.innerText = '0자';
@@ -519,7 +536,7 @@
         });
 
         appendText();
-        if (totalCountBadge) totalCountBadge.hidden = hasHeader;
+        if (totalCountBadge) totalCountBadge.hidden = contentType === 'ai';
     }
 
     function formatPrintAnswerContent(content) {
@@ -555,12 +572,13 @@
             }
 
             appendText();
-            const title = titleMatch[1].trim();
-            if (!title) return;
+            const originalTitle = titleMatch[1].trim();
+            if (!originalTitle) return;
+            const title = normalizeAnswerTitle(originalTitle);
 
             hasHeader = true;
             questionCounter++;
-            chunks.push(`<div class="print-answer-heading"><div class="print-answer-title font-bold fw-bold">문항 ${questionCounter}. ${escapeHtml(title)}</div><span class="print-character-count" data-answer-count>0자</span></div>`);
+            chunks.push(`<div class="print-answer-heading"><div class="print-answer-title font-bold fw-bold">문항 ${questionCounter}.${title ? ` ${escapeHtml(title)}` : ''}</div><span class="print-character-count" data-answer-count>0자</span></div>`);
         });
 
         appendText();
@@ -587,7 +605,6 @@
         const formattedDate = submittedDate ? submittedDate.replace(/-/g, '') : '날짜없음';
         const safeName = name.replace(/[\\/:*?"<>|]/g, '');
         const printTitle = `${grade}${classNo}${number}${safeName}_답안지_${formattedDate}`;
-        const hasStructuredAnswers = /^\s*\[[^\]]+\]\s*$/m.test((data.answerContent || '').toString());
         
         const originalTitle = document.title;
         const iframe = document.createElement('iframe');
@@ -790,7 +807,7 @@
                     <div class="print-section">
                         <div class="print-section-heading">
                             <h2 class="print-section-title">작성한 답안</h2>
-                            ${hasStructuredAnswers ? '' : `<span class="print-character-count">${countNonWhitespace(data.answerContent)}자</span>`}
+                            <span class="print-character-count">${countAnswerBodyCharacters(data.answerContent)}자</span>
                         </div>
                         <div class="print-box print-answer">${formatPrintAnswerContent(data.answerContent)}</div>
                     </div>
