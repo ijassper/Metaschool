@@ -522,3 +522,17 @@ class CreativeSidebarMenuTests(SimpleTestCase):
         self.assertEqual('학급/학년특색활동명', config['basic']['section'])
         self.assertEqual('평가 문항', config['detail']['content'])
         self.assertEqual(['활동 목표', '활동 과정', '배우고 느낀 점'], config['default_q'])
+
+
+class SchoolLifeSidebarMenuTests(SimpleTestCase):
+    def test_class_life_menu_is_renamed_to_life_education(self):
+        source = get_template('base.html').template.source
+        self.assertIn('sub=생활 교육', source)
+        self.assertIn("request.GET.sub == '생활 교육'", source)
+        self.assertNotIn('sub=학급 생활', source)
+
+    def test_life_education_uses_the_default_activity_form_config(self):
+        config = get_form_config('생활 교육')
+        self.assertEqual('활동명', config['basic']['section'])
+        self.assertEqual('내용', config['detail']['content'])
+        self.assertEqual(['항목 1', '항목 2', '항목 3'], config['default_q'])
