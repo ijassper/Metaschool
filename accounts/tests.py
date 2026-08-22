@@ -8,9 +8,43 @@ from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpResponse
 from django.test import Client, RequestFactory, SimpleTestCase, override_settings
+from django.urls import resolve, reverse
+from django.template.loader import get_template
 
 from .middleware import StudentSessionValidationMiddleware
-from .views import login_view
+from .views import admin_system_settings, login_view, persona_create
+
+
+class AdminSystemSettingsPersonaTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def test_persona_routes_are_owned_by_accounts_system_settings(self):
+        self.assertIs(resolve(reverse('persona_create')).func, persona_create)
+        self.assertTrue(reverse('persona_create').startswith('/accounts/system-settings/personas/'))
+
+    def test_non_admin_cannot_access_system_settings(self):
+        request = self.factory.get(reverse('admin_system_settings'))
+        request.user = SimpleNamespace(is_authenticated=True, role='TEACHER')
+        request._messages = SimpleNamespace(add=lambda *args, **kwargs: None)
+        with patch('accounts.views.messages.error'):
+            response = admin_system_settings(request)
+        self.assertEqual(302, response.status_code)
+        self.assertEqual(reverse('dashboard'), response.url)
+
+    def test_system_settings_has_three_admin_tabs_and_persona_crud(self):
+        source = get_template('accounts/system_settings.html').template.source
+        self.assertIn('기본 시스템 설정', source)
+        self.assertIn('AI 모델/API 관리', source)
+        self.assertIn('페르소나 관리', source)
+        self.assertIn("{% url 'persona_create' %}", source)
+        self.assertIn("{% url 'persona_update' persona.id %}", source)
+        self.assertIn("{% url 'persona_delete' persona.id %}", source)
+
+    def test_writing_menu_no_longer_contains_persona_link(self):
+        source = get_template('base.html').template.source
+        writing_section = source[source.index('<!-- 0. 기초 쓰기 활동'):source.index('<!-- 9. 기타 학교생활')]
+        self.assertNotIn('AI 페르소나 설정', writing_section)
 
 
 @override_settings(

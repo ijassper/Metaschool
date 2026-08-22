@@ -1,120 +1,60 @@
 {% extends 'base.html' %}
-
 {% block content %}
-<div class="container py-4" style="max-width: 800px;">
-    <div class="mb-5 px-2">
-        <h2 class="fw-bold" style="color: var(--ingrid-primary); letter-spacing: -1px;">시스템 설정 센터</h2>
-        <p class="text-muted small">인그리드의 글로벌 보안 정책과 분석용 AI 엔진을 제어합니다.</p>
+<div class="admin-center container-fluid px-4 py-3">
+  <header class="admin-hero"><div><span>ADMIN DASHBOARD</span><h2>시스템 설정 센터</h2><p>운영 정책, AI 엔진과 페르소나를 한곳에서 관리합니다.</p></div><div class="admin-badge"><i class="bi bi-shield-check"></i> 관리자 전용</div></header>
+  <nav class="admin-tabs">
+    <a href="{% url 'admin_system_settings' %}?tab=basic" class="{% if active_tab == 'basic' %}active{% endif %}"><i class="bi bi-sliders"></i> 기본 시스템 설정</a>
+    <a href="{% url 'admin_system_settings' %}?tab=ai" class="{% if active_tab == 'ai' %}active{% endif %}"><i class="bi bi-cpu"></i> AI 모델/API 관리</a>
+    <a href="{% url 'admin_system_settings' %}?tab=personas" class="{% if active_tab == 'personas' %}active{% endif %}"><i class="bi bi-person-badge"></i> 페르소나 관리</a>
+  </nav>
+
+  {% if active_tab == 'basic' %}
+  <form method="post" class="admin-panel">{% csrf_token %}<input type="hidden" name="settings_section" value="basic">
+    <div class="panel-heading"><div><span>01</span><h3>기본 시스템 설정</h3></div><p>서비스 전체에 적용되는 운영 정책입니다.</p></div>
+    <div class="setting-row"><div><h4><i class="bi bi-play-circle-fill"></i> 시연(Demo) 모드</h4><p>ON 상태에서는 폐쇄형 평가에서도 복사와 붙여넣기를 허용합니다.</p></div><div class="form-check form-switch fs-4"><input class="form-check-input" type="checkbox" name="demo_mode" value="Y" {% if demo_mode == 'Y' %}checked{% endif %}></div></div>
+    <div class="panel-actions"><button type="submit">기본 설정 저장</button></div>
+  </form>
+  {% elif active_tab == 'ai' %}
+  <form method="post" class="admin-panel">{% csrf_token %}<input type="hidden" name="settings_section" value="ai">
+    <div class="panel-heading"><div><span>02</span><h3>AI 모델 및 API 관리</h3></div><p>분석 엔진과 API 자격 증명을 설정합니다.</p></div>
+    <div class="model-grid">
+      <label class="model-card {% if current_model == 'gemini-2.0-flash' %}selected{% endif %}"><input type="radio" name="ai_model" value="gemini-2.0-flash" {% if current_model == 'gemini-2.0-flash' %}checked{% endif %}><i class="bi bi-google"></i><strong>Gemini 2.0 Flash</strong><small>고속 대량 처리</small></label>
+      <label class="model-card {% if current_model == 'gpt-4o-mini' %}selected{% endif %}"><input type="radio" name="ai_model" value="gpt-4o-mini" {% if current_model == 'gpt-4o-mini' %}checked{% endif %}><i class="bi bi-stars"></i><strong>GPT-4o Mini</strong><small>안정적인 문장 생성</small></label>
+      <div class="model-card disabled"><i class="bi bi-hourglass-split"></i><strong>Claude 3.5</strong><small>준비 중</small></div>
     </div>
-
-    <form method="post">
-        {% csrf_token %}
-        <!-- 섹션 1. 데모 모드 (토글 스위치 형태) -->
-        <div class="card border-0 shadow-sm rounded-4 mb-4 p-4" style="background: #fcfaff; border: 1px solid #e9e2ff !important;">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h5 class="fw-bold text-dark mb-1"><i class="bi bi-play-circle-fill text-primary me-2"></i>시연(Demo) 모드</h5>
-                    <p class="small text-muted mb-0">ON 상태일 때는 폐쇄형 평가에서도 복사/붙여넣기가 허용됩니다.</p>
-                </div>
-                <div class="form-check form-switch fs-4">
-                    <input class="form-check-input" type="checkbox" name="demo_mode" value="Y" id="demoSwitch" {% if demo_mode == 'Y' %}checked{% endif %}>
-                </div>
-            </div>
-        </div>
-
-        <!-- 섹션 2. AI 분석 엔진 선택 -->
-        <div class="card border-0 shadow-sm rounded-4 mb-5 p-4 bg-white">
-            <h5 class="fw-bold text-dark mb-4"><i class="bi bi-cpu-fill text-success me-2"></i>AI 분석 엔진 모델 설정</h5>
-            <div class="row g-3">
-                <!-- Gemini (현재 주력) -->
-                <div class="col-md-12">
-                    <div class="form-check p-3 border rounded-3 mb-2 {% if current_model == 'gemini-2.0-flash' %}border-primary bg-primary-subtle{% endif %}">
-                        <input class="form-check-input ms-0 me-3" type="radio" name="ai_model" value="gemini-2.0-flash" id="m_gemini" {% if current_model == 'gemini-2.0-flash' %}checked{% endif %}>
-                        <label class="form-check-label fw-bold" for="m_gemini">Google Gemini 2.0 Flash (추천: 고속 처리)</label>
-                    </div>
-                </div>
-                <!-- GPT-4o -->
-                <div class="col-md-12">
-                    <div class="form-check p-3 border rounded-3 mb-2 {% if current_model == 'gpt-4o-mini' %}border-primary bg-primary-subtle{% endif %}">
-                        <input class="form-check-input ms-0 me-3" type="radio" name="ai_model" value="gpt-4o-mini" id="m_gpt" {% if current_model == 'gpt-4o-mini' %}checked{% endif %}>
-                        <label class="form-check-label fw-bold" for="m_gpt">OpenAI GPT-4o Mini (안정적인 문장력)</label>
-                    </div>
-                </div>
-                <!-- Claude 3.5 (추후 지원 예정) -->
-                <div class="col-md-12">
-                    <div class="form-check p-3 border rounded-3 text-muted">
-                        <input class="form-check-input ms-0 me-3" type="radio" name="ai_model" value="claude-3-5" id="m_claude" disabled>
-                        <label class="form-check-label fw-bold" for="m_claude">Anthropic Claude 3.5 Sonnet (준비 중)</label>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 섹션 3. API 자격 증명 관리 (새로 추가) -->
-        <div class="card border-0 shadow-sm rounded-4 mb-5 p-4 bg-white">
-            <h5 class="fw-bold text-dark mb-4">
-                <i class="bi bi-key-fill text-warning me-2"></i>API 자격 증명 (Secrets)
-            </h5>
-            
-            <!-- Google Gemini API Key -->
-            <div class="mb-4">
-                <label class="form-label small fw-bold">Google Gemini API Key</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-google text-danger"></i></span>
-                    <input type="password" name="google_api_key" value="{{ google_api_key }}" 
-                        class="form-control border-start-0 p-3 bg-light api-key-input" id="googleKey">
-                    <button class="btn btn-outline-secondary border-start-0" type="button" onclick="toggleKeyVisibility('googleKey')">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- OpenAI API Key -->
-            <div class="mb-4">
-                <label class="form-label small fw-bold">OpenAI API Key (GPT)</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-cpu text-primary"></i></span>
-                    <input type="password" name="openai_api_key" value="{{ openai_api_key }}" 
-                        class="form-control border-start-0 p-3 bg-light api-key-input" id="openaiKey" 
-                        placeholder="sk-... 로 시작하는 키를 입력하세요">
-                    <button class="btn btn-outline-secondary border-start-0" type="button" onclick="toggleKeyVisibility('openaiKey')">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="text-center">
-            <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow" style="background: var(--ingrid-gradient); border:none;">
-                시스템 글로벌 설정 저장하기
-            </button>
-        </div>
+    <div class="secret-grid">
+      <div><label for="googleKey">Google Gemini API Key</label><div class="secret-input"><i class="bi bi-key"></i><input type="password" id="googleKey" name="google_api_key" value="{{ google_api_key }}"><button type="button" data-key-toggle="googleKey"><i class="bi bi-eye"></i></button></div></div>
+      <div><label for="openaiKey">OpenAI API Key</label><div class="secret-input"><i class="bi bi-key"></i><input type="password" id="openaiKey" name="openai_api_key" value="{{ openai_api_key }}"><button type="button" data-key-toggle="openaiKey"><i class="bi bi-eye"></i></button></div></div>
+    </div>
+    <div class="panel-actions"><button type="submit">AI 설정 저장</button></div>
+  </form>
+  {% else %}
+  <section class="admin-panel persona-manager">
+    <div class="panel-heading"><div><span>03</span><h3>페르소나 관리</h3></div>{% if not persona_form_mode %}<a href="{% url 'persona_create' %}" class="primary-link"><i class="bi bi-plus-lg"></i> 새 페르소나</a>{% endif %}</div>
+    {% if persona_form_mode %}
+    <form method="post" class="persona-editor">{% csrf_token %}
+      <div class="editor-title"><div><h4>페르소나 {{ action }}</h4><p>AI가 어떤 교사처럼 사고하고 응답할지 정의합니다.</p></div><a href="{% url 'admin_system_settings' %}?tab=personas"><i class="bi bi-x-lg"></i></a></div>
+      <div class="field"><label for="personaName">페르소나 이름 <b>*</b></label><input id="personaName" name="name" maxlength="100" required value="{% if form_data %}{{ form_data.name }}{% else %}{{ persona.name|default:'' }}{% endif %}"></div>
+      <div class="field"><label for="personaDescription">역할 설명</label><textarea id="personaDescription" name="description" rows="3">{% if form_data %}{{ form_data.description }}{% else %}{{ persona.description|default:'' }}{% endif %}</textarea></div>
+      <div class="field-grid">
+        <div class="field"><label for="personaContext">활동 맥락</label><select id="personaContext" name="category_context"><option value="">공통</option>{% for value, label in category_options %}<option value="{{ value }}" {% if form_data.category_context == value or not form_data and persona.category_context == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="personaTaskType">작업 유형</label><select id="personaTaskType" name="task_type"><option value="">공통</option>{% for value, label in task_type_options %}<option value="{{ value }}" {% if form_data.task_type == value or not form_data and persona.task_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="personaTone">기본 어조</label><select id="personaTone" name="tone_default">{% for tone in tone_options %}<option value="{{ tone }}" {% if form_data.tone_default == tone or not form_data and persona.tone_default == tone %}selected{% endif %}>{{ tone }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="field"><label for="personaPrompt">시스템 프롬프트 <b>*</b></label><textarea id="personaPrompt" name="system_prompt" rows="10" required>{% if form_data %}{{ form_data.system_prompt }}{% else %}{{ persona.system_prompt|default:'' }}{% endif %}</textarea></div>
+      <div class="editor-actions"><a href="{% url 'admin_system_settings' %}?tab=personas">취소</a><button type="submit">{{ action }} 완료</button></div>
     </form>
+    {% else %}
+    <div class="persona-section-title"><div><h4>기본 제공 페르소나</h4><p>시스템 공통 프롬프트이며 읽기 전용입니다.</p></div><span>{{ system_personas|length }}개</span></div>
+    <div class="persona-grid">{% for persona in system_personas %}<article class="persona-card system"><div class="persona-meta"><span>SYSTEM</span><em>{{ persona.tone_default }}</em></div><h5>{{ persona.name }}</h5><p>{{ persona.description|default:'설명이 없습니다.' }}</p><details><summary>프롬프트 미리보기</summary><div>{{ persona.system_prompt }}</div></details></article>{% empty %}<div class="empty">등록된 시스템 페르소나가 없습니다.</div>{% endfor %}</div>
+    <div class="persona-section-title personal-title"><div><h4>관리자 등록 페르소나</h4><p>관리자가 추가한 맞춤 페르소나입니다.</p></div><span>{{ personal_personas|length }}개</span></div>
+    <div class="persona-grid">{% for persona in personal_personas %}<article class="persona-card"><div class="persona-meta"><span>CUSTOM</span><em>{{ persona.tone_default }}</em></div><h5>{{ persona.name }}</h5><p>{{ persona.description|default:'설명이 없습니다.' }}</p><details><summary>프롬프트 미리보기</summary><div>{{ persona.system_prompt }}</div></details><div class="card-actions"><a href="{% url 'persona_update' persona.id %}"><i class="bi bi-pencil"></i> 수정</a><form method="post" action="{% url 'persona_delete' persona.id %}" onsubmit="return confirm('이 페르소나를 삭제할까요?');">{% csrf_token %}<button><i class="bi bi-trash3"></i> 삭제</button></form></div></article>{% empty %}<div class="empty">아직 관리자가 만든 페르소나가 없습니다.</div>{% endfor %}</div>
+    {% endif %}
+  </section>
+  {% endif %}
 </div>
-
-<!-- API 키 입력창 토글 스크립트 -->
-<script>
-    // 입력창 보기/숨기기 토글
-    function toggleKeyVisibility(id) {
-        const input = document.getElementById(id);
-        const icon = event.currentTarget.querySelector('i');
-        if (input.type === "password") {
-            input.type = "text";
-            icon.classList.replace('bi-eye', 'bi-eye-slash');
-        } else {
-            input.type = "password";
-            icon.classList.replace('bi-eye-slash', 'bi-eye');
-        }
-    }
-
-    // Textarea 마스킹 토글
-    function toggleTextAreaMask(id) {
-        const el = document.getElementById(id);
-        if (el.style.webkitTextSecurity === 'disc') {
-            el.style.webkitTextSecurity = 'none';
-        } else {
-            el.style.webkitTextSecurity = 'disc';
-        }
-    }
-</script>
+<style>
+.admin-center{max-width:1240px;margin:0 auto;color:#39333d}.admin-hero{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.15rem}.admin-hero span{color:#9650aa;font-size:.68rem;font-weight:850;letter-spacing:.12em}.admin-hero h2{margin:.2rem 0;font-size:1.75rem;font-weight:850}.admin-hero p,.panel-heading p,.persona-section-title p,.editor-title p{margin:0;color:#918795;font-size:.76rem}.admin-badge{padding:.55rem .8rem;border-radius:999px;background:#f4ebf7;color:#834b92;font-size:.72rem;font-weight:750}.admin-tabs{display:flex;gap:.45rem;margin-bottom:1rem;padding:.35rem;border:1px solid #eadfeb;border-radius:15px;background:#fff;box-shadow:0 7px 24px rgba(70,40,85,.05)}.admin-tabs a{display:flex;align-items:center;gap:.42rem;padding:.7rem 1rem;border-radius:11px;color:#7d7380;font-size:.78rem;font-weight:750;text-decoration:none}.admin-tabs a.active{background:var(--ingrid-gradient);color:#fff;box-shadow:0 6px 15px rgba(142,68,173,.18)}.admin-panel{padding:1.4rem;border:1px solid #eadfeb;border-radius:18px;background:linear-gradient(145deg,#fff,#fffbfd);box-shadow:0 12px 35px rgba(73,43,87,.07)}.panel-heading{display:flex;justify-content:space-between;align-items:center;padding-bottom:1rem;border-bottom:1px solid #f0e7f1}.panel-heading>div{display:flex;align-items:center;gap:.55rem}.panel-heading span,.persona-section-title>span{padding:.25rem .5rem;border-radius:8px;background:#f2e7f5;color:#944ca7;font-size:.66rem;font-weight:850}.panel-heading h3{margin:0;font-size:1.05rem;font-weight:830}.setting-row{display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding:1.2rem;border-radius:14px;background:#faf7fc}.setting-row h4{margin:0 0 .3rem;font-size:.9rem;font-weight:800}.setting-row h4 i{color:#a34db3}.setting-row p{margin:0;color:#918795;font-size:.74rem}.panel-actions,.editor-actions{display:flex;justify-content:flex-end;margin-top:1.2rem}.panel-actions button,.editor-actions button,.primary-link{padding:.66rem 1rem;border:0;border-radius:10px;background:var(--ingrid-gradient);color:#fff;font-size:.75rem;font-weight:780;text-decoration:none}.model-grid,.secret-grid,.field-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-top:1rem}.model-card{position:relative;display:flex;flex-direction:column;gap:.3rem;padding:1rem;border:1px solid #e8dfe9;border-radius:13px;cursor:pointer}.model-card.selected{border-color:#ad65bd;background:#fbf5fd}.model-card input{position:absolute;right:1rem}.model-card>i{color:#984ca9;font-size:1.2rem}.model-card strong{font-size:.82rem}.model-card small{color:#978d9a;font-size:.68rem}.model-card.disabled{opacity:.55}.secret-grid{grid-template-columns:1fr 1fr}.secret-grid label,.field label{display:block;margin-bottom:.38rem;color:#645968;font-size:.72rem;font-weight:760}.secret-input{display:flex;align-items:center;border:1px solid #e5dce7;border-radius:11px;background:#fff;overflow:hidden}.secret-input>i{margin-left:.75rem;color:#a15bb1}.secret-input input{flex:1;padding:.72rem;border:0;outline:0}.secret-input button{padding:.72rem;border:0;background:transparent}.primary-link{display:inline-flex;gap:.35rem;align-items:center}.persona-section-title{display:flex;justify-content:space-between;align-items:flex-end;margin:1.1rem 0 .7rem}.persona-section-title h4{margin:0 0 .15rem;font-size:.92rem;font-weight:820}.personal-title{margin-top:1.8rem}.persona-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:.8rem}.persona-card{padding:1rem;border:1px solid #eadfeb;border-radius:14px;background:#fff;box-shadow:0 6px 18px rgba(70,40,85,.045)}.persona-card.system{background:#fcf9ff}.persona-meta{display:flex;justify-content:space-between}.persona-meta span,.persona-meta em{padding:.2rem .45rem;border-radius:999px;background:#f0e7f4;color:#835091;font-size:.58rem;font-style:normal;font-weight:800}.persona-meta em{background:#f6f3f7;color:#817984}.persona-card h5{margin:.75rem 0 .3rem;font-size:.88rem;font-weight:820}.persona-card>p{min-height:38px;margin:0;color:#827985;font-size:.72rem}.persona-card details{margin-top:.7rem;padding-top:.6rem;border-top:1px solid #f0e8f1}.persona-card summary{color:#855490;font-size:.68rem;font-weight:750;cursor:pointer}.persona-card details div{max-height:140px;overflow:auto;margin-top:.5rem;padding:.6rem;border-radius:8px;background:#f8f5fa;font-size:.68rem;white-space:pre-wrap}.card-actions{display:flex;gap:.4rem;margin-top:.7rem}.card-actions form{margin:0}.card-actions a,.card-actions button{padding:.38rem .58rem;border:1px solid #e5dbe7;border-radius:8px;background:#fff;color:#746878;font-size:.66rem;text-decoration:none}.card-actions button{color:#bd4d67}.empty{grid-column:1/-1;padding:2rem;border:1px dashed #dfd2e3;border-radius:13px;color:#a096a5;text-align:center}.persona-editor{max-width:900px;margin:1rem auto 0;padding:1.1rem;border:1px solid #eadfeb;border-radius:15px;background:#fff}.editor-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}.editor-title h4{margin:0;font-size:1rem;font-weight:820}.editor-title a{color:#817685}.field+.field,.field-grid+.field{margin-top:.8rem}.field input,.field textarea,.field select{width:100%;padding:.7rem .8rem;border:1px solid #e5dce7;border-radius:10px;outline:0}.field input:focus,.field textarea:focus,.field select:focus{border-color:#b676c4;box-shadow:0 0 0 3px rgba(142,68,173,.07)}.field label b{color:#d94d91}.editor-actions{gap:.5rem}.editor-actions a{padding:.66rem 1rem;border:1px solid #e5dbe7;border-radius:10px;color:#756a79;font-size:.75rem;text-decoration:none}@media(max-width:767px){.admin-hero{align-items:flex-start;flex-direction:column;gap:.7rem}.admin-tabs{overflow-x:auto}.admin-tabs a{white-space:nowrap}.model-grid,.secret-grid,.field-grid{grid-template-columns:1fr}.admin-panel{padding:1rem}}
+</style>
+<script>document.querySelectorAll('[data-key-toggle]').forEach((button)=>button.addEventListener('click',()=>{const input=document.getElementById(button.dataset.keyToggle);input.type=input.type==='password'?'text':'password';button.querySelector('i').classList.toggle('bi-eye');button.querySelector('i').classList.toggle('bi-eye-slash');}));</script>
 {% endblock %}

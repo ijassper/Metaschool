@@ -3,6 +3,10 @@ from django.urls import path
 from .views import (
     SignUpView,
     admin_system_settings,
+    persona_create,
+    persona_delete,
+    persona_list,
+    persona_update,
     admin_teacher_list,
     admin_teacher_update,
     ai_generator_step1,
@@ -57,6 +61,10 @@ urlpatterns = [
     path("api/download-excel/", api_download_excel, name="api_download_excel"),
 
     path("system-settings/", admin_system_settings, name="admin_system_settings"),
+    path("system-settings/personas/", persona_list, name="persona_list"),
+    path("system-settings/personas/create/", persona_create, name="persona_create"),
+    path("system-settings/personas/<int:persona_id>/edit/", persona_update, name="persona_update"),
+    path("system-settings/personas/<int:persona_id>/delete/", persona_delete, name="persona_delete"),
     path("admin/teachers/", admin_teacher_list, name="admin_teacher_list"),
     path("admin/teachers/<int:user_id>/update/", admin_teacher_update, name="admin_teacher_update"),
 ]

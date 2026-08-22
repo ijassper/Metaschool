@@ -27,7 +27,7 @@ import json
 import pandas as pd  # 엑셀 처리를 위해 필요
 from openpyxl import Workbook   # 엑셀 파일 생성 및 조작을 위해 필요
 from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm, CustomAuthenticationForm  # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼, 로그인 폼
-from .models import Student, CustomUser, School # 학교 모델 가져오기  
+from .models import Student, CustomUser, School, Persona # 학교 모델 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate # AI 생성기 관련 모델 가져오기
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import Activity, Student, Answer  # 평가관리, 학생, 답안 모델 가져오기
@@ -1299,41 +1299,152 @@ def student_export_excel(request):
     return response
 # --- 학생 관리 관련 뷰 끝 ---
 
+PERSONA_TONES = ["친절한", "신뢰있는", "친구같은", "격려하는", "간결한", "전문적인"]
+
+
+def _is_system_admin(user):
+    return getattr(user, 'role', None) == CustomUser.Role.ADMIN
+
+
+def _deny_non_admin(request):
+    if _is_system_admin(request.user):
+        return None
+    messages.error(request, "접근 권한이 없습니다.")
+    return redirect('dashboard')
+
+
+def _persona_form_values(request):
+    valid_contexts = {value for value, _label in Persona.CategoryContext.choices}
+    valid_task_types = {value for value, _label in Persona.TaskType.choices}
+    category_context = request.POST.get('category_context', '').strip()
+    task_type = request.POST.get('task_type', '').strip()
+    return {
+        'name': request.POST.get('name', '').strip(),
+        'description': request.POST.get('description', '').strip(),
+        'system_prompt': request.POST.get('system_prompt', '').strip(),
+        'tone_default': request.POST.get('tone_default', '친절한').strip() or '친절한',
+        'category_context': category_context if category_context in valid_contexts else '',
+        'task_type': task_type if task_type in valid_task_types else '',
+    }
+
+
+def _system_settings_context(active_tab='basic', **extra):
+    demo_cfg, _ = SystemConfig.objects.get_or_create(key_name='IS_DEMO_MODE')
+    model_cfg, _ = SystemConfig.objects.get_or_create(key_name='SELECTED_AI_MODEL')
+    google_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='GOOGLE_API_KEY')
+    openai_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='OPENAI_API_KEY')
+    personas = Persona.objects.select_related('creator').all()
+    context = {
+        'active_tab': active_tab,
+        'demo_mode': demo_cfg.value,
+        'current_model': model_cfg.value,
+        'google_api_key': google_key_cfg.value,
+        'openai_api_key': openai_key_cfg.value,
+        'system_personas': personas.filter(creator__isnull=True),
+        'personal_personas': personas.filter(creator__isnull=False),
+        'tone_options': PERSONA_TONES,
+        'category_options': Persona.CategoryContext.choices,
+        'task_type_options': Persona.TaskType.choices,
+    }
+    context.update(extra)
+    return context
+
+
 # 시스템 설정 페이지 (관리자 전용)
 @login_required
 def admin_system_settings(request):
-    # ADMIN 권한이 아니면 접근 차단
-    if request.user.role != 'ADMIN':
-        messages.error(request, "접근 권한이 없습니다.")
-        return redirect('dashboard')
+    denied = _deny_non_admin(request)
+    if denied:
+        return denied
 
-    #  기존 설정값 가져오기 (없으면 생성)
-    demo_cfg, _ = SystemConfig.objects.get_or_create(key_name='IS_DEMO_MODE')
-    model_cfg, _ = SystemConfig.objects.get_or_create(key_name='SELECTED_AI_MODEL')
-    
-    # [추가] API 키 설정 가져오기
-    google_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='GOOGLE_API_KEY')
-    openai_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='OPENAI_API_KEY')
+    active_tab = request.GET.get('tab', 'basic')
+    if active_tab not in {'basic', 'ai', 'personas'}:
+        active_tab = 'basic'
 
     if request.method == 'POST':
-        # 일반 설정 저장
-        demo_cfg.value = request.POST.get('demo_mode', 'N')
-        demo_cfg.save()
-        model_cfg.value = request.POST.get('ai_model')
-        model_cfg.save()
+        section = request.POST.get('settings_section')
+        if section == 'basic':
+            config, _ = SystemConfig.objects.get_or_create(key_name='IS_DEMO_MODE')
+            config.value = request.POST.get('demo_mode', 'N')
+            config.save(update_fields=['value'])
+            messages.success(request, "기본 시스템 설정을 저장했습니다.")
+            return redirect(f"{reverse_lazy('admin_system_settings')}?tab=basic")
+        if section == 'ai':
+            values = {
+                'SELECTED_AI_MODEL': request.POST.get('ai_model', '').strip(),
+                'GOOGLE_API_KEY': request.POST.get('google_api_key', '').strip(),
+                'OPENAI_API_KEY': request.POST.get('openai_api_key', '').strip(),
+            }
+            for key_name, value in values.items():
+                config, _ = SystemConfig.objects.get_or_create(key_name=key_name)
+                config.value = value
+                config.save(update_fields=['value'])
+            messages.success(request, "AI 모델 및 API 설정을 저장했습니다.")
+            return redirect(f"{reverse_lazy('admin_system_settings')}?tab=ai")
 
-        # [추가] API 키 저장
-        google_key_cfg.value = request.POST.get('google_api_key', '').strip()
-        google_key_cfg.save()
-        openai_key_cfg.value = request.POST.get('openai_api_key', '').strip()
-        openai_key_cfg.save()
+    return render(request, 'accounts/system_settings.html', _system_settings_context(active_tab))
 
-        messages.success(request, "모든 시스템 설정 및 API 키가 안전하게 저장되었습니다.")
-        return redirect('admin_system_settings')
 
-    return render(request, 'accounts/system_settings.html', {
-        'demo_mode': demo_cfg.value,
-        'current_model': model_cfg.value,
-        'google_api_key': google_key_cfg.value, # 템플릿으로 전달
-        'openai_api_key': openai_key_cfg.value,
-    })
+@login_required
+def persona_list(request):
+    denied = _deny_non_admin(request)
+    if denied:
+        return denied
+    return redirect(f"{reverse_lazy('admin_system_settings')}?tab=personas")
+
+
+@login_required
+def persona_create(request):
+    denied = _deny_non_admin(request)
+    if denied:
+        return denied
+    form_data = {}
+    if request.method == 'POST':
+        form_data = _persona_form_values(request)
+        if not form_data['name'] or not form_data['system_prompt']:
+            messages.error(request, "페르소나 이름과 시스템 프롬프트는 필수입니다.")
+        else:
+            Persona.objects.create(creator=request.user, **form_data)
+            messages.success(request, f"'{form_data['name']}' 페르소나를 등록했습니다.")
+            return redirect(f"{reverse_lazy('admin_system_settings')}?tab=personas")
+    context = _system_settings_context(
+        'personas', persona_form_mode='create', form_data=form_data, action='등록'
+    )
+    return render(request, 'accounts/system_settings.html', context)
+
+
+@login_required
+def persona_update(request, persona_id):
+    denied = _deny_non_admin(request)
+    if denied:
+        return denied
+    persona = get_object_or_404(Persona, id=persona_id, creator__isnull=False)
+    form_data = None
+    if request.method == 'POST':
+        form_data = _persona_form_values(request)
+        if not form_data['name'] or not form_data['system_prompt']:
+            messages.error(request, "페르소나 이름과 시스템 프롬프트는 필수입니다.")
+        else:
+            for field, value in form_data.items():
+                setattr(persona, field, value)
+            persona.save()
+            messages.success(request, f"'{persona.name}' 페르소나를 수정했습니다.")
+            return redirect(f"{reverse_lazy('admin_system_settings')}?tab=personas")
+    context = _system_settings_context(
+        'personas', persona_form_mode='update', persona=persona,
+        form_data=form_data, action='수정'
+    )
+    return render(request, 'accounts/system_settings.html', context)
+
+
+@require_POST
+@login_required
+def persona_delete(request, persona_id):
+    denied = _deny_non_admin(request)
+    if denied:
+        return denied
+    persona = get_object_or_404(Persona, id=persona_id, creator__isnull=False)
+    name = persona.name
+    persona.delete()
+    messages.success(request, f"'{name}' 페르소나를 삭제했습니다.")
+    return redirect(f"{reverse_lazy('admin_system_settings')}?tab=personas")
