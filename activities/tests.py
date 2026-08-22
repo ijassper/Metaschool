@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.conf import settings
 
 from .views.exam_views import pdf_viewer
+from .views.main_views import get_form_config
 from .views.ai_views import (
     FEEDBACK_BASE_PROMPT,
     TASK_OUTPUT_CONTRACTS,
@@ -508,3 +509,16 @@ class AnswerCharacterCountTests(SimpleTestCase):
         self.assertIn('answer-character-count', source)
         self.assertIn('currentCountBadge', source)
         self.assertNotIn('totalCountBadge.hidden = hasHeader', source)
+
+
+class CreativeSidebarMenuTests(SimpleTestCase):
+    def test_class_grade_feature_activity_menu_is_available(self):
+        source = get_template('base.html').template.source
+        self.assertIn('sub=학급/학년특색활동', source)
+        self.assertIn("request.GET.sub == '학급/학년특색활동'", source)
+
+    def test_class_grade_feature_activity_has_its_own_form_config(self):
+        config = get_form_config('학급/학년특색활동')
+        self.assertEqual('학급/학년특색활동명', config['basic']['section'])
+        self.assertEqual('평가 문항', config['detail']['content'])
+        self.assertEqual(['활동 목표', '활동 과정', '배우고 느낀 점'], config['default_q'])

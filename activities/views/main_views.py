@@ -156,6 +156,13 @@ def get_form_config(sub_menu):
             'ai_info': [],
             'default_q': ['회의 안건', '나의 의견', '최종 결정 사항']
         },
+        '학급/학년특색활동': {
+            'basic': {'section': '학급/학년특색활동명', 'title': '세부 주제'},
+            'detail': {'date': '활동 일시', 'content': '평가 문항'},
+            'textareas': [{'name': 'question', 'label': '평가 문항'}],
+            'ai_info': [],
+            'default_q': ['활동 목표', '활동 과정', '배우고 느낀 점']
+        },
 
         # ==========================================
         # 5. 동아리활동
