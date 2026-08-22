@@ -12,6 +12,8 @@ from .views.exam_views import pdf_viewer
 from .views.main_views import get_form_config
 from .views.ai_views import (
     FEEDBACK_BASE_PROMPT,
+    compose_ai_system_prompt,
+    get_school_level_prompt,
     TASK_OUTPUT_CONTRACTS,
     TASK_USER_INSTRUCTIONS,
 )
@@ -485,6 +487,43 @@ class AIFeedbackPromptContractTests(SimpleTestCase):
         self.assertIn('답안 요약', FEEDBACK_BASE_PROMPT)
         self.assertIn('1~2문장', FEEDBACK_BASE_PROMPT)
         self.assertIn('선택한 항목만', FEEDBACK_BASE_PROMPT)
+
+    def test_middle_school_guide_controls_readability_on_four_axes(self):
+        school = SimpleNamespace(
+            level='MID',
+            name='영문중학교',
+            get_level_display=lambda: '중학교',
+        )
+        prompt = get_school_level_prompt(SimpleNamespace(school=school))
+        self.assertIn('영문중학교의 중학교 학생', prompt)
+        self.assertIn('분석의 깊이', prompt)
+        self.assertIn('단어 선택', prompt)
+        self.assertIn('문장의 복잡성', prompt)
+        self.assertIn('문장의 길이', prompt)
+        self.assertIn('25~45자', prompt)
+        self.assertIn('독해 수준 규칙을 우선', prompt)
+
+    def test_missing_school_falls_back_to_middle_school_guide(self):
+        prompt = get_school_level_prompt(SimpleNamespace(school=None))
+        self.assertIn('중학교 학생 독해 수준', prompt)
+
+    def test_system_prompt_order_is_task_school_persona_tone(self):
+        prompt = compose_ai_system_prompt(
+            task_prompt='FEEDBACK',
+            school_level_prompt='SCHOOL_LEVEL',
+            persona_prompt='PERSONA',
+            effective_tone='TONE',
+            effective_length='LENGTH',
+            tone_style_prompt='TONE_PRESET',
+        )
+        positions = [
+            prompt.index('FEEDBACK'),
+            prompt.index('SCHOOL_LEVEL'),
+            prompt.index('PERSONA'),
+            prompt.index('TONE'),
+        ]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn('TONE_PRESET', prompt)
 
 
 class AnswerCharacterCountTests(SimpleTestCase):
