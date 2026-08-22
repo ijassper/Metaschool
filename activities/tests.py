@@ -14,6 +14,7 @@ from .views.ai_views import (
     FEEDBACK_BASE_PROMPT,
     compose_ai_system_prompt,
     get_school_level_prompt,
+    normalize_tone_attribute_value,
     TASK_OUTPUT_CONTRACTS,
     TASK_USER_INSTRUCTIONS,
 )
@@ -524,6 +525,15 @@ class AIFeedbackPromptContractTests(SimpleTestCase):
         ]
         self.assertEqual(positions, sorted(positions))
         self.assertIn('TONE_PRESET', prompt)
+
+    def test_centered_tone_scale_maps_to_database_levels(self):
+        self.assertEqual(
+            [1, 2, 3, 4, 5],
+            [
+                normalize_tone_attribute_value(value, 'centered_5')
+                for value in (-2, -1, 0, 1, 2)
+            ],
+        )
 
 
 class AnswerCharacterCountTests(SimpleTestCase):

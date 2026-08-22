@@ -163,6 +163,19 @@ def compose_ai_system_prompt(
     return '\n\n'.join(section for section in sections if section)
 
 
+def normalize_tone_attribute_value(raw_value, tone_scale=None):
+    """화면 중앙값 척도(-2~2)와 이전 저장 형식을 DB 척도(1~5)로 통일합니다."""
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        return None
+    if tone_scale == 'centered_5':
+        value += 3
+    elif tone_scale != 5:
+        value = round((value * 4) / 10) + 1
+    return min(max(value, 1), 5)
+
+
 def build_tone_style_guide(tone_attributes):
     """1~5 단계 값을 DB 프리셋과 기본 규칙으로 조합합니다."""
     if not tone_attributes:
@@ -758,16 +771,12 @@ def api_process_db_row(request):
             for attribute in allowed_tone_attributes:
                 if attribute not in requested_tone_attributes:
                     continue
-                try:
-                    raw_value = int(requested_tone_attributes[attribute])
-                    # 기존 임시 저장본(0~10)은 새 1~5 척도로 자동 변환합니다.
-                    if body.get('tone_scale') == 'centered_5':
-                        raw_value += 3
-                    elif body.get('tone_scale') != 5:
-                        raw_value = round((raw_value * 4) / 10) + 1
-                    tone_attributes[attribute] = min(max(raw_value, 1), 5)
-                except (TypeError, ValueError):
-                    continue
+                normalized_value = normalize_tone_attribute_value(
+                    requested_tone_attributes[attribute],
+                    body.get('tone_scale'),
+                )
+                if normalized_value is not None:
+                    tone_attributes[attribute] = normalized_value
             requested_length = (body.get('requested_length') or '').strip()[:200]
             allowed_feedback_components = (
                 '인사말',
