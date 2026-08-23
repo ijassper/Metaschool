@@ -83,11 +83,11 @@ class Activity(models.Model):
         ('MANUSCRIPT', '원고지'),
     ]
     NOTE_PALETTE_CHOICES = [
-        ('CREAM', '크림'), ('PINK', '핑크'), ('LAVENDER', '라벤더'),
+        ('WHITE', '무지(흰 배경)'), ('CREAM', '크림'), ('PINK', '핑크'), ('LAVENDER', '라벤더'),
         ('BLUE', '블루'), ('MINT', '민트'),
     ]
     NOTE_PALETTE_HEX = {
-        'CREAM': '#FFF9F0', 'PINK': '#FFF1F7', 'LAVENDER': '#F7F1FF',
+        'WHITE': '#FFFFFF', 'CREAM': '#FFF9F0', 'PINK': '#FFF1F7', 'LAVENDER': '#F7F1FF',
         'BLUE': '#EFF7FF', 'MINT': '#EFFBF6',
     }
     note_template = models.CharField(max_length=20, choices=NOTE_TEMPLATE_CHOICES, blank=True, default='', verbose_name='노트 양식')

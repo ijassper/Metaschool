@@ -399,9 +399,6 @@
                         <div class="collapse {% if request.GET.category == 'SUBJECT_ACTIVITY' or cat_code == 'SUBJECT_ACTIVITY' or activity.category == 'SUBJECT_ACTIVITY' %}show{% endif %}" id="subjectMenu" data-bs-parent="#sidebarMenu">
                             <div class="sub-menu-list">
                                 <!-- 각 메뉴별로 category와 sub 값을 다르게 전달 -->
-                                <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=수업 노트/연습장"
-                                class="sub-menu-item {% if request.GET.sub == '수업 노트/연습장' %}active{% endif %}">수업 노트/연습장</a>
-
                                 <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=발표활동 보고서" 
                                 class="sub-menu-item {% if request.GET.sub == '발표활동 보고서' %}active{% endif %}">발표활동 보고서</a>
                                 
@@ -413,6 +410,9 @@
                                 
                                 <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=실기활동 보고서" 
                                 class="sub-menu-item {% if request.GET.sub == '실기활동 보고서' %}active{% endif %}">실기활동 보고서</a>
+
+                                <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=수업 노트/연습장"
+                                class="sub-menu-item {% if request.GET.sub == '수업 노트/연습장' %}active{% endif %}">수업 노트/연습장</a>
                             </div>
                         </div>
                     </div>
