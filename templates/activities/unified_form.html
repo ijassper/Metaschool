@@ -111,6 +111,23 @@
         flex: 0 0 auto;
     }
 
+    .note-choice-input, .palette-choice-input { position: absolute; opacity: 0; pointer-events: none; }
+    .note-choice-card { min-height: 104px; border: 2px solid transparent; border-radius: 18px; background: rgba(255,255,255,.8); cursor: pointer; transition: .18s ease; }
+    .note-choice-input:checked + .note-choice-card { border-color: #A64DB6; box-shadow: 0 0 0 4px rgba(166,77,182,.12); transform: translateY(-2px); }
+    .note-preview { height: 45px; border-radius: 9px; background-color: #fffaf3; border: 1px solid rgba(142,68,173,.12); }
+    .preview-LINED_LARGE { background-image: repeating-linear-gradient(to bottom, transparent 0 18px, rgba(142,68,173,.25) 19px, transparent 20px); }
+    .preview-LINED_MEDIUM { background-image: repeating-linear-gradient(to bottom, transparent 0 13px, rgba(142,68,173,.25) 14px, transparent 15px); }
+    .preview-LINED_SMALL { background-image: repeating-linear-gradient(to bottom, transparent 0 9px, rgba(142,68,173,.25) 10px, transparent 11px); }
+    .preview-MANUSCRIPT { background-image: linear-gradient(rgba(142,68,173,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(142,68,173,.18) 1px, transparent 1px); background-size: 18px 18px; }
+    .palette-card { cursor: pointer; border: 2px solid transparent; border-radius: 16px; padding: 10px; background: white; transition: .18s ease; }
+    .palette-choice-input:checked + .palette-card { border-color: #A64DB6; box-shadow: 0 0 0 4px rgba(166,77,182,.12); }
+    .palette-swatch { height: 54px; border-radius: 11px; border: 1px solid rgba(0,0,0,.07); }
+    .palette-swatch[data-palette="CREAM"] { background:#FFF9F0; }
+    .palette-swatch[data-palette="PINK"] { background:#FFF1F7; }
+    .palette-swatch[data-palette="LAVENDER"] { background:#F7F1FF; }
+    .palette-swatch[data-palette="BLUE"] { background:#EFF7FF; }
+    .palette-swatch[data-palette="MINT"] { background:#EFFBF6; }
+
 </style>
 
 <div class="container py-4">
@@ -289,6 +306,42 @@
             </div>
         </div>
 
+        {% elif config.show_notebook and config.note_fields %}
+        <input type="hidden" name="q1_title" value="노트 내용">
+        <input type="hidden" name="q2_title" value="">
+        <input type="hidden" name="q3_title" value="">
+        <input type="hidden" name="char_limit" value="0">
+
+        <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
+            <h5 class="fw-bold mb-4"><span class="badge rounded-pill me-2" style="background:var(--ingrid-gradient)">1</span>기본 정보</h5>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="fw-bold mb-2">과목명 *</label><input type="text" name="section" class="form-control p-3 border-0 shadow-sm" value="{% if form_data %}{{ form_data.section|default:'' }}{% else %}{{ activity.section|default:'' }}{% endif %}" required></div>
+                <div class="col-md-6"><label class="fw-bold mb-2">노트 제목/단원 *</label><input type="text" name="title" class="form-control p-3 border-0 shadow-sm" value="{% if form_data %}{{ form_data.title|default:'' }}{% else %}{{ activity.title|default:'' }}{% endif %}" placeholder="예: 2단원 핵심 개념 정리" required></div>
+                <div class="col-md-4"><label class="fw-bold mb-2">응시 환경 유형</label><select name="exam_mode" class="form-select p-3 border-0 shadow-sm"><option value="OPEN_FREE" {% if form_data.exam_mode == 'OPEN_FREE' or activity.exam_mode == 'OPEN_FREE' or not activity and not form_data %}selected{% endif %}>개방형 + 복사허용</option><option value="OPEN_LOCK" {% if form_data.exam_mode == 'OPEN_LOCK' or activity.exam_mode == 'OPEN_LOCK' %}selected{% endif %}>개방형 + 복사금지</option><option value="CLOSED_FREE" {% if form_data.exam_mode == 'CLOSED_FREE' or activity.exam_mode == 'CLOSED_FREE' %}selected{% endif %}>폐쇄형 + 복사허용</option><option value="CLOSED_LOCK" {% if form_data.exam_mode == 'CLOSED_LOCK' or activity.exam_mode == 'CLOSED_LOCK' %}selected{% endif %}>폐쇄형 + 복사금지</option></select></div>
+                <div class="col-md-4"><label class="fw-bold mb-2">제출 후 수정 허용</label><select name="allow_edit_after_submission" class="form-select p-3 border-0 shadow-sm"><option value="True" {% if form_data.allow_edit_after_submission == 'True' or activity.allow_edit_after_submission %}selected{% endif %}>수정 허용</option><option value="False" {% if form_data.allow_edit_after_submission == 'False' or activity and not activity.allow_edit_after_submission %}selected{% endif %}>수정 불가</option></select></div>
+                <div class="col-md-4"><label class="fw-bold mb-2">작성 기한</label><input type="text" id="deadline_picker" name="deadline" class="form-control p-3 border-0 shadow-sm" value="{% if form_data.deadline %}{{ form_data.deadline }}{% elif activity.deadline %}{{ activity.deadline|localtime|date:'Y. m. d. H:i' }}{% endif %}" placeholder="날짜와 시간을 선택하세요"></div>
+            </div>
+        </div>
+
+        <div class="card form-section-card p-4 mb-4" style="background:#fff8fc">
+            <h5 class="fw-bold mb-4"><span class="badge rounded-pill me-2" style="background:var(--ingrid-gradient)">2</span>세부 작성 내용</h5>
+            <label class="fw-bold mb-2">노트 작성 안내 *</label>
+            <textarea name="question" class="form-control border-0 shadow-sm p-3 mb-4" rows="5" placeholder="학생이 노트에 작성할 내용과 방법을 안내해주세요." required>{% if form_data %}{{ form_data.question|default:'' }}{% else %}{{ activity.question|default:'' }}{% endif %}</textarea>
+            <h6 class="fw-bold mb-3">평가 대상</h6>
+            {% include 'components/student_selector.html' with selector_label="평가 대상" %}
+        </div>
+
+        <div class="card form-section-card p-4 mb-4" style="background:#faf7ff">
+            <h5 class="fw-bold mb-4"><span class="badge rounded-pill me-2" style="background:var(--ingrid-gradient)">3</span>노트 구성</h5>
+            <label class="fw-bold mb-3">노트 양식</label>
+            <div class="row row-cols-2 row-cols-md-5 g-3 mb-4">
+                {% for value, label in config.note_fields.template.choices %}<div class="col position-relative"><input class="note-choice-input" type="radio" name="note_template" id="note_{{ value }}" value="{{ value }}" {% if form_data.note_template == value or activity.note_template == value or not form_data and not activity and value == 'LINED_MEDIUM' %}checked{% endif %}><label class="note-choice-card p-3 d-block" for="note_{{ value }}"><div class="note-preview preview-{{ value }} mb-2"></div><strong>{{ label }}</strong></label></div>{% endfor %}
+            </div>
+            <label class="fw-bold mb-1">노트 배경 색상</label><p class="small text-muted mb-3">인그리드 톤에 맞춘 팔레트 중 하나를 선택하세요.</p>
+            <div class="row row-cols-2 row-cols-md-5 g-3">
+                {% for value, label in config.note_fields.background.choices %}<div class="col position-relative"><input class="palette-choice-input" type="radio" name="note_background" id="palette_{{ value }}" value="{{ value }}" {% if form_data.note_background == value or activity.note_background == value or not form_data and not activity and value == 'CREAM' %}checked{% endif %}><label class="palette-card d-block" for="palette_{{ value }}"><div class="palette-swatch mb-2" data-palette="{{ value }}"></div><strong>{{ label }}</strong></label></div>{% endfor %}
+            </div>
+        </div>
         {% else %}
 
         <!-- [섹션 1] 기본 정보 -->
@@ -644,7 +697,7 @@
         <div class="text-center pb-5">
             <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow-lg" 
                     style="background: var(--ingrid-gradient); border: none; font-size: 1.1rem;">
-                {% if config.show_typing and config.typing_fields %}타자 연습{% else %}평가 시트{% endif %} {% if activity %}수정{% else %}생성{% endif %} 완료
+                {% if config.show_typing and config.typing_fields %}타자 연습{% elif config.show_notebook %}노트/연습장{% else %}평가 시트{% endif %} {% if activity %}수정{% else %}생성{% endif %} 완료
             </button>
         </div>
 

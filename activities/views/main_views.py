@@ -72,7 +72,7 @@ def get_form_config(sub_menu):
         },
 
         # ==========================================
-        # 2. 교과 수업활동 평가
+        # 2. 교과 수업활동
         # ==========================================
         '발표활동 보고서': {
             'basic': {'section': '과목명', 'title': '발표 주제'},
@@ -101,6 +101,19 @@ def get_form_config(sub_menu):
             'textareas': [{'name': 'question', 'label': '평가 문항'}],
             'ai_info': ['achievement_standard'], # 설계도 준수: 성취 기준 포함
             'default_q': ['수행 기술', '연습 과정', '최종 성과']
+        },
+        '수업 노트/연습장': {
+            'basic': {'section': '과목명', 'title': '노트 제목/단원'},
+            'detail': {'date': '작성 기한', 'content': '노트 작성 안내'},
+            'textareas': [{'name': 'question', 'label': '노트 작성 안내'}],
+            'note_fields': {
+                'template': {'label': '노트 양식', 'choices': Activity.NOTE_TEMPLATE_CHOICES},
+                'background': {'label': '노트 배경 색상', 'choices': Activity.NOTE_PALETTE_CHOICES},
+                'palette_hex': Activity.NOTE_PALETTE_HEX,
+            },
+            'visible_fields': {'show_notebook': True, 'show_writing_rules': False, 'show_reference_materials': False},
+            'ai_info': [],
+            'default_q': ['노트 내용', '', ''],
         },
 
         # ==========================================
@@ -293,9 +306,11 @@ def get_form_config(sub_menu):
 
     visible_fields = config.setdefault('visible_fields', {})
     visible_fields.setdefault('show_typing', bool(config.get('typing_fields')))
+    visible_fields.setdefault('show_notebook', bool(config.get('note_fields')))
     visible_fields.setdefault('show_writing_rules', True)
     visible_fields.setdefault('show_reference_materials', True)
     config['show_typing'] = visible_fields.get('show_typing', False)
+    config['show_notebook'] = visible_fields.get('show_notebook', False)
     config['show_writing_rules'] = visible_fields.get('show_writing_rules', True)
     config['show_reference_materials'] = visible_fields.get('show_reference_materials', True)
 

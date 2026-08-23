@@ -149,7 +149,9 @@ def save_answer_content(answer, activity, form_data):
     answer.ans_q2 = form_data.get('ans_q2', '').strip()
     answer.ans_q3 = form_data.get('ans_q3', '').strip()
 
-    if any([answer.ans_q1, answer.ans_q2, answer.ans_q3]):
+    if activity.is_notebook:
+        answer.content = answer.ans_q1
+    elif any([answer.ans_q1, answer.ans_q2, answer.ans_q3]):
         answer.content = (
             f"[{activity.q1_title}]\n{answer.ans_q1}\n\n"
             f"[{activity.q2_title}]\n{answer.ans_q2}\n\n"

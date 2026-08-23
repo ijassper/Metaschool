@@ -61,6 +61,15 @@ def apply_typing_settings_from_post(activity, post_data):
     activity.show_keyboard = post_data.get('show_keyboard') == 'on'
     activity.target_data = post_data.get('target_data', '').strip()
 
+def apply_notebook_settings_from_post(activity, post_data):
+    """노트 전용 선택값을 허용 목록으로 제한하여 저장합니다."""
+    templates = get_allowed_choice_values(Activity.NOTE_TEMPLATE_CHOICES)
+    palettes = get_allowed_choice_values(Activity.NOTE_PALETTE_CHOICES)
+    template = post_data.get('note_template')
+    palette = post_data.get('note_background')
+    activity.note_template = template if template in templates else 'LINED_MEDIUM'
+    activity.note_background = palette if palette in palettes else 'CREAM'
+
 def sync_status_on_deadline_extension(activity, old_deadline, new_deadline):
     """
     제출 기한이 연장되었을 때, 기존 답안 중 아직 답안 제출하지 않은(submitted_at is null)
@@ -234,6 +243,10 @@ def unified_create(request):
                     'show_keyboard',
                     'target_data',
                 ])
+
+            if config.get('note_fields'):
+                apply_notebook_settings_from_post(activity, request.POST)
+                activity.save(update_fields=['note_template', 'note_background'])
 
             print(f"[생성] Activity 객체 생성 완료 - ID: {activity.id}")
 
@@ -448,11 +461,15 @@ def unified_update(request, activity_id):
 
         if config.get('typing_fields'):
             apply_typing_settings_from_post(activity, request.POST)
+        if config.get('note_fields'):
+            apply_notebook_settings_from_post(activity, request.POST)
         
         old_deadline = activity.deadline
         # [비활성화] 수업 일시(activity_date)는 UI/로직에서 제외합니다.
         # 기존 데이터 보존을 위해 수정 시 POST 값이 들어와도 변경하지 않습니다.
-        if request.POST.get('deadline'):
+        if config.get('note_fields'):
+            activity.deadline = parse_dt(request.POST.get('deadline'))
+        elif request.POST.get('deadline'):
             activity.deadline = parse_dt(request.POST.get('deadline'))
 
         # 기한 연장 동기화 로직

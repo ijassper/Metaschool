@@ -65,6 +65,19 @@
         background-color: #fff !important;
     }
 
+    /* 수업 노트/연습장: 화면 전체가 아닌 종이 안에서만 작성/스크롤 */
+    .notebook-shell { background: linear-gradient(135deg, #fff7fb 0%, #f8f4ff 100%); }
+    .notebook-guide { flex: 0 0 auto; color: #62436b; background: rgba(255,255,255,.76); border-bottom: 1px solid rgba(142,68,173,.12); white-space: pre-wrap; }
+    .notebook-paper-wrap { min-height: 0; }
+    textarea.answer-input.notebook-editor { height: 100% !important; min-height: 0 !important; margin: 0 !important; padding: 26px 38px 26px 68px !important; border: 1px solid rgba(142,68,173,.16) !important; border-radius: 18px !important; background-color: var(--note-paper) !important; color: #3f3744; font-size: 1.15rem !important; resize: none !important; overflow-y: auto !important; box-shadow: 0 18px 45px rgba(71,39,83,.10) !important; }
+    textarea.answer-input.notebook-editor:focus { background-color: var(--note-paper) !important; }
+    textarea.notebook-lined_large { line-height: 42px !important; background-image: repeating-linear-gradient(to bottom, transparent 0 40px, rgba(115,123,150,.24) 41px, transparent 42px) !important; }
+    textarea.notebook-lined_medium { line-height: 34px !important; background-image: repeating-linear-gradient(to bottom, transparent 0 32px, rgba(115,123,150,.24) 33px, transparent 34px) !important; }
+    textarea.notebook-lined_small { line-height: 28px !important; background-image: repeating-linear-gradient(to bottom, transparent 0 26px, rgba(115,123,150,.24) 27px, transparent 28px) !important; }
+    textarea.notebook-manuscript { line-height: 34px !important; background-image: linear-gradient(rgba(142,68,173,.16) 1px, transparent 1px), linear-gradient(90deg, rgba(142,68,173,.16) 1px, transparent 1px) !important; background-size: 34px 34px !important; }
+    textarea.notebook-blank { line-height: 1.9 !important; background-image: none !important; }
+    @media (max-width: 768px) { textarea.answer-input.notebook-editor { padding: 22px !important; } .notebook-guide { max-height: 80px; overflow-y:auto; } }
+
     /* 보안 모드 안내 스타일 - 직관적인 경고용 레드로 변경 */
     .security-notice {
         color: #dc3545; /* 강렬한 레드 */
@@ -1096,6 +1109,29 @@
                 </div>
             </form>
         </div>
+        {% elif activity.is_notebook %}
+        <div class="col-12 d-flex flex-column h-100 notebook-shell" style="--note-paper: {{ activity.note_background_hex }};">
+            <form id="answerForm" method="post" class="h-100 d-flex flex-column">
+                {% csrf_token %}
+                <input type="hidden" name="is_submit" id="isSubmitField" value="false">
+                <input type="hidden" name="ans_q2" value=""><input type="hidden" name="ans_q3" value="">
+                <div class="exam-sticky-header px-4 py-3 d-flex align-items-center gap-3">
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="small fw-bold text-muted">{{ activity.section }}</div>
+                        <h4 class="fw-bold mb-0 text-primary text-truncate"><i class="bi bi-journal-text me-2"></i>{{ activity.title }}</h4>
+                    </div>
+                    <span id="notebookSaveStatus" class="exam-status-pill"><i class="bi bi-cloud-check"></i> 저장됨</span>
+                    <span id="charCount" class="exam-status-pill">0자</span>
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#exitConfirmModal">나가기</button>
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">노트 제출</button>
+                </div>
+                <div class="notebook-guide px-4 py-2"><i class="bi bi-info-circle me-2"></i>{{ activity.question }}</div>
+                <div class="flex-grow-1 notebook-paper-wrap p-3 p-md-4 overflow-hidden">
+                    <textarea name="ans_q1" class="form-control answer-input notebook-editor notebook-{{ activity.note_template|lower }}" spellcheck="true" placeholder="이곳에 자유롭게 필기하세요."
+                        {% if IS_COPY_PROTECTED %}onpaste="return false;" oncopy="return false;" oncut="return false;"{% endif %}>{{ answer.ans_q1|default:'' }}</textarea>
+                </div>
+            </form>
+        </div>
         {% else %}
         
         <!-- [좌측 영역: 문제지 - 5대 섹션 반영] -->
@@ -1217,7 +1253,7 @@
     </div>
 </div>
 
-{% if not activity.typing_type %}
+{% if not activity.typing_type and not activity.is_notebook %}
 <div id="floatingSubmitBar" class="floating-submit-bar">
     <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
         <span id="floatingCharCount" class="exam-status-pill">
@@ -2803,6 +2839,31 @@
         textareas.forEach(textarea => {
             textarea.addEventListener('input', updateCharCount);
         });
+
+        const notebookEditor = document.querySelector('.notebook-editor');
+        const notebookStatus = document.getElementById('notebookSaveStatus');
+        if (notebookEditor && notebookStatus) {
+            let notebookSaveTimer = null;
+            notebookEditor.addEventListener('input', function() {
+                notebookStatus.innerHTML = '<i class="bi bi-pencil"></i> 작성 중';
+                clearTimeout(notebookSaveTimer);
+                notebookSaveTimer = setTimeout(async function() {
+                    notebookStatus.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 저장 중';
+                    try {
+                        const response = await fetch("{% url 'save_answer_draft' activity.id %}", {
+                            method: 'POST', body: new FormData(document.getElementById('answerForm')),
+                            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        const result = await response.json();
+                        if (!response.ok || result.status !== 'success') throw new Error('save failed');
+                        answerId = result.answer_id || answerId;
+                        notebookStatus.innerHTML = '<i class="bi bi-cloud-check"></i> 자동 저장됨';
+                    } catch (error) {
+                        notebookStatus.innerHTML = '<i class="bi bi-cloud-slash text-danger"></i> 저장 실패';
+                    }
+                }, 1200);
+            });
+        }
     });
 
     document.getElementById('answerForm').addEventListener('submit', function(event) {

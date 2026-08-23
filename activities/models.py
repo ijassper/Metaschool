@@ -11,7 +11,7 @@ class Activity(models.Model):
     # --- [1. 분류 및 유형] ---
     CATEGORY_CHOICES = [
         ('ESSAY', '교과 논술형 평가'),
-        ('SUBJECT_ACTIVITY', '교과 수업활동 평가'),
+        ('SUBJECT_ACTIVITY', '교과 수업활동'),
         ('SCHOOL_EVENT', '교내 행사활동'),
         ('CREATIVE', '자율활동'),
         ('CLUB', '동아리활동'),
@@ -76,6 +76,23 @@ class Activity(models.Model):
     show_keyboard = models.BooleanField(default=True, verbose_name="화면 키보드 표시")
     target_data = models.TextField(blank=True, default='', verbose_name="타자 연습 지문 데이터")
 
+    # --- [4-2. 수업 노트/연습장 전용 설정] ---
+    NOTE_TEMPLATE_CHOICES = [
+        ('BLANK', '무지'), ('LINED_LARGE', '줄노트(대)'),
+        ('LINED_MEDIUM', '줄노트(중)'), ('LINED_SMALL', '줄노트(소)'),
+        ('MANUSCRIPT', '원고지'),
+    ]
+    NOTE_PALETTE_CHOICES = [
+        ('CREAM', '크림'), ('PINK', '핑크'), ('LAVENDER', '라벤더'),
+        ('BLUE', '블루'), ('MINT', '민트'),
+    ]
+    NOTE_PALETTE_HEX = {
+        'CREAM': '#FFF9F0', 'PINK': '#FFF1F7', 'LAVENDER': '#F7F1FF',
+        'BLUE': '#EFF7FF', 'MINT': '#EFFBF6',
+    }
+    note_template = models.CharField(max_length=20, choices=NOTE_TEMPLATE_CHOICES, blank=True, default='', verbose_name='노트 양식')
+    note_background = models.CharField(max_length=20, choices=NOTE_PALETTE_CHOICES, blank=True, default='', verbose_name='노트 배경 색상')
+
     # --- [5. 시간 관리 (핵심)] ---
     # 평가 생성일: 교사가 저장 버튼을 누른 시점 (자동 저장)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="평가 생성일")
@@ -110,6 +127,14 @@ class Activity(models.Model):
         # Answer 모델을 함수 내부에서 임포트하여 순환 참조 에러를 방지합니다.
         from .models import Answer
         return Answer.objects.filter(question__activity=self, student=student).first()
+
+    @property
+    def is_notebook(self):
+        return self.sub_category == '수업 노트/연습장'
+
+    @property
+    def note_background_hex(self):
+        return self.NOTE_PALETTE_HEX.get(self.note_background, self.NOTE_PALETTE_HEX['CREAM'])
 
     class Meta:
         verbose_name = "활동 및 평가"
