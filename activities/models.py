@@ -338,6 +338,7 @@ class FeedbackResult(models.Model):
     task_type = models.CharField(
         max_length=20, choices=TaskType.choices, default=TaskType.FEEDBACK, verbose_name='작업 유형'
     )
+    feedback_title = models.TextField(max_length=150, blank=True, verbose_name='작업 제목')
     feedback_content = models.TextField(verbose_name='AI 피드백 본문')
     persona_used = models.JSONField(default=dict, blank=True, verbose_name='사용된 페르소나/어조 정보')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='저장 일시')
@@ -353,13 +354,17 @@ class FeedbackResult(models.Model):
         return self.get_task_type_display()
 
     @property
+    def display_title(self):
+        return self.feedback_title.strip() if self.feedback_title else self.type_name
+
+    @property
     def persona_name(self):
         if isinstance(self.persona_used, dict):
             return self.persona_used.get('persona_name', '')
         return str(self.persona_used or '')
 
     def __str__(self):
-        return f'{self.student.name} - {self.type_name}'
+        return f'{self.student.name} - {self.display_title}'
 
 
 class FeedbackSession(models.Model):

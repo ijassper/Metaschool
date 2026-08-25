@@ -219,6 +219,7 @@ def save_feedback_result(request, answer_id):
         activity=answer.question.activity,
         answer=answer,
         task_type=task_type,
+        feedback_title=feedback_title,
         feedback_content=feedback_content,
         persona_used=persona_used,
     )
@@ -236,6 +237,7 @@ def save_feedback_result(request, answer_id):
         'status': 'success',
         'feedback_id': feedback.id,
         'type_name': feedback.type_name,
+        'feedback_title': feedback.display_title,
     })
 
 

@@ -25,6 +25,7 @@ from .attachment_context import (
     normalize_openai_usage,
 )
 from .templatetags.answer_extras import non_whitespace_length
+from .models import FeedbackResult
 
 
 @override_settings(
@@ -554,6 +555,16 @@ class AIFeedbackPromptContractTests(SimpleTestCase):
         contract = build_formality_output_contract(5)
         self.assertIn('공식적인 하십시오체', contract)
         self.assertIn("주체 높임 '-시-'", contract)
+
+
+class FeedbackResultTitleTests(SimpleTestCase):
+    def test_saved_title_is_used_for_portfolio_index(self):
+        result = FeedbackResult(task_type='feedback', feedback_title='은채의 주장 글 피드백')
+        self.assertEqual('은채의 주장 글 피드백', result.display_title)
+
+    def test_legacy_result_falls_back_to_task_label(self):
+        result = FeedbackResult(task_type='feedback', feedback_title='')
+        self.assertEqual('피드백', result.display_title)
 
 
 class AnswerCharacterCountTests(SimpleTestCase):

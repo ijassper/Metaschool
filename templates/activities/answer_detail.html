@@ -52,8 +52,8 @@
                 <span>01</span> 답안
             </button>
             {% for feedback in feedback_logs %}
-            <button type="button" class="portfolio-index-tab" data-history-target="feedback-{{ feedback.id }}">
-                <span>{{ forloop.counter|add:1|stringformat:"02d" }}</span> {{ feedback.type_name }}
+            <button type="button" class="portfolio-index-tab" data-history-target="feedback-{{ feedback.id }}" title="{{ feedback.display_title }}">
+                <span>{{ forloop.counter|add:1|stringformat:"02d" }}</span><span class="portfolio-index-label">{{ feedback.display_title }}</span>
             </button>
             {% endfor %}
         </nav>
@@ -192,7 +192,7 @@
                     <div>
                         <span class="section-number">{{ forloop.counter|add:1|stringformat:"02d" }}</span>
                         <div>
-                            <h3>{{ feedback.type_name }}</h3>
+                            <h3>{{ feedback.display_title }}</h3>
                             <p>{{ feedback.created_at|localtime|date:"Y.m.d H:i" }}에 최종 저장된 작업입니다.</p>
                         </div>
                     </div>
@@ -603,6 +603,15 @@
     .portfolio-index-tab span {
         color: #af99b6;
         font-size: 0.62rem;
+    }
+
+    .portfolio-index-tab .portfolio-index-label {
+        max-width: 180px;
+        overflow: hidden;
+        color: inherit;
+        font-size: inherit;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .portfolio-index-tab.is-active {
