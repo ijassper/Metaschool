@@ -39,11 +39,11 @@
             </div>
         </div>
         <div class="portfolio-header-actions">
-            <a href="{% url 'activity_result' activity.id %}?show_all=1" class="portfolio-back">
+            <a href="{% url 'activity_result' activity.id %}?show_all=1&amp;category={{ activity.category|urlencode }}&amp;sub={{ activity.sub_category|urlencode }}" class="portfolio-back">
                 <i class="bi bi-arrow-left"></i> 제출 현황으로
             </a>
             {% if next_answer_id %}
-            <a href="{% url 'answer_detail' next_answer_id %}" class="portfolio-back portfolio-next">
+            <a href="{% url 'answer_detail' next_answer_id %}?category={{ activity.category|urlencode }}&amp;sub={{ activity.sub_category|urlencode }}" class="portfolio-back portfolio-next">
                 다음 학생으로 <i class="bi bi-arrow-right"></i>
             </a>
             {% else %}
@@ -196,7 +196,7 @@
                             {% if answer.score != None %}퀵 점수 {{ answer.score }}점{% else %}퀵 점수 부여{% endif %}
                         </button>
                         <ul class="dropdown-menu quick-score-menu" aria-labelledby="quickScoreButton">
-                            {% for score_value in "012345" %}
+                            {% for score_value in "543210" %}
                             <li><button type="button" class="dropdown-item quick-score-option{% if answer.score|stringformat:'s' == score_value %} active{% endif %}" data-score="{{ score_value }}">{{ score_value }}점</button></li>
                             {% endfor %}
                         </ul>
@@ -1853,7 +1853,9 @@
                 });
                 const data = await response.json();
                 if (!response.ok || data.status !== 'success') throw new Error(data.message || '최종 결과 저장에 실패했습니다.');
-                window.location.href = `${window.location.pathname}?saved=${data.feedback_id}#feedback-${data.feedback_id}`;
+                const savedParams = new URLSearchParams(window.location.search);
+                savedParams.set('saved', data.feedback_id);
+                window.location.href = `${window.location.pathname}?${savedParams.toString()}#feedback-${data.feedback_id}`;
             } catch (error) {
                 designError.textContent = error.message || '저장 중 오류가 발생했습니다.';
                 designError.hidden = false;
@@ -1885,7 +1887,11 @@
         document.querySelectorAll('[data-history-target]').forEach(function (button) {
             button.addEventListener('click', function () {
                 showHistoryPanel(button.dataset.historyTarget);
-                window.history.replaceState(null, '', `#${button.dataset.historyTarget}`);
+                window.history.replaceState(
+                    null,
+                    '',
+                    `${window.location.pathname}${window.location.search}#${button.dataset.historyTarget}`
+                );
             });
         });
         const initialHistoryTarget = window.location.hash.replace(/^#/, '');

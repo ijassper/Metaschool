@@ -208,7 +208,7 @@
                         <!-- 답안 상세 및 추후 활동 생성 -->
                         <td>
                             {% if item.answer_id %}
-                                <a href="{% url 'answer_detail' item.answer_id %}"
+                                <a href="{% url 'answer_detail' item.answer_id %}?category={{ activity.category|urlencode }}&amp;sub={{ activity.sub_category|urlencode }}"
                                    class="btn btn-sm rounded-pill px-3 activity-create-link"
                                    title="{{ item.student.name }} 학생 답안 상세페이지로 이동">
                                     활동 생성
