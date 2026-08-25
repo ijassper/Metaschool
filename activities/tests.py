@@ -489,6 +489,13 @@ class AIFeedbackPromptContractTests(SimpleTestCase):
         self.assertIn('1~2문장', FEEDBACK_BASE_PROMPT)
         self.assertIn('선택한 항목만', FEEDBACK_BASE_PROMPT)
 
+    def test_feedback_contract_forbids_second_person_and_student_subject_honorifics(self):
+        self.assertIn("2인칭 대명사 '당신'", FEEDBACK_BASE_PROMPT)
+        self.assertIn("'학생님'", FEEDBACK_BASE_PROMPT)
+        self.assertIn("주체 높임 선어말어미 '-시-'", FEEDBACK_BASE_PROMPT)
+        self.assertIn('학생이 나누었습니다/썼습니다/보여주었습니다/작성했습니다', FEEDBACK_BASE_PROMPT)
+        self.assertIn('결과를 출력하기 전에 금지 호칭', FEEDBACK_BASE_PROMPT)
+
     def test_middle_school_guide_controls_readability_on_four_axes(self):
         school = SimpleNamespace(
             level='MID',
