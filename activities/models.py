@@ -242,6 +242,7 @@ class Answer(models.Model):
     ans_q1 = models.TextField(blank=True, null=True, verbose_name="항목 1 답변")
     ans_q2 = models.TextField(blank=True, null=True, verbose_name="항목 2 답변")
     ans_q3 = models.TextField(blank=True, null=True, verbose_name="항목 3 답변")
+    notebook_pages = models.JSONField(default=list, blank=True, verbose_name="노트 페이지")
     content = models.TextField(verbose_name="통합 답안", blank=True) # 전체 합본용
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name="제출/수정 시간")
     activity_log = models.TextField(blank=True, default="", verbose_name="활동 로그")

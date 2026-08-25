@@ -8,7 +8,7 @@ from django.template import Context, Template
 from django.urls import reverse
 from django.conf import settings
 
-from .views.exam_views import pdf_viewer
+from .views.exam_views import normalize_notebook_pages, pdf_viewer
 from .views.main_views import get_form_config
 from .views.ai_views import (
     FEEDBACK_BASE_PROMPT,
@@ -26,6 +26,20 @@ from .attachment_context import (
 )
 from .templatetags.answer_extras import non_whitespace_length
 from .models import FeedbackResult
+
+
+class NotebookPageDataTests(SimpleTestCase):
+    def test_parses_page_json_and_preserves_page_order(self):
+        self.assertEqual(
+            normalize_notebook_pages('["첫 번째 쪽", "두 번째 쪽"]'),
+            ['첫 번째 쪽', '두 번째 쪽'],
+        )
+
+    def test_uses_legacy_answer_as_first_page(self):
+        self.assertEqual(normalize_notebook_pages('', '기존 노트'), ['기존 노트'])
+
+    def test_always_keeps_at_least_one_page(self):
+        self.assertEqual(normalize_notebook_pages('[]'), [''])
 
 
 @override_settings(

@@ -29,6 +29,24 @@ LOG_MESSAGES = {
     'BACK_BUTTON': '브라우저 뒤로가기 버튼 클릭 시도',
 }
 
+MAX_NOTEBOOK_PAGES = 100
+MAX_NOTEBOOK_PAGE_CHARS = 20000
+
+
+def normalize_notebook_pages(raw_pages, legacy_content=''):
+    """Return a safe list of notebook page strings, preserving legacy notes."""
+    if isinstance(raw_pages, str):
+        try:
+            raw_pages = json.loads(raw_pages)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            raw_pages = None
+
+    if not isinstance(raw_pages, list):
+        raw_pages = [legacy_content or '']
+
+    pages = [str(page or '')[:MAX_NOTEBOOK_PAGE_CHARS] for page in raw_pages[:MAX_NOTEBOOK_PAGES]]
+    return pages or ['']
+
 
 def append_activity_log(answer, action_code, timestamp=None):
     if timestamp is None:
@@ -81,7 +99,7 @@ def ensure_exam_question(activity):
     return question
 
 
-def build_exam_context(request, activity, question, answer=None, exam_started=False):
+def build_exam_context(request, activity, question, answer=None, exam_started=False, student=None):
     try:
         demo_config = SystemConfig.objects.get(key_name='IS_DEMO_MODE')
         is_demo = demo_config.value.strip().upper() == 'Y'
@@ -95,10 +113,19 @@ def build_exam_context(request, activity, question, answer=None, exam_started=Fa
     enable_exit_detection = is_closed_mode and not is_demo
     enable_copy_protection = is_copy_locked and not is_demo
 
+    notebook_pages = []
+    if activity.is_notebook:
+        notebook_pages = normalize_notebook_pages(
+            answer.notebook_pages if answer else None,
+            answer.ans_q1 if answer else '',
+        )
+
     return {
         'activity': activity,
         'question': question,
         'answer': answer,
+        'student': student or (answer.student if answer else None),
+        'notebook_pages': notebook_pages,
         'answer_id': answer.id if answer else '',
         'exam_started': exam_started,
         'entry_action_url': 're_enter_exam' if answer and answer.submitted_at else 'start_exam',
@@ -150,6 +177,9 @@ def save_answer_content(answer, activity, form_data):
     answer.ans_q3 = form_data.get('ans_q3', '').strip()
 
     if activity.is_notebook:
+        pages = normalize_notebook_pages(form_data.get('notebook_pages'), answer.ans_q1)
+        answer.notebook_pages = pages
+        answer.ans_q1 = '\n\n'.join(page.strip() for page in pages if page.strip())
         answer.content = answer.ans_q1
     elif any([answer.ans_q1, answer.ans_q2, answer.ans_q3]):
         answer.content = (
@@ -216,7 +246,9 @@ def take_test(request, activity_id):
             return redirect('dashboard')
         return JsonResponse({'status': 'success', 'message': '임시 저장 완료'})
 
-    context = build_exam_context(request, activity, question, answer=answer, exam_started=False)
+    context = build_exam_context(
+        request, activity, question, answer=answer, exam_started=False, student=student_info
+    )
     return render(request, 'activities/take_test.html', context)
 
 
@@ -237,7 +269,7 @@ def save_answer_draft(request, activity_id):
         return JsonResponse({'status': 'error', 'message': '제출이 완료되어 수정할 수 없습니다.'}, status=403)
 
     save_answer_content(answer, activity, request.POST)
-    answer.save(update_fields=['ans_q1', 'ans_q2', 'ans_q3', 'content'])
+    answer.save(update_fields=['ans_q1', 'ans_q2', 'ans_q3', 'notebook_pages', 'content'])
 
     return JsonResponse({
         'status': 'success',

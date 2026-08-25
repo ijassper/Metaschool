@@ -68,15 +68,24 @@
     /* 수업 노트/연습장: 화면 전체가 아닌 종이 안에서만 작성/스크롤 */
     .notebook-shell { background: linear-gradient(135deg, #fff7fb 0%, #f8f4ff 100%); }
     .notebook-guide { flex: 0 0 auto; color: #62436b; background: rgba(255,255,255,.76); border-bottom: 1px solid rgba(142,68,173,.12); white-space: pre-wrap; }
-    .notebook-paper-wrap { min-height: 0; }
-    textarea.answer-input.notebook-editor { height: 100% !important; min-height: 0 !important; margin: 0 !important; padding: 26px 38px 26px 68px !important; border: 1px solid rgba(142,68,173,.16) !important; border-radius: 18px !important; background-color: var(--note-paper) !important; color: #3f3744; font-size: 1.15rem !important; resize: none !important; overflow-y: auto !important; box-shadow: 0 18px 45px rgba(71,39,83,.10) !important; }
+    .notebook-workspace { min-height: 0; display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 18px; }
+    .notebook-page-rail { min-height: 0; border-right: 1px solid rgba(142,68,173,.14); background: rgba(255,255,255,.56); }
+    .notebook-thumbnails { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+    .notebook-thumbnail { width: 100%; padding: 8px; border: 1px solid rgba(142,68,173,.16); border-radius: 12px; background: #fff; color: #524759; text-align: left; transition: .18s ease; }
+    .notebook-thumbnail:hover { border-color: rgba(142,68,173,.48); transform: translateY(-1px); }
+    .notebook-thumbnail.active { border-color: #a34abd; box-shadow: 0 0 0 2px rgba(163,74,189,.14); }
+    .notebook-thumbnail-paper { height: 88px; padding: 9px; overflow: hidden; border-radius: 7px; background-color: var(--note-paper); color: #716779; font-size: .68rem; line-height: 1.45; white-space: pre-wrap; word-break: break-all; }
+    .notebook-page-stage { min-width: 0; min-height: 0; display: flex; justify-content: center; }
+    .notebook-paper-wrap { position: relative; width: min(100%, 1040px); min-height: 0; padding-bottom: 40px; border-radius: 18px; background-color: var(--note-paper); box-shadow: 0 18px 45px rgba(71,39,83,.10); overflow: hidden; }
+    textarea.answer-input.notebook-editor { height: 100% !important; min-height: 0 !important; margin: 0 !important; padding: 26px 38px 54px 68px !important; border: 1px solid rgba(142,68,173,.16) !important; border-radius: 18px !important; background-color: var(--note-paper) !important; color: #3f3744; font-size: 1.15rem !important; resize: none !important; overflow-y: auto !important; box-shadow: none !important; }
     textarea.answer-input.notebook-editor:focus { background-color: var(--note-paper) !important; }
     textarea.notebook-lined_large { line-height: 42px !important; background-image: repeating-linear-gradient(to bottom, transparent 0 40px, rgba(115,123,150,.24) 41px, transparent 42px) !important; }
     textarea.notebook-lined_medium { line-height: 34px !important; background-image: repeating-linear-gradient(to bottom, transparent 0 32px, rgba(115,123,150,.24) 33px, transparent 34px) !important; }
     textarea.notebook-lined_small { line-height: 28px !important; background-image: repeating-linear-gradient(to bottom, transparent 0 26px, rgba(115,123,150,.24) 27px, transparent 28px) !important; }
     textarea.notebook-manuscript { line-height: 34px !important; background-image: linear-gradient(rgba(142,68,173,.16) 1px, transparent 1px), linear-gradient(90deg, rgba(142,68,173,.16) 1px, transparent 1px) !important; background-size: 34px 34px !important; }
     textarea.notebook-blank { line-height: 1.9 !important; background-image: none !important; }
-    @media (max-width: 768px) { textarea.answer-input.notebook-editor { padding: 22px !important; } .notebook-guide { max-height: 80px; overflow-y:auto; } }
+    .notebook-page-footer { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; display: flex; align-items: center; justify-content: center; border-top: 1px solid rgba(142,68,173,.12); background: color-mix(in srgb, var(--note-paper) 88%, white); color: #765f7d; font-size: .82rem; font-weight: 700; letter-spacing: .04em; }
+    @media (max-width: 768px) { .notebook-workspace { grid-template-columns: 1fr; grid-template-rows: 112px minmax(0,1fr); gap: 10px; } .notebook-page-rail { border-right: 0; border-bottom: 1px solid rgba(142,68,173,.14); padding: 8px 12px !important; } .notebook-thumbnails { display: flex !important; flex-direction: row !important; gap: 8px; overflow-x: auto; overflow-y: hidden; } .notebook-thumbnail { flex: 0 0 96px; } .notebook-thumbnail-paper { height: 54px; } textarea.answer-input.notebook-editor { padding: 22px 22px 52px !important; } .notebook-guide { max-height: 70px; overflow-y:auto; } }
 
     /* 보안 모드 안내 스타일 - 직관적인 경고용 레드로 변경 */
     .security-notice {
@@ -1114,11 +1123,12 @@
             <form id="answerForm" method="post" class="h-100 d-flex flex-column">
                 {% csrf_token %}
                 <input type="hidden" name="is_submit" id="isSubmitField" value="false">
+                <input type="hidden" name="notebook_pages" id="notebookPagesField" value="">
                 <input type="hidden" name="ans_q2" value=""><input type="hidden" name="ans_q3" value="">
                 <div class="exam-sticky-header px-4 py-3 d-flex align-items-center gap-3">
                     <div class="flex-grow-1 min-w-0">
-                        <div class="small fw-bold text-muted">{{ activity.section }}</div>
-                        <h4 class="fw-bold mb-0 text-primary text-truncate"><i class="bi bi-journal-text me-2"></i>{{ activity.title }}</h4>
+                        <div class="small fw-bold text-primary text-truncate"><i class="bi bi-journal-text me-2"></i>{{ activity.section }}</div>
+                        <div class="fw-bold text-dark text-truncate">{{ student.school.name|default:'학교 정보 없음' }} · {{ student.grade }}학년 {{ student.class_no }}반 {{ student.number }}번 · {{ student.name }}</div>
                     </div>
                     <span id="notebookSaveStatus" class="exam-status-pill"><i class="bi bi-cloud-check"></i> 저장됨</span>
                     <span id="charCount" class="exam-status-pill">0자</span>
@@ -1126,10 +1136,23 @@
                     <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">노트 제출</button>
                 </div>
                 <div class="notebook-guide px-4 py-2"><i class="bi bi-info-circle me-2"></i>{{ activity.question }}</div>
-                <div class="flex-grow-1 notebook-paper-wrap p-3 p-md-4 overflow-hidden">
-                    <textarea name="ans_q1" class="form-control answer-input notebook-editor notebook-{{ activity.note_template|lower }}" spellcheck="true" placeholder="이곳에 자유롭게 필기하세요."
-                        {% if IS_COPY_PROTECTED %}onpaste="return false;" oncopy="return false;" oncut="return false;"{% endif %}>{{ answer.ans_q1|default:'' }}</textarea>
+                <div class="flex-grow-1 notebook-workspace overflow-hidden">
+                    <aside class="notebook-page-rail p-3 d-flex flex-column">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-bold text-muted">페이지</span>
+                            <button type="button" id="addNotebookPage" class="btn btn-sm btn-light border rounded-circle" title="새 페이지 추가" aria-label="새 페이지 추가"><i class="bi bi-plus-lg"></i></button>
+                        </div>
+                        <div id="notebookThumbnails" class="notebook-thumbnails d-flex flex-column gap-2"></div>
+                    </aside>
+                    <main class="notebook-page-stage p-3 p-md-4">
+                        <div class="notebook-paper-wrap">
+                            <textarea name="ans_q1" class="form-control answer-input notebook-editor notebook-{{ activity.note_template|lower }}" spellcheck="true" placeholder="이곳에 자유롭게 필기하세요."
+                                {% if IS_COPY_PROTECTED %}onpaste="return false;" oncopy="return false;" oncut="return false;"{% endif %}></textarea>
+                            <div id="notebookPageNumber" class="notebook-page-footer" aria-live="polite">1 / 1쪽</div>
+                        </div>
+                    </main>
                 </div>
+                {{ notebook_pages|json_script:"notebookInitialPages" }}
             </form>
         </div>
         {% else %}
@@ -2843,26 +2866,115 @@
         const notebookEditor = document.querySelector('.notebook-editor');
         const notebookStatus = document.getElementById('notebookSaveStatus');
         if (notebookEditor && notebookStatus) {
+            const initialPagesElement = document.getElementById('notebookInitialPages');
+            const pagesField = document.getElementById('notebookPagesField');
+            const thumbnails = document.getElementById('notebookThumbnails');
+            const pageNumber = document.getElementById('notebookPageNumber');
+            const addPageButton = document.getElementById('addNotebookPage');
+            let notebookPages = [''];
+            let currentNotebookPage = 0;
             let notebookSaveTimer = null;
-            notebookEditor.addEventListener('input', function() {
+
+            try {
+                const parsedPages = JSON.parse(initialPagesElement?.textContent || '[]');
+                if (Array.isArray(parsedPages) && parsedPages.length) {
+                    notebookPages = parsedPages.map(page => String(page || ''));
+                }
+            } catch (error) {
+                notebookPages = [''];
+            }
+
+            function totalNotebookCharacters() {
+                return notebookPages.reduce((total, page) => total + page.replace(/\s/g, '').length, 0);
+            }
+
+            function syncNotebookState() {
+                notebookPages[currentNotebookPage] = notebookEditor.value;
+                pagesField.value = JSON.stringify(notebookPages);
+                const count = document.getElementById('charCount');
+                if (count) count.textContent = `${totalNotebookCharacters()}자`;
+            }
+
+            function renderNotebookThumbnails() {
+                thumbnails.replaceChildren();
+                notebookPages.forEach((page, index) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = `notebook-thumbnail${index === currentNotebookPage ? ' active' : ''}`;
+                    button.setAttribute('aria-label', `${index + 1}쪽 열기`);
+
+                    const paper = document.createElement('div');
+                    paper.className = 'notebook-thumbnail-paper';
+                    paper.textContent = page.trim() || '빈 페이지';
+
+                    const label = document.createElement('div');
+                    label.className = 'small fw-bold text-center mt-1';
+                    label.textContent = `${index + 1}쪽`;
+
+                    button.append(paper, label);
+                    button.addEventListener('click', function() {
+                        syncNotebookState();
+                        currentNotebookPage = index;
+                        notebookEditor.value = notebookPages[index];
+                        renderNotebookThumbnails();
+                        pageNumber.textContent = `${index + 1} / ${notebookPages.length}쪽`;
+                        notebookEditor.focus();
+                    });
+                    thumbnails.appendChild(button);
+                });
+                pageNumber.textContent = `${currentNotebookPage + 1} / ${notebookPages.length}쪽`;
+            }
+
+            async function saveNotebookDraft() {
+                syncNotebookState();
+                notebookStatus.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 저장 중';
+                try {
+                    const response = await fetch("{% url 'save_answer_draft' activity.id %}", {
+                        method: 'POST', body: new FormData(document.getElementById('answerForm')),
+                        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const result = await response.json();
+                    if (!response.ok || result.status !== 'success') throw new Error('save failed');
+                    answerId = result.answer_id || answerId;
+                    notebookStatus.innerHTML = '<i class="bi bi-cloud-check"></i> 자동 저장됨';
+                } catch (error) {
+                    notebookStatus.innerHTML = '<i class="bi bi-cloud-slash text-danger"></i> 저장 실패';
+                }
+            }
+
+            function queueNotebookSave() {
                 notebookStatus.innerHTML = '<i class="bi bi-pencil"></i> 작성 중';
                 clearTimeout(notebookSaveTimer);
-                notebookSaveTimer = setTimeout(async function() {
-                    notebookStatus.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 저장 중';
-                    try {
-                        const response = await fetch("{% url 'save_answer_draft' activity.id %}", {
-                            method: 'POST', body: new FormData(document.getElementById('answerForm')),
-                            headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
-                        });
-                        const result = await response.json();
-                        if (!response.ok || result.status !== 'success') throw new Error('save failed');
-                        answerId = result.answer_id || answerId;
-                        notebookStatus.innerHTML = '<i class="bi bi-cloud-check"></i> 자동 저장됨';
-                    } catch (error) {
-                        notebookStatus.innerHTML = '<i class="bi bi-cloud-slash text-danger"></i> 저장 실패';
-                    }
-                }, 1200);
+                notebookSaveTimer = setTimeout(saveNotebookDraft, 1200);
+            }
+
+            notebookEditor.value = notebookPages[0];
+            syncNotebookState();
+            renderNotebookThumbnails();
+
+            notebookEditor.addEventListener('input', function() {
+                syncNotebookState();
+                renderNotebookThumbnails();
+                queueNotebookSave();
             });
+
+            addPageButton.addEventListener('click', function() {
+                syncNotebookState();
+                if (notebookPages.length >= 100) {
+                    notebookStatus.innerHTML = '<i class="bi bi-exclamation-circle text-danger"></i> 최대 100쪽';
+                    return;
+                }
+                notebookPages.push('');
+                currentNotebookPage = notebookPages.length - 1;
+                notebookEditor.value = '';
+                syncNotebookState();
+                renderNotebookThumbnails();
+                queueNotebookSave();
+                notebookEditor.focus();
+            });
+
+            document.getElementById('answerForm').addEventListener('submit', syncNotebookState);
+            window.addEventListener('beforeunload', syncNotebookState);
         }
     });
 
