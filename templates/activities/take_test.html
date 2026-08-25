@@ -85,7 +85,29 @@
     textarea.notebook-manuscript { line-height: 34px !important; background-image: linear-gradient(rgba(142,68,173,.16) 1px, transparent 1px), linear-gradient(90deg, rgba(142,68,173,.16) 1px, transparent 1px) !important; background-size: 34px 34px !important; }
     textarea.notebook-blank { line-height: 1.9 !important; background-image: none !important; }
     .notebook-page-footer { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; display: flex; align-items: center; justify-content: center; border-top: 1px solid rgba(142,68,173,.12); background: color-mix(in srgb, var(--note-paper) 88%, white); color: #765f7d; font-size: .82rem; font-weight: 700; letter-spacing: .04em; }
+    .notebook-student-identity { text-align: center; font-size: 1.5rem; line-height: 1.25; font-weight: 800; color: #332b37; }
+    .notebook-a4-measurer { position: fixed; left: -10000px; top: 0; width: 642px; height: 873px; padding: 0; overflow: hidden; visibility: hidden; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; font-family: inherit; font-size: 12pt; line-height: 1.6; }
+    .notebook-print-area { display: none; }
     @media (max-width: 768px) { .notebook-workspace { grid-template-columns: 1fr; grid-template-rows: 112px minmax(0,1fr); gap: 10px; } .notebook-page-rail { border-right: 0; border-bottom: 1px solid rgba(142,68,173,.14); padding: 8px 12px !important; } .notebook-thumbnails { display: flex !important; flex-direction: row !important; gap: 8px; overflow-x: auto; overflow-y: hidden; } .notebook-thumbnail { flex: 0 0 96px; } .notebook-thumbnail-paper { height: 54px; } textarea.answer-input.notebook-editor { padding: 22px 22px 52px !important; } .notebook-guide { max-height: 70px; overflow-y:auto; } }
+
+    @page { size: A4 portrait; margin: 0; }
+    @media print {
+        html, body { width: auto !important; height: auto !important; overflow: visible !important; background: #fff !important; }
+        .sidebar, #sidebar, .main-sidebar, nav, .sidebar-toggle-floating, .sidebar-backdrop, .notebook-shell > form { display: none !important; }
+        .container-fluid, .main-content-shell, #testContainer, .main-row, .notebook-shell { width: auto !important; max-width: none !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; display: block !important; }
+        #notebookPrintArea { display: block !important; }
+        .notebook-print-page { position: relative; width: 210mm; height: 297mm; padding: 20mm 20mm 16mm; box-sizing: border-box; break-after: page; page-break-after: always; background-color: var(--note-paper); color: #222; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        .notebook-print-page:last-child { break-after: auto; page-break-after: auto; }
+        .notebook-print-header { height: 14mm; padding-bottom: 4mm; border-bottom: .3mm solid rgba(90,70,100,.28); text-align: center; }
+        .notebook-print-subject { font-size: 12pt; font-weight: 800; }
+        .notebook-print-student { margin-top: 1.5mm; font-size: 10pt; font-weight: 700; }
+        .notebook-print-content { height: 231mm; margin-top: 6mm; white-space: pre-wrap; overflow: hidden; overflow-wrap: break-word; word-break: break-word; font-size: 12pt; line-height: 1.6; }
+        .notebook-print-content.notebook-lined_large { line-height: 31.5pt; background-image: repeating-linear-gradient(to bottom, transparent 0 30.5pt, rgba(115,123,150,.24) 30.75pt, transparent 31.5pt); }
+        .notebook-print-content.notebook-lined_medium { line-height: 25.5pt; background-image: repeating-linear-gradient(to bottom, transparent 0 24.5pt, rgba(115,123,150,.24) 24.75pt, transparent 25.5pt); }
+        .notebook-print-content.notebook-lined_small { line-height: 21pt; background-image: repeating-linear-gradient(to bottom, transparent 0 20pt, rgba(115,123,150,.24) 20.25pt, transparent 21pt); }
+        .notebook-print-content.notebook-manuscript { line-height: 25.5pt; background-image: linear-gradient(rgba(142,68,173,.16) .3mm, transparent .3mm), linear-gradient(90deg, rgba(142,68,173,.16) .3mm, transparent .3mm); background-size: 9mm 9mm; }
+        .notebook-print-footer { position: absolute; left: 20mm; right: 20mm; bottom: 8mm; text-align: center; font-size: 9pt; color: #665b6a; }
+    }
 
     /* 보안 모드 안내 스타일 - 직관적인 경고용 레드로 변경 */
     .security-notice {
@@ -1126,12 +1148,13 @@
                 <input type="hidden" name="notebook_pages" id="notebookPagesField" value="">
                 <input type="hidden" name="ans_q2" value=""><input type="hidden" name="ans_q3" value="">
                 <div class="exam-sticky-header px-4 py-3 d-flex align-items-center gap-3">
-                    <div class="flex-grow-1 min-w-0">
+                    <div class="min-w-0" style="flex: 0 1 240px;">
                         <div class="small fw-bold text-primary text-truncate"><i class="bi bi-journal-text me-2"></i>{{ activity.section }}</div>
-                        <div class="fw-bold text-dark text-truncate">{{ student.school.name|default:'학교 정보 없음' }} · {{ student.grade }}학년 {{ student.class_no }}반 {{ student.number }}번 · {{ student.name }}</div>
                     </div>
+                    <div class="notebook-student-identity flex-grow-1 text-truncate">{{ student.school.name|default:'학교 정보 없음' }} · {{ student.grade }}학년 {{ student.class_no }}반 {{ student.number }}번 · {{ student.name }}</div>
                     <span id="notebookSaveStatus" class="exam-status-pill"><i class="bi bi-cloud-check"></i> 저장됨</span>
                     <span id="charCount" class="exam-status-pill">0자</span>
+                    <button type="button" id="printNotebook" class="btn btn-outline-primary btn-sm rounded-pill px-3"><i class="bi bi-printer me-1"></i>인쇄/PDF</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#exitConfirmModal">나가기</button>
                     <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">노트 제출</button>
                 </div>
@@ -1152,8 +1175,10 @@
                         </div>
                     </main>
                 </div>
+                <div id="notebookA4Measurer" class="notebook-a4-measurer" aria-hidden="true"></div>
                 {{ notebook_pages|json_script:"notebookInitialPages" }}
             </form>
+            <div id="notebookPrintArea" class="notebook-print-area" style="--note-paper: {{ activity.note_background_hex }};" aria-hidden="true"></div>
         </div>
         {% else %}
         
@@ -2871,9 +2896,23 @@
             const thumbnails = document.getElementById('notebookThumbnails');
             const pageNumber = document.getElementById('notebookPageNumber');
             const addPageButton = document.getElementById('addNotebookPage');
+            const printButton = document.getElementById('printNotebook');
+            const printArea = document.getElementById('notebookPrintArea');
+            const a4Measurer = document.getElementById('notebookA4Measurer');
             let notebookPages = [''];
             let currentNotebookPage = 0;
             let notebookSaveTimer = null;
+            let isNotebookComposing = false;
+
+            const notebookTemplateClass = Array.from(notebookEditor.classList).find(name => name.startsWith('notebook-') && name !== 'notebook-editor') || 'notebook-blank';
+            const notebookLineHeights = {
+                'notebook-lined_large': '42px',
+                'notebook-lined_medium': '34px',
+                'notebook-lined_small': '28px',
+                'notebook-manuscript': '34px',
+                'notebook-blank': '1.6'
+            };
+            a4Measurer.style.lineHeight = notebookLineHeights[notebookTemplateClass] || '1.6';
 
             try {
                 const parsedPages = JSON.parse(initialPagesElement?.textContent || '[]');
@@ -2893,6 +2932,86 @@
                 pagesField.value = JSON.stringify(notebookPages);
                 const count = document.getElementById('charCount');
                 if (count) count.textContent = `${totalNotebookCharacters()}자`;
+            }
+
+            function pageFitsA4(text) {
+                a4Measurer.textContent = text || '';
+                return a4Measurer.scrollHeight <= a4Measurer.clientHeight + 1;
+            }
+
+            function splitForA4(text) {
+                if (pageFitsA4(text)) return [text, ''];
+                let low = 0;
+                let high = text.length;
+                while (low < high) {
+                    const middle = Math.ceil((low + high) / 2);
+                    if (pageFitsA4(text.slice(0, middle))) low = middle;
+                    else high = middle - 1;
+                }
+                let splitAt = Math.max(1, low);
+                const boundary = Math.max(
+                    text.lastIndexOf('\n', splitAt),
+                    text.lastIndexOf(' ', splitAt)
+                );
+                if (boundary > splitAt * 0.7) splitAt = boundary + 1;
+                return [text.slice(0, splitAt), text.slice(splitAt)];
+            }
+
+            function paginateOverflow(startIndex, cursorPosition) {
+                let index = startIndex;
+                let movedCursor = false;
+                while (index < notebookPages.length && !pageFitsA4(notebookPages[index])) {
+                    const [fitted, overflow] = splitForA4(notebookPages[index]);
+                    notebookPages[index] = fitted;
+                    if (index + 1 >= notebookPages.length) {
+                        if (notebookPages.length >= 100) break;
+                        notebookPages.push('');
+                    }
+                    notebookPages[index + 1] = overflow + notebookPages[index + 1];
+                    if (index === startIndex && cursorPosition > fitted.length) {
+                        currentNotebookPage = index + 1;
+                        cursorPosition -= fitted.length;
+                        movedCursor = true;
+                    }
+                    index += 1;
+                }
+                notebookEditor.value = notebookPages[currentNotebookPage];
+                if (movedCursor) {
+                    const safeCursor = Math.min(cursorPosition, notebookEditor.value.length);
+                    requestAnimationFrame(() => {
+                        notebookEditor.focus();
+                        notebookEditor.setSelectionRange(safeCursor, safeCursor);
+                    });
+                }
+            }
+
+            function buildNotebookPrintPages() {
+                syncNotebookState();
+                printArea.replaceChildren();
+                notebookPages.forEach((page, index) => {
+                    const sheet = document.createElement('section');
+                    sheet.className = 'notebook-print-page';
+
+                    const header = document.createElement('header');
+                    header.className = 'notebook-print-header';
+                    const subject = document.createElement('div');
+                    subject.className = 'notebook-print-subject';
+                    subject.textContent = '{{ activity.section|escapejs }}';
+                    const student = document.createElement('div');
+                    student.className = 'notebook-print-student';
+                    student.textContent = '{{ student.school.name|default:"학교 정보 없음"|escapejs }} · {{ student.grade }}학년 {{ student.class_no }}반 {{ student.number }}번 · {{ student.name|escapejs }}';
+                    header.append(subject, student);
+
+                    const content = document.createElement('div');
+                    content.className = `notebook-print-content ${notebookTemplateClass}`;
+                    content.textContent = page;
+
+                    const footer = document.createElement('footer');
+                    footer.className = 'notebook-print-footer';
+                    footer.textContent = `${index + 1} / ${notebookPages.length}쪽`;
+                    sheet.append(header, content, footer);
+                    printArea.appendChild(sheet);
+                });
             }
 
             function renderNotebookThumbnails() {
@@ -2950,9 +3069,29 @@
 
             notebookEditor.value = notebookPages[0];
             syncNotebookState();
+            paginateOverflow(0, 0);
+            syncNotebookState();
             renderNotebookThumbnails();
 
             notebookEditor.addEventListener('input', function() {
+                syncNotebookState();
+                if (!isNotebookComposing) {
+                    const cursorPosition = notebookEditor.selectionStart;
+                    paginateOverflow(currentNotebookPage, cursorPosition);
+                    syncNotebookState();
+                }
+                renderNotebookThumbnails();
+                queueNotebookSave();
+            });
+
+            notebookEditor.addEventListener('compositionstart', function() {
+                isNotebookComposing = true;
+            });
+
+            notebookEditor.addEventListener('compositionend', function() {
+                isNotebookComposing = false;
+                syncNotebookState();
+                paginateOverflow(currentNotebookPage, notebookEditor.selectionStart);
                 syncNotebookState();
                 renderNotebookThumbnails();
                 queueNotebookSave();
@@ -2972,6 +3111,12 @@
                 queueNotebookSave();
                 notebookEditor.focus();
             });
+
+            printButton.addEventListener('click', function() {
+                buildNotebookPrintPages();
+                window.print();
+            });
+            window.addEventListener('beforeprint', buildNotebookPrintPages);
 
             document.getElementById('answerForm').addEventListener('submit', syncNotebookState);
             window.addEventListener('beforeunload', syncNotebookState);
