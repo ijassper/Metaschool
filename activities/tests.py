@@ -13,6 +13,7 @@ from .views.main_views import get_form_config
 from .views.ai_views import (
     FEEDBACK_BASE_PROMPT,
     compose_ai_system_prompt,
+    build_formality_output_contract,
     get_school_level_prompt,
     normalize_tone_attribute_value,
     TASK_OUTPUT_CONTRACTS,
@@ -541,6 +542,18 @@ class AIFeedbackPromptContractTests(SimpleTestCase):
                 for value in (-2, -1, 0, 1, 2)
             ],
         )
+
+    def test_formality_level_four_enforces_haeyo_and_forbids_banmal(self):
+        contract = build_formality_output_contract(4)
+        self.assertIn('일상적 존댓말인 해요체', contract)
+        self.assertIn('~했어요', contract)
+        self.assertIn('~했어, ~구나, ~이야', contract)
+        self.assertIn('다른 문체 속성보다 우선', contract)
+
+    def test_formality_level_five_forbids_student_subject_honorific(self):
+        contract = build_formality_output_contract(5)
+        self.assertIn('공식적인 하십시오체', contract)
+        self.assertIn("주체 높임 '-시-'", contract)
 
 
 class AnswerCharacterCountTests(SimpleTestCase):

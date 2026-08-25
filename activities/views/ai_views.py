@@ -221,8 +221,63 @@ def build_tone_style_guide(tone_attributes):
     return (
         '[필수 문체 및 표현 가이드]\n'
         + '\n'.join(guide_lines)
-        + '\n각 축을 하나의 자연스러운 교사 목소리로 통합하고, 설정값이나 단계명을 본문에서 언급하지 마세요.'
+        + '\n[속성 결합 우선순위] 문장의 종결어미, 존댓말·반말 여부와 학생 호칭은 오직 형식성 축이 결정합니다. '
+        '성별 표현·솔직성·상세성·첨삭 성격은 감정선, 전달 방식, 설명 밀도와 분석 범위만 결정하며, 그 프리셋의 예시 종결어미가 형식성과 충돌하면 무시하세요. '
+        '각 축을 하나의 자연스러운 교사 목소리로 통합하고, 설정값이나 단계명을 본문에서 언급하지 마세요.'
     )
+
+
+def build_formality_output_contract(formality_level):
+    """형식성 단계가 최종 종결어미를 확정하도록 마지막 출력 계약을 만듭니다."""
+    contracts = {
+        1: (
+            "친근한 반말을 사용하세요. 문장 종결은 '~했어, ~해보자, ~인 것 같아'처럼 자연스럽게 통일하고 존댓말을 섞지 마세요."
+        ),
+        2: (
+            "정돈된 친근한 반말을 사용하세요. 문장 종결은 '~했어, ~하면 어떨까, ~좋을 것 같아' 계열로 통일하고 존댓말을 섞지 마세요."
+        ),
+        3: (
+            "중립적인 해라체를 사용하세요. 문장 종결은 '~했다, ~한다, ~필요하다, ~바란다'로 통일하고 해요체나 구어체 반말을 섞지 마세요."
+        ),
+        4: (
+            "현재 형식성은 일상적 존댓말인 해요체입니다. 모든 문장을 '~했어요, ~보여요, ~인 것 같아요, ~하면 좋겠어요, ~해보면 어떨까요, ~바라요, ~응원할게요' 계열로 통일하세요. "
+            "'~했어, ~구나, ~이야, ~같아, ~거든, ~할게, ~바라, ~하자, 잘 지내' 같은 반말 종결은 금지합니다. "
+            "출력 전에 반말 종결이 남았는지 문장별로 검사하고 자연스러운 해요체로 고친 뒤 출력하세요."
+        ),
+        5: (
+            "현재 형식성은 공식적인 하십시오체입니다. 모든 문장을 '~했습니다, ~합니다, ~바랍니다, ~필요합니다' 계열로 통일하세요. "
+            "해요체와 반말을 섞지 말고, 학생 행동에는 주체 높임 '-시-'를 붙이지 마세요. 출력 전에 종결어미와 금지 호칭을 점검하세요."
+        ),
+    }
+    rule = contracts.get(formality_level)
+    if not rule:
+        return ''
+    return (
+        '[최종 형식성 출력 계약 — 다른 문체 속성보다 우선]\n'
+        + rule
+        + "\n이 계약은 성별 표현·솔직성·상세성·첨삭 성격의 예시 문장보다 우선하며, 본문에 단계명이나 설정값을 노출하지 마세요."
+    )
+
+
+def get_tone_preset_metadata(tone_attributes):
+    """운영 중 실제 매핑 결과를 확인할 수 있는 비민감 디버그 메타데이터입니다."""
+    if not tone_attributes:
+        return {}
+    presets = ToneStylePreset.objects.filter(
+        is_active=True,
+        dimension__in=tone_attributes.keys(),
+        level__in=set(tone_attributes.values()),
+    )
+    matched = {(preset.dimension, preset.level): preset for preset in presets}
+    return {
+        dimension: {
+            'normalized_level': level,
+            'preset_name': matched[(dimension, level)].name if (dimension, level) in matched else None,
+            'preset_version': matched[(dimension, level)].version if (dimension, level) in matched else None,
+            'used_fallback': (dimension, level) not in matched,
+        }
+        for dimension, level in tone_attributes.items()
+    }
 
 
 TASK_TYPE_ALIASES = {
@@ -937,6 +992,7 @@ def api_process_db_row(request):
             )
             effective_length = requested_length or '교사의 분석 지시에 맞는 적절한 분량'
             tone_style_prompt = build_tone_style_guide(tone_attributes) if tone_attributes else ''
+            tone_preset_metadata = get_tone_preset_metadata(tone_attributes)
             effective_system_prompt = compose_ai_system_prompt(
                 task_prompt=task_base_prompt,
                 school_level_prompt=get_school_level_prompt(request.user),
@@ -966,6 +1022,14 @@ def api_process_db_row(request):
                     effective_system_prompt += (
                         f" 선택하지 않은 항목({', '.join(excluded_components)})은 별도 구성으로 작성하지 마세요."
                     )
+            formality_contract = build_formality_output_contract(tone_attributes.get('formality'))
+            if formality_contract:
+                effective_system_prompt += f"\n\n{formality_contract}"
+
+            print(
+                "DEBUG: 문체 프리셋 매핑 -> "
+                f"raw={requested_tone_attributes}, normalized={tone_attributes}, presets={tone_preset_metadata}"
+            )
             
             # 3. batch_id 처리 - 프론트엔드에서 결정한 값 그대로 사용
             print(f"DEBUG: 프론트엔드에서 받은 Batch ID: {batch_id}")
@@ -1191,6 +1255,11 @@ def api_process_db_row(request):
                         'feedback_session': feedback_session_data,
                         'usage': analysis_usage,
                         'activity_context_summarized': context_was_summarized,
+                        'tone_debug': {
+                            'raw_attributes': requested_tone_attributes,
+                            'normalized_attributes': tone_attributes,
+                            'matched_presets': tone_preset_metadata,
+                        },
                         'monthly_budget': (
                             {key: str(value) for key, value in budget_status.items()}
                             if budget_status else None
