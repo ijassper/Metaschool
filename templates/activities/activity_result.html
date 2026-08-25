@@ -97,6 +97,7 @@
                         <th>결시 사유</th>
                         <th>특이사항</th>
                         <th>답안 출력</th>
+                        <th>점수</th>
                         <th>추후 활동</th>
                         <th>관리</th>
                     </tr>
@@ -186,6 +187,24 @@
                             {% endif %}
                         </td>
 
+                        <!-- 퀵 점수: 선택 즉시 저장 -->
+                        <td>
+                            {% if item.answer_id %}
+                            <select class="form-select form-select-sm quick-score-select mx-auto"
+                                    aria-label="{{ item.student.name }} 학생 점수"
+                                    data-score-url="{% url 'update_answer_score' item.answer_id %}"
+                                    data-current-score="{% if item.score != None %}{{ item.score }}{% endif %}"
+                                    onchange="updateQuickScore(this)">
+                                <option value="" {% if item.score == None %}selected{% endif %} disabled>점수</option>
+                                {% for score_value in "012345" %}
+                                <option value="{{ score_value }}" {% if item.score|stringformat:"s" == score_value %}selected{% endif %}>{{ score_value }}점</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+
                         <!-- 답안 상세 및 추후 활동 생성 -->
                         <td>
                             {% if item.answer_id %}
@@ -214,7 +233,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="11" class="py-5">
+                        <td colspan="12" class="py-5">
                             <div class="text-center text-muted">
                                 {% if not request.GET.target and not request.GET.q %}
                                     <i class="bi bi-info-circle fs-1 d-block mb-3"></i>
@@ -285,6 +304,8 @@
 
 <style>
     .answer-output-divider { margin:0 .28rem; opacity:.72; }
+    .quick-score-select { width:82px; border-color:#dec9e5; color:#7e3f91; font-weight:750; }
+    .quick-score-select.is-saving { opacity:.55; pointer-events:none; }
     .activity-create-link {
         border:1px solid #d9b8e3;
         background:#f8eef9;
@@ -824,6 +845,32 @@
         }, 10000);
 
         new bootstrap.Modal(modalEl).show();
+    }
+
+    async function updateQuickScore(selectElement) {
+        const previousScore = selectElement.dataset.currentScore;
+        selectElement.classList.add('is-saving');
+        selectElement.disabled = true;
+        try {
+            const response = await fetch(selectElement.dataset.scoreUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({score: Number(selectElement.value)})
+            });
+            const data = await response.json();
+            if (!response.ok || data.status !== 'success') throw new Error(data.message || '점수를 저장하지 못했습니다.');
+            selectElement.dataset.currentScore = String(data.score);
+        } catch (error) {
+            selectElement.value = previousScore;
+            alert(error.message || '점수 저장 중 오류가 발생했습니다.');
+        } finally {
+            selectElement.disabled = false;
+            selectElement.classList.remove('is-saving');
+        }
     }
 </script>
 

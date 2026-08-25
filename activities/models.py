@@ -236,6 +236,14 @@ class Question(models.Model):
 
 # 학생 답안
 class Answer(models.Model):
+    class Score(models.IntegerChoices):
+        ZERO = 0, "0점"
+        ONE = 1, "1점"
+        TWO = 2, "2점"
+        THREE = 3, "3점"
+        FOUR = 4, "4점"
+        FIVE = 5, "5점"
+
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     # 기존 content는 유지(호환성)하되, 항목별 답변 필드 추가
@@ -243,6 +251,12 @@ class Answer(models.Model):
     ans_q2 = models.TextField(blank=True, null=True, verbose_name="항목 2 답변")
     ans_q3 = models.TextField(blank=True, null=True, verbose_name="항목 3 답변")
     notebook_pages = models.JSONField(default=list, blank=True, verbose_name="노트 페이지")
+    score = models.PositiveSmallIntegerField(
+        choices=Score.choices,
+        null=True,
+        blank=True,
+        verbose_name="퀵 점수",
+    )
     content = models.TextField(verbose_name="통합 답안", blank=True) # 전체 합본용
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name="제출/수정 시간")
     activity_log = models.TextField(blank=True, default="", verbose_name="활동 로그")

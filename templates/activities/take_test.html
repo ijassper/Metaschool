@@ -2985,6 +2985,34 @@
                 }
             }
 
+            function removeEmptyNotebookPages() {
+                if (notebookPages.length <= 1) return false;
+
+                const oldCurrentIndex = currentNotebookPage;
+                const currentWasEmpty = !notebookPages[oldCurrentIndex].trim();
+                const nonEmptyBeforeCurrent = notebookPages
+                    .slice(0, oldCurrentIndex)
+                    .filter(page => page.trim()).length;
+                const filteredPages = notebookPages.filter(page => page.trim());
+
+                if (filteredPages.length === notebookPages.length) return false;
+                notebookPages = filteredPages.length ? filteredPages : [''];
+
+                if (currentWasEmpty) {
+                    currentNotebookPage = nonEmptyBeforeCurrent > 0 ? nonEmptyBeforeCurrent - 1 : 0;
+                } else {
+                    currentNotebookPage = nonEmptyBeforeCurrent;
+                }
+                currentNotebookPage = Math.min(currentNotebookPage, notebookPages.length - 1);
+                notebookEditor.value = notebookPages[currentNotebookPage];
+                const cursorAtEnd = notebookEditor.value.length;
+                requestAnimationFrame(() => {
+                    notebookEditor.focus();
+                    notebookEditor.setSelectionRange(cursorAtEnd, cursorAtEnd);
+                });
+                return true;
+            }
+
             function buildNotebookPrintPages() {
                 syncNotebookState();
                 printArea.replaceChildren();
@@ -3033,10 +3061,16 @@
                     button.append(paper, label);
                     button.addEventListener('click', function() {
                         syncNotebookState();
-                        currentNotebookPage = index;
-                        notebookEditor.value = notebookPages[index];
+                        let targetIndex = index;
+                        if (!notebookPages[currentNotebookPage].trim() && notebookPages.length > 1) {
+                            if (currentNotebookPage < targetIndex) targetIndex -= 1;
+                            notebookPages.splice(currentNotebookPage, 1);
+                        }
+                        currentNotebookPage = Math.max(0, Math.min(targetIndex, notebookPages.length - 1));
+                        notebookEditor.value = notebookPages[currentNotebookPage];
+                        syncNotebookState();
                         renderNotebookThumbnails();
-                        pageNumber.textContent = `${index + 1} / ${notebookPages.length}쪽`;
+                        queueNotebookSave();
                         notebookEditor.focus();
                     });
                     thumbnails.appendChild(button);
@@ -3070,6 +3104,7 @@
             notebookEditor.value = notebookPages[0];
             syncNotebookState();
             paginateOverflow(0, 0);
+            removeEmptyNotebookPages();
             syncNotebookState();
             renderNotebookThumbnails();
 
@@ -3078,6 +3113,7 @@
                 if (!isNotebookComposing) {
                     const cursorPosition = notebookEditor.selectionStart;
                     paginateOverflow(currentNotebookPage, cursorPosition);
+                    removeEmptyNotebookPages();
                     syncNotebookState();
                 }
                 renderNotebookThumbnails();
@@ -3092,6 +3128,7 @@
                 isNotebookComposing = false;
                 syncNotebookState();
                 paginateOverflow(currentNotebookPage, notebookEditor.selectionStart);
+                removeEmptyNotebookPages();
                 syncNotebookState();
                 renderNotebookThumbnails();
                 queueNotebookSave();

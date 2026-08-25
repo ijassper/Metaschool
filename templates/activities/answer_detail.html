@@ -38,9 +38,20 @@
                 </div>
             </div>
         </div>
-        <a href="{% url 'activity_result' activity.id %}?show_all=1" class="portfolio-back">
-            <i class="bi bi-arrow-left"></i> 제출 현황으로
-        </a>
+        <div class="portfolio-header-actions">
+            <a href="{% url 'activity_result' activity.id %}?show_all=1" class="portfolio-back">
+                <i class="bi bi-arrow-left"></i> 제출 현황으로
+            </a>
+            {% if next_answer_id %}
+            <a href="{% url 'answer_detail' next_answer_id %}" class="portfolio-back portfolio-next">
+                다음 학생으로 <i class="bi bi-arrow-right"></i>
+            </a>
+            {% else %}
+            <span class="portfolio-back portfolio-next is-disabled" aria-disabled="true">
+                마지막 학생 <i class="bi bi-check2"></i>
+            </span>
+            {% endif %}
+        </div>
     </header>
 
     <main class="portfolio-folder">
@@ -179,10 +190,23 @@
                         <p>원본 답안을 다시 검토한 뒤 후속 활동 생성 화면으로 이동합니다.</p>
                     </div>
                 </div>
-                <button type="button" id="openAnswerSource" class="portfolio-action-button">
-                    학생 답안으로 추후 활동 생성하기
-                    <i class="bi bi-arrow-right"></i>
-                </button>
+                <div class="portfolio-action-controls">
+                    <div class="dropup quick-score-dropup">
+                        <button type="button" id="quickScoreButton" class="quick-score-button dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            {% if answer.score != None %}퀵 점수 {{ answer.score }}점{% else %}퀵 점수 부여{% endif %}
+                        </button>
+                        <ul class="dropdown-menu quick-score-menu" aria-labelledby="quickScoreButton">
+                            {% for score_value in "012345" %}
+                            <li><button type="button" class="dropdown-item quick-score-option{% if answer.score|stringformat:'s' == score_value %} active{% endif %}" data-score="{{ score_value }}">{{ score_value }}점</button></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <span id="quickScoreStatus" class="visually-hidden" aria-live="polite"></span>
+                    <button type="button" id="openAnswerSource" class="portfolio-action-button">
+                        학생 답안으로 추후 활동 생성하기
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
             </section>
         </div>
         {% for feedback in feedback_logs %}
@@ -566,6 +590,10 @@
         color: var(--ingrid-primary);
     }
 
+    .portfolio-header-actions { display:flex; align-items:center; gap:.45rem; flex:0 0 auto; }
+    .portfolio-back.is-disabled { opacity:.5; cursor:default; }
+    .portfolio-back.is-disabled:hover { border-color:#e4dce7; background:#fff; color:#716978; }
+
     .portfolio-folder {
         position: relative;
         padding-top: 41px;
@@ -885,6 +913,14 @@
         font-weight: 780;
         box-shadow: 0 8px 20px rgba(142,68,173,0.2);
     }
+
+    .portfolio-action-controls { display:flex !important; align-items:center; justify-content:flex-end; gap:.55rem !important; flex:0 0 auto; }
+    .quick-score-button { min-height:42px; padding:0 .9rem; border:1px solid #cfadd9; border-radius:11px; background:#fff; color:#7f3f92; font-size:.76rem; font-weight:800; box-shadow:0 5px 14px rgba(112,59,132,.08); }
+    .quick-score-button:hover, .quick-score-button:focus { border-color:#a758bb; background:#fff8fc; color:#713485; }
+    .quick-score-button.is-saving { opacity:.6; pointer-events:none; }
+    .quick-score-menu { min-width:100%; padding:.35rem; border:1px solid #eadbec; border-radius:11px; box-shadow:0 -9px 24px rgba(82,47,95,.15); }
+    .quick-score-option { border-radius:8px; color:#65546a; font-size:.78rem; font-weight:700; text-align:center; }
+    .quick-score-option:hover, .quick-score-option.active { background:#f4e9f7; color:#833e96; }
 
     .answer-source-backdrop {
         position: fixed;
@@ -1314,12 +1350,15 @@
         .portfolio-action,
         .source-layer-footer { align-items:stretch; flex-direction:column; }
         .portfolio-back { width:fit-content; }
+        .portfolio-header-actions { flex-wrap:wrap; }
         .portfolio-header h2 { font-size:1.25rem; }
         .portfolio-header-cards { flex-direction:column; }
         .portfolio-date-card { width:fit-content; }
         .portfolio-sheet { padding:1rem; }
         .portfolio-action-button,
         .source-create-button { width:100%; }
+        .portfolio-action-controls { width:100%; flex-wrap:wrap; }
+        .quick-score-dropup, .quick-score-button { width:100%; }
         .answer-source-layer { width:100vw; }
         .followup-design-layer { width:100vw; min-width:0; }
         .followup-split-view { grid-template-columns:1fr; }
@@ -1362,6 +1401,8 @@
         const sessionTitleLabel = document.getElementById('feedbackSessionTitleLabel');
         const sessionSelectLabel = document.getElementById('feedbackSessionSelectLabel');
         const newSessionOption = document.getElementById('newFeedbackSessionOption');
+        const quickScoreButton = document.getElementById('quickScoreButton');
+        const quickScoreStatus = document.getElementById('quickScoreStatus');
         const compositionLabel = document.getElementById('feedbackCompositionLabel');
         const styleLabel = document.getElementById('feedbackStyleLabel');
         const lengthLabel = document.getElementById('feedbackLengthLabel');
@@ -1388,6 +1429,40 @@
             rewrite: '학생의 기존 생각과 목소리를 보존하면서 학생이 직접 수행할 수 있는 고쳐쓰기 활동을 설계하세요.',
             relay: '학생 답안의 핵심 생각과 분위기에서 자연스럽게 이어지는 릴레이쓰기 활동을 설계하세요.'
         };
+
+        document.querySelectorAll('.quick-score-option').forEach(function (option) {
+            option.addEventListener('click', async function () {
+                const score = Number(option.dataset.score);
+                const previousLabel = quickScoreButton.textContent.trim();
+                quickScoreButton.classList.add('is-saving');
+                quickScoreButton.textContent = '저장 중…';
+                quickScoreStatus.textContent = '점수를 저장하고 있습니다.';
+                try {
+                    const response = await fetch('{% url "update_answer_score" answer.id %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({score: score})
+                    });
+                    const data = await response.json();
+                    if (!response.ok || data.status !== 'success') throw new Error(data.message || '점수를 저장하지 못했습니다.');
+                    quickScoreButton.textContent = `퀵 점수 ${data.score}점`;
+                    document.querySelectorAll('.quick-score-option').forEach(function (item) {
+                        item.classList.toggle('active', Number(item.dataset.score) === data.score);
+                    });
+                    quickScoreStatus.textContent = `${data.score}점으로 저장되었습니다.`;
+                } catch (error) {
+                    quickScoreButton.textContent = previousLabel;
+                    quickScoreStatus.textContent = '점수 저장에 실패했습니다.';
+                    alert(error.message || '점수 저장 중 오류가 발생했습니다.');
+                } finally {
+                    quickScoreButton.classList.remove('is-saving');
+                }
+            });
+        });
 
         function updateWorkbenchLabels() {
             const label = followupLabels[selectedFollowupType] || followupLabels.grading;

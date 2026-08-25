@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.conf import settings
 
 from .views.exam_views import normalize_notebook_pages, pdf_viewer
+from .views.result_views import parse_quick_score
 from .views.main_views import get_form_config
 from .views.ai_views import (
     FEEDBACK_BASE_PROMPT,
@@ -40,6 +41,22 @@ class NotebookPageDataTests(SimpleTestCase):
 
     def test_always_keeps_at_least_one_page(self):
         self.assertEqual(normalize_notebook_pages('[]'), [''])
+
+    def test_removes_empty_pages_but_keeps_written_page_order(self):
+        self.assertEqual(
+            normalize_notebook_pages('["첫 쪽", "", "   ", "마지막 쪽"]'),
+            ['첫 쪽', '마지막 쪽'],
+        )
+
+
+class QuickScoreValidationTests(SimpleTestCase):
+    def test_accepts_zero_through_five(self):
+        self.assertEqual([parse_quick_score(value) for value in range(6)], list(range(6)))
+
+    def test_rejects_out_of_range_and_non_numeric_values(self):
+        for invalid_value in (-1, 6, '', None, True, '오점'):
+            with self.subTest(value=invalid_value), self.assertRaises((TypeError, ValueError)):
+                parse_quick_score(invalid_value)
 
 
 @override_settings(

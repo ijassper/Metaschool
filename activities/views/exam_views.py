@@ -45,7 +45,8 @@ def normalize_notebook_pages(raw_pages, legacy_content=''):
         raw_pages = [legacy_content or '']
 
     pages = [str(page or '')[:MAX_NOTEBOOK_PAGE_CHARS] for page in raw_pages[:MAX_NOTEBOOK_PAGES]]
-    return pages or ['']
+    non_empty_pages = [page for page in pages if page.strip()]
+    return non_empty_pages or ['']
 
 
 def append_activity_log(answer, action_code, timestamp=None):

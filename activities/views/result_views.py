@@ -18,6 +18,15 @@ from accounts.models import Persona, Student
 from ..models import Activity, Answer, FeedbackResult, FeedbackSession
 from .main_views import get_accessible_students
 
+
+def parse_quick_score(value):
+    if isinstance(value, bool):
+        raise ValueError('invalid score')
+    score = int(value)
+    if score < 0 or score > 5:
+        raise ValueError('invalid score')
+    return score
+
 # [1] 제출 현황(답안) 목록 페이지
 @login_required
 @teacher_required
@@ -124,6 +133,7 @@ def activity_result(request, activity_id, template_name='activities/activity_res
             'absence': absence,
             'activity_log': log_data,
             'content': content, # [핵심 추가] 리스트에 담아서 템플릿으로 전달
+            'score': answer.score if answer else None,
         })
 
     context = {
@@ -155,15 +165,53 @@ def answer_detail(request, answer_id):
     feedback_sessions = answer.feedback_sessions.filter(
         created_by=request.user
     ).order_by('-version', '-id')
+    ordered_answer_ids = list(
+        Answer.objects.filter(
+            question__activity=answer.question.activity,
+            question__activity__teacher=request.user,
+            submitted_at__isnull=False,
+        )
+        .order_by('student__grade', 'student__class_no', 'student__number', 'student__name', 'id')
+        .values_list('id', flat=True)
+    )
+    next_answer_id = None
+    if answer.id in ordered_answer_ids:
+        current_index = ordered_answer_ids.index(answer.id)
+        if current_index + 1 < len(ordered_answer_ids):
+            next_answer_id = ordered_answer_ids[current_index + 1]
     return render(request, 'activities/answer_detail.html', {
         'answer': answer,
         'activity': answer.question.activity,
         'feedback_logs': answer.feedback_results.all(),
         'feedback_sessions': feedback_sessions,
+        'next_answer_id': next_answer_id,
         'personas': Persona.objects.filter(
             Q(creator__isnull=True) | Q(creator=request.user)
         ).select_related('creator'),
     })
+
+
+@require_POST
+@login_required
+@teacher_required
+def update_answer_score(request, answer_id):
+    answer = get_object_or_404(
+        Answer.objects.select_related('question__activity'),
+        id=answer_id,
+        question__activity__teacher=request.user,
+    )
+    try:
+        payload = json.loads(request.body or '{}')
+        score = parse_quick_score(payload.get('score'))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse(
+            {'status': 'error', 'message': '점수는 0점부터 5점까지만 선택할 수 있습니다.'},
+            status=400,
+        )
+
+    answer.score = score
+    answer.save(update_fields=['score'])
+    return JsonResponse({'status': 'success', 'score': score, 'label': f'{score}점'})
 
 
 @require_POST
