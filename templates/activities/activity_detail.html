@@ -39,12 +39,38 @@
     
     /* AI/기타 중요 내용 섹션 강조 */
     .highlight-card { background: rgba(255, 249, 219, 0.8); border: 1px solid #FFEC99; }
+
+    /* 수업 노트/연습장 전용 상세 화면 */
+    .notebook-detail { background: linear-gradient(145deg, #f4f8ff 0%, #edf3ff 100%); }
+    .notebook-hero { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin-bottom: 28px; }
+    .notebook-kicker { color: #8f43ad; font-size: .82rem; font-weight: 800; letter-spacing: -.02em; }
+    .notebook-title { margin: 8px 0 4px; color: #252331; font-size: 2.35rem; font-weight: 900; letter-spacing: -.06em; }
+    .notebook-subject { margin: 0; color: #697080; font-size: 1.05rem; font-weight: 700; }
+    .notebook-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .notebook-setting { padding: 15px 16px; border: 1px solid #e8e2ee; border-radius: 16px; background: rgba(255,255,255,.9); }
+    .notebook-setting-label { display: block; margin-bottom: 5px; color: #96909d; font-size: .75rem; font-weight: 700; }
+    .notebook-setting-value { color: #34303b; font-size: .93rem; font-weight: 800; }
+    .notebook-swatch { display: inline-block; width: 15px; height: 15px; margin-right: 6px; border: 1px solid rgba(0,0,0,.12); border-radius: 50%; vertical-align: -2px; }
+    .notebook-guide { min-height: 185px; padding: 24px; border: 1px solid #ece7f0; border-radius: 18px; background: #fff; color: #4a4650; line-height: 1.75; white-space: pre-wrap; }
+    .notebook-preview { position: relative; min-height: 420px; overflow: hidden; padding: 42px 48px; border: 1px solid rgba(87,73,101,.14); border-radius: 20px; background-color: var(--note-paper); box-shadow: 0 14px 35px rgba(73,56,91,.08); }
+    .notebook-preview.LINED_LARGE { background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 43px, rgba(125,115,145,.22) 44px); }
+    .notebook-preview.LINED_MEDIUM { background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 35px, rgba(125,115,145,.22) 36px); }
+    .notebook-preview.LINED_SMALL { background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, rgba(125,115,145,.22) 28px); }
+    .notebook-preview.MANUSCRIPT { background-image: linear-gradient(rgba(125,115,145,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(125,115,145,.18) 1px, transparent 1px); background-size: 32px 32px; }
+    .notebook-preview-title { display: inline-block; padding: 8px 14px; border-radius: 12px; background: rgba(255,255,255,.78); color: #6d3c80; font-weight: 800; }
+    .notebook-preview-hint { margin-top: 30px; color: rgba(59,54,65,.58); font-size: .92rem; }
+    .notebook-target { cursor: pointer; transition: transform .2s ease, box-shadow .2s ease; }
+    .notebook-target:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(78,58,91,.08); }
+    @media (max-width: 991.98px) {
+        .notebook-hero { align-items: flex-start; flex-direction: column; }
+        .notebook-preview { min-height: 330px; padding: 30px; }
+    }
 </style>
 
 <div class="container-fluid px-4">
     <!-- 상단 액션바 -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <a href="/activities/list/?category={{ activity.category }}&sub={{ activity.sub_category }}" class="btn btn-white rounded-pill px-3 shadow-sm border">
+        <a href="{% url 'unified_list' %}?category={{ activity.category|urlencode }}&amp;sub={{ activity.sub_category|urlencode }}" class="btn btn-white rounded-pill px-3 shadow-sm border">
             <i class="bi bi-arrow-left me-1"></i> 목록으로
         </a>
         <div class="d-flex gap-2">
@@ -55,6 +81,9 @@
         </div>
     </div>
 
+    {% if activity.is_notebook %}
+        {% include 'activities/components/notebook_detail.html' %}
+    {% else %}
     <!-- 메인 대시보드 래퍼 -->
     <div class="detail-wrapper bg-{{ activity.category }}">
         <!-- 상단 헤더 정보 -->
@@ -211,6 +240,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 
 <!-- 학생 명단 팝업 모달 -->
@@ -218,7 +248,7 @@
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
             <div class="modal-header border-0 p-4 pb-0">
-                <h5 class="modal-title fw-bold"><i class="bi bi-people me-2"></i>평가 대상 학생 명단</h5>
+                <h5 class="modal-title fw-bold"><i class="bi bi-people me-2"></i>{% if activity.is_notebook %}작성{% else %}평가{% endif %} 대상 학생 명단</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
