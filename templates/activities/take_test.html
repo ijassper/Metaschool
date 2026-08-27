@@ -98,9 +98,9 @@
         #notebookPrintArea { display: block !important; }
         .notebook-print-page { position: relative; width: 210mm; height: 297mm; padding: 20mm 20mm 16mm; box-sizing: border-box; break-after: page; page-break-after: always; background-color: var(--note-paper); color: #222; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         .notebook-print-page:last-child { break-after: auto; page-break-after: auto; }
-        .notebook-print-header { height: 14mm; padding-bottom: 4mm; border-bottom: .3mm solid rgba(90,70,100,.28); text-align: center; }
-        .notebook-print-subject { font-size: 12pt; font-weight: 800; }
-        .notebook-print-student { margin-top: 1.5mm; font-size: 10pt; font-weight: 700; }
+        .notebook-print-header { height: 14mm; padding-bottom: 4mm; border-bottom: .3mm solid rgba(90,70,100,.28); display: flex; align-items: center; justify-content: space-between; gap: 8mm; }
+        .notebook-print-subject { flex: 0 1 auto; min-width: 0; text-align: left; white-space: nowrap; font-size: 24pt; line-height: 1; font-weight: 800; }
+        .notebook-print-student { flex: 1 1 auto; min-width: 0; margin-top: 0; text-align: right; white-space: nowrap; font-size: 20pt; line-height: 1; font-weight: 700; }
         .notebook-print-content { height: 231mm; margin-top: 6mm; white-space: pre-wrap; overflow: hidden; overflow-wrap: break-word; word-break: break-word; font-size: 12pt; line-height: 1.6; }
         .notebook-print-content.notebook-lined_large { line-height: 31.5pt; background-image: repeating-linear-gradient(to bottom, transparent 0 30.5pt, rgba(115,123,150,.24) 30.75pt, transparent 31.5pt); }
         .notebook-print-content.notebook-lined_medium { line-height: 25.5pt; background-image: repeating-linear-gradient(to bottom, transparent 0 24.5pt, rgba(115,123,150,.24) 24.75pt, transparent 25.5pt); }
