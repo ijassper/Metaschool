@@ -114,6 +114,13 @@
     border: 2px solid transparent;
     transition: 0.2s ease;
     cursor: default;
+    box-sizing: border-box;
+    height: 158px;
+    min-height: 158px;
+    max-height: 158px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
   .eval-item-card.is-clickable {
     cursor: pointer;
@@ -224,6 +231,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 0 0 auto;
   }
   .section-sub-text {
     display: block;
@@ -235,6 +243,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 0 0 auto;
   }
 
   /* 4행: 교사명 | 점수 | 상세 결과 */
@@ -246,6 +255,7 @@
     padding-top: 8px;
     border-top: 1px dashed #eee;
     min-width: 0;
+    margin-top: auto;
   }
 
   .status-area {
@@ -478,14 +488,14 @@
             </span>
             {% if act.my_answer and act.my_answer.submitted_at %}
               {% if act.dashboard_state == 'submitted_editable' %}
-                <span class="status-bar status-editable card-status-compact">수정하기</span>
+                <span class="status-bar status-editable card-status-compact">[제출 완료(수정 가능)]</span>
               {% else %}
-                <span class="status-bar status-locked card-status-compact">제출 완료</span>
+                <span class="status-bar status-locked card-status-compact">[제출 완료(수정 불가능)]</span>
               {% endif %}
             {% elif act.dashboard_state == 'unavailable' %}
-              <span class="status-bar status-unavailable card-status-compact">응시 불가</span>
+              <span class="status-bar status-unavailable card-status-compact">[응시 불가능]</span>
             {% else %}
-              <span class="status-bar status-ready card-status-compact">응시하기</span>
+              <span class="status-bar status-ready card-status-compact">시험 시작하기</span>
             {% endif %}
           </div>
 
