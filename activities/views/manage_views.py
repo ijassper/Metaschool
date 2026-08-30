@@ -81,6 +81,8 @@ def sync_status_on_deadline_extension(activity, old_deadline, new_deadline):
             answers = Answer.objects.filter(question__activity=activity, submitted_at__isnull=True)
             local_now = timezone.localtime(now)
             for answer in answers:
+                if not answer.has_started:
+                    continue
                 timestamp = local_now.strftime('%Y-%m-%d %H:%M:%S')
                 log_msg = f"[{timestamp}] 선생님의 기한 연장으로 재응시 가능 상태로 복구됨\n"
                 answer.activity_log = (answer.activity_log or "") + log_msg

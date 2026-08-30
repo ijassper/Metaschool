@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
 from accounts.models import Student, SystemConfig
-from ..models import Activity, Question, Answer, FeedbackResult
+from ..models import Activity, Question, Answer, ActivityStudentScore, FeedbackResult
 
 LOG_MESSAGES = {
     'IN': '답안지 페이지 입장',
@@ -279,13 +279,22 @@ def student_result_detail(request, activity_id):
         )
         if activity.is_notebook:
             notebook_pages = normalize_notebook_pages(answer.notebook_pages, answer.ans_q1)
+    stored_score = ActivityStudentScore.objects.filter(
+        activity=activity,
+        student=student_info,
+    ).values_list('score', flat=True).first()
+    display_score = (
+        stored_score
+        if stored_score is not None
+        else (answer.score if answer and answer.score is not None else 0)
+    )
 
     return render(request, 'activities/student_result_detail.html', {
         'activity': activity,
         'question': question,
         'answer': answer,
         'student': student_info,
-        'score': answer.score if answer and answer.score is not None else 0,
+        'score': display_score,
         'feedback_results': feedback_results,
         'notebook_pages': notebook_pages,
     })

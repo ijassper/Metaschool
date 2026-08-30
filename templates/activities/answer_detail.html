@@ -193,11 +193,11 @@
                 <div class="portfolio-action-controls">
                     <div class="dropup quick-score-dropup">
                         <button type="button" id="quickScoreButton" class="quick-score-button dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                            {% if answer.score != None %}퀵 점수 {{ answer.score }}점{% else %}퀵 점수 부여{% endif %}
+                            {% if quick_score != None %}퀵 점수 {{ quick_score }}점{% else %}퀵 점수 부여{% endif %}
                         </button>
                         <ul class="dropdown-menu quick-score-menu" aria-labelledby="quickScoreButton">
                             {% for score_value in "543210" %}
-                            <li><button type="button" class="dropdown-item quick-score-option{% if answer.score|stringformat:'s' == score_value %} active{% endif %}" data-score="{{ score_value }}">{{ score_value }}점</button></li>
+                            <li><button type="button" class="dropdown-item quick-score-option{% if quick_score|stringformat:'s' == score_value %} active{% endif %}" data-score="{{ score_value }}">{{ score_value }}점</button></li>
                             {% endfor %}
                         </ul>
                     </div>

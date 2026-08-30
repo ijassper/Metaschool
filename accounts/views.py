@@ -30,7 +30,7 @@ from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm, CustomAu
 from .models import Student, CustomUser, School, Persona # 학교 모델 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate # AI 생성기 관련 모델 가져오기
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
-from activities.models import Activity, Student, Answer  # 평가관리, 학생, 답안 모델 가져오기
+from activities.models import Activity, Student, Answer, ActivityStudentScore  # 평가관리, 학생, 답안 모델 가져오기
 from activities.views.main_views import get_accessible_students, get_student_tree
 
 logger = logging.getLogger(__name__)
@@ -198,13 +198,22 @@ def dashboard(request):
 
             # 2. 개별 활동 데이터 매핑 (답변 객체 및 제출 여부)
             now = timezone.now()
+            score_by_activity = dict(
+                ActivityStudentScore.objects.filter(
+                    student=student_profile,
+                    activity__in=activities_list,
+                ).values_list('activity_id', 'score')
+            )
             for activity in activities_list:
                 # 4대 상태 로직을 위한 정밀 매칭
                 ans = Answer.objects.filter(student=student_profile, question__activity=activity).first()
                 activity.my_answer = ans
                 activity.has_submitted = bool(ans and ans.submitted_at)
                 # 학생 대시보드에는 미채점도 0점으로 일관되게 표시합니다.
-                activity.student_score = ans.score if ans and ans.score is not None else 0
+                activity.student_score = score_by_activity.get(
+                    activity.id,
+                    ans.score if ans and ans.score is not None else 0,
+                )
                 activity.dashboard_state = activity.get_student_exam_state(ans)
                 activity.can_enter_exam = activity.can_student_enter(ans)
                 

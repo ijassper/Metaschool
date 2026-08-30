@@ -7,6 +7,7 @@ from django.template.loader import get_template
 from django.template import Context, Template
 from django.urls import reverse
 from django.conf import settings
+from django.utils import timezone
 
 from .views.exam_views import normalize_notebook_pages, pdf_viewer
 from .views.result_views import parse_quick_score
@@ -26,7 +27,7 @@ from .attachment_context import (
     normalize_openai_usage,
 )
 from .templatetags.answer_extras import non_whitespace_length
-from .models import FeedbackResult
+from .models import Activity, Question, Answer, FeedbackResult
 
 
 class NotebookPageDataTests(SimpleTestCase):
@@ -57,6 +58,37 @@ class QuickScoreValidationTests(SimpleTestCase):
         for invalid_value in (-1, 6, '', None, True, '오점'):
             with self.subTest(value=invalid_value), self.assertRaises((TypeError, ValueError)):
                 parse_quick_score(invalid_value)
+
+
+class AnswerParticipationStatusTests(SimpleTestCase):
+    def make_answer(self, **kwargs):
+        activity = Activity(q1_title='문항 1', q2_title='문항 2', q3_title='문항 3')
+        question = Question(activity=activity, content='평가 문항')
+        defaults = {
+            'question': question,
+            'content': '',
+            'activity_log': '',
+            'absence_type': '',
+        }
+        defaults.update(kwargs)
+        return Answer(**defaults)
+
+    def test_score_only_empty_answer_remains_not_started(self):
+        answer = self.make_answer(score=3)
+        self.assertEqual(answer.participation_status(deadline_passed=False), '미응시')
+        self.assertEqual(answer.participation_status(deadline_passed=True), '미응시')
+
+    def test_started_unsubmitted_answer_changes_to_not_submitted_after_deadline(self):
+        answer = self.make_answer(activity_log='[입장] 답안지 페이지 입장')
+        self.assertEqual(answer.participation_status(deadline_passed=False), '응시 중')
+        self.assertEqual(answer.participation_status(deadline_passed=True), '미제출')
+
+    def test_submitted_empty_and_written_answers_are_distinguished(self):
+        submitted_at = timezone.now()
+        blank_answer = self.make_answer(submitted_at=submitted_at)
+        written_answer = self.make_answer(submitted_at=submitted_at, ans_q1='작성한 답안')
+        self.assertEqual(blank_answer.participation_status(), '백지 제출')
+        self.assertEqual(written_answer.participation_status(), '제출 완료')
 
 
 @override_settings(

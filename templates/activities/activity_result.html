@@ -118,6 +118,8 @@
                                 <span class="badge rounded-pill px-3 py-2" style="background: linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%);">제출 완료</span>
                             {% elif item.status == '응시 중' %}
                                 <span class="badge rounded-pill px-3 py-2 bg-primary-subtle text-primary border border-primary-subtle">응시 중</span>
+                            {% elif item.status == '미제출' %}
+                                <span class="badge rounded-pill px-3 py-2 bg-secondary-subtle text-secondary border">미제출</span>
                             {% elif item.status == '백지 제출' %}
                                 <span class="badge rounded-pill px-3 py-2 bg-warning text-dark">백지 제출</span>
                             {% elif item.status == '결시' %}
@@ -189,10 +191,9 @@
 
                         <!-- 퀵 점수: 선택 즉시 저장 -->
                         <td>
-                            {% if item.answer_id %}
                             <select class="form-select form-select-sm quick-score-select mx-auto"
                                     aria-label="{{ item.student.name }} 학생 점수"
-                                    data-score-url="{% url 'update_answer_score' item.answer_id %}"
+                                    data-score-url="{% url 'update_student_score' activity.id item.student.id %}"
                                     data-current-score="{% if item.score != None %}{{ item.score }}{% endif %}"
                                     onchange="updateQuickScore(this)">
                                 <option value="" {% if item.score == None %}selected{% endif %} disabled>점수</option>
@@ -200,9 +201,6 @@
                                 <option value="{{ score_value }}" {% if item.score|stringformat:"s" == score_value %}selected{% endif %}>{{ score_value }}점</option>
                                 {% endfor %}
                             </select>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
                         </td>
 
                         <!-- 답안 상세 및 추후 활동 생성 -->

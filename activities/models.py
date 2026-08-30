@@ -292,6 +292,26 @@ class Answer(models.Model):
             line for line in (self.content or '').splitlines()
             if line.strip() != '[]'
         ).strip()
+
+    @property
+    def has_started(self):
+        """점수 레코드 존재와 무관한 실제 응시 시작 여부입니다."""
+        return bool(
+            self.submitted_at
+            or (self.activity_log or '').strip()
+            or self.display_content.strip()
+        )
+
+    def participation_status(self, *, deadline_passed=False):
+        """응시 이력을 기준으로 미응시·미제출·제출 상태를 구분합니다."""
+        if self.absence_type:
+            return '결시'
+        has_content = bool(self.display_content.strip())
+        if self.submitted_at:
+            return '제출 완료' if has_content else '백지 제출'
+        if not self.has_started:
+            return '미응시'
+        return '미제출' if deadline_passed else '응시 중'
     
      # 결시 사유 선택지
     class Absence(models.TextChoices):
@@ -310,6 +330,42 @@ class Answer(models.Model):
     )
     # 선생님 특이사항 메모 (비공개)
     note = models.TextField(blank=True, verbose_name="특이사항(교사 메모)")
+
+
+class ActivityStudentScore(models.Model):
+    """답안 및 응시 상태와 독립적으로 보관하는 활동별 학생 점수입니다."""
+
+    activity = models.ForeignKey(
+        Activity,
+        on_delete=models.CASCADE,
+        related_name='student_scores',
+        verbose_name='활동',
+    )
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='activity_scores',
+        verbose_name='학생',
+    )
+    score = models.PositiveSmallIntegerField(choices=Answer.Score.choices, verbose_name='점수')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성 일시')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='수정 일시')
+
+    class Meta:
+        verbose_name = '활동별 학생 점수'
+        verbose_name_plural = '활동별 학생 점수 목록'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['activity', 'student'],
+                name='unique_activity_student_score',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['activity', 'student'], name='activity_student_score_idx')
+        ]
+
+    def __str__(self):
+        return f'{self.activity} · {self.student} · {self.score}점'
 
 # AI 분석 결과 모델 (다중 결과 지원)
 class AnalysisResult(models.Model):

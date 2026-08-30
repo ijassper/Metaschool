@@ -1,7 +1,6 @@
 # 제출 현황 및 답안 관리 (activity_result, answer_detail 등)
 
 import json
-import re
 from urllib.parse import urlencode
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -15,7 +14,7 @@ from django.views.decorators.http import require_GET, require_POST
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
 from accounts.models import Persona, Student
-from ..models import Activity, Answer, FeedbackResult, FeedbackSession
+from ..models import Activity, Answer, ActivityStudentScore, FeedbackResult, FeedbackSession
 from .main_views import get_accessible_students
 
 
@@ -79,6 +78,12 @@ def activity_result(request, activity_id, template_name='activities/activity_res
     submission_list = []
     question = activity.questions.first()
     is_deadline_passed = bool(activity.deadline and timezone.now() > activity.deadline)
+    score_by_student = dict(
+        ActivityStudentScore.objects.filter(
+            activity=activity,
+            student__in=target_students,
+        ).values_list('student_id', 'score')
+    )
 
     for student in target_students:
         answer = Answer.objects.filter(
@@ -100,27 +105,9 @@ def activity_result(request, activity_id, template_name='activities/activity_res
             log_data = answer.activity_log 
             content = answer.display_content
             
-            structured_text = " ".join([
-                answer.ans_q1 or "",
-                answer.ans_q2 or "",
-                answer.ans_q3 or "",
-            ])
-            fallback_text = re.sub(r'^\s*\[.*?\]\s*$', '', answer.content or "", flags=re.MULTILINE)
-            answer_text = structured_text if structured_text.strip() else fallback_text
-            has_content = bool(answer_text.strip())
-
-            if absence:
-                status = "결시"
-            elif answer.submitted_at and not has_content:
-                status = "백지 제출"
+            status = answer.participation_status(deadline_passed=is_deadline_passed)
+            if answer.submitted_at:
                 submitted_at = answer.submitted_at
-            elif answer.submitted_at:
-                status = "제출 완료"
-                submitted_at = answer.submitted_at
-            elif is_deadline_passed and not has_content:
-                status = "백지 제출"
-            else:
-                status = "응시 중"
         else:
             status = "미응시"
         
@@ -133,7 +120,10 @@ def activity_result(request, activity_id, template_name='activities/activity_res
             'absence': absence,
             'activity_log': log_data,
             'content': content, # [핵심 추가] 리스트에 담아서 템플릿으로 전달
-            'score': answer.score if answer else None,
+            'score': score_by_student.get(
+                student.id,
+                answer.score if answer and answer.score is not None else None,
+            ),
         })
 
     context = {
@@ -179,12 +169,18 @@ def answer_detail(request, answer_id):
         current_index = ordered_answer_ids.index(answer.id)
         if current_index + 1 < len(ordered_answer_ids):
             next_answer_id = ordered_answer_ids[current_index + 1]
+    stored_score = ActivityStudentScore.objects.filter(
+        activity=answer.question.activity,
+        student=answer.student,
+    ).values_list('score', flat=True).first()
+    quick_score = stored_score if stored_score is not None else answer.score
     return render(request, 'activities/answer_detail.html', {
         'answer': answer,
         'activity': answer.question.activity,
         'feedback_logs': answer.feedback_results.all(),
         'feedback_sessions': feedback_sessions,
         'next_answer_id': next_answer_id,
+        'quick_score': quick_score,
         'personas': Persona.objects.filter(
             Q(creator__isnull=True) | Q(creator=request.user)
         ).select_related('creator'),
@@ -211,7 +207,59 @@ def update_answer_score(request, answer_id):
 
     answer.score = score
     answer.save(update_fields=['score'])
+    ActivityStudentScore.objects.update_or_create(
+        activity=answer.question.activity,
+        student=answer.student,
+        defaults={'score': score},
+    )
     return JsonResponse({'status': 'success', 'score': score, 'label': f'{score}점'})
+
+
+@require_POST
+@login_required
+@teacher_required
+def update_student_score(request, activity_id, student_id):
+    """답안 및 응시 상태를 만들거나 변경하지 않고 대상 학생의 점수를 저장합니다."""
+    activity = get_object_or_404(
+        Activity,
+        id=activity_id,
+        teacher=request.user,
+    )
+
+    target_students = activity.target_students.all()
+    if not target_students.exists():
+        target_students = get_accessible_students(request.user)
+    student = get_object_or_404(target_students, id=student_id)
+
+    try:
+        payload = json.loads(request.body or '{}')
+        score = parse_quick_score(payload.get('score'))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse(
+            {'status': 'error', 'message': '점수는 0점부터 5점까지만 선택할 수 있습니다.'},
+            status=400,
+        )
+
+    score_record, created = ActivityStudentScore.objects.update_or_create(
+        activity=activity,
+        student=student,
+        defaults={'score': score},
+    )
+
+    # 이미 존재하는 답안에는 레거시 필드도 동기화하되 새 Answer는 만들지 않습니다.
+    answer = Answer.objects.filter(student=student, question__activity=activity).first()
+    if answer is not None and answer.score != score:
+        answer.score = score
+        answer.save(update_fields=['score'])
+
+    return JsonResponse({
+        'status': 'success',
+        'score': score,
+        'label': f'{score}점',
+        'answer_id': answer.id if answer else None,
+        'score_id': score_record.id,
+        'score_created': created,
+    })
 
 
 @require_POST
