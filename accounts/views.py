@@ -203,6 +203,8 @@ def dashboard(request):
                 ans = Answer.objects.filter(student=student_profile, question__activity=activity).first()
                 activity.my_answer = ans
                 activity.has_submitted = bool(ans and ans.submitted_at)
+                # 학생 대시보드에는 미채점도 0점으로 일관되게 표시합니다.
+                activity.student_score = ans.score if ans and ans.score is not None else 0
                 activity.dashboard_state = activity.get_student_exam_state(ans)
                 activity.can_enter_exam = activity.can_student_enter(ans)
                 

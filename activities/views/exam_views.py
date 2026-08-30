@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
 from accounts.models import Student, SystemConfig
-from ..models import Activity, Question, Answer
+from ..models import Activity, Question, Answer, FeedbackResult
 
 LOG_MESSAGES = {
     'IN': '답안지 페이지 입장',
@@ -251,6 +251,44 @@ def take_test(request, activity_id):
         request, activity, question, answer=answer, exam_started=False, student=student_info
     )
     return render(request, 'activities/take_test.html', context)
+
+
+@login_required
+def student_result_detail(request, activity_id):
+    """학생 본인에게 응시 내용, 답안, 점수와 교사가 확정한 피드백을 보여줍니다."""
+    activity = get_object_or_404(Activity.objects.select_related('teacher'), id=activity_id)
+    student_info, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return error_response
+
+    answer = (
+        Answer.objects.select_related('question', 'student')
+        .filter(student=student_info, question__activity=activity)
+        .first()
+    )
+    question = activity.questions.first()
+    feedback_results = []
+    notebook_pages = []
+    if answer:
+        feedback_results = list(
+            FeedbackResult.objects.filter(
+                answer=answer,
+                activity=activity,
+                student=student_info,
+            ).order_by('-created_at', '-id')
+        )
+        if activity.is_notebook:
+            notebook_pages = normalize_notebook_pages(answer.notebook_pages, answer.ans_q1)
+
+    return render(request, 'activities/student_result_detail.html', {
+        'activity': activity,
+        'question': question,
+        'answer': answer,
+        'student': student_info,
+        'score': answer.score if answer and answer.score is not None else 0,
+        'feedback_results': feedback_results,
+        'notebook_pages': notebook_pages,
+    })
 
 
 @require_POST

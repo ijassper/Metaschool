@@ -166,6 +166,41 @@
     letter-spacing: -0.5px;
   }
 
+  .student-score-badge {
+    padding: 3px 10px;
+    border: 1px solid rgba(142, 68, 173, 0.25);
+    border-radius: 999px;
+    background: #fff;
+    color: #7b2f91;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .result-action-row {
+    display: flex;
+    justify-content: flex-end;
+    margin: -4px 0 7px;
+  }
+
+  .student-result-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 11px;
+    border: 1px solid rgba(142, 68, 173, 0.32);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    color: #7b2f91;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .student-result-link:hover {
+    background: #8e44ad;
+    color: #fff;
+  }
+
   .teacher-label {
     color: #4a4e52;
   }
@@ -408,7 +443,7 @@
   </div>
 
   <!-- 2. 4열 카테고리 그리드 -->
-  <div class="dashboard-grid">
+  <div class="dashboard-grid" id="student-activities">
     {% for block in category_blocks %}
     <div
       class="category-block shadow-sm {% cycle 'pastel-purple' 'pastel-blue' 'pastel-green' 'pastel-yellow' 'pastel-orange' 'pastel-red' 'pastel-pink' %}"
@@ -424,6 +459,7 @@
             <span class="sub-cat-label">
               {{ act.sub_category|default:act.get_category_display }}
             </span>
+            <span class="student-score-badge">점수 {{ act.student_score }}점</span>
           </div>
 
           <!-- 중앙: 주제 및 상세 영역 (위계 분리) -->
@@ -434,6 +470,12 @@
             <span class="section-sub-text">
               <i class="bi bi-tag-fill small me-1">{{ act.title }}</i>
             </span>
+          </div>
+
+          <div class="result-action-row">
+            <a class="student-result-link" href="{% url 'student_result_detail' act.id %}">
+              상세 결과 보기 <i class="bi bi-chevron-right"></i>
+            </a>
           </div>
 
           <!-- 2행: 기한 | 선생님 | 상태 -->
@@ -497,6 +539,7 @@
       };
 
       card.addEventListener('click', function (event) {
+        if (event.target.closest('a, button, input, select, textarea')) return;
         go(event);
       });
       card.addEventListener('keydown', function (event) {
