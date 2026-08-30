@@ -149,10 +149,13 @@
 
   /* 카드 텍스트 정렬 */
   .card-row-top {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 6px;
     font-size: 0.75rem;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    min-width: 0;
   }
 
   /* 1. 상단 소메뉴 태그 스타일 */
@@ -164,6 +167,16 @@
     padding: 2px 8px;
     border-radius: 6px;
     letter-spacing: -0.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .submission-time {
+    color: #868e96;
+    font-size: 0.7rem;
+    white-space: nowrap;
   }
 
   .student-score-badge {
@@ -174,12 +187,6 @@
     color: #7b2f91;
     font-weight: 800;
     white-space: nowrap;
-  }
-
-  .result-action-row {
-    display: flex;
-    justify-content: flex-end;
-    margin: -4px 0 7px;
   }
 
   .student-result-link {
@@ -194,6 +201,7 @@
     font-size: 0.72rem;
     font-weight: 800;
     text-decoration: none;
+    white-space: nowrap;
   }
 
   .student-result-link:hover {
@@ -206,35 +214,38 @@
   }
 
   /* 2. 중앙 타이틀 영역 */
-  .item-title {
-    margin: 12px 0;
-    line-height: 1.4;
-  }
   .main-title-text {
-    display: block; /* 줄바꿈 처리로 가독성 확보 */
+    display: block;
     font-size: 1.2rem;
     font-weight: 800;
     color: #111;
     letter-spacing: -0.8px;
-    margin-bottom: 2px;
+    margin: 7px 0 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .section-sub-text {
+    display: block;
     font-size: 1rem;
     font-weight: 500;
     color: #6c757d; /* 과목명/영역명은 보조 색상으로 */
     font-style: italic;
-    margin-bottom: 2px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  /* 하단 메타 정보 영역 - 3분할 그리드 적용 */
+  /* 4행: 교사명 | 점수 | 상세 결과 */
   .card-row-bottom {
     display: grid;
-    grid-template-columns: minmax(70px, 0.8fr) auto minmax(128px, 1.2fr); /* 좌(1):중(auto):우(1) 비율로 정중앙 보장 */
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-    padding-top: 4px;
+    gap: 6px;
+    padding-top: 8px;
     border-top: 1px dashed #eee;
+    min-width: 0;
   }
 
   .status-area {
@@ -243,14 +254,7 @@
     min-width: 0;
   }
 
-  /* 기한 (왼쪽 정렬) */
-  .meta-deadline {
-    font-size: 0.75rem;
-    color: #868e96;
-    text-align: left;
-  }
-
-  /* 선생님 성함 (중앙 강조) */
+  /* 선생님 성함 */
   .meta-teacher-center {
     font-size: 0.8rem;
     font-weight: 400; /* 아주 진하게 */
@@ -261,6 +265,19 @@
     background-color: #f8f9ff; /* 살짝 배경을 주어 돋보이게 함 */
     padding: 2px 10px;
     border-radius: 8px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .meta-teacher-center span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card-status-compact {
+    min-width: 72px;
+    padding: 4px 9px;
+    font-size: 0.68rem;
   }
 
   /* --- Ingrid 학생 대시보드 전용 버튼 시스템 --- */
@@ -367,8 +384,8 @@
     border-radius: 10px;
   }
 
-  /* 1400px 이하일 때 2열로 조정 (반응형) */
-  @media (max-width: 1400px) {
+  /* 카드 4행의 가독성을 보장하기 위해 중간 화면에서는 2열로 전환 */
+  @media (max-width: 1500px) {
     .dashboard-grid {
       grid-template-columns: repeat(2, 1fr);
     }
@@ -387,14 +404,7 @@
     }
 
     .card-row-bottom {
-      grid-template-columns: 1fr;
-      align-items: stretch;
-    }
-
-    .meta-deadline,
-    .status-area {
-      text-align: left;
-      justify-content: flex-start;
+      grid-template-columns: minmax(0, 1fr) auto auto;
     }
   }
 </style>
@@ -454,58 +464,51 @@
         {% for act in block.items %}
         <div class="eval-item-card {% if act.can_enter_exam %}is-clickable{% endif %}"
              {% if act.can_enter_exam %}data-href="{% url 'take_test' act.id %}" tabindex="0" role="link"{% endif %}>
-          <!-- 1행: 소메뉴 (태그 형태) -->
+          <!-- 1행: 소메뉴 | 제출 일시 | 응시 상태 -->
           <div class="card-row-top">
             <span class="sub-cat-label">
               {{ act.sub_category|default:act.get_category_display }}
             </span>
-            <span class="student-score-badge">점수 {{ act.student_score }}점</span>
-          </div>
-
-          <!-- 중앙: 주제 및 상세 영역 (위계 분리) -->
-          <div class="item-title">
-            <span class="main-title-text"
-              >{{ act.section|default:"일반 활동" }}</span
-            >
-            <span class="section-sub-text">
-              <i class="bi bi-tag-fill small me-1">{{ act.title }}</i>
+            <span class="submission-time">
+              {% if act.my_answer and act.my_answer.submitted_at %}
+                {{ act.my_answer.submitted_at|localtime|date:"m/d H:i" }}
+              {% else %}
+                미제출
+              {% endif %}
             </span>
+            {% if act.my_answer and act.my_answer.submitted_at %}
+              {% if act.dashboard_state == 'submitted_editable' %}
+                <span class="status-bar status-editable card-status-compact">수정하기</span>
+              {% else %}
+                <span class="status-bar status-locked card-status-compact">제출 완료</span>
+              {% endif %}
+            {% elif act.dashboard_state == 'unavailable' %}
+              <span class="status-bar status-unavailable card-status-compact">응시 불가</span>
+            {% else %}
+              <span class="status-bar status-ready card-status-compact">응시하기</span>
+            {% endif %}
           </div>
 
-          <div class="result-action-row">
+          <!-- 2행: 활동명 -->
+          <span class="main-title-text" title="{{ act.section|default:'일반 활동' }}">
+            {{ act.section|default:"일반 활동" }}
+          </span>
+
+          <!-- 3행: 주제 -->
+          <span class="section-sub-text" title="{{ act.title }}">
+            <i class="bi bi-tag-fill small me-1"></i>{{ act.title }}
+          </span>
+
+          <!-- 4행: 선생님 | 점수 | 상세 결과 보기 -->
+          <div class="card-row-bottom">
+            <div class="meta-teacher-center">
+              <i class="bi bi-person-fill"></i>
+              <span title="{{ act.teacher.name }} 선생님">{{ act.teacher.name }} 선생님</span>
+            </div>
+            <span class="student-score-badge">점수 {{ act.student_score }}점</span>
             <a class="student-result-link" href="{% url 'student_result_detail' act.id %}">
               상세 결과 보기 <i class="bi bi-chevron-right"></i>
             </a>
-          </div>
-
-          <!-- 2행: 기한 | 선생님 | 상태 -->
-          <div class="card-row-bottom">
-            <!-- 기한 정보 -->
-            <div class="meta-deadline">
-              <i class="bi bi-clock me-1"></i>
-              {{ act.deadline|localtime|date:"m/d H:i"|default:"기한없음" }}
-            </div>
-
-            <!-- 선생님 정보 -->
-            <div class="meta-teacher-center">
-              <i class="bi bi-person-fill"></i>
-              <span>{{ act.teacher.name }} 선생님</span>
-            </div>
-
-            <!-- 상태 버튼 영역 (우측 정렬) -->
-            <div class="status-area">
-              {% if act.my_answer and act.my_answer.submitted_at %}
-                {% if act.dashboard_state == 'submitted_editable' %}
-                  <span class="status-bar status-editable">[제출 완료(수정 가능)]</span>
-                {% else %}
-                  <span class="status-bar status-locked">[제출 완료(수정 불가능)]</span>
-                {% endif %}
-              {% elif act.dashboard_state == 'unavailable' %}
-                <span class="status-bar status-unavailable">[응시 불가능]</span>
-              {% else %}
-                <span class="status-bar status-ready">시험 시작하기</span>
-              {% endif %}
-            </div>
           </div>
         </div>
         {% endfor %}

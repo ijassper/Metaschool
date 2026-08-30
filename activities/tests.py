@@ -9,7 +9,12 @@ from django.urls import reverse
 from django.conf import settings
 from django.utils import timezone
 
-from .views.exam_views import normalize_notebook_pages, pdf_viewer
+from .views.exam_views import (
+    normalize_notebook_pages,
+    pdf_viewer,
+    snapshot_char_count,
+    snapshot_fingerprint,
+)
 from .views.result_views import parse_quick_score
 from .views.main_views import get_form_config
 from .views.ai_views import (
@@ -48,6 +53,20 @@ class NotebookPageDataTests(SimpleTestCase):
             normalize_notebook_pages('["첫 쪽", "", "   ", "마지막 쪽"]'),
             ['첫 쪽', '마지막 쪽'],
         )
+
+    def test_revision_character_count_does_not_double_count_notebook_pages(self):
+        snapshot = {
+            'ans_q1': '레거시 합본',
+            'ans_q2': '',
+            'ans_q3': '',
+            'notebook_pages': ['첫 쪽', '두 번째 쪽'],
+        }
+        self.assertEqual(snapshot_char_count(snapshot), 6)
+
+    def test_revision_fingerprint_is_stable_for_same_snapshot(self):
+        first = {'ans_q1': '답안', 'ans_q2': '', 'ans_q3': '', 'notebook_pages': []}
+        second = {'notebook_pages': [], 'ans_q3': '', 'ans_q2': '', 'ans_q1': '답안'}
+        self.assertEqual(snapshot_fingerprint(first), snapshot_fingerprint(second))
 
 
 class QuickScoreValidationTests(SimpleTestCase):

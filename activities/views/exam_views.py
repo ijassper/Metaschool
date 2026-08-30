@@ -1,4 +1,5 @@
 import json
+import hashlib
 from functools import wraps
 from urllib.parse import urlparse
 
@@ -9,12 +10,14 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
 from accounts.models import Student, SystemConfig
-from ..models import Activity, Question, Answer, ActivityStudentScore, FeedbackResult
+from ..models import (
+    Activity, Question, Answer, AnswerDraftRevision, ActivityStudentScore, FeedbackResult,
+)
 
 LOG_MESSAGES = {
     'IN': '답안지 페이지 입장',
@@ -31,6 +34,8 @@ LOG_MESSAGES = {
 
 MAX_NOTEBOOK_PAGES = 100
 MAX_NOTEBOOK_PAGE_CHARS = 20000
+MAX_DRAFT_REVISIONS = 10
+DRAFT_REVISION_MIN_INTERVAL_SECONDS = 60
 
 
 def normalize_notebook_pages(raw_pages, legacy_content=''):
@@ -47,6 +52,70 @@ def normalize_notebook_pages(raw_pages, legacy_content=''):
     pages = [str(page or '')[:MAX_NOTEBOOK_PAGE_CHARS] for page in raw_pages[:MAX_NOTEBOOK_PAGES]]
     non_empty_pages = [page for page in pages if page.strip()]
     return non_empty_pages or ['']
+
+
+def build_answer_snapshot(answer):
+    notebook_pages = list(answer.notebook_pages or [])
+    return {
+        'ans_q1': '' if notebook_pages else (answer.ans_q1 or ''),
+        'ans_q2': '' if notebook_pages else (answer.ans_q2 or ''),
+        'ans_q3': '' if notebook_pages else (answer.ans_q3 or ''),
+        'notebook_pages': notebook_pages,
+    }
+
+
+def snapshot_char_count(snapshot):
+    notebook_pages = snapshot.get('notebook_pages') or []
+    values = notebook_pages or [
+        snapshot.get('ans_q1', ''), snapshot.get('ans_q2', ''), snapshot.get('ans_q3', '')
+    ]
+    return sum(len(''.join(str(value or '').split())) for value in values)
+
+
+def snapshot_fingerprint(snapshot):
+    payload = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    return hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
+
+def preserve_answer_revision(answer, new_snapshot, requested_reason='PERIODIC'):
+    """기존 답안을 필요할 때만 보관해 자동저장 요청 수와 이력 증가를 제한합니다."""
+    old_snapshot = build_answer_snapshot(answer)
+    old_count = snapshot_char_count(old_snapshot)
+    new_count = snapshot_char_count(new_snapshot)
+    if old_count == 0 or snapshot_fingerprint(old_snapshot) == snapshot_fingerprint(new_snapshot):
+        return None
+
+    is_destructive = old_count >= 100 and new_count <= old_count * 0.5
+    last_revision = answer.draft_revisions.order_by('-created_at', '-id').first()
+    interval_elapsed = (
+        last_revision is None
+        or (timezone.now() - last_revision.created_at).total_seconds() >= DRAFT_REVISION_MIN_INTERVAL_SECONDS
+    )
+    valid_reasons = {value for value, _ in AnswerDraftRevision.SaveReason.choices}
+    reason = requested_reason if requested_reason in valid_reasons else AnswerDraftRevision.SaveReason.PERIODIC
+    if is_destructive:
+        reason = AnswerDraftRevision.SaveReason.DESTRUCTIVE_EDIT
+    elif not interval_elapsed and reason != AnswerDraftRevision.SaveReason.MANUAL:
+        return None
+
+    fingerprint = snapshot_fingerprint(old_snapshot)
+    if last_revision and last_revision.fingerprint == fingerprint:
+        return None
+
+    revision = AnswerDraftRevision.objects.create(
+        answer=answer,
+        content_snapshot=old_snapshot,
+        char_count=old_count,
+        fingerprint=fingerprint,
+        save_reason=reason,
+    )
+    stale_ids = list(
+        answer.draft_revisions.order_by('-created_at', '-id')
+        .values_list('id', flat=True)[MAX_DRAFT_REVISIONS:]
+    )
+    if stale_ids:
+        AnswerDraftRevision.objects.filter(id__in=stale_ids).delete()
+    return revision
 
 
 def append_activity_log(answer, action_code, timestamp=None):
@@ -81,7 +150,7 @@ def get_student_for_activity(request, activity):
         messages.error(request, "학생 정보를 찾을 수 없습니다.")
         return None, redirect('dashboard')
 
-    if student_info not in activity.target_students.all():
+    if not activity.target_students.filter(pk=student_info.pk).exists():
         messages.error(request, "본인 대상 평가가 아닙니다.")
         return None, redirect('dashboard')
 
@@ -316,13 +385,82 @@ def save_answer_draft(request, activity_id):
     if answer.submitted_at and not activity.allow_edit_after_submission:
         return JsonResponse({'status': 'error', 'message': '제출이 완료되어 수정할 수 없습니다.'}, status=403)
 
+    new_notebook_pages = (
+        normalize_notebook_pages(
+            request.POST.get('notebook_pages'),
+            request.POST.get('ans_q1', ''),
+        ) if activity.is_notebook else []
+    )
+    new_snapshot = {
+        'ans_q1': '' if new_notebook_pages else request.POST.get('ans_q1', '').strip(),
+        'ans_q2': '' if new_notebook_pages else request.POST.get('ans_q2', '').strip(),
+        'ans_q3': '' if new_notebook_pages else request.POST.get('ans_q3', '').strip(),
+        'notebook_pages': new_notebook_pages,
+    }
+    preserve_answer_revision(
+        answer,
+        new_snapshot,
+        request.POST.get('draft_save_reason', AnswerDraftRevision.SaveReason.PERIODIC),
+    )
     save_answer_content(answer, activity, request.POST)
-    answer.save(update_fields=['ans_q1', 'ans_q2', 'ans_q3', 'notebook_pages', 'content'])
+    answer.updated_at = timezone.now()
+    answer.save(update_fields=['ans_q1', 'ans_q2', 'ans_q3', 'notebook_pages', 'content', 'updated_at'])
 
     return JsonResponse({
         'status': 'success',
         'message': '임시저장이 완료되었습니다.',
         'answer_id': answer.id,
+    })
+
+
+@require_GET
+@login_required
+def draft_revision_list(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id)
+    student_info, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return JsonResponse({'status': 'error', 'message': '조회 권한이 없습니다.'}, status=403)
+    answer = Answer.objects.filter(student=student_info, question__activity=activity).first()
+    if not answer:
+        return JsonResponse({'status': 'success', 'revisions': []})
+    revisions = list(
+        answer.draft_revisions.order_by('-created_at', '-id')[:MAX_DRAFT_REVISIONS]
+    )
+    return JsonResponse({
+        'status': 'success',
+        'revisions': [
+            {
+                'id': revision.id,
+                'created_at': revision.created_at.isoformat(),
+                'char_count': revision.char_count,
+                'reason': revision.save_reason,
+            }
+            for revision in revisions
+        ],
+    })
+
+
+@require_GET
+@login_required
+def draft_revision_detail(request, activity_id, revision_id):
+    activity = get_object_or_404(Activity, id=activity_id)
+    student_info, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return JsonResponse({'status': 'error', 'message': '조회 권한이 없습니다.'}, status=403)
+    revision = get_object_or_404(
+        AnswerDraftRevision.objects.select_related('answer', 'answer__question'),
+        id=revision_id,
+        answer__student=student_info,
+        answer__question__activity=activity,
+    )
+    return JsonResponse({
+        'status': 'success',
+        'revision': {
+            'id': revision.id,
+            'created_at': revision.created_at.isoformat(),
+            'char_count': revision.char_count,
+            'snapshot': revision.content_snapshot,
+        },
     })
 
 

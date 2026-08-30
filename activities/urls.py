@@ -54,6 +54,12 @@ urlpatterns = [
     path('analysis-work/<int:activity_id>/', activity_analysis_work, name='activity_analysis_work'),
     path('api/get-or-create-batch/', get_or_create_batch, name='get_or_create_batch'),
     path('take/<int:activity_id>/draft/', save_answer_draft, name='save_answer_draft'),
+    path('take/<int:activity_id>/draft-revisions/', draft_revision_list, name='draft_revision_list'),
+    path(
+        'take/<int:activity_id>/draft-revisions/<int:revision_id>/',
+        draft_revision_detail,
+        name='draft_revision_detail',
+    ),
     path('take/<int:activity_id>/start/', start_exam, name='start_exam'),
     path('take/<int:activity_id>/re-enter/', re_enter_exam, name='re_enter_exam'),
     path('take/<int:activity_id>/typing/analyze/', analyze_typing_result, name='analyze_typing_result'),

@@ -1158,6 +1158,14 @@
                     <div class="notebook-student-identity flex-grow-1 text-truncate">{{ student.school.name|default:'학교 정보 없음' }} · {{ student.grade }}학년 {{ student.class_no }}반 {{ student.number }}번 · {{ student.name }}</div>
                     <span id="notebookSaveStatus" class="exam-status-pill"><i class="bi bi-cloud-check"></i> 저장됨</span>
                     <span id="charCount" class="exam-status-pill">0자</span>
+                    <div class="dropdown">
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 draft-recovery-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-clock-history me-1"></i>자동저장 답안 복구
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow draft-recovery-menu">
+                            <li><span class="dropdown-item-text text-muted small">복구 답안을 불러오는 중입니다.</span></li>
+                        </ul>
+                    </div>
                     <button type="button" id="printNotebook" class="btn btn-outline-primary btn-sm rounded-pill px-3"><i class="bi bi-printer me-1"></i>인쇄/PDF</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#exitConfirmModal">나가기</button>
                     <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">노트 제출</button>
@@ -1318,6 +1326,15 @@
             <i class="bi bi-type"></i> 0자 / {{ activity.char_limit }}자 이내
         </span>
         <div class="exam-action-group d-flex align-items-center gap-2 ms-auto">
+            <span id="draftAutoSaveStatus" class="small text-muted" aria-live="polite">자동 저장 준비</span>
+            <div class="dropdown">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-3 fw-bold draft-recovery-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-clock-history me-1"></i>자동저장 답안 복구
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow draft-recovery-menu">
+                    <li><span class="dropdown-item-text text-muted small">복구 답안을 불러오는 중입니다.</span></li>
+                </ul>
+            </div>
             <button type="button" id="saveDraftButton" class="btn draft-action-button px-4 fw-bold" onclick="saveAnswer(event)">
                 <i class="bi bi-cloud-check me-1"></i> 임시 저장
             </button>
@@ -1572,6 +1589,19 @@
     const TYPING_TARGET_DATA = "{{ activity.target_data|default:''|escapejs }}";
     const TYPING_SHOW_KEYBOARD = {{ activity.show_keyboard|yesno:"true,false" }};
     const TYPING_DATA_URL = "{% static 'data/typing_data.json' %}";
+    const DRAFT_SAVE_URL = "{% url 'save_answer_draft' activity.id %}";
+    const DRAFT_REVISION_LIST_URL = "{% url 'draft_revision_list' activity.id %}";
+    const DRAFT_REVISION_DETAIL_URL_TEMPLATE = "{% url 'draft_revision_detail' activity.id 0 %}";
+    const DRAFT_STORAGE_KEY = "ingrid-draft-{{ activity.id }}-{{ student.id|default:user.id }}";
+    const SERVER_ANSWER_UPDATED_AT = "{{ answer.updated_at|date:'c' }}";
+    const AUTO_SAVE_INTERVAL_MS = 30000;
+    const AUTO_SAVE_DEBOUNCE_MS = 5000;
+    const AUTO_SAVE_JITTER_MS = 10000;
+
+    let draftDirty = false;
+    let draftSaveInFlight = false;
+    let draftDebounceTimer = null;
+    let lastSavedFingerprint = '';
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
@@ -1594,7 +1624,7 @@
     let securityLogs = [];
     const ABNORMAL_INPUT_THRESHOLD = 100;
     const INPUT_GRACE_MS = 1000;
-    const ANSWER_BACKUP_PREFIX = `ingrid-answer-backup-${answerId || 'new'}-`;
+    const ANSWER_BACKUP_PREFIX = `ingrid-answer-backup-{{ activity.id }}-${answerId || 'new'}-`;
     const RIGHT_CLICK_LOG_INTERVAL_MS = 60000;
     const RIGHT_CLICK_LOG_STORAGE_KEY = `ingrid-right-click-log-${answerId || 'new'}`;
     let lastRightClickLogAt = 0;
@@ -2878,6 +2908,257 @@
         remainingTimeElement.innerHTML = `<i class="bi bi-clock-history"></i> ${display}`;
     }
 
+    function syncDraftFormState() {
+        if (typeof window.syncNotebookDraftState === 'function') {
+            window.syncNotebookDraftState();
+        }
+    }
+
+    function collectDraftSnapshot() {
+        syncDraftFormState();
+        const form = document.getElementById('answerForm');
+        if (!form) return null;
+        const formData = new FormData(form);
+        return {
+            ans_q1: String(formData.get('ans_q1') || ''),
+            ans_q2: String(formData.get('ans_q2') || ''),
+            ans_q3: String(formData.get('ans_q3') || ''),
+            notebook_pages: String(formData.get('notebook_pages') || ''),
+        };
+    }
+
+    function draftFingerprint(snapshot) {
+        return JSON.stringify(snapshot || {});
+    }
+
+    function updateDraftSaveStatus(state, message) {
+        const normalStatus = document.getElementById('draftAutoSaveStatus');
+        const notebookStatus = document.getElementById('notebookSaveStatus');
+        const icon = state === 'saving'
+            ? '<span class="spinner-border spinner-border-sm"></span>'
+            : state === 'saved'
+                ? '<i class="bi bi-cloud-check"></i>'
+                : state === 'failed'
+                    ? '<i class="bi bi-cloud-slash text-danger"></i>'
+                    : '<i class="bi bi-pencil"></i>';
+        if (normalStatus) normalStatus.innerHTML = `${icon} ${message}`;
+        if (notebookStatus) notebookStatus.innerHTML = `${icon} ${message}`;
+    }
+
+    function saveDraftToLocal(snapshot) {
+        if (!snapshot) return;
+        try {
+            localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+                savedAt: Date.now(),
+                snapshot: snapshot,
+            }));
+        } catch (error) {
+            console.warn('브라우저 임시 백업 저장에 실패했습니다.', error);
+        }
+    }
+
+    function readLocalDraft() {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) || 'null');
+            return parsed && parsed.snapshot ? parsed : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function applyDraftSnapshot(snapshot) {
+        if (!snapshot) return;
+        ['ans_q1', 'ans_q2', 'ans_q3'].forEach(function(name) {
+            const textarea = document.querySelector(`textarea[name="${name}"]`);
+            if (textarea) textarea.value = snapshot[name] || '';
+        });
+        if (snapshot.notebook_pages && typeof window.applyNotebookDraftPages === 'function') {
+            window.applyNotebookDraftPages(snapshot.notebook_pages);
+        }
+        updateCharCount();
+    }
+
+    function restoreNewerLocalDraft() {
+        const backup = readLocalDraft();
+        if (!backup) return false;
+        const serverUpdatedAt = SERVER_ANSWER_UPDATED_AT ? Date.parse(SERVER_ANSWER_UPDATED_AT) : 0;
+        const currentSnapshot = collectDraftSnapshot();
+        if (
+            backup.savedAt > serverUpdatedAt
+            && draftFingerprint(backup.snapshot) !== draftFingerprint(currentSnapshot)
+            && window.confirm('서버에 저장된 답안보다 새로운 브라우저 임시 백업이 있습니다. 복구하시겠습니까?')
+        ) {
+            applyDraftSnapshot(backup.snapshot);
+            draftDirty = true;
+            updateDraftSaveStatus('dirty', '복구됨 · 저장 대기');
+            return true;
+        }
+        return false;
+    }
+
+    function markDraftDirty() {
+        if (IS_TYPING_ACTIVITY || isSubmitting) return;
+        const snapshot = collectDraftSnapshot();
+        draftDirty = true;
+        saveDraftToLocal(snapshot);
+        updateDraftSaveStatus('dirty', '작성 중 · 저장 대기');
+        clearTimeout(draftDebounceTimer);
+        draftDebounceTimer = window.setTimeout(function() {
+            persistDraft();
+        }, AUTO_SAVE_DEBOUNCE_MS + Math.floor(Math.random() * 2000));
+    }
+
+    async function persistDraft(options = {}) {
+        if (IS_TYPING_ACTIVITY || isSubmitting || draftSaveInFlight) return false;
+        const snapshot = collectDraftSnapshot();
+        const fingerprint = draftFingerprint(snapshot);
+        if (!options.force && (!draftDirty || fingerprint === lastSavedFingerprint)) {
+            draftDirty = false;
+            return true;
+        }
+
+        const form = document.getElementById('answerForm');
+        if (!form) return false;
+        const formData = new FormData(form);
+        formData.set('draft_save_reason', options.reason || 'PERIODIC');
+        draftSaveInFlight = true;
+        updateDraftSaveStatus('saving', '저장 중');
+        try {
+            const response = await fetch(DRAFT_SAVE_URL, {
+                method: 'POST',
+                body: formData,
+                keepalive: Boolean(options.keepalive),
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const result = await response.json();
+            if (!response.ok || result.status !== 'success') {
+                throw new Error(result.message || '임시 저장에 실패했습니다.');
+            }
+            answerId = result.answer_id || answerId;
+            lastSavedFingerprint = fingerprint;
+            const latestSnapshot = collectDraftSnapshot();
+            draftDirty = draftFingerprint(latestSnapshot) !== fingerprint;
+            saveDraftToLocal(latestSnapshot);
+            updateDraftSaveStatus('saved', draftDirty ? '변경 감지 · 다시 저장 예정' : '자동 저장됨');
+            return true;
+        } catch (error) {
+            draftDirty = true;
+            updateDraftSaveStatus('failed', '저장 실패 · 재시도 예정');
+            return false;
+        } finally {
+            draftSaveInFlight = false;
+        }
+    }
+
+    function formatRevisionAge(createdAt) {
+        const elapsedSeconds = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000));
+        if (elapsedSeconds < 60) return `${elapsedSeconds}초 전 답안`;
+        const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+        if (elapsedMinutes < 60) return `${elapsedMinutes}분 전 답안`;
+        const elapsedHours = Math.floor(elapsedMinutes / 60);
+        if (elapsedHours < 24) return `${elapsedHours}시간 전 답안`;
+        return `${Math.floor(elapsedHours / 24)}일 전 답안`;
+    }
+
+    function revisionDetailUrl(revisionId) {
+        return DRAFT_REVISION_DETAIL_URL_TEMPLATE.replace(/0\/$/, `${revisionId}/`);
+    }
+
+    async function restoreDraftRevision(revisionId, label) {
+        if (!window.confirm(`${label}을 현재 작성 화면으로 복구하시겠습니까?\n현재 내용은 자동저장 이력에서 다시 선택할 수 있습니다.`)) return;
+        updateDraftSaveStatus('saving', '복구 답안 불러오는 중');
+        try {
+            const response = await fetch(revisionDetailUrl(revisionId), {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            });
+            const data = await response.json();
+            if (!response.ok || data.status !== 'success') throw new Error('복구 답안을 불러오지 못했습니다.');
+            // 복구 대상부터 확보한 뒤 아직 서버에 도착하지 않은 현재 편집본을 보존합니다.
+            const currentSaved = await persistDraft({force: true, reason: 'MANUAL'});
+            if (!currentSaved) throw new Error('현재 답안을 보존하지 못해 복구를 중단했습니다.');
+            applyDraftSnapshot(data.revision.snapshot);
+            markDraftDirty();
+            const restoredSaved = await persistDraft({force: true, reason: 'MANUAL'});
+            if (!restoredSaved) throw new Error('복구한 답안을 서버에 저장하지 못했습니다.');
+            updateDraftSaveStatus('saved', `${label} 복구 및 저장됨`);
+        } catch (error) {
+            updateDraftSaveStatus('failed', '답안 복구 실패');
+            window.alert(error.message || '답안 복구 중 오류가 발생했습니다.');
+        }
+    }
+
+    async function loadDraftRevisionMenus() {
+        const menus = document.querySelectorAll('.draft-recovery-menu');
+        menus.forEach(menu => {
+            menu.innerHTML = '<li><span class="dropdown-item-text text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>불러오는 중</span></li>';
+        });
+        try {
+            const response = await fetch(DRAFT_REVISION_LIST_URL, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            });
+            const data = await response.json();
+            if (!response.ok || data.status !== 'success') throw new Error('복구 목록을 불러오지 못했습니다.');
+            menus.forEach(menu => {
+                menu.replaceChildren();
+                if (!data.revisions.length) {
+                    menu.innerHTML = '<li><span class="dropdown-item-text text-muted small">복구할 이전 답안이 없습니다.</span></li>';
+                    return;
+                }
+                data.revisions.forEach(revision => {
+                    const item = document.createElement('li');
+                    const button = document.createElement('button');
+                    const label = formatRevisionAge(revision.created_at);
+                    button.type = 'button';
+                    button.className = 'dropdown-item d-flex justify-content-between align-items-center gap-3';
+                    button.innerHTML = `<span>${label}</span><small class="text-muted">${revision.char_count}자</small>`;
+                    button.addEventListener('click', () => restoreDraftRevision(revision.id, label));
+                    item.appendChild(button);
+                    menu.appendChild(item);
+                });
+            });
+        } catch (error) {
+            menus.forEach(menu => {
+                menu.innerHTML = '<li><span class="dropdown-item-text text-danger small">복구 목록을 불러오지 못했습니다.</span></li>';
+            });
+        }
+    }
+
+    function initializeUnifiedAutoSave() {
+        if (IS_TYPING_ACTIVITY) return;
+        document.querySelectorAll('textarea.answer-input').forEach(function(textarea) {
+            if (textarea.classList.contains('notebook-editor')) return;
+            if (!textarea.dataset.unifiedAutoSaveBound) {
+                textarea.dataset.unifiedAutoSaveBound = 'true';
+                textarea.addEventListener('input', function() {
+                    backupNormalAnswer(textarea, textarea.value || '');
+                    markDraftDirty();
+                });
+            }
+        });
+        lastSavedFingerprint = draftFingerprint(collectDraftSnapshot());
+        restoreNewerLocalDraft();
+
+        document.querySelectorAll('.draft-recovery-toggle').forEach(function(button) {
+            button.addEventListener('click', loadDraftRevisionMenus);
+        });
+
+        window.setTimeout(function() {
+            persistDraft();
+            window.setInterval(persistDraft, AUTO_SAVE_INTERVAL_MS);
+        }, Math.floor(Math.random() * AUTO_SAVE_JITTER_MS));
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && draftDirty) persistDraft({keepalive: true, reason: 'PAGE_EXIT'});
+        });
+        window.addEventListener('pagehide', function() {
+            saveDraftToLocal(collectDraftSnapshot());
+            if (draftDirty) persistDraft({keepalive: true, reason: 'PAGE_EXIT'});
+        });
+    }
+
     // 보안 모드 초기화 호출
     document.addEventListener('DOMContentLoaded', function() {
         const startButton = document.getElementById('start-btn');
@@ -2913,7 +3194,6 @@
             const notebookPaper = document.querySelector('.notebook-paper-wrap');
             let notebookPages = [''];
             let currentNotebookPage = 0;
-            let notebookSaveTimer = null;
             let isNotebookComposing = false;
 
             const notebookTemplateClass = Array.from(notebookEditor.classList).find(name => name.startsWith('notebook-') && name !== 'notebook-editor') || 'notebook-blank';
@@ -2975,6 +3255,22 @@
                 const count = document.getElementById('charCount');
                 if (count) count.textContent = `${totalNotebookCharacters()}자`;
             }
+
+            window.syncNotebookDraftState = syncNotebookState;
+            window.applyNotebookDraftPages = function(rawPages) {
+                try {
+                    const parsed = typeof rawPages === 'string' ? JSON.parse(rawPages) : rawPages;
+                    if (!Array.isArray(parsed) || !parsed.length) return false;
+                    notebookPages = parsed.map(page => String(page || ''));
+                    currentNotebookPage = 0;
+                    notebookEditor.value = notebookPages[0];
+                    syncNotebookState();
+                    renderNotebookThumbnails();
+                    return true;
+                } catch (error) {
+                    return false;
+                }
+            };
 
             function pageFitsA4(text) {
                 a4Measurer.textContent = text || '';
@@ -3120,27 +3416,8 @@
                 pageNumber.textContent = `${currentNotebookPage + 1} / ${notebookPages.length}쪽`;
             }
 
-            async function saveNotebookDraft() {
-                syncNotebookState();
-                notebookStatus.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 저장 중';
-                try {
-                    const response = await fetch("{% url 'save_answer_draft' activity.id %}", {
-                        method: 'POST', body: new FormData(document.getElementById('answerForm')),
-                        headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' }
-                    });
-                    const result = await response.json();
-                    if (!response.ok || result.status !== 'success') throw new Error('save failed');
-                    answerId = result.answer_id || answerId;
-                    notebookStatus.innerHTML = '<i class="bi bi-cloud-check"></i> 자동 저장됨';
-                } catch (error) {
-                    notebookStatus.innerHTML = '<i class="bi bi-cloud-slash text-danger"></i> 저장 실패';
-                }
-            }
-
             function queueNotebookSave() {
-                notebookStatus.innerHTML = '<i class="bi bi-pencil"></i> 작성 중';
-                clearTimeout(notebookSaveTimer);
-                notebookSaveTimer = setTimeout(saveNotebookDraft, 1200);
+                markDraftDirty();
             }
 
             notebookEditor.value = notebookPages[0];
@@ -3200,6 +3477,7 @@
             document.getElementById('answerForm').addEventListener('submit', syncNotebookState);
             window.addEventListener('beforeunload', syncNotebookState);
         }
+        initializeUnifiedAutoSave();
     });
 
     document.getElementById('answerForm').addEventListener('submit', function(event) {
@@ -3209,6 +3487,7 @@
     function executeExit() {
         isSubmitting = true; // 감시 중단
 
+        syncDraftFormState();
         const formData = new FormData(document.getElementById('answerForm'));
         formData.set('is_submit', 'true');
         formData.set('is_exit', 'true');
@@ -3233,7 +3512,6 @@
     async function saveAnswer(event) {
         if (event) event.preventDefault();
 
-        const form = document.getElementById('answerForm');
         const saveButton = document.getElementById('saveDraftButton');
         const originalButtonHtml = saveButton.innerHTML;
 
@@ -3241,28 +3519,14 @@
         saveButton.disabled = true;
         saveButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>저장 중';
 
-        try {
-            const response = await fetch("{% url 'save_answer_draft' activity.id %}", {
-                method: 'POST',
-                body: new FormData(form),
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            const result = await response.json();
-            if (!response.ok || result.status !== 'success') {
-                throw new Error(result.message || '임시 저장에 실패했습니다.');
-            }
-
-            answerId = result.answer_id || answerId;
+        const saved = await persistDraft({force: true, reason: 'MANUAL'});
+        if (saved) {
             showSaveStatusModal();
-        } catch (error) {
+        } else {
             showSaveStatusModal(true);
-        } finally {
-            saveButton.disabled = false;
-            saveButton.innerHTML = originalButtonHtml;
         }
+        saveButton.disabled = false;
+        saveButton.innerHTML = originalButtonHtml;
     }
 
     // confirmExit 함수 제거 (모달로 대체됨)

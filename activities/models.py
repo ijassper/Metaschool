@@ -332,6 +332,44 @@ class Answer(models.Model):
     note = models.TextField(blank=True, verbose_name="특이사항(교사 메모)")
 
 
+class AnswerDraftRevision(models.Model):
+    """학생이 복구할 수 있도록 제한적으로 보관하는 자동저장 답안 이력입니다."""
+
+    class SaveReason(models.TextChoices):
+        PERIODIC = 'PERIODIC', '정기 자동저장'
+        DESTRUCTIVE_EDIT = 'DESTRUCTIVE_EDIT', '대량 삭제 직전'
+        MANUAL = 'MANUAL', '수동 임시저장'
+        PAGE_EXIT = 'PAGE_EXIT', '페이지 이동 전'
+
+    answer = models.ForeignKey(
+        Answer,
+        on_delete=models.CASCADE,
+        related_name='draft_revisions',
+        verbose_name='답안',
+    )
+    content_snapshot = models.JSONField(default=dict, verbose_name='답안 스냅샷')
+    char_count = models.PositiveIntegerField(default=0, verbose_name='공백 제외 글자 수')
+    fingerprint = models.CharField(max_length=64, verbose_name='내용 지문')
+    save_reason = models.CharField(
+        max_length=20,
+        choices=SaveReason.choices,
+        default=SaveReason.PERIODIC,
+        verbose_name='저장 사유',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='저장 일시')
+
+    class Meta:
+        verbose_name = '자동저장 답안 이력'
+        verbose_name_plural = '자동저장 답안 이력 목록'
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['answer', '-created_at'], name='draft_revision_answer_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.answer} · {self.created_at:%Y-%m-%d %H:%M:%S}'
+
+
 class ActivityStudentScore(models.Model):
     """답안 및 응시 상태와 독립적으로 보관하는 활동별 학생 점수입니다."""
 
