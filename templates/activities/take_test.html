@@ -75,8 +75,12 @@
     .notebook-thumbnail:hover { border-color: rgba(142,68,173,.48); transform: translateY(-1px); }
     .notebook-thumbnail.active { border-color: #a34abd; box-shadow: 0 0 0 2px rgba(163,74,189,.14); }
     .notebook-thumbnail-paper { height: 88px; padding: 9px; overflow: hidden; border-radius: 7px; background-color: var(--note-paper); color: #716779; font-size: .68rem; line-height: 1.45; white-space: pre-wrap; word-break: break-all; }
+    .notebook-thumbnail-paper.notebook-manuscript { height: 62px; padding: 4px; font-size: .55rem; line-height: 6px; background-image: linear-gradient(rgba(142,68,173,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(142,68,173,.18) 1px, transparent 1px); background-size: 5% 10%; }
     .notebook-page-stage { min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     .notebook-paper-wrap { position: relative; flex: 0 0 auto; width: 794px; height: 1123px; min-width: 794px; min-height: 1123px; padding: 76px 76px 60px; border: 1px solid rgba(142,68,173,.18); border-radius: 4px; background-color: var(--note-paper); box-shadow: 0 18px 45px rgba(71,39,83,.14); overflow: hidden; display: flex; flex-direction: column; transform-origin: center center; }
+    /* 200자 원고지는 20칸 × 10줄이며 작성 화면도 A4 가로 방향을 사용한다. */
+    .notebook-shell.is-manuscript .notebook-paper-wrap { width: 1123px; height: 794px; min-width: 1123px; min-height: 794px; padding: 52px 60px 48px; }
+    .notebook-shell.is-manuscript .notebook-editor-frame { flex: 0 0 500px; width: 1000px; height: 500px; margin-top: 24px; }
     .notebook-paper-header { flex: 0 0 53px; min-width: 0; height: 53px; padding-bottom: 15px; border-bottom: 1px solid rgba(90,70,100,.28); display: flex; align-items: center; justify-content: space-between; gap: 30px; }
     .notebook-paper-subject { min-width: 0; color: #302a34; font-size: 20pt; line-height: 1; font-weight: 800; text-align: left; white-space: nowrap; }
     .notebook-paper-student { min-width: 0; color: #4f4653; font-size: 16pt; line-height: 1; font-weight: 700; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -86,7 +90,7 @@
     textarea.notebook-lined_large { font-size: 13pt !important; line-height: 42px !important; background-image: repeating-linear-gradient(to bottom, transparent 0 41px, rgba(115,123,150,.24) 41px 42px) !important; background-size: 100% 42px !important; }
     textarea.notebook-lined_medium { font-size: 12pt !important; line-height: 34px !important; background-image: repeating-linear-gradient(to bottom, transparent 0 33px, rgba(115,123,150,.24) 33px 34px) !important; background-size: 100% 34px !important; }
     textarea.notebook-lined_small { font-size: 11pt !important; line-height: 28px !important; background-image: repeating-linear-gradient(to bottom, transparent 0 27px, rgba(115,123,150,.24) 27px 28px) !important; background-size: 100% 28px !important; }
-    textarea.notebook-manuscript { line-height: 34px !important; background-image: linear-gradient(rgba(142,68,173,.16) 1px, transparent 1px), linear-gradient(90deg, rgba(142,68,173,.16) 1px, transparent 1px) !important; background-size: 34px 34px !important; }
+    textarea.notebook-manuscript { padding: 0 12px !important; font-family: "Noto Sans Mono CJK KR", "D2Coding", monospace !important; font-size: 26px !important; line-height: 50px !important; letter-spacing: 24px !important; overflow: hidden !important; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-all; background-image: linear-gradient(rgba(142,68,173,.24) 1px, transparent 1px), linear-gradient(90deg, rgba(142,68,173,.24) 1px, transparent 1px) !important; background-size: 50px 50px !important; }
     textarea.notebook-blank { line-height: 1.9 !important; background-image: none !important; }
     .notebook-page-footer { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; display: flex; align-items: center; justify-content: center; border-top: 1px solid rgba(142,68,173,.12); background: color-mix(in srgb, var(--note-paper) 88%, white); color: #765f7d; font-size: .82rem; font-weight: 700; letter-spacing: .04em; }
     .notebook-student-identity { text-align: center; font-size: 1.5rem; line-height: 1.25; font-weight: 800; color: #332b37; }
@@ -95,12 +99,14 @@
     @media (max-width: 768px) { .notebook-workspace { grid-template-columns: 1fr; grid-template-rows: 112px minmax(0,1fr); gap: 10px; } .notebook-page-rail { border-right: 0; border-bottom: 1px solid rgba(142,68,173,.14); padding: 8px 12px !important; } .notebook-thumbnails { display: flex !important; flex-direction: row !important; gap: 8px; overflow-x: auto; overflow-y: hidden; } .notebook-thumbnail { flex: 0 0 96px; } .notebook-thumbnail-paper { height: 54px; } .notebook-guide { max-height: 70px; overflow-y:auto; } }
 
     @page { size: A4 portrait; margin: 0; }
+    @page manuscript { size: A4 landscape; margin: 0; }
     @media print {
         html, body { width: auto !important; height: auto !important; overflow: visible !important; background: #fff !important; }
         .sidebar, #sidebar, .main-sidebar, nav, .sidebar-toggle-floating, .sidebar-backdrop, .notebook-shell > form { display: none !important; }
         .container-fluid, .main-content-shell, #testContainer, .main-row, .notebook-shell { width: auto !important; max-width: none !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; display: block !important; }
         #notebookPrintArea { display: block !important; }
         .notebook-print-page { position: relative; width: 210mm; height: 297mm; padding: 20mm 20mm 16mm; box-sizing: border-box; break-after: page; page-break-after: always; background-color: var(--note-paper); color: #222; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        .notebook-print-page.notebook-manuscript { page: manuscript; width: 297mm; height: 210mm; padding: 14mm 16mm 12mm; }
         .notebook-print-page:last-child { break-after: auto; page-break-after: auto; }
         .notebook-print-header { height: 14mm; padding-bottom: 4mm; border-bottom: .3mm solid rgba(90,70,100,.28); display: flex; align-items: center; justify-content: space-between; gap: 8mm; }
         .notebook-print-subject { flex: 0 1 auto; min-width: 0; text-align: left; white-space: nowrap; font-size: 20pt; line-height: 1; font-weight: 800; }
@@ -109,7 +115,8 @@
         .notebook-print-content.notebook-lined_large { font-size: 13pt; line-height: 31.5pt; background-image: repeating-linear-gradient(to bottom, transparent 0 30.5pt, rgba(115,123,150,.24) 30.75pt, transparent 31.5pt); }
         .notebook-print-content.notebook-lined_medium { font-size: 12pt; line-height: 25.5pt; background-image: repeating-linear-gradient(to bottom, transparent 0 24.5pt, rgba(115,123,150,.24) 24.75pt, transparent 25.5pt); }
         .notebook-print-content.notebook-lined_small { font-size: 11pt; line-height: 21pt; background-image: repeating-linear-gradient(to bottom, transparent 0 20pt, rgba(115,123,150,.24) 20.25pt, transparent 21pt); }
-        .notebook-print-content.notebook-manuscript { line-height: 25.5pt; background-image: linear-gradient(rgba(142,68,173,.16) .3mm, transparent .3mm), linear-gradient(90deg, rgba(142,68,173,.16) .3mm, transparent .3mm); background-size: 9mm 9mm; }
+        .notebook-print-content.notebook-manuscript { width: 260mm; height: 100mm; margin: 7mm auto 0; padding: 0 3mm; box-sizing: border-box; overflow: hidden; font-family: "Noto Sans Mono CJK KR", "D2Coding", monospace; font-size: 19pt; line-height: 10mm; letter-spacing: 4.65mm; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-all; background-image: linear-gradient(rgba(142,68,173,.24) .3mm, transparent .3mm), linear-gradient(90deg, rgba(142,68,173,.24) .3mm, transparent .3mm); background-size: 13mm 10mm; }
+        .notebook-print-page.notebook-manuscript .notebook-print-footer { left: 16mm; right: 16mm; bottom: 6mm; }
         .notebook-print-footer { position: absolute; left: 20mm; right: 20mm; bottom: 8mm; text-align: center; font-size: 9pt; color: #665b6a; }
     }
 
@@ -1145,7 +1152,7 @@
             </form>
         </div>
         {% elif activity.is_notebook %}
-        <div class="col-12 d-flex flex-column h-100 notebook-shell" style="--note-paper: {{ activity.note_background_hex }};">
+        <div class="col-12 d-flex flex-column h-100 notebook-shell{% if activity.note_template == 'MANUSCRIPT' %} is-manuscript{% endif %}" style="--note-paper: {{ activity.note_background_hex }};">
             <form id="answerForm" method="post" class="h-100 d-flex flex-column">
                 {% csrf_token %}
                 <input type="hidden" name="is_submit" id="isSubmitField" value="false">
@@ -1180,7 +1187,7 @@
                         <div id="notebookThumbnails" class="notebook-thumbnails d-flex flex-column gap-2"></div>
                     </aside>
                     <main class="notebook-page-stage p-3 p-md-4">
-                        <div class="notebook-paper-wrap">
+                        <div class="notebook-paper-wrap{% if activity.note_template == 'MANUSCRIPT' %} is-manuscript{% endif %}">
                             <header class="notebook-paper-header">
                                 <span class="notebook-paper-subject">{{ activity.section }}</span>
                                 <span class="notebook-paper-student">{{ student.school.name|default:'학교 정보 없음' }} · {{ student.grade }}학년 {{ student.class_no }}반 {{ student.number }}번 · {{ student.name }}</span>
@@ -3197,18 +3204,19 @@
             let isNotebookComposing = false;
 
             const notebookTemplateClass = Array.from(notebookEditor.classList).find(name => name.startsWith('notebook-') && name !== 'notebook-editor') || 'notebook-blank';
+            const isManuscriptNotebook = notebookTemplateClass === 'notebook-manuscript';
             const notebookLineHeights = {
                 'notebook-lined_large': '42px',
                 'notebook-lined_medium': '34px',
                 'notebook-lined_small': '28px',
-                'notebook-manuscript': '34px',
+                'notebook-manuscript': '50px',
                 'notebook-blank': '1.6'
             };
             const notebookFontSizes = {
                 'notebook-lined_large': '13pt',
                 'notebook-lined_medium': '12pt',
                 'notebook-lined_small': '11pt',
-                'notebook-manuscript': '12pt',
+                'notebook-manuscript': '26px',
                 'notebook-blank': '12pt'
             };
             a4Measurer.style.lineHeight = notebookLineHeights[notebookTemplateClass] || '1.6';
@@ -3223,7 +3231,9 @@
                 const verticalPadding = parseFloat(stageStyle.paddingTop || 0) + parseFloat(stageStyle.paddingBottom || 0);
                 const availableWidth = Math.max(1, notebookStage.clientWidth - horizontalPadding);
                 const availableHeight = Math.max(1, notebookStage.clientHeight - verticalPadding);
-                const scale = Math.min(availableWidth / 794, availableHeight / 1123, 1);
+                const paperWidth = isManuscriptNotebook ? 1123 : 794;
+                const paperHeight = isManuscriptNotebook ? 794 : 1123;
+                const scale = Math.min(availableWidth / paperWidth, availableHeight / paperHeight, 1);
                 notebookPaper.style.zoom = String(Math.max(scale, 0.25));
             }
 
@@ -3272,13 +3282,55 @@
                 }
             };
 
+            function manuscriptUnits(text) {
+                if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+                    return Array.from(new Intl.Segmenter('ko', { granularity: 'grapheme' }).segment(text || ''), item => item.segment);
+                }
+                return Array.from(text || '');
+            }
+
+            // 200자 원고지: 한 줄 20칸, 총 10줄. Enter는 다음 줄 첫 칸으로 이동한다.
+            function manuscriptCellsUsed(text) {
+                let used = 0;
+                manuscriptUnits(text).forEach(unit => {
+                    if (unit === '\r') return;
+                    if (unit === '\n') {
+                        const remainder = used % 20;
+                        used += remainder === 0 ? 20 : 20 - remainder;
+                    } else {
+                        used += 1;
+                    }
+                });
+                return used;
+            }
+
             function pageFitsA4(text) {
+                if (isManuscriptNotebook) return manuscriptCellsUsed(text) <= 200;
                 a4Measurer.textContent = text || '';
                 return a4Measurer.scrollHeight <= a4Measurer.clientHeight + 1;
             }
 
             function splitForA4(text) {
                 if (pageFitsA4(text)) return [text, ''];
+                if (isManuscriptNotebook) {
+                    const units = manuscriptUnits(text);
+                    let used = 0;
+                    let splitUnitIndex = 0;
+                    for (; splitUnitIndex < units.length; splitUnitIndex += 1) {
+                        const unit = units[splitUnitIndex];
+                        let nextUsed = used;
+                        if (unit === '\r') continue;
+                        if (unit === '\n') {
+                            const remainder = used % 20;
+                            nextUsed += remainder === 0 ? 20 : 20 - remainder;
+                        } else {
+                            nextUsed += 1;
+                        }
+                        if (nextUsed > 200) break;
+                        used = nextUsed;
+                    }
+                    return [units.slice(0, splitUnitIndex).join(''), units.slice(splitUnitIndex).join('')];
+                }
                 let low = 0;
                 let high = text.length;
                 while (low < high) {
@@ -3356,7 +3408,7 @@
                 printArea.replaceChildren();
                 notebookPages.forEach((page, index) => {
                     const sheet = document.createElement('section');
-                    sheet.className = 'notebook-print-page';
+                    sheet.className = `notebook-print-page ${notebookTemplateClass}`;
 
                     const header = document.createElement('header');
                     header.className = 'notebook-print-header';
@@ -3389,7 +3441,7 @@
                     button.setAttribute('aria-label', `${index + 1}쪽 열기`);
 
                     const paper = document.createElement('div');
-                    paper.className = 'notebook-thumbnail-paper';
+                    paper.className = `notebook-thumbnail-paper ${notebookTemplateClass}`;
                     paper.textContent = page.trim() || '빈 페이지';
 
                     const label = document.createElement('div');
