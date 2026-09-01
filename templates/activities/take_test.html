@@ -84,7 +84,7 @@
     .notebook-zoom-value { color: #69556f; font-size: .72rem; font-weight: 800; text-align: center; white-space: nowrap; }
     /* 200자 원고지는 20칸 × 10줄이며 작성 화면도 A4 가로 방향을 사용한다. */
     .notebook-shell.is-manuscript .notebook-paper-wrap { width: 1123px; height: 794px; min-width: 1123px; min-height: 794px; padding: 52px 60px 48px; }
-    .notebook-shell.is-manuscript .notebook-editor-frame { flex: 0 0 500px; width: 1000px; height: 500px; margin-top: 24px; }
+    .notebook-shell.is-manuscript .notebook-editor-frame { flex: 0 0 580px; width: 1000px; height: 580px; margin-top: 18px; }
     .notebook-paper-header { flex: 0 0 53px; min-width: 0; height: 53px; padding-bottom: 15px; border-bottom: 1px solid rgba(90,70,100,.28); display: flex; align-items: center; justify-content: space-between; gap: 30px; }
     .notebook-paper-subject { min-width: 0; color: #302a34; font-size: 20pt; line-height: 1; font-weight: 800; text-align: left; white-space: nowrap; }
     .notebook-paper-student { min-width: 0; color: #4f4653; font-size: 16pt; line-height: 1; font-weight: 700; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -96,9 +96,8 @@
     textarea.notebook-lined_small { font-size: 11pt !important; line-height: 28px !important; background-image: repeating-linear-gradient(to bottom, transparent 0 27px, rgba(115,123,150,.24) 27px 28px) !important; background-size: 100% 28px !important; }
     textarea.notebook-manuscript { position: absolute; inset: 0; z-index: 2; padding: 0 !important; color: transparent !important; caret-color: transparent !important; font-family: monospace !important; font-size: 26px !important; line-height: 50px !important; letter-spacing: 24px !important; overflow: hidden !important; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-all; background: transparent !important; }
     textarea.answer-input.notebook-manuscript:focus { color: transparent !important; background: transparent !important; }
-    .manuscript-grid { position: absolute; inset: 0; z-index: 3; display: grid; grid-template-columns: repeat(20, 1fr); grid-template-rows: repeat(10, 1fr); background: var(--note-paper); }
-    .manuscript-cell { min-width: 0; min-height: 0; border-right: 1px solid rgba(142,68,173,.24); border-bottom: 1px solid rgba(142,68,173,.24); display: flex; align-items: center; justify-content: center; color: #3f3744; font-family: "Noto Sans KR", "Malgun Gothic", sans-serif; font-size: 26px; line-height: 1; text-align: center; cursor: text; user-select: none; }
-    .manuscript-cell:nth-child(-n+20) { border-top: 1px solid rgba(142,68,173,.24); }
+    .manuscript-grid { position: absolute; inset: 0; z-index: 3; display: grid; grid-template-columns: repeat(20, 1fr); grid-template-rows: repeat(10, minmax(0, 1fr)); row-gap: 8px; background: var(--note-paper); }
+    .manuscript-cell { min-width: 0; min-height: 0; border-top: 1px solid rgba(142,68,173,.24); border-right: 1px solid rgba(142,68,173,.24); border-bottom: 1px solid rgba(142,68,173,.24); display: flex; align-items: center; justify-content: center; color: #3f3744; font-family: "Noto Sans KR", "Malgun Gothic", sans-serif; font-size: 26px; line-height: 1; text-align: center; cursor: text; user-select: none; }
     .manuscript-cell:nth-child(20n+1) { border-left: 1px solid rgba(142,68,173,.24); }
     .manuscript-grid.is-focused .manuscript-cell.is-caret { background: rgba(142,68,173,.11); box-shadow: inset 0 0 0 2px rgba(142,68,173,.52); }
     textarea.notebook-blank { line-height: 1.9 !important; background-image: none !important; }
@@ -115,6 +114,7 @@
         .sidebar, #sidebar, .main-sidebar, nav, .sidebar-toggle-floating, .sidebar-backdrop, .notebook-shell > form { display: none !important; }
         .container-fluid, .main-content-shell, #testContainer, .main-row, .notebook-shell { width: auto !important; max-width: none !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; display: block !important; }
         #notebookPrintArea { display: block !important; }
+        .notebook-shell.is-manuscript, .notebook-shell.is-manuscript #notebookPrintArea { page: manuscript; }
         .notebook-print-page { position: relative; width: 210mm; height: 297mm; padding: 20mm 20mm 16mm; box-sizing: border-box; break-after: page; page-break-after: always; background-color: var(--note-paper); color: #222; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         .notebook-print-page.notebook-manuscript { page: manuscript; width: 297mm; height: 210mm; padding: 14mm 16mm 12mm; }
         .notebook-print-page:last-child { break-after: auto; page-break-after: auto; }
@@ -125,7 +125,7 @@
         .notebook-print-content.notebook-lined_large { font-size: 13pt; line-height: 31.5pt; background-image: repeating-linear-gradient(to bottom, transparent 0 30.5pt, rgba(115,123,150,.24) 30.75pt, transparent 31.5pt); }
         .notebook-print-content.notebook-lined_medium { font-size: 12pt; line-height: 25.5pt; background-image: repeating-linear-gradient(to bottom, transparent 0 24.5pt, rgba(115,123,150,.24) 24.75pt, transparent 25.5pt); }
         .notebook-print-content.notebook-lined_small { font-size: 11pt; line-height: 21pt; background-image: repeating-linear-gradient(to bottom, transparent 0 20pt, rgba(115,123,150,.24) 20.25pt, transparent 21pt); }
-        .notebook-print-content.notebook-manuscript { width: 260mm; height: 100mm; margin: 7mm auto 0; padding: 0; display: grid; grid-template-columns: repeat(20, 1fr); grid-template-rows: repeat(10, 1fr); overflow: hidden; white-space: normal; }
+        .notebook-print-content.notebook-manuscript { width: 260mm; height: 136mm; margin: 7mm auto 0; padding: 0; display: grid; grid-template-columns: repeat(20, 1fr); grid-template-rows: repeat(10, minmax(0, 1fr)); row-gap: 3mm; overflow: hidden; white-space: normal; }
         .notebook-print-content.notebook-manuscript .manuscript-cell { border-color: rgba(142,68,173,.34); font-size: 19pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         .notebook-print-page.notebook-manuscript .notebook-print-footer { left: 16mm; right: 16mm; bottom: 6mm; }
         .notebook-print-footer { position: absolute; left: 20mm; right: 20mm; bottom: 8mm; text-align: center; font-size: 9pt; color: #665b6a; }
