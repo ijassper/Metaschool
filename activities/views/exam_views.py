@@ -261,6 +261,22 @@ def save_answer_content(answer, activity, form_data):
         answer.content = ""
 
 
+def submitted_answer_char_count(activity, form_data):
+    """저장되는 답안 본문과 같은 범위로 전체 글자 수를 계산합니다."""
+    if activity.is_notebook:
+        pages = normalize_notebook_pages(form_data.get('notebook_pages'), form_data.get('ans_q1', ''))
+        return sum(len(page) for page in pages)
+    return sum(len(str(form_data.get(name, '') or '')) for name in ('ans_q1', 'ans_q2', 'ans_q3'))
+
+
+def character_limit_error(activity, current_length):
+    if activity.limit_type == 'MAX' and activity.limit_count and current_length > activity.limit_count:
+        return f'글자 수가 초과되었습니다. 최대 {activity.limit_count}자 이내로 작성해주세요.'
+    if activity.limit_type == 'MIN' and activity.limit_count and current_length < activity.limit_count:
+        return f'최소 {activity.limit_count}자 이상 작성해야 제출이 가능합니다.'
+    return ''
+
+
 def update_exam_security_session(request, activity):
     """DB의 응시 환경을 현재 학생 세션의 보안 상태로 동기화합니다."""
     security_state = {
@@ -297,6 +313,18 @@ def take_test(request, activity_id):
         answer, _ = Answer.objects.get_or_create(student=student_info, question=question)
         is_exit_submit = request.POST.get('is_exit') == 'true'
         is_final_submit = request.POST.get('is_submit') == 'true' or is_exit_submit
+
+        if is_final_submit:
+            limit_error = character_limit_error(activity, submitted_answer_char_count(activity, request.POST))
+            if limit_error:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': limit_error}, status=400)
+                save_answer_content(answer, activity, request.POST)
+                messages.error(request, limit_error)
+                context = build_exam_context(
+                    request, activity, question, answer=answer, exam_started=True, student=student_info
+                )
+                return render(request, 'activities/take_test.html', context, status=400)
 
         save_answer_content(answer, activity, request.POST)
 

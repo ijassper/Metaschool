@@ -943,7 +943,7 @@
                                         <i class="bi bi-file-earmark-text me-1"></i> 분량 제한
                                     </div>
                                     <div class="text-dark fw-bold mt-2 prep-body-text">
-                                        {% if activity.char_limit > 0 %}{{ activity.char_limit }}자 이내{% else %}제한 없음{% endif %}
+                                        {{ activity.character_limit_label }}
                                     </div>
                                 </div>
                             </div>
@@ -1265,8 +1265,8 @@
             <div class="glass-card p-3 mb-3 shadow-sm rounded-4" style="background-color: #FFF9DB;">
                 <label class="small text-muted fw-bold mb-1">작성 조건</label>
                 <div class="small mb-2">{{ activity.conditions|default:"특별한 조건 없음" }}</div>
-                {% if activity.char_limit > 0 %}
-                <div class="fw-bold text-danger small border-top pt-2">분량 제한: {{ activity.char_limit }}자 이내</div>
+                {% if activity.limit_type != 'NONE' %}
+                <div class="fw-bold text-danger small border-top pt-2">분량 제한: {{ activity.character_limit_label }}</div>
                 {% endif %}
             </div>
         </div>
@@ -1291,7 +1291,7 @@
                         <span id="remainingTime" class="exam-status-pill">
                             <i class="bi bi-clock-history"></i> 남은 시간 확인 중
                         </span>
-                        <span id="charCount" class="exam-status-pill">0자 / {{ activity.char_limit }}자 이내</span>
+                        <span id="charCount" class="exam-status-pill">0자 / {{ activity.character_limit_label }}</span>
                         <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#exitConfirmModal">나가기</button>
                         <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">답안 제출</button>
                     </div>
@@ -1351,7 +1351,7 @@
 <div id="floatingSubmitBar" class="floating-submit-bar">
     <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
         <span id="floatingCharCount" class="exam-status-pill">
-            <i class="bi bi-type"></i> 0자 / {{ activity.char_limit }}자 이내
+            <i class="bi bi-type"></i> 0자 / {{ activity.character_limit_label }}
         </span>
         <div class="exam-action-group d-flex align-items-center gap-2 ms-auto">
             <span id="draftAutoSaveStatus" class="small text-muted" aria-live="polite">자동 저장 준비</span>
@@ -1604,7 +1604,8 @@
     const IS_COPY_PROTECTED = {{ IS_COPY_PROTECTED|yesno:"true,false" }};
     const ENABLE_EXIT_DETECTION = {{ enable_exit_detection|yesno:"true,false" }};
     const ENABLE_COPY_PROTECTION = {{ enable_copy_protection|yesno:"true,false" }};
-    const charLimit = parseInt("{{ activity.char_limit|default:0 }}");
+    const charLimitType = "{{ activity.limit_type|default:'NONE' }}";
+    const charLimit = parseInt("{{ activity.limit_count|default:0 }}", 10) || 0;
     const deadlineValue = "{{ activity.deadline|localtime|date:'c' }}";
     const deadlineAt = deadlineValue ? new Date(deadlineValue) : null;
     let answerId = "{{ answer_id }}"; 
@@ -2801,6 +2802,7 @@
      */
     function finalSubmit() {
         updateTypingResultField();
+        if (!validateMinimumCharacterLimit()) return;
         document.getElementById('isSubmitField').value = 'true'; // 제출 플래그 설정
         isSubmitting = true;
         document.getElementById('answerForm').submit();
@@ -2895,11 +2897,36 @@
     });
 
     /* 6. 실시간 글자 수 합산 계산기 */
-    function updateCharCount() {
+    let characterLimitAlertVisible = false;
+    function showMaximumCharacterWarning() {
+        if (characterLimitAlertVisible) return;
+        characterLimitAlertVisible = true;
+        window.alert(`최대 ${charLimit}자 이내로 작성할 수 있습니다. 초과한 글자는 자동으로 삭제됩니다.`);
+        characterLimitAlertVisible = false;
+    }
+
+    function answerCharacterCount() {
         const allInputs = document.querySelectorAll('.answer-input');
         let totalLength = 0;
         allInputs.forEach(input => { totalLength += input.value.length; });
-        const label = charLimit > 0 ? `${totalLength}자 / ${charLimit}자 이내` : `${totalLength}자 / 제한 없음`;
+        return totalLength;
+    }
+
+    function updateCharCount(event) {
+        const target = event && event.target && event.target.classList.contains('answer-input') ? event.target : null;
+        if (target && charLimitType === 'MAX' && charLimit > 0 && !event.isComposing) {
+            const otherLength = Array.from(document.querySelectorAll('.answer-input'))
+                .filter(input => input !== target)
+                .reduce((total, input) => total + input.value.length, 0);
+            const allowedLength = Math.max(0, charLimit - otherLength);
+            if (target.value.length > allowedLength) {
+                target.value = target.value.slice(0, allowedLength);
+                showMaximumCharacterWarning();
+            }
+        }
+        const totalLength = answerCharacterCount();
+        const limitLabel = charLimitType === 'MAX' ? `${charLimit}자 이내` : charLimitType === 'MIN' ? `${charLimit}자 이상` : '제한 없음';
+        const label = `${totalLength}자 / ${limitLabel}`;
         
         const charCountElement = document.getElementById('charCount');
         if (charCountElement) {
@@ -2940,6 +2967,19 @@
         if (typeof window.syncNotebookDraftState === 'function') {
             window.syncNotebookDraftState();
         }
+    }
+
+    function validateMinimumCharacterLimit() {
+        if (charLimitType !== 'MIN' || charLimit <= 0) return true;
+        if (typeof window.syncNotebookDraftState === 'function') window.syncNotebookDraftState();
+        const currentLength = IS_TYPING_ACTIVITY ? answerCharacterCount() : (
+            document.querySelector('.notebook-editor') && typeof window.getNotebookCharacterCount === 'function'
+                ? window.getNotebookCharacterCount()
+                : answerCharacterCount()
+        );
+        if (currentLength >= charLimit) return true;
+        window.alert(`최소 ${charLimit}자 이상 작성해야 제출이 가능합니다. 현재 ${currentLength}자입니다.`);
+        return false;
     }
 
     function collectDraftSnapshot() {
@@ -3307,7 +3347,22 @@
             }
 
             function totalNotebookCharacters() {
-                return notebookPages.reduce((total, page) => total + page.replace(/\s/g, '').length, 0);
+                return notebookPages.reduce((total, page) => total + page.length, 0);
+            }
+
+            window.getNotebookCharacterCount = totalNotebookCharacters;
+
+            function enforceNotebookMaximum() {
+                if (charLimitType !== 'MAX' || charLimit <= 0) return false;
+                const otherLength = notebookPages.reduce((total, page, index) => (
+                    index === currentNotebookPage ? total : total + page.length
+                ), 0);
+                const allowedLength = Math.max(0, charLimit - otherLength);
+                if (notebookEditor.value.length <= allowedLength) return false;
+                notebookEditor.value = notebookEditor.value.slice(0, allowedLength);
+                notebookPages[currentNotebookPage] = notebookEditor.value;
+                showMaximumCharacterWarning();
+                return true;
             }
 
             function syncNotebookState() {
@@ -3604,6 +3659,7 @@
             renderNotebookThumbnails();
 
             notebookEditor.addEventListener('input', function() {
+                if (!isNotebookComposing) enforceNotebookMaximum();
                 syncNotebookState();
                 if (!isNotebookComposing) {
                     const cursorPosition = notebookEditor.selectionStart;
@@ -3621,6 +3677,7 @@
 
             notebookEditor.addEventListener('compositionend', function() {
                 isNotebookComposing = false;
+                enforceNotebookMaximum();
                 syncNotebookState();
                 paginateOverflow(currentNotebookPage, notebookEditor.selectionStart);
                 removeEmptyNotebookPages();

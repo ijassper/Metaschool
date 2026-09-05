@@ -112,6 +112,11 @@
     }
 
     .note-choice-input, .palette-choice-input { position: absolute; opacity: 0; pointer-events: none; }
+    .limit-choice-input { position:absolute; opacity:0; pointer-events:none; }
+    .limit-choice-label { display:inline-flex; align-items:center; gap:.45rem; min-height:42px; padding:.65rem 1rem; border:1px solid rgba(142,68,173,.18); border-radius:999px; background:rgba(255,255,255,.78); color:#62586a; font-weight:800; cursor:pointer; transition:.18s ease; }
+    .limit-choice-input:checked + .limit-choice-label { color:#8E44AD; border-color:#8E44AD; background:#fff; box-shadow:0 0 0 4px rgba(142,68,173,.1); }
+    .limit-count-wrap { display:flex; align-items:center; gap:.5rem; }
+    .limit-count-wrap.is-disabled { opacity:.45; }
     .note-choice-card { min-height: 104px; border: 2px solid transparent; border-radius: 18px; background: rgba(255,255,255,.8); cursor: pointer; transition: .18s ease; }
     .note-choice-input:checked + .note-choice-card { border-color: #A64DB6; box-shadow: 0 0 0 4px rgba(166,77,182,.12); transform: translateY(-2px); }
     .note-preview { height: 45px; border-radius: 9px; background-color: #fffaf3; border: 1px solid rgba(142,68,173,.12); }
@@ -311,7 +316,6 @@
         <input type="hidden" name="q1_title" value="노트 내용">
         <input type="hidden" name="q2_title" value="">
         <input type="hidden" name="q3_title" value="">
-        <input type="hidden" name="char_limit" value="0">
 
         <div class="card form-section-card p-4 mb-4 bg-{{ cat_code }}">
             <h5 class="fw-bold mb-4"><span class="badge rounded-pill me-2" style="background:var(--ingrid-gradient)">1</span>기본 정보</h5>
@@ -333,6 +337,14 @@
             <h5 class="fw-bold mb-4"><span class="badge rounded-pill me-2" style="background:var(--ingrid-gradient)">2</span>세부 작성 내용</h5>
             <label class="fw-bold mb-2">노트 작성 안내 *</label>
             <textarea name="question" class="form-control border-0 shadow-sm p-3 mb-4" rows="3" style="min-height:80px;max-height:120px" placeholder="학생이 노트에 작성할 내용과 방법을 안내해주세요." required>{% if form_data %}{{ form_data.question|default:'' }}{% else %}{{ activity.question|default:'' }}{% endif %}</textarea>
+            <h6 class="fw-bold mb-3">작성 분량</h6>
+            <div class="d-flex align-items-center gap-3 flex-wrap mb-4">
+                <input type="hidden" name="char_limit" value="{% if form_data %}{{ form_data.char_limit|default:0 }}{% else %}{{ activity.char_limit|default:0 }}{% endif %}">
+                <div><input class="limit-choice-input" type="radio" name="limit_type" id="limit_none" value="NONE" {% if form_data %}{% if form_data.limit_type == 'NONE' or not form_data.limit_type %}checked{% endif %}{% elif activity.limit_type == 'NONE' or not activity %}checked{% endif %}><label class="limit-choice-label" for="limit_none"><i class="bi bi-infinity"></i>제한 없음</label></div>
+                <div><input class="limit-choice-input" type="radio" name="limit_type" id="limit_max" value="MAX" {% if form_data.limit_type == 'MAX' or not form_data and activity.limit_type == 'MAX' %}checked{% endif %}><label class="limit-choice-label" for="limit_max"><i class="bi bi-arrow-down-circle"></i>자 이내</label></div>
+                <div><input class="limit-choice-input" type="radio" name="limit_type" id="limit_min" value="MIN" {% if form_data.limit_type == 'MIN' or not form_data and activity.limit_type == 'MIN' %}checked{% endif %}><label class="limit-choice-label" for="limit_min"><i class="bi bi-arrow-up-circle"></i>자 이상</label></div>
+                <div id="limitCountWrap" class="limit-count-wrap"><input id="limitCount" type="number" name="limit_count" min="1" max="10000" step="1" class="form-control border-0 shadow-sm p-2 text-center" style="width:120px" value="{% if form_data %}{{ form_data.limit_count|default:'' }}{% else %}{{ activity.limit_count|default:'' }}{% endif %}" placeholder="000"><span id="limitCountSuffix" class="fw-bold small">자</span></div>
+            </div>
             <h6 class="fw-bold mb-3">평가 대상</h6>
             {% include 'components/student_selector.html' with selector_label="평가 대상" %}
         </div>
@@ -637,9 +649,15 @@
             <!-- 5. 작성 분량 -->
             <div class="row mb-0 align-items-center">
                 <div class="col-md-3 text-center fw-bold text-secondary border-end">작성 분량</div>
-                <div class="col-md-9 px-4 d-flex align-items-center gap-2">
-                    <input type="number" name="char_limit" class="form-control border-0 shadow-sm p-2 text-center" style="width: 100px;" value="{{ activity.char_limit|default:0 }}">
-                    <span class="fw-bold small">자 이내 (0은 무제한)</span>
+                <div class="col-md-9 px-4 d-flex align-items-center gap-3 flex-wrap">
+                    <input type="hidden" name="char_limit" value="{% if form_data %}{{ form_data.char_limit|default:0 }}{% else %}{{ activity.char_limit|default:0 }}{% endif %}">
+                    <div><input class="limit-choice-input" type="radio" name="limit_type" id="limit_none" value="NONE" {% if form_data %}{% if form_data.limit_type == 'NONE' or not form_data.limit_type %}checked{% endif %}{% elif activity.limit_type == 'NONE' or not activity %}checked{% endif %}><label class="limit-choice-label" for="limit_none"><i class="bi bi-infinity"></i>제한 없음</label></div>
+                    <div><input class="limit-choice-input" type="radio" name="limit_type" id="limit_max" value="MAX" {% if form_data.limit_type == 'MAX' or not form_data and activity.limit_type == 'MAX' %}checked{% endif %}><label class="limit-choice-label" for="limit_max"><i class="bi bi-arrow-down-circle"></i>자 이내</label></div>
+                    <div><input class="limit-choice-input" type="radio" name="limit_type" id="limit_min" value="MIN" {% if form_data.limit_type == 'MIN' or not form_data and activity.limit_type == 'MIN' %}checked{% endif %}><label class="limit-choice-label" for="limit_min"><i class="bi bi-arrow-up-circle"></i>자 이상</label></div>
+                    <div id="limitCountWrap" class="limit-count-wrap">
+                        <input id="limitCount" type="number" name="limit_count" min="1" max="10000" step="1" class="form-control border-0 shadow-sm p-2 text-center" style="width:120px;" value="{% if form_data %}{{ form_data.limit_count|default:'' }}{% else %}{{ activity.limit_count|default:'' }}{% endif %}" placeholder="000">
+                        <span id="limitCountSuffix" class="fw-bold small">자</span>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -852,6 +870,22 @@
 
         // 5. 폼 제출 전 유효성 검사 및 데이터 브릿지 강제 주입
         if (form) {
+            const limitInputs = Array.from(form.querySelectorAll('input[name="limit_type"]'));
+            const limitCountInput = document.getElementById('limitCount');
+            const limitCountWrap = document.getElementById('limitCountWrap');
+            const limitCountSuffix = document.getElementById('limitCountSuffix');
+            function syncLimitFields() {
+                if (!limitCountInput) return;
+                const selected = limitInputs.find(input => input.checked)?.value || 'NONE';
+                const enabled = selected !== 'NONE';
+                limitCountInput.disabled = !enabled;
+                limitCountInput.required = enabled;
+                limitCountWrap?.classList.toggle('is-disabled', !enabled);
+                if (limitCountSuffix) limitCountSuffix.textContent = selected === 'MAX' ? '자 이내' : selected === 'MIN' ? '자 이상' : '자';
+            }
+            limitInputs.forEach(input => input.addEventListener('change', syncLimitFields));
+            syncLimitFields();
+
             form.onsubmit = function(e) {
                 console.log('[폼 제출] 시작 - 데이터 브릿지 강제 주입');
                 
@@ -893,6 +927,14 @@
                 // (2) 필수 날짜 입력값 체크 (제출 기한만 필수)
                 if (endInput && !endInput.disabled && !endInput.value) {
                     alert("제출 기한을 입력해주세요.");
+                    e.preventDefault();
+                    return false;
+                }
+
+                const selectedLimitType = limitInputs.find(input => input.checked)?.value || 'NONE';
+                if (selectedLimitType !== 'NONE' && (!limitCountInput.value || Number(limitCountInput.value) < 1 || Number(limitCountInput.value) > 10000)) {
+                    alert('작성 분량은 1자부터 10,000자까지 입력해주세요.');
+                    limitCountInput.focus();
                     e.preventDefault();
                     return false;
                 }

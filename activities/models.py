@@ -1,6 +1,7 @@
 import os # 파일 경로 처리
 from django.db import models
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from accounts.models import Student
 from django.utils import timezone
 
@@ -45,6 +46,19 @@ class Activity(models.Model):
     exam_mode = models.CharField(max_length=11, choices=EXAM_MODE_CHOICES, default='CLOSED_LOCK', verbose_name="응시 환경")
     allow_edit_after_submission = models.BooleanField(default=True, verbose_name="제출 후 수정 허용")
     char_limit = models.IntegerField(default=0, verbose_name="분량 제한(자)") # 0은 무제한
+    LIMIT_TYPE_CHOICES = [
+        ('NONE', '제한 없음'),
+        ('MAX', '글자 수 이내'),
+        ('MIN', '글자 수 이상'),
+    ]
+    limit_type = models.CharField(
+        max_length=4, choices=LIMIT_TYPE_CHOICES, default='NONE', verbose_name='글자 수 제한 유형'
+    )
+    limit_count = models.PositiveIntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(10000)],
+        verbose_name='글자 수 제한 기준',
+    )
     result = models.TextField(blank=True, verbose_name="평가 결과/피드백", help_text="학생에게 보여줄 피드백")
 
     # --- [4-1. 타자 연습 전용 설정] ---
@@ -135,6 +149,14 @@ class Activity(models.Model):
     @property
     def note_background_hex(self):
         return self.NOTE_PALETTE_HEX.get(self.note_background, self.NOTE_PALETTE_HEX['CREAM'])
+
+    @property
+    def character_limit_label(self):
+        if self.limit_type == 'MAX' and self.limit_count:
+            return f'{self.limit_count}자 이내'
+        if self.limit_type == 'MIN' and self.limit_count:
+            return f'{self.limit_count}자 이상'
+        return '제한 없음'
 
     class Meta:
         verbose_name = "활동 및 평가"

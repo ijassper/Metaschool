@@ -70,6 +70,24 @@ def apply_notebook_settings_from_post(activity, post_data):
     activity.note_template = template if template in templates else 'LINED_MEDIUM'
     activity.note_background = palette if palette in palettes else 'CREAM'
 
+
+def parse_character_limit(post_data):
+    """폼의 제한값을 검증하고 기존 char_limit 호환값까지 반환합니다."""
+    raw_limit_type = post_data.get('limit_type')
+    legacy_value = post_data.get('char_limit')
+    limit_type = str(raw_limit_type or ('MAX' if legacy_value and str(legacy_value) != '0' else 'NONE')).upper()
+    if limit_type not in {'NONE', 'MAX', 'MIN'}:
+        raise ValueError('작성 분량 제한 유형이 올바르지 않습니다.')
+    if limit_type == 'NONE':
+        return 'NONE', 0, 0
+    try:
+        limit_count = int(post_data.get('limit_count') or legacy_value or 0)
+    except (TypeError, ValueError):
+        raise ValueError('작성 분량은 숫자로 입력해주세요.')
+    if not 1 <= limit_count <= 10000:
+        raise ValueError('작성 분량은 1자부터 10,000자까지 입력할 수 있습니다.')
+    return limit_type, limit_count, limit_count if limit_type == 'MAX' else 0
+
 def sync_status_on_deadline_extension(activity, old_deadline, new_deadline):
     """
     제출 기한이 연장되었을 때, 기존 답안 중 아직 답안 제출하지 않은(submitted_at is null)
@@ -124,6 +142,16 @@ def unified_create(request):
                     naive_dt = datetime.strptime(clean_dt, "%Y. %m. %d. %p %I:%M")
                     return make_aware(naive_dt)
                 except: return None
+
+        try:
+            limit_type, limit_count, legacy_char_limit = parse_character_limit(request.POST)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return render(request, 'activities/unified_form.html', {
+                'cat_code': cat_code, 'sub_menu': sub_menu, 'config': config,
+                'student_tree': get_student_tree(request.user), 'action': '생성',
+                'form_data': request.POST, 'source_answer': source_answer,
+            })
 
         # [수정: 섹션 2 평가 문항 처리] 
         # 루프 방식 대신 HTML의 name="question"에서 직접 가져와 유실을 방지합니다.
@@ -222,7 +250,9 @@ def unified_create(request):
                 question=main_question,  
                 reference_material=request.POST.get('reference_material', ''),
                 conditions=request.POST.get('conditions', ''),
-                char_limit=int(request.POST.get('char_limit', 0)) if request.POST.get('char_limit') else 0,
+                char_limit=legacy_char_limit,
+                limit_type=limit_type,
+                limit_count=limit_count,
                 attachment=None, # 다중 파일 모델(ActivityFile) 사용
                 
                 # [섹션 3: 기타 중요 내용 (AI 분석용)]
@@ -398,6 +428,18 @@ def unified_update(request, activity_id):
                     return make_aware(naive_dt)
                 except: return None
 
+        try:
+            limit_type, limit_count, legacy_char_limit = parse_character_limit(request.POST)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return render(request, 'activities/unified_form.html', {
+                'activity': activity, 'cat_code': activity.category, 'sub_menu': sub_menu,
+                'config': config, 'category_name': category_name,
+                'current_targets': list(activity.target_students.values_list('id', flat=True)),
+                'student_tree': get_student_tree(request.user), 'action': '수정',
+                'form_data': request.POST,
+            })
+
         item_title_error = get_activity_item_title_error(request.POST)
         if item_title_error:
             messages.error(request, item_title_error)
@@ -432,11 +474,9 @@ def unified_update(request, activity_id):
         activity.reference_material = request.POST.get('reference_material', '')
         activity.conditions = request.POST.get('conditions', '')
         
-        # 작성 분량 (숫자 변환 예외처리)
-        try:
-            activity.char_limit = int(request.POST.get('char_limit', 0))
-        except (ValueError, TypeError):
-            activity.char_limit = 0
+        activity.limit_type = limit_type
+        activity.limit_count = limit_count
+        activity.char_limit = legacy_char_limit
 
         # [섹션 3: 기타 중요 내용 (AI 분석용)]
         activity.achievement_standard = request.POST.get('achievement_standard', '')

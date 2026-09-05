@@ -92,10 +92,10 @@
                     </div>
 
                     <!-- 작성분량 정보 -->
-                    {% if activity.char_limit > 0 %}
+                    {% if activity.limit_type != 'NONE' %}
                     <div class="mt-3 p-2 border-top text-end">
                         <span class="small text-muted">권장 분량: </span>
-                        <span class="small fw-bold text-danger">{{ activity.char_limit }}자 이상</span>
+                        <span class="small fw-bold text-danger">{{ activity.character_limit_label }}</span>
                     </div>
                     {% endif %}
                 </div>
