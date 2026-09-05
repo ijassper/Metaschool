@@ -520,6 +520,11 @@ class FeedbackResult(models.Model):
         return self.feedback_title.strip() if self.feedback_title else self.type_name
 
     @property
+    def is_editable(self):
+        """학생에게 공개된 피드백을 학생이 읽기 전까지만 수정할 수 있습니다."""
+        return not (self.is_published and self.is_read)
+
+    @property
     def persona_name(self):
         if isinstance(self.persona_used, dict):
             return self.persona_used.get('persona_name', '')

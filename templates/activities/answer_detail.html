@@ -220,7 +220,20 @@
                             <p>{{ feedback.created_at|localtime|date:"Y.m.d H:i" }}에 최종 저장된 작업입니다.</p>
                         </div>
                     </div>
-                    {% if feedback.persona_name %}<span class="feedback-persona-chip">{{ feedback.persona_name }}</span>{% endif %}
+                    <div class="feedback-history-actions">
+                        {% if feedback.persona_name %}<span class="feedback-persona-chip">{{ feedback.persona_name }}</span>{% endif %}
+                        {% if feedback.is_published %}
+                        <span class="feedback-published-badge"><i class="bi bi-send-check"></i> 공개 완료</span>
+                        <time class="feedback-published-time" datetime="{{ feedback.published_at|date:'c' }}">{{ feedback.published_at|localtime|date:"Y.m.d H:i" }}</time>
+                        {% else %}
+                        <button type="button" class="feedback-history-publish-button" data-publish-feedback="{{ feedback.id }}">
+                            <i class="bi bi-send-check"></i> 학생에게 피드백 공개
+                        </button>
+                        {% endif %}
+                        {% if feedback.is_published and feedback.is_read %}
+                        <span class="feedback-read-badge"><i class="bi bi-check2-all"></i> 읽음 확인</span>
+                        {% endif %}
+                    </div>
                 </header>
                 <article class="feedback-history-content">{{ feedback.feedback_content|linebreaksbr }}</article>
             </section>
@@ -228,6 +241,18 @@
         {% endfor %}
     </main>
 </div>
+
+<dialog id="feedbackPublishDialog" class="feedback-publish-dialog" aria-labelledby="feedbackPublishDialogTitle">
+    <form method="dialog" class="feedback-publish-dialog-card">
+        <span class="feedback-publish-dialog-icon"><i class="bi bi-send-check"></i></span>
+        <h3 id="feedbackPublishDialogTitle">학생에게 피드백을 공개할까요?</h3>
+        <p>공개하면 학생 대시보드에 피드백 공개 알림이 표시되며, 학생이 열람한 뒤에는 피드백을 수정할 수 없습니다.</p>
+        <div class="feedback-publish-dialog-actions">
+            <button type="submit" value="cancel" class="feedback-publish-cancel">취소</button>
+            <button id="confirmFeedbackPublish" type="button" class="feedback-publish-confirm">공개하기</button>
+        </div>
+    </form>
+</dialog>
 
 <div id="answerSourceBackdrop" class="answer-source-backdrop" aria-hidden="true"></div>
 <aside id="answerSourceLayer" class="answer-source-layer" aria-hidden="true" aria-labelledby="answerSourceTitle">
@@ -662,6 +687,23 @@
     .feedback-history-section { min-height:360px; }
     .feedback-history-content { margin-top:1rem; padding:1.25rem; border:1px solid #eadfeb; border-radius:14px; background:#fff; color:#4e4651; font-size:.86rem; line-height:1.85; white-space:normal; }
     .feedback-persona-chip { max-width:45%; overflow:hidden; padding:.32rem .65rem; border-radius:999px; background:#f4eaf7; color:#7d3c98; font-size:.66rem; font-weight:760; text-overflow:ellipsis; white-space:nowrap; }
+    .feedback-history-actions { display:flex; align-items:center; justify-content:flex-end; gap:.45rem; flex-wrap:wrap; }
+    .feedback-history-publish-button, .feedback-published-badge, .feedback-read-badge { display:inline-flex; align-items:center; gap:.35rem; min-height:32px; padding:.38rem .7rem; border-radius:999px; font-size:.7rem; font-weight:800; }
+    .feedback-history-publish-button { border:1px solid #a86fba; background:#fff; color:#7d3c98; }
+    .feedback-history-publish-button:hover { background:#f5eaf8; }
+    .feedback-published-badge { background:#f1e6f5; color:#7d3c98; }
+    .feedback-read-badge { background:#e8f7ef; color:#168454; }
+    .feedback-published-time { color:#8d8290; font-size:.68rem; font-weight:700; }
+    .feedback-publish-dialog { width:min(440px,calc(100% - 2rem)); padding:0; border:0; border-radius:20px; background:transparent; box-shadow:0 24px 70px rgba(55,34,62,.24); }
+    .feedback-publish-dialog::backdrop { background:rgba(39,27,43,.48); backdrop-filter:blur(2px); }
+    .feedback-publish-dialog-card { padding:1.6rem; border:1px solid #eadfeb; border-radius:20px; background:#fff; text-align:center; }
+    .feedback-publish-dialog-icon { display:grid; place-items:center; width:48px; height:48px; margin:0 auto .8rem; border-radius:50%; background:#f3e8f6; color:#8e44ad; font-size:1.25rem; }
+    .feedback-publish-dialog h3 { margin:0 0 .55rem; color:#3f3542; font-size:1.08rem; }
+    .feedback-publish-dialog p { margin:0; color:#786d7b; font-size:.82rem; line-height:1.7; }
+    .feedback-publish-dialog-actions { display:flex; justify-content:center; gap:.6rem; margin-top:1.25rem; }
+    .feedback-publish-cancel, .feedback-publish-confirm { min-width:100px; padding:.65rem 1rem; border-radius:10px; font-size:.8rem; font-weight:800; }
+    .feedback-publish-cancel { border:1px solid #ddd3df; background:#fff; color:#6f6572; }
+    .feedback-publish-confirm { border:1px solid #8e44ad; background:#8e44ad; color:#fff; }
 
     .portfolio-section {
         margin-top: 1.45rem;
@@ -1417,6 +1459,8 @@
         const lengthLabel = document.getElementById('feedbackLengthLabel');
         const autoSaveStatus = document.getElementById('feedbackAutoSaveStatus');
         const publicationStatus = document.getElementById('feedbackPublicationStatus');
+        const publishDialog = document.getElementById('feedbackPublishDialog');
+        const confirmPublishButton = document.getElementById('confirmFeedbackPublish');
         const generateIdle = generateButton.querySelector('.followup-generate-idle');
         const generateLoading = generateButton.querySelector('.followup-generate-loading');
         let selectedFollowupType = 'grading';
@@ -1424,6 +1468,7 @@
         let currentFeedbackSessionId = null;
         let currentFeedbackResultId = null;
         let currentFeedbackIsRead = false;
+        let pendingPublishFeedbackId = null;
         let autoSaveTimer = null;
         let autoSavePromise = null;
         let autoSaveQueued = false;
@@ -1569,7 +1614,7 @@
 
         function applyFeedbackResultState(feedbackResult) {
             currentFeedbackResultId = feedbackResult ? feedbackResult.id : null;
-            currentFeedbackIsRead = Boolean(feedbackResult && feedbackResult.is_read);
+            currentFeedbackIsRead = Boolean(feedbackResult && feedbackResult.is_published && feedbackResult.is_read);
             draftText.readOnly = currentFeedbackIsRead;
             saveButton.disabled = currentFeedbackIsRead;
             saveButton.setAttribute('aria-disabled', currentFeedbackIsRead ? 'true' : 'false');
@@ -1900,26 +1945,51 @@
                 saveButton.innerHTML = originalLabel;
             }
         });
-        publishButton.addEventListener('click', async function () {
-            if (!currentFeedbackResultId) return;
-            publishButton.disabled = true;
-            const originalLabel = publishButton.innerHTML;
-            publishButton.innerHTML = '<span class="followup-spinner"></span> 공개하고 있습니다';
-            designError.hidden = true;
+        function openPublishDialog(feedbackId) {
+            if (!feedbackId) return;
+            pendingPublishFeedbackId = feedbackId;
+            if (typeof publishDialog.showModal === 'function') {
+                publishDialog.showModal();
+            } else if (window.confirm('피드백을 학생에게 공개할까요? 학생이 열람한 뒤에는 수정할 수 없습니다.')) {
+                publishFeedback(feedbackId);
+            }
+        }
+
+        async function publishFeedback(feedbackId) {
+            if (!feedbackId) return;
+            confirmPublishButton.disabled = true;
+            confirmPublishButton.textContent = '공개 중...';
             try {
-                const response = await fetch(publishUrlTemplate.replace('999999', currentFeedbackResultId), {
+                const response = await fetch(publishUrlTemplate.replace('999999', feedbackId), {
                     method: 'POST',
                     headers: {'X-CSRFToken':'{{ csrf_token }}','X-Requested-With':'XMLHttpRequest'}
                 });
                 const data = await response.json();
                 if (!response.ok || data.status !== 'success') throw new Error(data.message || '피드백을 공개하지 못했습니다.');
-                applyFeedbackResultState(data);
+                window.location.reload();
             } catch (error) {
-                designError.textContent = error.message || '피드백 공개 중 오류가 발생했습니다.';
-                designError.hidden = false;
-                publishButton.disabled = false;
-                publishButton.innerHTML = originalLabel;
+                if (publishDialog.open) publishDialog.close();
+                window.alert(error.message || '피드백 공개 중 오류가 발생했습니다.');
+                confirmPublishButton.disabled = false;
+                confirmPublishButton.textContent = '공개하기';
             }
+        }
+
+        publishButton.addEventListener('click', function () {
+            openPublishDialog(currentFeedbackResultId);
+        });
+        document.querySelectorAll('[data-publish-feedback]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                openPublishDialog(button.dataset.publishFeedback);
+            });
+        });
+        confirmPublishButton.addEventListener('click', function () {
+            publishFeedback(pendingPublishFeedbackId);
+        });
+        publishDialog.addEventListener('close', function () {
+            pendingPublishFeedbackId = null;
+            confirmPublishButton.disabled = false;
+            confirmPublishButton.textContent = '공개하기';
         });
         closeButton.addEventListener('click', closeLayer);
         backdrop.addEventListener('click', closeLayer);

@@ -648,6 +648,20 @@ class FeedbackResultTitleTests(SimpleTestCase):
         result = FeedbackResult(task_type='feedback', feedback_title='')
         self.assertEqual('피드백', result.display_title)
 
+    def test_published_and_read_feedback_is_not_editable(self):
+        result = FeedbackResult(is_published=True, is_read=True)
+        self.assertFalse(result.is_editable)
+
+    def test_unread_published_feedback_remains_editable(self):
+        result = FeedbackResult(is_published=True, is_read=False)
+        self.assertTrue(result.is_editable)
+
+    def test_answer_detail_contains_publish_confirmation_ui(self):
+        source = get_template('activities/answer_detail.html').template.source
+        self.assertIn('feedbackPublishDialog', source)
+        self.assertIn('data-publish-feedback', source)
+        self.assertIn('학생이 열람한 뒤에는 피드백을 수정할 수 없습니다.', source)
+
 
 class AnswerCharacterCountTests(SimpleTestCase):
     def test_non_whitespace_length_excludes_spaces_tabs_and_linebreaks(self):

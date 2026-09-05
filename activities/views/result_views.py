@@ -305,7 +305,7 @@ def save_feedback_result(request, answer_id):
         if not feedback_session:
             return JsonResponse({'status': 'error', 'message': '저장할 작업 버전을 찾을 수 없습니다.'}, status=404)
         existing_feedback = getattr(feedback_session, 'final_result', None)
-        if existing_feedback and existing_feedback.is_read:
+        if existing_feedback and not existing_feedback.is_editable:
             return JsonResponse(
                 {'status': 'error', 'message': '학생이 이미 피드백을 열람하여 수정할 수 없습니다.'},
                 status=403,
@@ -322,7 +322,7 @@ def save_feedback_result(request, answer_id):
             feedback = FeedbackResult.objects.select_for_update().filter(
                 source_session=feedback_session
             ).first()
-            if feedback and feedback.is_read:
+            if feedback and not feedback.is_editable:
                 return JsonResponse(
                     {'status': 'error', 'message': '학생이 이미 피드백을 열람하여 수정할 수 없습니다.'},
                     status=403,
@@ -376,6 +376,7 @@ def save_feedback_result(request, answer_id):
         'feedback_title': feedback.display_title,
         'is_published': feedback.is_published,
         'is_read': feedback.is_read,
+        'is_editable': feedback.is_editable,
     })
 
 
@@ -397,6 +398,7 @@ def publish_feedback_result(request, feedback_id):
         'feedback_id': feedback.id,
         'is_published': True,
         'is_read': feedback.is_read,
+        'is_editable': feedback.is_editable,
         'published_at': timezone.localtime(feedback.published_at).strftime('%Y.%m.%d %H:%M'),
         'read_at': (
             timezone.localtime(feedback.read_at).strftime('%Y.%m.%d %H:%M')
@@ -421,6 +423,7 @@ def _serialize_feedback_session(session):
             'id': feedback.id,
             'is_published': feedback.is_published,
             'is_read': feedback.is_read,
+            'is_editable': feedback.is_editable,
             'published_at': (
                 timezone.localtime(feedback.published_at).strftime('%Y.%m.%d %H:%M')
                 if feedback.published_at else None
@@ -473,7 +476,7 @@ def save_feedback_session(request, answer_id, session_id):
 
     with transaction.atomic():
         final_result = FeedbackResult.objects.select_for_update().filter(source_session=session).first()
-        if final_result and final_result.is_read:
+        if final_result and not final_result.is_editable:
             return JsonResponse(
                 {'status': 'error', 'message': '학생이 이미 피드백을 열람하여 수정할 수 없습니다.'},
                 status=403,
