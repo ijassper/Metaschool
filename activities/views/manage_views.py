@@ -80,10 +80,15 @@ def parse_character_limit(post_data):
         raise ValueError('작성 분량 제한 유형이 올바르지 않습니다.')
     if limit_type == 'NONE':
         return 'NONE', 0, 99999, 0, 0
+    if limit_type == 'RANGE':
+        raw_min_len = str(post_data.get('min_len') or '').strip()
+        raw_max_len = str(post_data.get('max_len') or '').strip()
+        if not raw_min_len and not raw_max_len:
+            return 'NONE', 0, 99999, 0, 0
     try:
         if limit_type == 'RANGE':
-            min_len = int(post_data.get('min_len') or 0)
-            max_len = int(post_data.get('max_len') or 99999)
+            min_len = int(raw_min_len or 0)
+            max_len = int(raw_max_len or 99999)
         elif limit_type == 'MIN':
             min_len = int(post_data.get('limit_count') or legacy_value or 0)
             max_len = 99999

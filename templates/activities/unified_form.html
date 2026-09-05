@@ -112,8 +112,6 @@
     }
 
     .note-choice-input, .palette-choice-input { position: absolute; opacity: 0; pointer-events: none; }
-    .limit-none-button { min-height:42px; padding:.65rem 1rem; border:1px solid rgba(142,68,173,.18); border-radius:999px; background:rgba(255,255,255,.78); color:#62586a; font-weight:800; }
-    .limit-none-button.is-selected { color:#8E44AD; border-color:#8E44AD; background:#fff; box-shadow:0 0 0 4px rgba(142,68,173,.1); }
     .limit-count-wrap { display:flex; align-items:center; gap:.5rem; }
     .limit-count-wrap.is-disabled { opacity:.45; }
     .note-choice-card { min-height: 104px; border: 2px solid transparent; border-radius: 18px; background: rgba(255,255,255,.8); cursor: pointer; transition: .18s ease; }
@@ -340,7 +338,6 @@
             <div class="d-flex align-items-center gap-3 flex-wrap mb-4">
                 <input type="hidden" name="char_limit" value="{% if form_data %}{{ form_data.char_limit|default:0 }}{% else %}{{ activity.char_limit|default:0 }}{% endif %}">
                 <input id="limitTypeField" type="hidden" name="limit_type" value="{% if form_data %}{{ form_data.limit_type|default:'NONE' }}{% else %}{{ activity.limit_type|default:'NONE' }}{% endif %}">
-                <button id="limitNoneButton" type="button" class="limit-none-button"><i class="bi bi-infinity me-1"></i>제한 없음</button>
                 <div id="limitCountWrap" class="limit-count-wrap"><input class="form-control border-0 shadow-sm p-2 text-center" type="number" name="min_len" min="0" max="99999" step="100" style="width:120px" value="{% if form_data %}{{ form_data.min_len|default:'' }}{% elif activity.limit_type != 'NONE' %}{{ activity.min_length }}{% endif %}" placeholder="최소"><span class="fw-bold small">자 이상 ~</span><input class="form-control border-0 shadow-sm p-2 text-center" type="number" name="max_len" min="0" max="99999" step="100" style="width:120px" value="{% if form_data %}{{ form_data.max_len|default:'' }}{% elif activity.limit_type != 'NONE' and activity.max_length < 99999 %}{{ activity.max_length }}{% endif %}" placeholder="최대"><span class="fw-bold small">자 이내</span></div>
             </div>
             <h6 class="fw-bold mb-3">평가 대상</h6>
@@ -650,7 +647,6 @@
                 <div class="col-md-9 px-4 d-flex align-items-center gap-3 flex-wrap">
                     <input type="hidden" name="char_limit" value="{% if form_data %}{{ form_data.char_limit|default:0 }}{% else %}{{ activity.char_limit|default:0 }}{% endif %}">
                     <input id="limitTypeField" type="hidden" name="limit_type" value="{% if form_data %}{{ form_data.limit_type|default:'NONE' }}{% else %}{{ activity.limit_type|default:'NONE' }}{% endif %}">
-                    <button id="limitNoneButton" type="button" class="limit-none-button"><i class="bi bi-infinity me-1"></i>제한 없음</button>
                     <div id="limitCountWrap" class="limit-count-wrap"><input class="form-control border-0 shadow-sm p-2 text-center" type="number" name="min_len" min="0" max="99999" step="100" style="width:120px" value="{% if form_data %}{{ form_data.min_len|default:'' }}{% elif activity.limit_type != 'NONE' %}{{ activity.min_length }}{% endif %}" placeholder="최소"><span class="fw-bold small">자 이상 ~</span><input class="form-control border-0 shadow-sm p-2 text-center" type="number" name="max_len" min="0" max="99999" step="100" style="width:120px" value="{% if form_data %}{{ form_data.max_len|default:'' }}{% elif activity.limit_type != 'NONE' and activity.max_length < 99999 %}{{ activity.max_length }}{% endif %}" placeholder="최대"><span class="fw-bold small">자 이내</span></div>
                 </div>
             </div>
@@ -865,7 +861,6 @@
         // 5. 폼 제출 전 유효성 검사 및 데이터 브릿지 강제 주입
         if (form) {
             const limitTypeField = document.getElementById('limitTypeField');
-            const limitNoneButton = document.getElementById('limitNoneButton');
             const minLengthInput = form.querySelector('input[name="min_len"]');
             const maxLengthInput = form.querySelector('input[name="max_len"]');
             const limitCountWrap = document.getElementById('limitCountWrap');
@@ -873,16 +868,9 @@
                 if (!limitTypeField) return;
                 const hasRangeValue = Boolean(minLengthInput?.value || maxLengthInput?.value);
                 limitTypeField.value = hasRangeValue ? 'RANGE' : 'NONE';
-                limitNoneButton?.classList.toggle('is-selected', !hasRangeValue);
-                limitNoneButton?.setAttribute('aria-pressed', hasRangeValue ? 'false' : 'true');
                 limitCountWrap?.classList.remove('is-disabled');
             }
             [minLengthInput, maxLengthInput].forEach(input => input?.addEventListener('input', syncLimitFields));
-            limitNoneButton?.addEventListener('click', function () {
-                if (minLengthInput) minLengthInput.value = '';
-                if (maxLengthInput) maxLengthInput.value = '';
-                syncLimitFields();
-            });
             syncLimitFields();
 
             form.onsubmit = function(e) {
