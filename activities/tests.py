@@ -662,6 +662,12 @@ class FeedbackResultTitleTests(SimpleTestCase):
         self.assertIn('data-publish-feedback', source)
         self.assertIn('학생이 열람한 뒤에는 피드백을 수정할 수 없습니다.', source)
 
+    def test_answer_detail_contains_inline_feedback_editor(self):
+        source = get_template('activities/answer_detail.html').template.source
+        self.assertIn('data-edit-feedback', source)
+        self.assertIn('data-save-feedback', source)
+        self.assertIn('update_feedback_result', source)
+
 
 class AnswerCharacterCountTests(SimpleTestCase):
     def test_non_whitespace_length_excludes_spaces_tabs_and_linebreaks(self):

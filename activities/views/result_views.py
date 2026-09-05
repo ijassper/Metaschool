@@ -407,6 +407,47 @@ def publish_feedback_result(request, feedback_id):
     })
 
 
+@require_POST
+@login_required
+@teacher_required
+def update_feedback_result(request, feedback_id):
+    """포트폴리오 상세 화면에서 학생이 읽기 전 피드백 본문을 수정합니다."""
+    try:
+        payload = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': '수정 요청 형식이 올바르지 않습니다.'}, status=400)
+
+    feedback_content = str(payload.get('feedback_content') or '').strip()
+    if not feedback_content:
+        return JsonResponse({'status': 'error', 'message': '피드백 내용을 입력해주세요.'}, status=400)
+
+    with transaction.atomic():
+        feedback = get_object_or_404(
+            FeedbackResult.objects.select_for_update().select_related('activity', 'source_session'),
+            id=feedback_id,
+            activity__teacher=request.user,
+        )
+        if not feedback.is_editable:
+            return JsonResponse(
+                {'status': 'error', 'message': '학생이 이미 피드백을 열람하여 수정할 수 없습니다.'},
+                status=403,
+            )
+        feedback.feedback_content = feedback_content
+        feedback.save(update_fields=['feedback_content'])
+        if feedback.source_session_id:
+            FeedbackSession.objects.filter(id=feedback.source_session_id).update(
+                content=feedback_content,
+                updated_at=timezone.now(),
+            )
+
+    return JsonResponse({
+        'status': 'success',
+        'feedback_id': feedback.id,
+        'feedback_content': feedback.feedback_content,
+        'is_editable': feedback.is_editable,
+    })
+
+
 def _serialize_feedback_session(session):
     feedback = getattr(session, 'final_result', None)
     return {

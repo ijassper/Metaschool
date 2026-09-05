@@ -221,7 +221,11 @@
                         </div>
                     </div>
                     <div class="feedback-history-actions">
-                        {% if feedback.persona_name %}<span class="feedback-persona-chip">{{ feedback.persona_name }}</span>{% endif %}
+                        {% if feedback.is_editable %}
+                        <button type="button" class="feedback-history-edit-button" data-edit-feedback="{{ feedback.id }}">
+                            <i class="bi bi-pencil-square"></i> 수정하기
+                        </button>
+                        {% endif %}
                         {% if feedback.is_published %}
                         <span class="feedback-published-badge"><i class="bi bi-send-check"></i> 공개 완료</span>
                         <time class="feedback-published-time" datetime="{{ feedback.published_at|date:'c' }}">{{ feedback.published_at|localtime|date:"Y.m.d H:i" }}</time>
@@ -235,7 +239,17 @@
                         {% endif %}
                     </div>
                 </header>
-                <article class="feedback-history-content">{{ feedback.feedback_content|linebreaksbr }}</article>
+                <article id="feedbackContent-{{ feedback.id }}" class="feedback-history-content">{{ feedback.feedback_content }}</article>
+                {% if feedback.is_editable %}
+                <div id="feedbackEditor-{{ feedback.id }}" class="feedback-history-editor" hidden>
+                    <textarea rows="18" aria-label="{{ feedback.display_title }} 내용 수정">{{ feedback.feedback_content }}</textarea>
+                    <p class="feedback-history-edit-status" aria-live="polite"></p>
+                    <div class="feedback-history-editor-actions">
+                        <button type="button" class="feedback-history-edit-cancel" data-cancel-feedback="{{ feedback.id }}">취소</button>
+                        <button type="button" class="feedback-history-edit-save" data-save-feedback="{{ feedback.id }}">수정 내용 저장</button>
+                    </div>
+                </div>
+                {% endif %}
             </section>
         </div>
         {% endfor %}
@@ -685,15 +699,24 @@
         box-shadow: 0 18px 48px rgba(94, 57, 112, 0.1), 0 3px 10px rgba(94, 57, 112, 0.05);
     }
     .feedback-history-section { min-height:360px; }
-    .feedback-history-content { margin-top:1rem; padding:1.25rem; border:1px solid #eadfeb; border-radius:14px; background:#fff; color:#4e4651; font-size:.86rem; line-height:1.85; white-space:normal; }
-    .feedback-persona-chip { max-width:45%; overflow:hidden; padding:.32rem .65rem; border-radius:999px; background:#f4eaf7; color:#7d3c98; font-size:.66rem; font-weight:760; text-overflow:ellipsis; white-space:nowrap; }
+    .feedback-history-content { margin-top:1rem; padding:1.25rem; border:1px solid #eadfeb; border-radius:14px; background:#fff; color:#4e4651; font-size:.86rem; line-height:1.85; white-space:pre-wrap; }
     .feedback-history-actions { display:flex; align-items:center; justify-content:flex-end; gap:.45rem; flex-wrap:wrap; }
-    .feedback-history-publish-button, .feedback-published-badge, .feedback-read-badge { display:inline-flex; align-items:center; gap:.35rem; min-height:32px; padding:.38rem .7rem; border-radius:999px; font-size:.7rem; font-weight:800; }
+    .feedback-history-edit-button, .feedback-history-publish-button, .feedback-published-badge, .feedback-read-badge { display:inline-flex; align-items:center; gap:.35rem; min-height:32px; padding:.38rem .7rem; border-radius:999px; font-size:.7rem; font-weight:800; }
+    .feedback-history-edit-button { border:1px solid #d9c9dd; background:#fff; color:#665a69; }
+    .feedback-history-edit-button:hover { border-color:#a86fba; color:#7d3c98; }
     .feedback-history-publish-button { border:1px solid #a86fba; background:#fff; color:#7d3c98; }
     .feedback-history-publish-button:hover { background:#f5eaf8; }
     .feedback-published-badge { background:#f1e6f5; color:#7d3c98; }
     .feedback-read-badge { background:#e8f7ef; color:#168454; }
     .feedback-published-time { color:#8d8290; font-size:.68rem; font-weight:700; }
+    .feedback-history-editor { margin-top:1rem; }
+    .feedback-history-editor textarea { width:100%; min-height:380px; resize:vertical; padding:1.25rem; border:1px solid #a86fba; border-radius:14px; background:#fff; color:#4e4651; font:inherit; font-size:.86rem; line-height:1.85; outline:none; box-shadow:0 0 0 4px rgba(142,68,173,.07); }
+    .feedback-history-editor-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:.65rem; }
+    .feedback-history-edit-cancel, .feedback-history-edit-save { padding:.55rem .85rem; border-radius:9px; font-size:.75rem; font-weight:800; }
+    .feedback-history-edit-cancel { border:1px solid #ddd3df; background:#fff; color:#6f6572; }
+    .feedback-history-edit-save { border:1px solid #8e44ad; background:#8e44ad; color:#fff; }
+    .feedback-history-edit-save:disabled { opacity:.55; cursor:wait; }
+    .feedback-history-edit-status { min-height:1.2em; margin:.45rem 0 0; color:#b4233c; font-size:.72rem; font-weight:700; }
     .feedback-publish-dialog { width:min(440px,calc(100% - 2rem)); padding:0; border:0; border-radius:20px; background:transparent; box-shadow:0 24px 70px rgba(55,34,62,.24); }
     .feedback-publish-dialog::backdrop { background:rgba(39,27,43,.48); backdrop-filter:blur(2px); }
     .feedback-publish-dialog-card { padding:1.6rem; border:1px solid #eadfeb; border-radius:20px; background:#fff; text-align:center; }
@@ -1474,6 +1497,7 @@
         let autoSaveQueued = false;
         const sessionDetailUrlTemplate = '{% url "feedback_session_detail" answer.id 999999 %}';
         const sessionSaveUrlTemplate = '{% url "save_feedback_session" answer.id 999999 %}';
+        const feedbackUpdateUrlTemplate = '{% url "update_feedback_result" 999999 %}';
         const publishUrlTemplate = '{% url "publish_feedback_result" 999999 %}';
         const followupLabels = {
             grading: '답안 채점/분석',
@@ -1990,6 +2014,69 @@
             pendingPublishFeedbackId = null;
             confirmPublishButton.disabled = false;
             confirmPublishButton.textContent = '공개하기';
+        });
+        document.querySelectorAll('[data-edit-feedback]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const feedbackId = button.dataset.editFeedback;
+                const content = document.getElementById(`feedbackContent-${feedbackId}`);
+                const editor = document.getElementById(`feedbackEditor-${feedbackId}`);
+                if (!content || !editor) return;
+                content.hidden = true;
+                editor.hidden = false;
+                button.hidden = true;
+                editor.querySelector('textarea').focus();
+            });
+        });
+        document.querySelectorAll('[data-cancel-feedback]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const feedbackId = button.dataset.cancelFeedback;
+                const content = document.getElementById(`feedbackContent-${feedbackId}`);
+                const editor = document.getElementById(`feedbackEditor-${feedbackId}`);
+                const editButton = document.querySelector(`[data-edit-feedback="${feedbackId}"]`);
+                if (!content || !editor) return;
+                editor.querySelector('textarea').value = content.textContent;
+                editor.querySelector('.feedback-history-edit-status').textContent = '';
+                editor.hidden = true;
+                content.hidden = false;
+                if (editButton) editButton.hidden = false;
+            });
+        });
+        document.querySelectorAll('[data-save-feedback]').forEach(function (button) {
+            button.addEventListener('click', async function () {
+                const feedbackId = button.dataset.saveFeedback;
+                const content = document.getElementById(`feedbackContent-${feedbackId}`);
+                const editor = document.getElementById(`feedbackEditor-${feedbackId}`);
+                const editButton = document.querySelector(`[data-edit-feedback="${feedbackId}"]`);
+                const textarea = editor && editor.querySelector('textarea');
+                const status = editor && editor.querySelector('.feedback-history-edit-status');
+                const feedbackContent = textarea ? textarea.value.trim() : '';
+                if (!feedbackContent) {
+                    if (status) status.textContent = '피드백 내용을 입력해주세요.';
+                    return;
+                }
+                button.disabled = true;
+                button.textContent = '저장 중...';
+                if (status) status.textContent = '';
+                try {
+                    const response = await fetch(feedbackUpdateUrlTemplate.replace('999999', feedbackId), {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+                        body: JSON.stringify({feedback_content: feedbackContent})
+                    });
+                    const data = await response.json();
+                    if (!response.ok || data.status !== 'success') throw new Error(data.message || '피드백을 수정하지 못했습니다.');
+                    content.textContent = data.feedback_content;
+                    textarea.value = data.feedback_content;
+                    editor.hidden = true;
+                    content.hidden = false;
+                    if (editButton) editButton.hidden = false;
+                } catch (error) {
+                    if (status) status.textContent = error.message || '피드백 수정 중 오류가 발생했습니다.';
+                } finally {
+                    button.disabled = false;
+                    button.textContent = '수정 내용 저장';
+                }
+            });
         });
         closeButton.addEventListener('click', closeLayer);
         backdrop.addEventListener('click', closeLayer);

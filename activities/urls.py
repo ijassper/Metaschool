@@ -83,6 +83,7 @@ urlpatterns = [
         name='update_student_score',
     ),
     path('answer/detail/<int:answer_id>/feedback/save/', save_feedback_result, name='save_feedback_result'),
+    path('feedback/<int:feedback_id>/update/', update_feedback_result, name='update_feedback_result'),
     path('feedback/<int:feedback_id>/publish/', publish_feedback_result, name='publish_feedback_result'),
     path('answer/detail/<int:answer_id>/feedback-sessions/<int:session_id>/', feedback_session_detail, name='feedback_session_detail'),
     path('answer/detail/<int:answer_id>/feedback-sessions/<int:session_id>/save/', save_feedback_session, name='save_feedback_session'),
