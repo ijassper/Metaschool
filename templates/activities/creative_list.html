@@ -35,6 +35,7 @@
                     <td>{{ activity.title }}</td>
                     <!-- 2. 상태 토글 버튼 (클릭하면 즉시 시작/마감) -->
                     <td class="text-center">
+                        {% if activity.is_schedule_controlled %}<span class="activity-auto-control-badge">자동 제어 중</span>{% endif %}
                         <!-- 클릭 시 views.py의 toggle_activity_status 함수 호출 -->
                         <button type="button"
                                 class="activity-status-toggle {% if activity.is_active %}is-on{% else %}is-off{% endif %}"

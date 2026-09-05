@@ -300,6 +300,7 @@ def update_exam_security_session(request, activity):
 @login_required
 def take_test(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id)
+    activity.sync_schedule_state(save=True)
 
     student_info, error_response = get_student_for_activity(request, activity)
     if error_response:
@@ -421,6 +422,7 @@ def student_result_detail(request, activity_id):
 def save_answer_draft(request, activity_id):
     """Save student work without navigation or activity-log side effects."""
     activity = get_object_or_404(Activity, id=activity_id)
+    activity.sync_schedule_state(save=True)
     student_info, error_response = get_student_for_activity(request, activity)
     if error_response:
         return JsonResponse({'status': 'error', 'message': '저장 권한이 없습니다.'}, status=403)
@@ -516,6 +518,7 @@ def draft_revision_detail(request, activity_id, revision_id):
 @log_event("답안지 페이지 입장")
 def start_exam(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id)
+    activity.sync_schedule_state(save=True)
     student_info, error_response = get_student_for_activity(request, activity)
     if error_response:
         return JsonResponse({'status': 'error', 'message': 'forbidden'}, status=403)
@@ -533,6 +536,7 @@ def start_exam(request, activity_id):
 @log_event("답안지 페이지 입장")
 def re_enter_exam(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id)
+    activity.sync_schedule_state(save=True)
     student_info, error_response = get_student_for_activity(request, activity)
     if error_response:
         return JsonResponse({'status': 'error', 'message': 'forbidden'}, status=403)

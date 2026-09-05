@@ -341,6 +341,8 @@ def unified_list(request):
     if sub_name:
         activities = activities.filter(sub_category=sub_name)
 
+    Activity.sync_scheduled_states(activities)
+
     # 2. 카테고리 한글명 매핑 (딕셔너리 활용)
     category_map = dict(Activity.CATEGORY_CHOICES)
 
@@ -363,6 +365,7 @@ def creative_list(request):
         teacher=request.user, 
         category='CREATIVE' # 창체 카테고리만 필터링
     ).order_by('-created_at')
+    Activity.sync_scheduled_states(activities)
     
     return render(request, 'activities/creative_list.html', {
         'activities': activities

@@ -1,5 +1,6 @@
 import os # 파일 경로 처리
 from django.db import models
+from django.db.models import Q
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from accounts.models import Student
@@ -125,6 +126,8 @@ class Activity(models.Model):
     activity_date = models.DateTimeField(null=True, blank=True, verbose_name="수업/활동 일시")
     # 제출 기한: 학생 응시 마감 시간 (직접 입력)
     deadline = models.DateTimeField(null=True, blank=True, verbose_name="제출 기한")
+    # 응시 시작 시간: 비어 있으면 저장 시점으로 자동 지정
+    start_time = models.DateTimeField(null=True, blank=True, verbose_name="응시 시작 시간")
     # AI 분석 완료 시간 (시스템 기록)
     ai_updated_at = models.DateTimeField(null=True, blank=True, verbose_name="AI 분석 일시")
 
@@ -203,9 +206,49 @@ class Activity(models.Model):
     def is_effectively_active(self):
         return self.is_attainable
 
+    def get_current_status(self, now=None):
+        """현재 시각과 응시 기간을 기준으로 예약/진행/마감 상태를 반환합니다."""
+        now = now or timezone.now()
+        if self.start_time and now < self.start_time:
+            return 'SCHEDULED'
+        if self.deadline and now > self.deadline:
+            return 'CLOSED'
+        return 'ONGOING' if self.is_active else 'INACTIVE'
+
+    @property
+    def is_schedule_controlled(self):
+        return bool(self.start_time or self.deadline)
+
+    def sync_schedule_state(self, now=None, *, save=False):
+        """응시 기간에 맞춰 수동 상태 필드를 보정하고 변경 여부를 반환합니다."""
+        now = now or timezone.now()
+        should_be_active = (
+            (not self.start_time or self.start_time <= now)
+            and (not self.deadline or now <= self.deadline)
+        )
+        changed = self.is_active != should_be_active
+        self.is_active = should_be_active
+        if changed and save and self.pk:
+            self.save(update_fields=['is_active'])
+        return changed
+
+    @classmethod
+    def sync_scheduled_states(cls, queryset=None, now=None):
+        """목록에 포함될 활동들의 상태를 두 번의 UPDATE로 일괄 보정합니다."""
+        now = now or timezone.now()
+        queryset = queryset if queryset is not None else cls.objects.all()
+        in_period = (
+            (Q(start_time__isnull=True) | Q(start_time__lte=now))
+            & (Q(deadline__isnull=True) | Q(deadline__gte=now))
+        )
+        queryset.filter(in_period).exclude(is_active=True).update(is_active=True)
+        queryset.exclude(in_period).exclude(is_active=False).update(is_active=False)
+
     @property
     def is_attainable(self):
         if not self.is_active:
+            return False
+        if self.start_time and timezone.now() < self.start_time:
             return False
         if self.deadline and timezone.now() > self.deadline:
             return False
@@ -238,6 +281,8 @@ class Activity(models.Model):
 
     @property
     def status_text(self):
+        if self.start_time and timezone.now() < self.start_time:
+            return "예약됨"
         if self.deadline and timezone.now() > self.deadline:
             return "마감됨"
         if self.is_attainable:
@@ -246,6 +291,8 @@ class Activity(models.Model):
 
     @property
     def status_code(self):
+        if self.start_time and timezone.now() < self.start_time:
+            return "SCHEDULED"
         if self.deadline and timezone.now() > self.deadline:
             return "CLOSED"
         if self.is_attainable:

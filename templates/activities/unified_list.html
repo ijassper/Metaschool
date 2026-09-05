@@ -43,7 +43,7 @@
                             <th class="text-start unified-list-topic">{{ config.basic.title }} (클릭 시 수정)</th>
                             <th>응시 유형</th>
                             <th>상태</th>
-                            <th>제출 기한</th>
+                            <th>응시 기간</th>
                             <th>제출현황</th>
                             <th>관리 도구</th>
                         </tr>
@@ -81,6 +81,7 @@
 
                             <!-- 상태 토글 -->
                             <td class="unified-list-status-cell">
+                                {% if act.is_schedule_controlled %}<span class="activity-auto-control-badge">자동 제어 중</span>{% endif %}
                                 <button type="button"
                                         class="activity-status-toggle {% if act.is_active %}is-on{% else %}is-off{% endif %}"
                                         role="switch"
@@ -94,12 +95,15 @@
                                 </button>
                             </td>
 
-                            <!-- 제출 기한 -->
+                            <!-- 응시 기간 -->
                             <td class="deadline-cell {% if act.status_code == 'CLOSED' %}text-danger fw-bold{% else %}text-secondary{% endif %}">
                                 <span id="activity-deadline-{{ act.id }}" class="deadline-display">
+                                    {% if act.start_time %}
+                                        <span class="deadline-date">{{ act.start_time|localtime|date:"Y-m-d H:i" }}부터</span>
+                                    {% endif %}
                                     {% if act.deadline %}
                                         <span class="deadline-date">{{ act.deadline|localtime|date:"Y-m-d" }}</span>
-                                        <span class="deadline-time">{{ act.deadline|localtime|date:"H:i" }}</span>
+                                        <span class="deadline-time">{{ act.deadline|localtime|date:"H:i" }} 마감</span>
                                     {% else %}
                                         <span class="deadline-date">기한 없음</span>
                                     {% endif %}
@@ -220,6 +224,8 @@
         transform: scale(0.92);
         transform-origin: center;
     }
+    .unified-list-status-cell { display:table-cell; }
+    .unified-list-status-cell .activity-auto-control-badge { margin:0 auto .3rem; }
     .unified-list-table .activity-status-toggle:hover {
         transform: translateY(-1px) scale(0.92);
     }

@@ -191,6 +191,7 @@ def dashboard(request):
             # 1. 나에게 배정된 모든 활성화된 평가 가져오기
             # .select_related() 등을 사용하여 성능 최적화 권장
             activity_candidates = Activity.objects.filter(target_students=student_profile).order_by('-created_at')
+            Activity.sync_scheduled_states(activity_candidates)
             activities_list = [activity for activity in activity_candidates if activity.is_viewable]
             
             # 완료된 개수를 세기 위한 변수 초기화
@@ -267,6 +268,7 @@ def dashboard(request):
 
         # [2-2] 모든 활동 가져오기
         my_activities = Activity.objects.filter(teacher=user).order_by('-created_at')
+        Activity.sync_scheduled_states(my_activities)
         now = timezone.now()
         completed_count = my_activities.filter(
             Q(deadline__lt=now) | Q(is_active=False)

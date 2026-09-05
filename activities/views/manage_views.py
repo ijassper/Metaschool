@@ -3,7 +3,7 @@
 import calendar
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -171,6 +171,17 @@ def unified_create(request):
                 'form_data': request.POST, 'source_answer': source_answer,
             })
 
+        schedule_now = timezone.now()
+        start_time = parse_dt(request.POST.get('start_time')) or schedule_now
+        deadline = parse_dt(request.POST.get('deadline')) or (schedule_now + timedelta(days=365))
+        if start_time > deadline:
+            messages.error(request, '응시 시작 시간은 제출 마감 시간보다 늦을 수 없습니다.')
+            return render(request, 'activities/unified_form.html', {
+                'cat_code': cat_code, 'sub_menu': sub_menu, 'config': config,
+                'student_tree': get_student_tree(request.user), 'action': '생성',
+                'form_data': request.POST, 'source_answer': source_answer,
+            })
+
         # [수정: 섹션 2 평가 문항 처리] 
         # 루프 방식 대신 HTML의 name="question"에서 직접 가져와 유실을 방지합니다.
         main_question = request.POST.get('question', '').strip()
@@ -259,7 +270,9 @@ def unified_create(request):
                 title=request.POST.get('title', '제목 없음') + extra_str,
                 exam_mode=request.POST.get('exam_mode', 'CLOSED_LOCK'),
                 allow_edit_after_submission=request.POST.get('allow_edit_after_submission') == 'True',
-                deadline=parse_dt(request.POST.get('deadline')), # 섹션 1 기한
+                start_time=start_time,
+                deadline=deadline,
+                is_active=start_time <= schedule_now <= deadline,
                 
                 # [섹션 2: 세부 평가 내용]
                 # [비활성화] 수업 일시(activity_date)는 UI/로직에서 제외합니다.
@@ -460,6 +473,19 @@ def unified_update(request, activity_id):
                 'form_data': request.POST,
             })
 
+        schedule_now = timezone.now()
+        start_time = parse_dt(request.POST.get('start_time')) or schedule_now
+        deadline = parse_dt(request.POST.get('deadline')) or (schedule_now + timedelta(days=365))
+        if start_time > deadline:
+            messages.error(request, '응시 시작 시간은 제출 마감 시간보다 늦을 수 없습니다.')
+            return render(request, 'activities/unified_form.html', {
+                'activity': activity, 'cat_code': activity.category, 'sub_menu': sub_menu,
+                'config': config, 'category_name': category_name,
+                'current_targets': list(activity.target_students.values_list('id', flat=True)),
+                'student_tree': get_student_tree(request.user), 'action': '수정',
+                'form_data': request.POST,
+            })
+
         item_title_error = get_activity_item_title_error(request.POST)
         if item_title_error:
             messages.error(request, item_title_error)
@@ -531,10 +557,9 @@ def unified_update(request, activity_id):
         old_deadline = activity.deadline
         # [비활성화] 수업 일시(activity_date)는 UI/로직에서 제외합니다.
         # 기존 데이터 보존을 위해 수정 시 POST 값이 들어와도 변경하지 않습니다.
-        if config.get('note_fields'):
-            activity.deadline = parse_dt(request.POST.get('deadline'))
-        elif request.POST.get('deadline'):
-            activity.deadline = parse_dt(request.POST.get('deadline'))
+        activity.start_time = start_time
+        activity.deadline = deadline
+        activity.is_active = start_time <= schedule_now <= deadline
 
         # 기한 연장 동기화 로직
         sync_status_on_deadline_extension(activity, old_deadline, activity.deadline)
@@ -719,13 +744,15 @@ def creative_create(request):
         attachment = request.FILES.get('attachment')
 
         # 날짜 처리
+        schedule_now = timezone.now()
         deadline = None
         if deadline_str:
             try:
                 temp_str = deadline_str.replace('오후', 'PM').replace('오전', 'AM')
-                deadline = datetime.strptime(temp_str, "%Y. %m. %d. %p %I:%M")
+                deadline = make_aware(datetime.strptime(temp_str, "%Y. %m. %d. %p %I:%M"))
             except:
                 deadline = None
+        deadline = deadline or (schedule_now + timedelta(days=365))
 
         # 2. [중요] 여기서 'activity' 변수를 생성합니다 (모든 필드를 한 번에 넣기)
         activity = Activity.objects.create(
@@ -738,7 +765,9 @@ def creative_create(request):
             question=question,
             conditions=conditions,
             reference_material=reference_material,
+            start_time=schedule_now,
             deadline=deadline,
+            is_active=True,
             attachment=attachment,
             char_limit=char_limit,
             exam_mode=exam_mode,
@@ -802,15 +831,19 @@ def creative_update(request, pk):
             activity.attachment = request.FILES.get('attachment')
             
         old_deadline = activity.deadline
+        schedule_now = timezone.now()
+        activity.start_time = activity.start_time or schedule_now
         # 날짜 처리
         deadline_str = request.POST.get('deadline')
         if deadline_str:
             try:
                 # 오후/오전 한글 대응
                 temp_str = deadline_str.replace('오후', 'PM').replace('오전', 'AM')
-                activity.deadline = datetime.strptime(temp_str, "%Y. %m. %d. %p %I:%M")
+                activity.deadline = make_aware(datetime.strptime(temp_str, "%Y. %m. %d. %p %I:%M"))
             except:
                 pass
+        activity.deadline = activity.deadline or (schedule_now + timedelta(days=365))
+        activity.is_active = activity.start_time <= schedule_now <= activity.deadline
 
         # 기한 연장 동기화 로직
         sync_status_on_deadline_extension(activity, old_deadline, activity.deadline)

@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from pathlib import Path
 import re
+from datetime import timedelta
 
 from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.template.loader import get_template
@@ -33,6 +34,34 @@ from .attachment_context import (
 )
 from .templatetags.answer_extras import non_whitespace_length
 from .models import Activity, Question, Answer, FeedbackResult
+
+
+class ActivitySchedulingTests(SimpleTestCase):
+    def test_current_status_distinguishes_scheduled_ongoing_and_closed(self):
+        now = timezone.now()
+        scheduled = Activity(start_time=now + timedelta(hours=1), deadline=now + timedelta(hours=2), is_active=False)
+        ongoing = Activity(start_time=now - timedelta(hours=1), deadline=now + timedelta(hours=1), is_active=True)
+        closed = Activity(start_time=now - timedelta(hours=2), deadline=now - timedelta(hours=1), is_active=False)
+        self.assertEqual(scheduled.get_current_status(now), 'SCHEDULED')
+        self.assertEqual(ongoing.get_current_status(now), 'ONGOING')
+        self.assertEqual(closed.get_current_status(now), 'CLOSED')
+
+    def test_schedule_sync_calculates_active_state_from_period(self):
+        now = timezone.now()
+        activity = Activity(start_time=now - timedelta(minutes=1), deadline=now + timedelta(minutes=1), is_active=False)
+        self.assertTrue(activity.sync_schedule_state(now))
+        self.assertTrue(activity.is_active)
+
+    def test_schedule_form_has_optional_start_and_deadline_fields(self):
+        source = get_template('activities/unified_form.html').template.source
+        self.assertIn('name="start_time"', source)
+        self.assertIn('부터 응시(예약 발행)', source)
+        self.assertIn('에 제출 마감(제출 기한)', source)
+        self.assertNotIn('alert("제출 기한을 입력해주세요.")', source)
+
+    def test_activity_list_marks_automatic_control(self):
+        source = get_template('activities/unified_list.html').template.source
+        self.assertIn('자동 제어 중', source)
 
 
 class NotebookPageDataTests(SimpleTestCase):

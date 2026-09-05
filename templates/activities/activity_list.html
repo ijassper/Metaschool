@@ -163,6 +163,7 @@
 
                         <!-- 2. 상태 토글 버튼 (클릭하면 즉시 시작/마감) -->
                         <td class="activity-list-status-cell">
+                            {% if activity.is_schedule_controlled %}<span class="activity-auto-control-badge">자동 제어 중</span>{% endif %}
                             <button type="button"
                                     class="activity-status-toggle {% if activity.is_active %}is-on{% else %}is-off{% endif %}"
                                     role="switch"
@@ -181,7 +182,7 @@
                         <td class="small text-muted">{{ activity.created_at|localtime|date:"Y-m-d" }}</td>
 
                         <td class="deadline-cell {% if activity.status_code == 'CLOSED' %}text-danger fw-bold{% else %}text-muted{% endif %}">
-                            {{ activity.deadline|localtime|date:"Y-m-d H:i"|default:"기한 없음" }}
+                            {% if activity.start_time %}{{ activity.start_time|localtime|date:"Y-m-d H:i" }} ~<br>{% endif %}{{ activity.deadline|localtime|date:"Y-m-d H:i"|default:"기한 없음" }}
                         </td>
                         
                         <!-- 3. 제출 현황(답안 보기) -->
