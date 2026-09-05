@@ -609,6 +609,12 @@
     .exam-answer-scroll {
         padding-bottom: 120px !important;
     }
+    .answer-character-count { display:flex; justify-content:flex-end; margin-top:-1.5rem; padding:.75rem 1rem; border-radius:12px; background:#f1f3f5; color:#868e96; font-weight:800; transition:.2s ease; }
+    .answer-character-count.is-valid { background:#e7f5ff; color:#1971c2; }
+    .answer-character-count.is-over { background:#fff0f0; color:#c92a2a; }
+    .exam-status-pill.char-below { color:#868e96; background:#f1f3f5; }
+    .exam-status-pill.char-valid { color:#1971c2; background:#e7f5ff; }
+    .exam-status-pill.char-over { color:#c92a2a; background:#fff0f0; }
     .pdf-preview-modal {
         pointer-events: none;
         z-index: 1060;
@@ -1339,6 +1345,7 @@
                                 {% if IS_COPY_PROTECTED %}onpaste="return false;" oncopy="return false;" oncut="return false;"{% endif %}>{{ answer.ans_q3|default:'' }}</textarea>
                         </div>
                         {% endif %}
+                        <div id="inlineCharCount" class="answer-character-count" aria-live="polite">현재 0자 · {{ activity.character_limit_label }}</div>
                     </div>
                 </div>
             </form>
@@ -1605,7 +1612,10 @@
     const ENABLE_EXIT_DETECTION = {{ enable_exit_detection|yesno:"true,false" }};
     const ENABLE_COPY_PROTECTION = {{ enable_copy_protection|yesno:"true,false" }};
     const charLimitType = "{{ activity.limit_type|default:'NONE' }}";
-    const charLimit = parseInt("{{ activity.limit_count|default:0 }}", 10) || 0;
+    const parsedCharMinLength = parseInt("{{ activity.min_length|default:0 }}", 10);
+    const parsedCharMaxLength = parseInt("{{ activity.max_length|default:99999 }}", 10);
+    const charMinLength = Number.isFinite(parsedCharMinLength) ? parsedCharMinLength : 0;
+    const charMaxLength = Number.isFinite(parsedCharMaxLength) ? parsedCharMaxLength : 99999;
     const deadlineValue = "{{ activity.deadline|localtime|date:'c' }}";
     const deadlineAt = deadlineValue ? new Date(deadlineValue) : null;
     let answerId = "{{ answer_id }}"; 
@@ -2901,7 +2911,7 @@
     function showMaximumCharacterWarning() {
         if (characterLimitAlertVisible) return;
         characterLimitAlertVisible = true;
-        window.alert(`최대 ${charLimit}자 이내로 작성할 수 있습니다. 초과한 글자는 자동으로 삭제됩니다.`);
+        window.alert(`최대 ${charMaxLength}자 이내로 작성할 수 있습니다. 초과한 글자는 자동으로 삭제됩니다.`);
         characterLimitAlertVisible = false;
     }
 
@@ -2912,30 +2922,49 @@
         return totalLength;
     }
 
+    function applyCharacterCountState(element, totalLength) {
+        if (!element) return;
+        const isOver = charLimitType !== 'NONE' && totalLength > charMaxLength;
+        const isValid = charLimitType === 'NONE' || (totalLength >= charMinLength && totalLength <= charMaxLength);
+        element.classList.toggle('char-below', !isValid && !isOver);
+        element.classList.toggle('char-valid', isValid);
+        element.classList.toggle('char-over', isOver);
+    }
+
     function updateCharCount(event) {
         const target = event && event.target && event.target.classList.contains('answer-input') ? event.target : null;
-        if (target && charLimitType === 'MAX' && charLimit > 0 && !event.isComposing) {
+        if (target && charLimitType !== 'NONE' && charMaxLength < 99999 && !event.isComposing) {
             const otherLength = Array.from(document.querySelectorAll('.answer-input'))
                 .filter(input => input !== target)
                 .reduce((total, input) => total + input.value.length, 0);
-            const allowedLength = Math.max(0, charLimit - otherLength);
+            const allowedLength = Math.max(0, charMaxLength - otherLength);
             if (target.value.length > allowedLength) {
                 target.value = target.value.slice(0, allowedLength);
                 showMaximumCharacterWarning();
             }
         }
         const totalLength = answerCharacterCount();
-        const limitLabel = charLimitType === 'MAX' ? `${charLimit}자 이내` : charLimitType === 'MIN' ? `${charLimit}자 이상` : '제한 없음';
+        const limitLabel = charLimitType === 'NONE' ? '제한 없음' : charMinLength <= 0 && charMaxLength >= 99999 ? '제한 없음' : charMinLength <= 0 ? `${charMaxLength}자 이내` : charMaxLength >= 99999 ? `${charMinLength}자 이상` : `${charMinLength}~${charMaxLength}자`;
         const label = `${totalLength}자 / ${limitLabel}`;
         
         const charCountElement = document.getElementById('charCount');
         if (charCountElement) {
             charCountElement.textContent = label;
+            applyCharacterCountState(charCountElement, totalLength);
         }
 
         const floatingCharCount = document.getElementById('floatingCharCount');
         if (floatingCharCount) {
             floatingCharCount.innerHTML = `<i class="bi bi-type"></i> ${label}`;
+            applyCharacterCountState(floatingCharCount, totalLength);
+        }
+        const inlineCharCount = document.getElementById('inlineCharCount');
+        if (inlineCharCount) {
+            const isOver = charLimitType !== 'NONE' && totalLength > charMaxLength;
+            const isValid = charLimitType === 'NONE' || (totalLength >= charMinLength && totalLength <= charMaxLength);
+            inlineCharCount.textContent = `현재 ${totalLength}자 · ${limitLabel}`;
+            inlineCharCount.classList.toggle('is-valid', isValid);
+            inlineCharCount.classList.toggle('is-over', isOver);
         }
     }
 
@@ -2970,15 +2999,15 @@
     }
 
     function validateMinimumCharacterLimit() {
-        if (charLimitType !== 'MIN' || charLimit <= 0) return true;
+        if (charLimitType === 'NONE' || charMinLength <= 0) return true;
         if (typeof window.syncNotebookDraftState === 'function') window.syncNotebookDraftState();
         const currentLength = IS_TYPING_ACTIVITY ? answerCharacterCount() : (
             document.querySelector('.notebook-editor') && typeof window.getNotebookCharacterCount === 'function'
                 ? window.getNotebookCharacterCount()
                 : answerCharacterCount()
         );
-        if (currentLength >= charLimit) return true;
-        window.alert(`최소 ${charLimit}자 이상 작성해야 제출이 가능합니다. 현재 ${currentLength}자입니다.`);
+        if (currentLength >= charMinLength) return true;
+        window.alert(`최소 ${charMinLength}자 이상 작성해야 합니다. 현재 ${currentLength}자입니다.`);
         return false;
     }
 
@@ -3353,11 +3382,11 @@
             window.getNotebookCharacterCount = totalNotebookCharacters;
 
             function enforceNotebookMaximum() {
-                if (charLimitType !== 'MAX' || charLimit <= 0) return false;
+                if (charLimitType === 'NONE' || charMaxLength >= 99999) return false;
                 const otherLength = notebookPages.reduce((total, page, index) => (
                     index === currentNotebookPage ? total : total + page.length
                 ), 0);
-                const allowedLength = Math.max(0, charLimit - otherLength);
+                const allowedLength = Math.max(0, charMaxLength - otherLength);
                 if (notebookEditor.value.length <= allowedLength) return false;
                 notebookEditor.value = notebookEditor.value.slice(0, allowedLength);
                 notebookPages[currentNotebookPage] = notebookEditor.value;
@@ -3369,7 +3398,11 @@
                 notebookPages[currentNotebookPage] = notebookEditor.value;
                 pagesField.value = JSON.stringify(notebookPages);
                 const count = document.getElementById('charCount');
-                if (count) count.textContent = `${totalNotebookCharacters()}자`;
+                if (count) {
+                    const totalLength = totalNotebookCharacters();
+                    count.textContent = `${totalLength}자 / {{ activity.character_limit_label }}`;
+                    applyCharacterCountState(count, totalLength);
+                }
                 renderManuscriptGrid();
             }
 

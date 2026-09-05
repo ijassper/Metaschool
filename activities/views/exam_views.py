@@ -270,10 +270,18 @@ def submitted_answer_char_count(activity, form_data):
 
 
 def character_limit_error(activity, current_length):
-    if activity.limit_type == 'MAX' and activity.limit_count and current_length > activity.limit_count:
-        return f'글자 수가 초과되었습니다. 최대 {activity.limit_count}자 이내로 작성해주세요.'
-    if activity.limit_type == 'MIN' and activity.limit_count and current_length < activity.limit_count:
-        return f'최소 {activity.limit_count}자 이상 작성해야 제출이 가능합니다.'
+    if activity.limit_type == 'NONE':
+        return ''
+    min_len = activity.min_length if activity.limit_type == 'RANGE' else (
+        activity.limit_count if activity.limit_type == 'MIN' else 0
+    )
+    max_len = activity.max_length if activity.limit_type == 'RANGE' else (
+        activity.limit_count if activity.limit_type == 'MAX' else 99999
+    )
+    if current_length < min_len:
+        return f'최소 {min_len}자 이상 작성해야 합니다.'
+    if current_length > max_len:
+        return f'최대 {max_len}자 이내로 작성해야 합니다.'
     return ''
 
 

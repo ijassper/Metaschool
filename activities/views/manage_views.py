@@ -72,21 +72,34 @@ def apply_notebook_settings_from_post(activity, post_data):
 
 
 def parse_character_limit(post_data):
-    """폼의 제한값을 검증하고 기존 char_limit 호환값까지 반환합니다."""
+    """범위형 제한값과 기존 필드 호환값을 함께 반환합니다."""
     raw_limit_type = post_data.get('limit_type')
     legacy_value = post_data.get('char_limit')
     limit_type = str(raw_limit_type or ('MAX' if legacy_value and str(legacy_value) != '0' else 'NONE')).upper()
-    if limit_type not in {'NONE', 'MAX', 'MIN'}:
+    if limit_type not in {'NONE', 'RANGE', 'MAX', 'MIN'}:
         raise ValueError('작성 분량 제한 유형이 올바르지 않습니다.')
     if limit_type == 'NONE':
-        return 'NONE', 0, 0
+        return 'NONE', 0, 99999, 0, 0
     try:
-        limit_count = int(post_data.get('limit_count') or legacy_value or 0)
+        if limit_type == 'RANGE':
+            min_len = int(post_data.get('min_len') or 0)
+            max_len = int(post_data.get('max_len') or 99999)
+        elif limit_type == 'MIN':
+            min_len = int(post_data.get('limit_count') or legacy_value or 0)
+            max_len = 99999
+        else:
+            min_len = 0
+            max_len = int(post_data.get('limit_count') or legacy_value or 99999)
     except (TypeError, ValueError):
         raise ValueError('작성 분량은 숫자로 입력해주세요.')
-    if not 1 <= limit_count <= 10000:
-        raise ValueError('작성 분량은 1자부터 10,000자까지 입력할 수 있습니다.')
-    return limit_type, limit_count, limit_count if limit_type == 'MAX' else 0
+    if not 0 <= min_len <= 99999 or not 0 <= max_len <= 99999:
+        raise ValueError('작성 분량은 0자부터 99,999자까지 입력할 수 있습니다.')
+    if min_len > max_len:
+        raise ValueError('최소 글자 수는 최대 글자 수보다 클 수 없습니다.')
+    normalized_type = 'RANGE'
+    legacy_count = max_len if max_len < 99999 else min_len
+    legacy_char_limit = max_len if max_len < 99999 else 0
+    return normalized_type, min_len, max_len, legacy_count, legacy_char_limit
 
 def sync_status_on_deadline_extension(activity, old_deadline, new_deadline):
     """
@@ -144,7 +157,7 @@ def unified_create(request):
                 except: return None
 
         try:
-            limit_type, limit_count, legacy_char_limit = parse_character_limit(request.POST)
+            limit_type, min_length, max_length, limit_count, legacy_char_limit = parse_character_limit(request.POST)
         except ValueError as exc:
             messages.error(request, str(exc))
             return render(request, 'activities/unified_form.html', {
@@ -253,6 +266,8 @@ def unified_create(request):
                 char_limit=legacy_char_limit,
                 limit_type=limit_type,
                 limit_count=limit_count,
+                min_length=min_length,
+                max_length=max_length,
                 attachment=None, # 다중 파일 모델(ActivityFile) 사용
                 
                 # [섹션 3: 기타 중요 내용 (AI 분석용)]
@@ -429,7 +444,7 @@ def unified_update(request, activity_id):
                 except: return None
 
         try:
-            limit_type, limit_count, legacy_char_limit = parse_character_limit(request.POST)
+            limit_type, min_length, max_length, limit_count, legacy_char_limit = parse_character_limit(request.POST)
         except ValueError as exc:
             messages.error(request, str(exc))
             return render(request, 'activities/unified_form.html', {
@@ -476,6 +491,8 @@ def unified_update(request, activity_id):
         
         activity.limit_type = limit_type
         activity.limit_count = limit_count
+        activity.min_length = min_length
+        activity.max_length = max_length
         activity.char_limit = legacy_char_limit
 
         # [섹션 3: 기타 중요 내용 (AI 분석용)]

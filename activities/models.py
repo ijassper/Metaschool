@@ -48,16 +48,27 @@ class Activity(models.Model):
     char_limit = models.IntegerField(default=0, verbose_name="분량 제한(자)") # 0은 무제한
     LIMIT_TYPE_CHOICES = [
         ('NONE', '제한 없음'),
+        ('RANGE', '글자 수 범위 제한'),
         ('MAX', '글자 수 이내'),
         ('MIN', '글자 수 이상'),
     ]
     limit_type = models.CharField(
-        max_length=4, choices=LIMIT_TYPE_CHOICES, default='NONE', verbose_name='글자 수 제한 유형'
+        max_length=5, choices=LIMIT_TYPE_CHOICES, default='NONE', verbose_name='글자 수 제한 유형'
     )
     limit_count = models.PositiveIntegerField(
         default=0,
         validators=[MinValueValidator(0), MaxValueValidator(10000)],
         verbose_name='글자 수 제한 기준',
+    )
+    min_length = models.PositiveIntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(99999)],
+        verbose_name='최소 글자 수',
+    )
+    max_length = models.PositiveIntegerField(
+        default=99999,
+        validators=[MinValueValidator(0), MaxValueValidator(99999)],
+        verbose_name='최대 글자 수',
     )
     result = models.TextField(blank=True, verbose_name="평가 결과/피드백", help_text="학생에게 보여줄 피드백")
 
@@ -152,6 +163,14 @@ class Activity(models.Model):
 
     @property
     def character_limit_label(self):
+        if self.limit_type == 'RANGE':
+            if self.min_length <= 0 and self.max_length >= 99999:
+                return '제한 없음'
+            if self.min_length <= 0:
+                return f'{self.max_length}자 이내'
+            if self.max_length >= 99999:
+                return f'{self.min_length}자 이상'
+            return f'{self.min_length}자 이상 ~ {self.max_length}자 이내'
         if self.limit_type == 'MAX' and self.limit_count:
             return f'{self.limit_count}자 이내'
         if self.limit_type == 'MIN' and self.limit_count:
