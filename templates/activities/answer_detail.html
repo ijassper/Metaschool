@@ -411,6 +411,7 @@
             <span id="feedbackAutoSaveStatus" class="feedback-auto-save-status" aria-live="polite">
                 <i class="bi bi-cloud-check"></i> AI 초안은 임시 보관되며, 최종 저장 후 포트폴리오에 등록됩니다.
             </span>
+            <span id="feedbackPublicationStatus" class="feedback-publication-status" hidden aria-live="polite"></span>
         </div>
         <div class="followup-footer-right">
             <button id="generateFollowupDraft" type="button" class="source-create-button">
@@ -419,6 +420,9 @@
             </button>
             <button id="saveFollowupDraft" type="button" class="source-create-button followup-save-button" hidden>
                 <i class="bi bi-check2-circle"></i> 최종 저장
+            </button>
+            <button id="publishFollowupDraft" type="button" class="source-create-button followup-publish-button" hidden>
+                <i class="bi bi-send-check"></i> 학생에게 피드백 공개
             </button>
         </div>
     </footer>
@@ -1287,6 +1291,8 @@
     .feedback-auto-save-status { display:inline-flex; align-items:center; gap:.38rem; color:#847989; font-size:.7rem; font-weight:700; line-height:1.4; }
     .feedback-auto-save-status.is-saving { color:#8e44ad; }
     .feedback-auto-save-status.is-error { color:#b4233c; }
+    .feedback-publication-status { display:inline-flex; align-items:center; gap:.38rem; color:#8e44ad; font-size:.7rem; font-weight:800; line-height:1.4; }
+    .feedback-publication-status.is-read { color:#168454; }
     .followup-design-section>label { color:#8e8192; font-size:.72rem; font-weight:700; }
     .followup-design-section { margin-top:1.4rem; }
     .feedback-session-toolbar + .followup-design-section { margin-top:.85rem; }
@@ -1324,8 +1330,10 @@
     .followup-footer-right { display:flex; align-items:center; gap:.55rem; }
     .followup-footer-right { margin-left:auto; }
     .followup-save-button { background:linear-gradient(135deg,#269b68,#168454); }
+    .followup-publish-button { background:linear-gradient(135deg,#ef6cad,#8e44ad); }
     .followup-design-error { margin-right:auto!important; color:#b4233c!important; }
     .source-create-button:disabled { opacity:.72; cursor:wait; }
+    .followup-save-button:disabled[aria-disabled="true"] { cursor:not-allowed; }
     .followup-spinner { width:15px; height:15px; display:inline-block; margin-right:.35rem; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:followup-spin .75s linear infinite; vertical-align:-3px; }
     @keyframes followup-spin { to { transform:rotate(360deg); } }
     body.answer-source-open { overflow:hidden; }
@@ -1393,6 +1401,7 @@
         const designTitle = document.getElementById('followupDesignTitle');
         const generateButton = document.getElementById('generateFollowupDraft');
         const saveButton = document.getElementById('saveFollowupDraft');
+        const publishButton = document.getElementById('publishFollowupDraft');
         const draftResult = document.getElementById('followupDraftResult');
         const draftText = document.getElementById('followupDraftText');
         const designError = document.getElementById('followupDesignError');
@@ -1407,16 +1416,20 @@
         const styleLabel = document.getElementById('feedbackStyleLabel');
         const lengthLabel = document.getElementById('feedbackLengthLabel');
         const autoSaveStatus = document.getElementById('feedbackAutoSaveStatus');
+        const publicationStatus = document.getElementById('feedbackPublicationStatus');
         const generateIdle = generateButton.querySelector('.followup-generate-idle');
         const generateLoading = generateButton.querySelector('.followup-generate-loading');
         let selectedFollowupType = 'grading';
         let lastPersonaUsed = {};
         let currentFeedbackSessionId = null;
+        let currentFeedbackResultId = null;
+        let currentFeedbackIsRead = false;
         let autoSaveTimer = null;
         let autoSavePromise = null;
         let autoSaveQueued = false;
         const sessionDetailUrlTemplate = '{% url "feedback_session_detail" answer.id 999999 %}';
         const sessionSaveUrlTemplate = '{% url "save_feedback_session" answer.id 999999 %}';
+        const publishUrlTemplate = '{% url "publish_feedback_result" 999999 %}';
         const followupLabels = {
             grading: '답안 채점/분석',
             feedback: '피드백',
@@ -1554,6 +1567,26 @@
             autoSaveStatus.innerHTML = `<i class="bi ${icons[state] || icons.idle}"></i> ${message}`;
         }
 
+        function applyFeedbackResultState(feedbackResult) {
+            currentFeedbackResultId = feedbackResult ? feedbackResult.id : null;
+            currentFeedbackIsRead = Boolean(feedbackResult && feedbackResult.is_read);
+            draftText.readOnly = currentFeedbackIsRead;
+            saveButton.disabled = currentFeedbackIsRead;
+            saveButton.setAttribute('aria-disabled', currentFeedbackIsRead ? 'true' : 'false');
+            publishButton.hidden = !currentFeedbackResultId || Boolean(feedbackResult && feedbackResult.is_published);
+            publicationStatus.hidden = !feedbackResult;
+            publicationStatus.classList.toggle('is-read', currentFeedbackIsRead);
+            if (!feedbackResult) {
+                publicationStatus.textContent = '';
+            } else if (currentFeedbackIsRead) {
+                publicationStatus.innerHTML = `<i class="bi bi-check2-all"></i> 읽음 확인${feedbackResult.read_at ? ` · ${feedbackResult.read_at}` : ''}`;
+            } else if (feedbackResult.is_published) {
+                publicationStatus.innerHTML = `<i class="bi bi-send-check"></i> 학생에게 공개됨${feedbackResult.published_at ? ` · ${feedbackResult.published_at}` : ''}`;
+            } else {
+                publicationStatus.innerHTML = '<i class="bi bi-lock"></i> 아직 학생에게 공개되지 않음';
+            }
+        }
+
         async function persistCurrentSession(options = {}) {
             if (!currentFeedbackSessionId) return true;
             if (autoSavePromise) {
@@ -1687,6 +1720,7 @@
                 sessionTitle.value = session.feedback_title || '';
                 draftText.value = session.content || '';
                 applySessionOptions(session.options_snapshot);
+                applyFeedbackResultState(session.feedback_result);
                 draftResult.hidden = false;
                 saveButton.hidden = !draftText.value.trim();
                 setAutoSaveStatus('saved', session.status === 'FINAL' ? '최종 저장된 버전' : '자동 저장됨');
@@ -1700,6 +1734,7 @@
 
         function resetFeedbackSession() {
             currentFeedbackSessionId = null;
+            applyFeedbackResultState(null);
             sessionSelect.value = '';
             sessionTitle.value = '';
             draftText.value = '';
@@ -1815,6 +1850,7 @@
                     upsertSessionOption(data.feedback_session);
                     setAutoSaveStatus('saved', '자동 저장됨');
                 }
+                applyFeedbackResultState(null);
                 draftResult.hidden = false;
                 saveButton.hidden = false;
                 draftResult.scrollIntoView({behavior:'smooth',block:'start'});
@@ -1853,14 +1889,36 @@
                 });
                 const data = await response.json();
                 if (!response.ok || data.status !== 'success') throw new Error(data.message || '최종 결과 저장에 실패했습니다.');
-                const savedParams = new URLSearchParams(window.location.search);
-                savedParams.set('saved', data.feedback_id);
-                window.location.href = `${window.location.pathname}?${savedParams.toString()}#feedback-${data.feedback_id}`;
+                applyFeedbackResultState({id:data.feedback_id,is_published:data.is_published,is_read:data.is_read,published_at:null,read_at:null});
+                setAutoSaveStatus('saved', '최종 저장됨');
+                saveButton.innerHTML = originalLabel;
+                saveButton.disabled = false;
             } catch (error) {
                 designError.textContent = error.message || '저장 중 오류가 발생했습니다.';
                 designError.hidden = false;
                 saveButton.disabled = false;
                 saveButton.innerHTML = originalLabel;
+            }
+        });
+        publishButton.addEventListener('click', async function () {
+            if (!currentFeedbackResultId) return;
+            publishButton.disabled = true;
+            const originalLabel = publishButton.innerHTML;
+            publishButton.innerHTML = '<span class="followup-spinner"></span> 공개하고 있습니다';
+            designError.hidden = true;
+            try {
+                const response = await fetch(publishUrlTemplate.replace('999999', currentFeedbackResultId), {
+                    method: 'POST',
+                    headers: {'X-CSRFToken':'{{ csrf_token }}','X-Requested-With':'XMLHttpRequest'}
+                });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') throw new Error(data.message || '피드백을 공개하지 못했습니다.');
+                applyFeedbackResultState(data);
+            } catch (error) {
+                designError.textContent = error.message || '피드백 공개 중 오류가 발생했습니다.';
+                designError.hidden = false;
+                publishButton.disabled = false;
+                publishButton.innerHTML = originalLabel;
             }
         });
         closeButton.addEventListener('click', closeLayer);

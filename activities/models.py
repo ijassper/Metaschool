@@ -444,12 +444,24 @@ class FeedbackResult(models.Model):
     answer = models.ForeignKey(
         'Answer', on_delete=models.CASCADE, related_name='feedback_results', verbose_name='원본 답안'
     )
+    source_session = models.OneToOneField(
+        'FeedbackSession',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='final_result',
+        verbose_name='원본 피드백 작업 세션',
+    )
     task_type = models.CharField(
         max_length=20, choices=TaskType.choices, default=TaskType.FEEDBACK, verbose_name='작업 유형'
     )
     feedback_title = models.TextField(max_length=150, blank=True, verbose_name='작업 제목')
     feedback_content = models.TextField(verbose_name='AI 피드백 본문')
     persona_used = models.JSONField(default=dict, blank=True, verbose_name='사용된 페르소나/어조 정보')
+    is_published = models.BooleanField(default=False, verbose_name='학생 공개 여부')
+    published_at = models.DateTimeField(null=True, blank=True, verbose_name='학생 공개 일시')
+    is_read = models.BooleanField(default=False, verbose_name='학생 열람 여부')
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name='학생 최초 열람 일시')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='저장 일시')
 
     class Meta:

@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
@@ -296,13 +297,19 @@ def save_feedback_result(request, answer_id):
 
     feedback_session = None
     if feedback_session_id:
-        feedback_session = FeedbackSession.objects.filter(
+        feedback_session = FeedbackSession.objects.select_related('final_result').filter(
             id=feedback_session_id,
             answer=answer,
             created_by=request.user,
         ).first()
         if not feedback_session:
             return JsonResponse({'status': 'error', 'message': '저장할 작업 버전을 찾을 수 없습니다.'}, status=404)
+        existing_feedback = getattr(feedback_session, 'final_result', None)
+        if existing_feedback and existing_feedback.is_read:
+            return JsonResponse(
+                {'status': 'error', 'message': '학생이 이미 피드백을 열람하여 수정할 수 없습니다.'},
+                status=403,
+            )
         feedback_title = FeedbackSession.make_unique_title(
             answer=answer,
             created_by=request.user,
@@ -310,34 +317,96 @@ def save_feedback_result(request, answer_id):
             exclude_session_id=feedback_session.id,
         )
 
-    feedback = FeedbackResult.objects.create(
-        student=answer.student,
-        activity=answer.question.activity,
-        answer=answer,
-        task_type=task_type,
-        feedback_title=feedback_title,
-        feedback_content=feedback_content,
-        persona_used=persona_used,
-    )
-    if feedback_session:
-        session_updates = {
-            'content': feedback_content,
-            'options_snapshot': options_snapshot,
-            'status': FeedbackSession.Status.FINAL,
-            'updated_at': timezone.now(),
-        }
-        if feedback_title:
-            session_updates['feedback_title'] = feedback_title
-        FeedbackSession.objects.filter(id=feedback_session.id).update(**session_updates)
+    with transaction.atomic():
+        if feedback_session:
+            feedback = FeedbackResult.objects.select_for_update().filter(
+                source_session=feedback_session
+            ).first()
+            if feedback and feedback.is_read:
+                return JsonResponse(
+                    {'status': 'error', 'message': '학생이 이미 피드백을 열람하여 수정할 수 없습니다.'},
+                    status=403,
+                )
+            if feedback:
+                feedback.student = answer.student
+                feedback.activity = answer.question.activity
+                feedback.answer = answer
+                feedback.task_type = task_type
+                feedback.feedback_title = feedback_title
+                feedback.feedback_content = feedback_content
+                feedback.persona_used = persona_used
+                feedback.save(update_fields=[
+                    'student', 'activity', 'answer', 'task_type', 'feedback_title',
+                    'feedback_content', 'persona_used',
+                ])
+            else:
+                feedback = FeedbackResult.objects.create(
+                    source_session=feedback_session,
+                    student=answer.student,
+                    activity=answer.question.activity,
+                    answer=answer,
+                    task_type=task_type,
+                    feedback_title=feedback_title,
+                    feedback_content=feedback_content,
+                    persona_used=persona_used,
+                )
+            session_updates = {
+                'content': feedback_content,
+                'options_snapshot': options_snapshot,
+                'status': FeedbackSession.Status.FINAL,
+                'updated_at': timezone.now(),
+            }
+            if feedback_title:
+                session_updates['feedback_title'] = feedback_title
+            FeedbackSession.objects.filter(id=feedback_session.id).update(**session_updates)
+        else:
+            feedback = FeedbackResult.objects.create(
+                student=answer.student,
+                activity=answer.question.activity,
+                answer=answer,
+                task_type=task_type,
+                feedback_title=feedback_title,
+                feedback_content=feedback_content,
+                persona_used=persona_used,
+            )
     return JsonResponse({
         'status': 'success',
         'feedback_id': feedback.id,
         'type_name': feedback.type_name,
         'feedback_title': feedback.display_title,
+        'is_published': feedback.is_published,
+        'is_read': feedback.is_read,
+    })
+
+
+@require_POST
+@login_required
+@teacher_required
+def publish_feedback_result(request, feedback_id):
+    feedback = get_object_or_404(
+        FeedbackResult.objects.select_related('activity'),
+        id=feedback_id,
+        activity__teacher=request.user,
+    )
+    if not feedback.is_published:
+        feedback.is_published = True
+        feedback.published_at = timezone.now()
+        feedback.save(update_fields=['is_published', 'published_at'])
+    return JsonResponse({
+        'status': 'success',
+        'feedback_id': feedback.id,
+        'is_published': True,
+        'is_read': feedback.is_read,
+        'published_at': timezone.localtime(feedback.published_at).strftime('%Y.%m.%d %H:%M'),
+        'read_at': (
+            timezone.localtime(feedback.read_at).strftime('%Y.%m.%d %H:%M')
+            if feedback.read_at else None
+        ),
     })
 
 
 def _serialize_feedback_session(session):
+    feedback = getattr(session, 'final_result', None)
     return {
         'id': session.id,
         'feedback_title': session.feedback_title,
@@ -348,6 +417,19 @@ def _serialize_feedback_session(session):
         'status_label': session.get_status_display(),
         'created_at': timezone.localtime(session.created_at).strftime('%Y.%m.%d %H:%M'),
         'updated_at': timezone.localtime(session.updated_at).strftime('%Y.%m.%d %H:%M'),
+        'feedback_result': ({
+            'id': feedback.id,
+            'is_published': feedback.is_published,
+            'is_read': feedback.is_read,
+            'published_at': (
+                timezone.localtime(feedback.published_at).strftime('%Y.%m.%d %H:%M')
+                if feedback.published_at else None
+            ),
+            'read_at': (
+                timezone.localtime(feedback.read_at).strftime('%Y.%m.%d %H:%M')
+                if feedback.read_at else None
+            ),
+        } if feedback else None),
     }
 
 
@@ -356,7 +438,7 @@ def _serialize_feedback_session(session):
 @teacher_required
 def feedback_session_detail(request, answer_id, session_id):
     session = get_object_or_404(
-        FeedbackSession.objects.select_related('answer__question__activity'),
+        FeedbackSession.objects.select_related('answer__question__activity', 'final_result'),
         id=session_id,
         answer_id=answer_id,
         answer__question__activity__teacher=request.user,
@@ -370,7 +452,7 @@ def feedback_session_detail(request, answer_id, session_id):
 @teacher_required
 def save_feedback_session(request, answer_id, session_id):
     session = get_object_or_404(
-        FeedbackSession.objects.select_related('answer__question__activity'),
+        FeedbackSession.objects.select_related('answer__question__activity', 'final_result'),
         id=session_id,
         answer_id=answer_id,
         answer__question__activity__teacher=request.user,
@@ -389,21 +471,29 @@ def save_feedback_session(request, answer_id, session_id):
     if not title:
         return JsonResponse({'status': 'error', 'message': '생성 결과 제목을 입력해주세요.'}, status=400)
 
-    title = FeedbackSession.make_unique_title(
-        answer=session.answer,
-        created_by=request.user,
-        title=title,
-        exclude_session_id=session.id,
-    )
+    with transaction.atomic():
+        final_result = FeedbackResult.objects.select_for_update().filter(source_session=session).first()
+        if final_result and final_result.is_read:
+            return JsonResponse(
+                {'status': 'error', 'message': '학생이 이미 피드백을 열람하여 수정할 수 없습니다.'},
+                status=403,
+            )
 
-    session.feedback_title = title
-    session.content = content
-    session.status = FeedbackSession.Status.DRAFT
-    update_fields = ['feedback_title', 'content', 'status', 'updated_at']
-    if options_snapshot is not None:
-        session.options_snapshot = options_snapshot
-        update_fields.append('options_snapshot')
-    session.save(update_fields=update_fields)
+        title = FeedbackSession.make_unique_title(
+            answer=session.answer,
+            created_by=request.user,
+            title=title,
+            exclude_session_id=session.id,
+        )
+
+        session.feedback_title = title
+        session.content = content
+        session.status = FeedbackSession.Status.DRAFT
+        update_fields = ['feedback_title', 'content', 'status', 'updated_at']
+        if options_snapshot is not None:
+            session.options_snapshot = options_snapshot
+            update_fields.append('options_snapshot')
+        session.save(update_fields=update_fields)
     return JsonResponse({'status': 'success', 'session': _serialize_feedback_session(session)})
 
 # [3] 답안 삭제(폐기) 처리

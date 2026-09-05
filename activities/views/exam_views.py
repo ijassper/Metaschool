@@ -339,13 +339,24 @@ def student_result_detail(request, activity_id):
     feedback_results = []
     notebook_pages = []
     if answer:
-        feedback_results = list(
-            FeedbackResult.objects.filter(
+        feedback_queryset = FeedbackResult.objects.filter(
                 answer=answer,
                 activity=activity,
                 student=student_info,
+                is_published=True,
             ).order_by('-created_at', '-id')
-        )
+        feedback_results = list(feedback_queryset)
+        unread_ids = [feedback.id for feedback in feedback_results if not feedback.is_read]
+        if unread_ids:
+            first_read_at = timezone.now()
+            FeedbackResult.objects.filter(id__in=unread_ids, is_read=False).update(
+                is_read=True,
+                read_at=first_read_at,
+            )
+            for feedback in feedback_results:
+                if feedback.id in unread_ids:
+                    feedback.is_read = True
+                    feedback.read_at = first_read_at
         if activity.is_notebook:
             notebook_pages = normalize_notebook_pages(answer.notebook_pages, answer.ans_q1)
     stored_score = ActivityStudentScore.objects.filter(
