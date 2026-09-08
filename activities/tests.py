@@ -12,9 +12,11 @@ from django.utils import timezone
 
 from .views.exam_views import (
     normalize_notebook_pages,
+    non_whitespace_character_count,
     pdf_viewer,
     snapshot_char_count,
     snapshot_fingerprint,
+    submitted_answer_char_count,
 )
 from .views.result_views import parse_quick_score
 from .views.main_views import get_form_config
@@ -96,6 +98,32 @@ class NotebookPageDataTests(SimpleTestCase):
         first = {'ans_q1': '답안', 'ans_q2': '', 'ans_q3': '', 'notebook_pages': []}
         second = {'notebook_pages': [], 'ans_q3': '', 'ans_q2': '', 'ans_q1': '답안'}
         self.assertEqual(snapshot_fingerprint(first), snapshot_fingerprint(second))
+
+
+class StudentAnswerCharacterCountTests(SimpleTestCase):
+    def test_common_counter_excludes_spaces_tabs_and_linebreaks(self):
+        self.assertEqual(non_whitespace_character_count('가 나\t다\n라마바'), 6)
+
+    def test_submission_counter_matches_teacher_non_whitespace_rule(self):
+        activity = Activity(sub_category='학급/학년특색활동')
+        form_data = {
+            'ans_q1': '첫 번째 답안',
+            'ans_q2': '둘째\n답안',
+            'ans_q3': ' ',
+        }
+        self.assertEqual(submitted_answer_char_count(activity, form_data), 9)
+
+    def test_notebook_submission_uses_same_non_whitespace_rule(self):
+        activity = Activity(sub_category='수업 노트/연습장')
+        form_data = {'notebook_pages': '["첫 쪽", "두\\n번째 쪽"]'}
+        self.assertEqual(submitted_answer_char_count(activity, form_data), 6)
+
+    def test_student_template_uses_shared_whitespace_excluding_javascript_counter(self):
+        source = get_template('activities/take_test.html').template.source
+        self.assertIn('function countLimitCharacters(value)', source)
+        self.assertIn('truncateToLimitCharacters(target.value, allowedLength)', source)
+        self.assertIn('countLimitCharacters(notebookEditor.value)', source)
+        self.assertIn("textarea.addEventListener('compositionend', updateCharCount)", source)
 
 
 class QuickScoreValidationTests(SimpleTestCase):

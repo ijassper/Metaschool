@@ -2915,10 +2915,29 @@
         characterLimitAlertVisible = false;
     }
 
+    function countLimitCharacters(value) {
+        return Array.from(String(value || '')).reduce(function(total, character) {
+            return total + (/\s/u.test(character) ? 0 : 1);
+        }, 0);
+    }
+
+    function truncateToLimitCharacters(value, maximumCount) {
+        let count = 0;
+        let result = '';
+        for (const character of Array.from(String(value || ''))) {
+            if (!/\s/u.test(character)) {
+                if (count >= maximumCount) break;
+                count += 1;
+            }
+            result += character;
+        }
+        return result;
+    }
+
     function answerCharacterCount() {
         const allInputs = document.querySelectorAll('.answer-input');
         let totalLength = 0;
-        allInputs.forEach(input => { totalLength += input.value.length; });
+        allInputs.forEach(input => { totalLength += countLimitCharacters(input.value); });
         return totalLength;
     }
 
@@ -2936,10 +2955,10 @@
         if (target && charLimitType !== 'NONE' && charMaxLength < 99999 && !event.isComposing) {
             const otherLength = Array.from(document.querySelectorAll('.answer-input'))
                 .filter(input => input !== target)
-                .reduce((total, input) => total + input.value.length, 0);
+                .reduce((total, input) => total + countLimitCharacters(input.value), 0);
             const allowedLength = Math.max(0, charMaxLength - otherLength);
-            if (target.value.length > allowedLength) {
-                target.value = target.value.slice(0, allowedLength);
+            if (countLimitCharacters(target.value) > allowedLength) {
+                target.value = truncateToLimitCharacters(target.value, allowedLength);
                 showMaximumCharacterWarning();
             }
         }
@@ -3274,6 +3293,8 @@
         const textareas = document.querySelectorAll('textarea.answer-input');
         textareas.forEach(textarea => {
             textarea.addEventListener('input', updateCharCount);
+            // 브라우저별 한글 IME 이벤트 순서 차이와 관계없이 조합 완료 값을 재계산한다.
+            textarea.addEventListener('compositionend', updateCharCount);
         });
 
         const notebookEditor = document.querySelector('.notebook-editor');
@@ -3376,7 +3397,7 @@
             }
 
             function totalNotebookCharacters() {
-                return notebookPages.reduce((total, page) => total + page.length, 0);
+                return notebookPages.reduce((total, page) => total + countLimitCharacters(page), 0);
             }
 
             window.getNotebookCharacterCount = totalNotebookCharacters;
@@ -3384,11 +3405,11 @@
             function enforceNotebookMaximum() {
                 if (charLimitType === 'NONE' || charMaxLength >= 99999) return false;
                 const otherLength = notebookPages.reduce((total, page, index) => (
-                    index === currentNotebookPage ? total : total + page.length
+                    index === currentNotebookPage ? total : total + countLimitCharacters(page)
                 ), 0);
                 const allowedLength = Math.max(0, charMaxLength - otherLength);
-                if (notebookEditor.value.length <= allowedLength) return false;
-                notebookEditor.value = notebookEditor.value.slice(0, allowedLength);
+                if (countLimitCharacters(notebookEditor.value) <= allowedLength) return false;
+                notebookEditor.value = truncateToLimitCharacters(notebookEditor.value, allowedLength);
                 notebookPages[currentNotebookPage] = notebookEditor.value;
                 showMaximumCharacterWarning();
                 return true;
