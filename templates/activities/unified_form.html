@@ -130,6 +130,20 @@
     .palette-swatch[data-palette="LAVENDER"] { background:#F7F1FF; }
     .palette-swatch[data-palette="BLUE"] { background:#EFF7FF; }
     .palette-swatch[data-palette="MINT"] { background:#EFFBF6; }
+    .exam-period-field {
+        flex: 0 0 220px;
+        width: 220px;
+        max-width: 220px;
+    }
+    .exam-period-field .form-control { width: 100%; }
+
+    @media (max-width: 767.98px) {
+        .exam-period-field {
+            flex: 1 0 100%;
+            width: 100%;
+            max-width: 100%;
+        }
+    }
 
 </style>
 
@@ -241,8 +255,8 @@
                     </div>
                     <div id="typingLongDateTimeOptions" class="d-none">
                         <div class="row g-2">
-                            <div class="col-md-6"><input type="text" name="start_time" id="start_time_picker" value="{% if form_data.start_time %}{{ form_data.start_time }}{% elif activity.start_time %}{{ activity.start_time|localtime|date:'Y. m. d. H:i' }}{% endif %}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="시작 날짜/시간" readonly></div>
-                            <div class="col-md-6"><input type="text" name="deadline" id="deadline_picker" value="{% if form_data.deadline %}{{ form_data.deadline }}{% elif activity.deadline %}{{ activity.deadline|localtime|date:'Y. m. d. H:i' }}{% endif %}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="마감 날짜/시간" readonly></div>
+                            <div class="col-md-auto exam-period-field"><input type="text" name="start_time" id="start_time_picker" value="{% if form_data.start_time %}{{ form_data.start_time }}{% elif activity.start_time %}{{ activity.start_time|localtime|date:'Y. m. d. H:i' }}{% endif %}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="시작 날짜/시간" readonly></div>
+                            <div class="col-md-auto exam-period-field"><input type="text" name="deadline" id="deadline_picker" value="{% if form_data.deadline %}{{ form_data.deadline }}{% elif activity.deadline %}{{ activity.deadline|localtime|date:'Y. m. d. H:i' }}{% endif %}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="마감 날짜/시간" readonly></div>
                         </div>
                         <small class="text-muted d-block mt-2">비워두면 지금부터 1년 동안 응시할 수 있도록 자동 설정됩니다.</small>
                     </div>
@@ -329,7 +343,7 @@
                     <div class="col-12 col-md-6 position-relative"><input class="exam-mode-input" type="radio" name="exam_mode" id="note_mode_open_free" value="OPEN_FREE" {% if form_data.exam_mode == 'OPEN_FREE' or activity.exam_mode == 'OPEN_FREE' or not activity and not form_data %}checked{% endif %}><label class="exam-mode-card d-flex align-items-center justify-content-between gap-3 p-3 h-100" for="note_mode_open_free"><span class="d-flex align-items-center gap-3"><span class="exam-mode-icon"><i class="bi bi-journal-check"></i></span><span><strong class="d-block">개방형 + 복사허용</strong><small class="text-muted fw-bold">참고자료 활용 환경</small></span></span><span class="exam-mode-badges d-flex flex-column gap-1"><span class="exam-mode-feature text-success">이동 자유</span><span class="exam-mode-feature text-success">복사 허용</span></span></label></div>
                 </div></div>
                 <div class="col-md-6"><label class="fw-bold mb-2 d-block">제출 후 수정 허용</label><div class="d-flex gap-4 py-3"><div class="form-check"><input class="form-check-input" type="radio" name="allow_edit_after_submission" id="note_edit_allow" value="True" {% if form_data.allow_edit_after_submission == 'True' or activity.allow_edit_after_submission or not activity and not form_data %}checked{% endif %}><label class="form-check-label fw-bold text-primary" for="note_edit_allow"><i class="bi bi-check-circle-fill me-1"></i>수정 허용</label></div><div class="form-check"><input class="form-check-input" type="radio" name="allow_edit_after_submission" id="note_edit_deny" value="False" {% if form_data.allow_edit_after_submission == 'False' or activity and not activity.allow_edit_after_submission %}checked{% endif %}><label class="form-check-label fw-bold text-danger" for="note_edit_deny"><i class="bi bi-slash-circle-fill me-1"></i>수정 불가</label></div></div><small class="text-muted"><i class="bi bi-info-circle me-1"></i>수정 불가 설정 시 제출 후에는 내용을 다시 고칠 수 없습니다.</small></div>
-                <div class="col-12"><label class="fw-bold mb-2">응시 기간</label><div class="row g-2 align-items-center"><div class="col-md"><input type="text" id="start_time_picker" name="start_time" class="form-control p-3 border-0 shadow-sm" value="{% if form_data.start_time %}{{ form_data.start_time }}{% elif activity.start_time %}{{ activity.start_time|localtime|date:'Y. m. d. H:i' }}{% endif %}" placeholder="시작 날짜/시간" readonly></div><div class="col-md-auto fw-bold text-secondary">부터 응시(예약 발행)</div><div class="col-md"><input type="text" id="deadline_picker" name="deadline" class="form-control p-3 border-0 shadow-sm" value="{% if form_data.deadline %}{{ form_data.deadline }}{% elif activity.deadline %}{{ activity.deadline|localtime|date:'Y. m. d. H:i' }}{% endif %}" placeholder="마감 날짜/시간" readonly></div><div class="col-md-auto fw-bold text-secondary">에 제출 마감(제출 기한)</div></div><small class="text-muted d-block mt-2">비워두면 시작은 현재 시각, 마감은 현재 시각부터 1년 후로 자동 설정됩니다.</small></div>
+                <div class="col-12"><label class="fw-bold mb-2">응시 기간</label><div class="row g-2 align-items-center"><div class="col-md-auto exam-period-field"><input type="text" id="start_time_picker" name="start_time" class="form-control p-3 border-0 shadow-sm" value="{% if form_data.start_time %}{{ form_data.start_time }}{% elif activity.start_time %}{{ activity.start_time|localtime|date:'Y. m. d. H:i' }}{% endif %}" placeholder="시작 날짜/시간" readonly></div><div class="col-md-auto fw-bold text-secondary">부터 응시(예약 발행)</div><div class="col-md-auto exam-period-field"><input type="text" id="deadline_picker" name="deadline" class="form-control p-3 border-0 shadow-sm" value="{% if form_data.deadline %}{{ form_data.deadline }}{% elif activity.deadline %}{{ activity.deadline|localtime|date:'Y. m. d. H:i' }}{% endif %}" placeholder="마감 날짜/시간" readonly></div><div class="col-md-auto fw-bold text-secondary">에 제출 마감(제출 기한)</div></div><small class="text-muted d-block mt-2">비워두면 시작은 현재 시각, 마감은 현재 시각부터 1년 후로 자동 설정됩니다.</small></div>
             </div>
         </div>
 
@@ -486,9 +500,9 @@
                 <div class="col-md-3 text-center fw-bold text-secondary border-end">응시 기간</div>
                 <div class="col-md-9 px-4">
                     <div class="row g-2 align-items-center">
-                        <div class="col"><input type="text" name="start_time" id="start_time_picker" value="{% if form_data.start_time %}{{ form_data.start_time }}{% elif activity.start_time %}{{ activity.start_time|localtime|date:'Y. m. d. H:i' }}{% endif %}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="시작 날짜/시간" readonly></div>
+                        <div class="col-md-auto exam-period-field"><input type="text" name="start_time" id="start_time_picker" value="{% if form_data.start_time %}{{ form_data.start_time }}{% elif activity.start_time %}{{ activity.start_time|localtime|date:'Y. m. d. H:i' }}{% endif %}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="시작 날짜/시간" readonly></div>
                         <div class="col-auto fw-bold text-secondary">부터 응시(예약 발행)</div>
-                        <div class="col"><input type="text" name="deadline" id="deadline_picker" value="{% if form_data.deadline %}{{ form_data.deadline }}{% elif activity.deadline %}{{ activity.deadline|localtime|date:'Y. m. d. H:i' }}{% endif %}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="마감 날짜/시간" readonly></div>
+                        <div class="col-md-auto exam-period-field"><input type="text" name="deadline" id="deadline_picker" value="{% if form_data.deadline %}{{ form_data.deadline }}{% elif activity.deadline %}{{ activity.deadline|localtime|date:'Y. m. d. H:i' }}{% endif %}" class="form-control border-0 shadow-sm p-3 datetime-picker bg-white" placeholder="마감 날짜/시간" readonly></div>
                         <div class="col-auto fw-bold text-secondary">에 제출 마감(제출 기한)</div>
                     </div>
                     <small class="text-muted d-block mt-2">비워두면 시작은 현재 시각, 마감은 현재 시각부터 1년 후로 자동 설정됩니다.</small>
