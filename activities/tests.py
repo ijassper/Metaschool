@@ -60,7 +60,8 @@ class ActivitySchedulingTests(SimpleTestCase):
         self.assertIn('name="start_time"', source)
         self.assertIn('부터 응시(예약 발행)', source)
         self.assertIn('에 제출 마감(제출 기한)', source)
-        self.assertIn('flex: 0 0 220px', source)
+        self.assertIn('flex: 0 0 180px', source)
+        self.assertIn('exam-period-start-label { margin-right: 100px; }', source)
         self.assertIn('col-md-auto exam-period-field', source)
         self.assertNotIn('alert("제출 기한을 입력해주세요.")', source)
 
