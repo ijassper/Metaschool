@@ -2916,19 +2916,15 @@
     }
 
     function countLimitCharacters(value) {
-        return Array.from(String(value || '')).reduce(function(total, character) {
-            return total + (/\s/u.test(character) ? 0 : 1);
-        }, 0);
+        return Array.from(String(value || '')).length;
     }
 
     function truncateToLimitCharacters(value, maximumCount) {
         let count = 0;
         let result = '';
         for (const character of Array.from(String(value || ''))) {
-            if (!/\s/u.test(character)) {
-                if (count >= maximumCount) break;
-                count += 1;
-            }
+            if (count >= maximumCount) break;
+            count += 1;
             result += character;
         }
         return result;

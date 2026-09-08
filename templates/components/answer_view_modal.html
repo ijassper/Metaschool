@@ -456,8 +456,8 @@
             .replace(/'/g, '&#39;');
     }
 
-    function countNonWhitespace(value) {
-        return ((value || '').toString().match(/\S/g) || []).length;
+    function countAnswerCharacters(value) {
+        return Array.from((value || '').toString()).length;
     }
 
     function countAnswerBodyCharacters(value) {
@@ -466,7 +466,7 @@
             .split('\n')
             .filter((line) => !/^\s*\[[^\]]*\]\s*$/.test(line))
             .join('\n');
-        return countNonWhitespace(bodyOnly);
+        return countAnswerCharacters(bodyOnly);
     }
 
     function normalizeAnswerTitle(value) {
@@ -506,7 +506,7 @@
             textLines = [];
             
             if (hasHeader) {
-                if (currentCountBadge) currentCountBadge.textContent = `${countNonWhitespace(text)}자`;
+                if (currentCountBadge) currentCountBadge.textContent = `${countAnswerCharacters(text)}자`;
                 const textElement = document.createElement('div');
                 if (!text.trim()) {
                     textElement.className = 'answer-content-text text-gray-400 italic font-medium';
@@ -603,7 +603,7 @@
         headings.forEach((heading) => {
             const textElement = heading.nextElementSibling;
             const badge = heading.querySelector('[data-answer-count]');
-            if (badge) badge.textContent = `${countNonWhitespace(textElement?.textContent || '')}자`;
+            if (badge) badge.textContent = `${countAnswerCharacters(textElement?.textContent || '')}자`;
         });
         return wrapper.innerHTML;
     }

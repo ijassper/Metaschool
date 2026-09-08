@@ -12,7 +12,8 @@ from django.utils import timezone
 
 from .views.exam_views import (
     normalize_notebook_pages,
-    non_whitespace_character_count,
+    answer_character_count,
+    character_limit_error,
     pdf_viewer,
     snapshot_char_count,
     snapshot_fingerprint,
@@ -92,7 +93,7 @@ class NotebookPageDataTests(SimpleTestCase):
             'ans_q3': '',
             'notebook_pages': ['첫 쪽', '두 번째 쪽'],
         }
-        self.assertEqual(snapshot_char_count(snapshot), 6)
+        self.assertEqual(snapshot_char_count(snapshot), 9)
 
     def test_revision_fingerprint_is_stable_for_same_snapshot(self):
         first = {'ans_q1': '답안', 'ans_q2': '', 'ans_q3': '', 'notebook_pages': []}
@@ -101,26 +102,32 @@ class NotebookPageDataTests(SimpleTestCase):
 
 
 class StudentAnswerCharacterCountTests(SimpleTestCase):
-    def test_common_counter_excludes_spaces_tabs_and_linebreaks(self):
-        self.assertEqual(non_whitespace_character_count('가 나\t다\n라마바'), 6)
+    def test_common_counter_includes_spaces_tabs_and_linebreaks(self):
+        self.assertEqual(answer_character_count('가 나\t다\n라마바'), 9)
 
-    def test_submission_counter_matches_teacher_non_whitespace_rule(self):
+    def test_submission_counter_includes_whitespace(self):
         activity = Activity(sub_category='학급/학년특색활동')
         form_data = {
             'ans_q1': '첫 번째 답안',
             'ans_q2': '둘째\n답안',
             'ans_q3': ' ',
         }
-        self.assertEqual(submitted_answer_char_count(activity, form_data), 9)
+        self.assertEqual(submitted_answer_char_count(activity, form_data), 13)
 
-    def test_notebook_submission_uses_same_non_whitespace_rule(self):
+    def test_notebook_submission_uses_same_whitespace_including_rule(self):
         activity = Activity(sub_category='수업 노트/연습장')
         form_data = {'notebook_pages': '["첫 쪽", "두\\n번째 쪽"]'}
-        self.assertEqual(submitted_answer_char_count(activity, form_data), 6)
+        self.assertEqual(submitted_answer_char_count(activity, form_data), 9)
 
-    def test_student_template_uses_shared_whitespace_excluding_javascript_counter(self):
+    def test_minimum_300_boundary_blocks_299_and_accepts_300(self):
+        activity = Activity(limit_type='RANGE', min_length=300, max_length=99999)
+        self.assertEqual(character_limit_error(activity, 299), '최소 300자 이상 작성해야 합니다.')
+        self.assertEqual(character_limit_error(activity, 300), '')
+
+    def test_student_template_uses_shared_whitespace_including_javascript_counter(self):
         source = get_template('activities/take_test.html').template.source
         self.assertIn('function countLimitCharacters(value)', source)
+        self.assertIn("return Array.from(String(value || '')).length", source)
         self.assertIn('truncateToLimitCharacters(target.value, allowedLength)', source)
         self.assertIn('countLimitCharacters(notebookEditor.value)', source)
         self.assertIn("textarea.addEventListener('compositionend', updateCharCount)", source)
@@ -742,7 +749,7 @@ class AnswerCharacterCountTests(SimpleTestCase):
 
     def test_answer_modal_contains_per_item_counter_renderer(self):
         source = get_template('components/answer_view_modal.html').template.source
-        self.assertIn('countNonWhitespace', source)
+        self.assertIn('countAnswerCharacters', source)
         self.assertIn('countAnswerBodyCharacters', source)
         self.assertIn('normalizeAnswerTitle', source)
         self.assertIn('answer-character-count', source)

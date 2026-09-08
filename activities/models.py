@@ -436,7 +436,7 @@ class AnswerDraftRevision(models.Model):
         verbose_name='답안',
     )
     content_snapshot = models.JSONField(default=dict, verbose_name='답안 스냅샷')
-    char_count = models.PositiveIntegerField(default=0, verbose_name='공백 제외 글자 수')
+    char_count = models.PositiveIntegerField(default=0, verbose_name='공백 포함 글자 수')
     fingerprint = models.CharField(max_length=64, verbose_name='내용 지문')
     save_reason = models.CharField(
         max_length=20,

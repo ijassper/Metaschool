@@ -69,12 +69,12 @@ def snapshot_char_count(snapshot):
     values = notebook_pages or [
         snapshot.get('ans_q1', ''), snapshot.get('ans_q2', ''), snapshot.get('ans_q3', '')
     ]
-    return sum(non_whitespace_character_count(value) for value in values)
+    return sum(answer_character_count(value) for value in values)
 
 
-def non_whitespace_character_count(value):
-    """교사·학생 화면에서 공통으로 사용하는 공백 제외 글자 수입니다."""
-    return sum(1 for character in str(value or '') if not character.isspace())
+def answer_character_count(value):
+    """교사·학생·제출 검증에서 공통으로 사용하는 공백 포함 글자 수입니다."""
+    return len(str(value or ''))
 
 
 def snapshot_fingerprint(snapshot):
@@ -267,12 +267,12 @@ def save_answer_content(answer, activity, form_data):
 
 
 def submitted_answer_char_count(activity, form_data):
-    """교사 답안 모달과 동일하게 공백을 제외한 학생 답안 글자 수를 계산합니다."""
+    """공백을 포함하여 제출 대상 학생 답안의 전체 글자 수를 계산합니다."""
     if activity.is_notebook:
         pages = normalize_notebook_pages(form_data.get('notebook_pages'), form_data.get('ans_q1', ''))
-        return sum(non_whitespace_character_count(page) for page in pages)
+        return sum(answer_character_count(page) for page in pages)
     return sum(
-        non_whitespace_character_count(form_data.get(name, ''))
+        answer_character_count(form_data.get(name, ''))
         for name in ('ans_q1', 'ans_q2', 'ans_q3')
     )
 
