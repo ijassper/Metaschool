@@ -756,6 +756,13 @@ class AnswerCharacterCountTests(SimpleTestCase):
         self.assertIn('currentCountBadge', source)
         self.assertNotIn('totalCountBadge.hidden = hasHeader', source)
 
+    def test_result_page_has_answer_hover_preview_without_question_section(self):
+        source = get_template('activities/activity_result.html').template.source
+        self.assertIn('answer-preview-trigger', source)
+        self.assertIn('학생 답안지 미리보기', source)
+        self.assertIn('renderAnswerHoverPreview', source)
+        self.assertNotIn("answerHoverPreview__question", source)
+
 
 class CreativeSidebarMenuTests(SimpleTestCase):
     def test_class_grade_feature_activity_menu_is_available(self):

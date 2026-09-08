@@ -169,7 +169,9 @@
                             {% if item.status == '제출 완료' or item.status == '백지 제출' %}
                                 <button
                                     type="button"
-                                    class="btn btn-primary btn-sm rounded-pill px-3"
+                                    class="btn btn-primary btn-sm rounded-pill px-3 answer-preview-trigger"
+                                    aria-haspopup="dialog"
+                                    aria-label="{{ item.student.name }} 학생 답안 저장, 출력 및 미리보기"
                                     data-student-name="{{ item.student.name|default:''|escape }}"
                                     data-grade="{{ item.student.grade|default:''|escape }}"
                                     data-class-no="{{ item.student.class_no|default:''|escape }}"
@@ -302,6 +304,88 @@
 
 <style>
     .answer-output-divider { margin:0 .28rem; opacity:.72; }
+    .answer-hover-preview {
+        position: fixed;
+        z-index: 1090;
+        width: min(480px, calc(100vw - 24px));
+        max-height: min(560px, calc(100vh - 24px));
+        overflow: hidden;
+        border: 1px solid rgba(142, 68, 173, .18);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, .98);
+        box-shadow: 0 18px 48px rgba(55, 32, 67, .24);
+        color: #29232d;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(6px) scale(.985);
+        transition: opacity .15s ease, transform .15s ease, visibility .15s ease;
+    }
+    .answer-hover-preview.is-visible {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+    }
+    .answer-hover-preview__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        color: #fff;
+        background: linear-gradient(135deg, #ec68ac 0%, #9345b1 100%);
+    }
+    .answer-hover-preview__title { margin: 0; font-size: 1rem; font-weight: 800; }
+    .answer-hover-preview__hint { font-size: .72rem; opacity: .86; white-space: nowrap; }
+    .answer-hover-preview__body { padding: 14px 16px 16px; }
+    .answer-hover-preview__meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border: 1px solid #e8e0eb;
+        border-radius: 12px;
+        background: #fbf9fc;
+        font-size: .78rem;
+        line-height: 1.45;
+    }
+    .answer-hover-preview__student { font-weight: 750; text-align: right; }
+    .answer-hover-preview__answer-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 7px;
+        color: #1668c7;
+        font-weight: 800;
+        font-size: .86rem;
+    }
+    .answer-hover-preview__count {
+        flex: 0 0 auto;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #747d86;
+        color: #fff;
+        font-size: .72rem;
+    }
+    .answer-hover-preview__content {
+        max-height: 350px;
+        overflow: auto;
+        padding: 12px 13px;
+        border: 1px solid #e0e3e7;
+        border-radius: 12px;
+        background: #fff;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-size: .84rem;
+        line-height: 1.65;
+    }
+    .answer-hover-preview__empty { color: #8c9298; font-style: italic; }
+    @media (max-width: 767.98px), (hover: none) {
+        .answer-hover-preview { display: none !important; }
+    }
     .quick-score-select { width:82px; border-color:#dec9e5; color:#7e3f91; font-weight:750; }
     .quick-score-select.is-saving { opacity:.55; pointer-events:none; }
     .activity-create-link {
@@ -608,6 +692,7 @@
 
     // 2. 답안 확인 모달 열기
     function openAnswerModal(buttonEl) {
+        hideAnswerHoverPreview(true);
         const data = buttonEl.dataset;
         const name = data.studentName || '';
         const grade = data.grade || '';
@@ -628,6 +713,155 @@
             name, grade, classNo, number // PDF 저장용 원본 데이터 전달
         });
     }
+
+    let answerHoverPreview = null;
+    let answerHoverOpenTimer = null;
+    let answerHoverCloseTimer = null;
+    let answerHoverTrigger = null;
+
+    function getAnswerHoverPreview() {
+        if (answerHoverPreview) return answerHoverPreview;
+        answerHoverPreview = document.createElement('section');
+        answerHoverPreview.className = 'answer-hover-preview';
+        answerHoverPreview.setAttribute('role', 'dialog');
+        answerHoverPreview.setAttribute('aria-label', '학생 답안 미리보기');
+        answerHoverPreview.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(answerHoverPreview);
+        answerHoverPreview.addEventListener('mouseenter', cancelAnswerHoverClose);
+        answerHoverPreview.addEventListener('mouseleave', scheduleAnswerHoverClose);
+        return answerHoverPreview;
+    }
+
+    function answerPreviewCharacterCount(value) {
+        if (typeof countAnswerBodyCharacters === 'function') {
+            return countAnswerBodyCharacters(value);
+        }
+        return Array.from((value || '').toString()).length;
+    }
+
+    function renderAnswerHoverPreview(buttonEl) {
+        const preview = getAnswerHoverPreview();
+        const data = buttonEl.dataset;
+        const answerContent = data.answerContent || '';
+        const studentInfo = `${data.grade || ''}학년 ${data.classNo || ''}반 ${data.number || ''}번 ${data.studentName || ''}`.trim();
+        preview.replaceChildren();
+
+        const header = document.createElement('header');
+        header.className = 'answer-hover-preview__header';
+        const title = document.createElement('h3');
+        title.className = 'answer-hover-preview__title';
+        title.textContent = '학생 답안지 미리보기';
+        const hint = document.createElement('span');
+        hint.className = 'answer-hover-preview__hint';
+        hint.textContent = '클릭하면 저장·출력';
+        header.append(title, hint);
+
+        const body = document.createElement('div');
+        body.className = 'answer-hover-preview__body';
+        const meta = document.createElement('div');
+        meta.className = 'answer-hover-preview__meta';
+        const submitted = document.createElement('span');
+        submitted.textContent = `제출일시  ${data.submitted || '-'}`;
+        const student = document.createElement('span');
+        student.className = 'answer-hover-preview__student';
+        student.textContent = `${data.schoolName || ''}${data.schoolName ? ' · ' : ''}${studentInfo}`;
+        meta.append(submitted, student);
+
+        const answerHeading = document.createElement('div');
+        answerHeading.className = 'answer-hover-preview__answer-heading';
+        const answerLabel = document.createElement('span');
+        answerLabel.textContent = '작성한 답안';
+        const count = document.createElement('span');
+        count.className = 'answer-hover-preview__count';
+        count.textContent = `${answerPreviewCharacterCount(answerContent)}자`;
+        answerHeading.append(answerLabel, count);
+
+        const content = document.createElement('div');
+        content.className = 'answer-hover-preview__content';
+        if (answerContent.trim()) {
+            content.textContent = answerContent;
+        } else {
+            content.classList.add('answer-hover-preview__empty');
+            content.textContent = '작성된 내용이 없습니다.';
+        }
+        body.append(meta, answerHeading, content);
+        preview.append(header, body);
+    }
+
+    function positionAnswerHoverPreview(buttonEl) {
+        const preview = getAnswerHoverPreview();
+        const triggerRect = buttonEl.getBoundingClientRect();
+        const previewRect = preview.getBoundingClientRect();
+        const gap = 10;
+        const viewportPadding = 12;
+        let left = triggerRect.left + (triggerRect.width - previewRect.width) / 2;
+        left = Math.max(viewportPadding, Math.min(left, window.innerWidth - previewRect.width - viewportPadding));
+        let top = triggerRect.top - previewRect.height - gap;
+        if (top < viewportPadding) top = triggerRect.bottom + gap;
+        top = Math.max(viewportPadding, Math.min(top, window.innerHeight - previewRect.height - viewportPadding));
+        preview.style.left = `${Math.round(left)}px`;
+        preview.style.top = `${Math.round(top)}px`;
+    }
+
+    function showAnswerHoverPreview(buttonEl) {
+        if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+        window.clearTimeout(answerHoverCloseTimer);
+        window.clearTimeout(answerHoverOpenTimer);
+        answerHoverOpenTimer = window.setTimeout(function() {
+            answerHoverTrigger = buttonEl;
+            renderAnswerHoverPreview(buttonEl);
+            const preview = getAnswerHoverPreview();
+            preview.classList.add('is-visible');
+            preview.setAttribute('aria-hidden', 'false');
+            buttonEl.setAttribute('aria-expanded', 'true');
+            positionAnswerHoverPreview(buttonEl);
+        }, 320);
+    }
+
+    function cancelAnswerHoverClose() {
+        window.clearTimeout(answerHoverCloseTimer);
+    }
+
+    function scheduleAnswerHoverClose() {
+        window.clearTimeout(answerHoverOpenTimer);
+        answerHoverCloseTimer = window.setTimeout(function() {
+            hideAnswerHoverPreview();
+        }, 140);
+    }
+
+    function hideAnswerHoverPreview(immediate) {
+        window.clearTimeout(answerHoverOpenTimer);
+        window.clearTimeout(answerHoverCloseTimer);
+        if (!answerHoverPreview) return;
+        const close = function() {
+            answerHoverPreview.classList.remove('is-visible');
+            answerHoverPreview.setAttribute('aria-hidden', 'true');
+            if (answerHoverTrigger) answerHoverTrigger.setAttribute('aria-expanded', 'false');
+            answerHoverTrigger = null;
+        };
+        if (immediate) close();
+        else answerHoverCloseTimer = window.setTimeout(close, 40);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.answer-preview-trigger').forEach(function(buttonEl) {
+            buttonEl.setAttribute('aria-expanded', 'false');
+            buttonEl.addEventListener('mouseenter', function() { showAnswerHoverPreview(buttonEl); });
+            buttonEl.addEventListener('mouseleave', scheduleAnswerHoverClose);
+            buttonEl.addEventListener('focus', function() { showAnswerHoverPreview(buttonEl); });
+            buttonEl.addEventListener('blur', scheduleAnswerHoverClose);
+            buttonEl.addEventListener('click', function() { hideAnswerHoverPreview(true); });
+        });
+        window.addEventListener('scroll', function(event) {
+            // 긴 답안의 미리보기 내부 스크롤은 유지하고, 바깥 화면이 움직일 때만 닫는다.
+            if (answerHoverPreview && answerHoverPreview.contains(event.target)) return;
+            hideAnswerHoverPreview(true);
+        }, true);
+        window.addEventListener('resize', function() { hideAnswerHoverPreview(true); });
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') hideAnswerHoverPreview(true);
+        });
+    });
 
     function escapeHtml(value) {
         return (value || '').toString()
