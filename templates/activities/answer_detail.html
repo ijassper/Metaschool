@@ -231,7 +231,7 @@
                         <time class="feedback-published-time" datetime="{{ feedback.published_at|date:'c' }}">{{ feedback.published_at|localtime|date:"Y.m.d H:i" }}</time>
                         {% else %}
                         <button type="button" class="feedback-history-publish-button" data-publish-feedback="{{ feedback.id }}">
-                            <i class="bi bi-send-check"></i> 학생에게 피드백 공개
+                            <i class="bi bi-send-check"></i> 학생에게 피드백 배부
                         </button>
                         {% endif %}
                         {% if feedback.is_published and feedback.is_read %}
@@ -259,11 +259,11 @@
 <dialog id="feedbackPublishDialog" class="feedback-publish-dialog" aria-labelledby="feedbackPublishDialogTitle">
     <form method="dialog" class="feedback-publish-dialog-card">
         <span class="feedback-publish-dialog-icon"><i class="bi bi-send-check"></i></span>
-        <h3 id="feedbackPublishDialogTitle">학생에게 피드백을 공개할까요?</h3>
-        <p>공개하면 학생 대시보드에 피드백 공개 알림이 표시되며, 학생이 열람한 뒤에는 피드백을 수정할 수 없습니다.</p>
+        <h3 id="feedbackPublishDialogTitle">학생에게 피드백을 배부할까요?</h3>
+        <p>배부하면 학생 대시보드에 피드백 배부 알림이 표시되며, 학생이 열람한 뒤에는 피드백을 수정할 수 없습니다.</p>
         <div class="feedback-publish-dialog-actions">
             <button type="submit" value="cancel" class="feedback-publish-cancel">취소</button>
-            <button id="confirmFeedbackPublish" type="button" class="feedback-publish-confirm">공개하기</button>
+            <button id="confirmFeedbackPublish" type="button" class="feedback-publish-confirm">배부하기</button>
         </div>
     </form>
 </dialog>
@@ -461,7 +461,7 @@
                 <i class="bi bi-check2-circle"></i> 최종 저장
             </button>
             <button id="publishFollowupDraft" type="button" class="source-create-button followup-publish-button" hidden>
-                <i class="bi bi-send-check"></i> 학생에게 피드백 공개
+                <i class="bi bi-send-check"></i> 학생에게 피드백 배부
             </button>
         </div>
     </footer>
@@ -702,13 +702,14 @@
     .feedback-history-content { margin-top:1rem; padding:1.25rem; border:1px solid #eadfeb; border-radius:14px; background:#fff; color:#4e4651; font-size:.86rem; line-height:1.85; white-space:pre-wrap; }
     .feedback-history-actions { display:flex; align-items:center; justify-content:flex-end; gap:.45rem; flex-wrap:wrap; }
     .feedback-history-edit-button, .feedback-history-publish-button, .feedback-published-badge, .feedback-read-badge { display:inline-flex; align-items:center; gap:.35rem; min-height:32px; padding:.38rem .7rem; border-radius:999px; font-size:.7rem; font-weight:800; }
+    .feedback-history-edit-button, .feedback-history-publish-button, .feedback-published-badge { font-size:1.05rem; }
     .feedback-history-edit-button { border:1px solid #d9c9dd; background:#fff; color:#665a69; }
     .feedback-history-edit-button:hover { border-color:#a86fba; color:#7d3c98; }
     .feedback-history-publish-button { border:1px solid #a86fba; background:#fff; color:#7d3c98; }
     .feedback-history-publish-button:hover { background:#f5eaf8; }
     .feedback-published-badge { background:#f1e6f5; color:#7d3c98; }
     .feedback-read-badge { background:#e8f7ef; color:#168454; }
-    .feedback-published-time { color:#8d8290; font-size:.68rem; font-weight:700; }
+    .feedback-published-time { color:#8d8290; font-size:1.02rem; font-weight:700; }
     .feedback-history-editor { margin-top:1rem; }
     .feedback-history-editor textarea { width:100%; min-height:380px; resize:vertical; padding:1.25rem; border:1px solid #a86fba; border-radius:14px; background:#fff; color:#4e4651; font:inherit; font-size:.86rem; line-height:1.85; outline:none; box-shadow:0 0 0 4px rgba(142,68,173,.07); }
     .feedback-history-editor-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:.65rem; }
@@ -1650,9 +1651,9 @@
             } else if (currentFeedbackIsRead) {
                 publicationStatus.innerHTML = `<i class="bi bi-check2-all"></i> 읽음 확인${feedbackResult.read_at ? ` · ${feedbackResult.read_at}` : ''}`;
             } else if (feedbackResult.is_published) {
-                publicationStatus.innerHTML = `<i class="bi bi-send-check"></i> 학생에게 공개됨${feedbackResult.published_at ? ` · ${feedbackResult.published_at}` : ''}`;
+                publicationStatus.innerHTML = `<i class="bi bi-send-check"></i> 학생에게 배부됨${feedbackResult.published_at ? ` · ${feedbackResult.published_at}` : ''}`;
             } else {
-                publicationStatus.innerHTML = '<i class="bi bi-lock"></i> 아직 학생에게 공개되지 않음';
+                publicationStatus.innerHTML = '<i class="bi bi-lock"></i> 아직 학생에게 배부되지 않음';
             }
         }
 
@@ -1974,7 +1975,7 @@
             pendingPublishFeedbackId = feedbackId;
             if (typeof publishDialog.showModal === 'function') {
                 publishDialog.showModal();
-            } else if (window.confirm('피드백을 학생에게 공개할까요? 학생이 열람한 뒤에는 수정할 수 없습니다.')) {
+            } else if (window.confirm('피드백을 학생에게 배부할까요? 학생이 열람한 뒤에는 수정할 수 없습니다.')) {
                 publishFeedback(feedbackId);
             }
         }
@@ -1982,20 +1983,20 @@
         async function publishFeedback(feedbackId) {
             if (!feedbackId) return;
             confirmPublishButton.disabled = true;
-            confirmPublishButton.textContent = '공개 중...';
+            confirmPublishButton.textContent = '배부 중...';
             try {
                 const response = await fetch(publishUrlTemplate.replace('999999', feedbackId), {
                     method: 'POST',
                     headers: {'X-CSRFToken':'{{ csrf_token }}','X-Requested-With':'XMLHttpRequest'}
                 });
                 const data = await response.json();
-                if (!response.ok || data.status !== 'success') throw new Error(data.message || '피드백을 공개하지 못했습니다.');
+                if (!response.ok || data.status !== 'success') throw new Error(data.message || '피드백을 배부하지 못했습니다.');
                 window.location.reload();
             } catch (error) {
                 if (publishDialog.open) publishDialog.close();
-                window.alert(error.message || '피드백 공개 중 오류가 발생했습니다.');
+                window.alert(error.message || '피드백 배부 중 오류가 발생했습니다.');
                 confirmPublishButton.disabled = false;
-                confirmPublishButton.textContent = '공개하기';
+                confirmPublishButton.textContent = '배부하기';
             }
         }
 
@@ -2013,7 +2014,7 @@
         publishDialog.addEventListener('close', function () {
             pendingPublishFeedbackId = null;
             confirmPublishButton.disabled = false;
-            confirmPublishButton.textContent = '공개하기';
+            confirmPublishButton.textContent = '배부하기';
         });
         document.querySelectorAll('[data-edit-feedback]').forEach(function (button) {
             button.addEventListener('click', function () {

@@ -724,6 +724,8 @@ class FeedbackResultTitleTests(SimpleTestCase):
         source = get_template('activities/answer_detail.html').template.source
         self.assertIn('feedbackPublishDialog', source)
         self.assertIn('data-publish-feedback', source)
+        self.assertIn('학생에게 피드백 배부', source)
+        self.assertNotIn('학생에게 피드백 공개', source)
         self.assertIn('학생이 열람한 뒤에는 피드백을 수정할 수 없습니다.', source)
 
     def test_answer_detail_contains_inline_feedback_editor(self):
