@@ -761,6 +761,9 @@ class AnswerCharacterCountTests(SimpleTestCase):
         self.assertIn('answer-preview-trigger', source)
         self.assertIn('학생 답안지 미리보기', source)
         self.assertIn('renderAnswerHoverPreview', source)
+        self.assertIn("width: min(600px, calc(100vw - 24px))", source)
+        self.assertIn("openButton.innerHTML = '저장", source)
+        self.assertNotIn('클릭하면 저장·출력', source)
         self.assertNotIn("answerHoverPreview__question", source)
 
 

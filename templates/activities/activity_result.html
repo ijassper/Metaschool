@@ -307,8 +307,8 @@
     .answer-hover-preview {
         position: fixed;
         z-index: 1090;
-        width: min(480px, calc(100vw - 24px));
-        max-height: min(560px, calc(100vh - 24px));
+        width: min(600px, calc(100vw - 24px));
+        max-height: min(780px, calc(100vh - 24px));
         overflow: hidden;
         border: 1px solid rgba(142, 68, 173, .18);
         border-radius: 20px;
@@ -337,7 +337,6 @@
         background: linear-gradient(135deg, #ec68ac 0%, #9345b1 100%);
     }
     .answer-hover-preview__title { margin: 0; font-size: 1rem; font-weight: 800; }
-    .answer-hover-preview__hint { font-size: .72rem; opacity: .86; white-space: nowrap; }
     .answer-hover-preview__body { padding: 14px 16px 16px; }
     .answer-hover-preview__meta {
         display: flex;
@@ -362,6 +361,12 @@
         font-weight: 800;
         font-size: .86rem;
     }
+    .answer-hover-preview__answer-summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+    }
     .answer-hover-preview__count {
         flex: 0 0 auto;
         padding: 2px 8px;
@@ -370,8 +375,26 @@
         color: #fff;
         font-size: .72rem;
     }
+    .answer-hover-preview__open {
+        flex: 0 0 auto;
+        padding: 5px 12px;
+        border: 1px solid #b970c7;
+        border-radius: 999px;
+        background: #fff;
+        color: #88409e;
+        font-size: .75rem;
+        font-weight: 800;
+        line-height: 1.25;
+        cursor: pointer;
+    }
+    .answer-hover-preview__open:hover,
+    .answer-hover-preview__open:focus-visible {
+        background: #f7ebfa;
+        border-color: #9345b1;
+        outline: none;
+    }
     .answer-hover-preview__content {
-        max-height: 350px;
+        max-height: min(600px, calc(100vh - 210px));
         overflow: auto;
         padding: 12px 13px;
         border: 1px solid #e0e3e7;
@@ -751,10 +774,7 @@
         const title = document.createElement('h3');
         title.className = 'answer-hover-preview__title';
         title.textContent = '학생 답안지 미리보기';
-        const hint = document.createElement('span');
-        hint.className = 'answer-hover-preview__hint';
-        hint.textContent = '클릭하면 저장·출력';
-        header.append(title, hint);
+        header.append(title);
 
         const body = document.createElement('div');
         body.className = 'answer-hover-preview__body';
@@ -769,12 +789,26 @@
 
         const answerHeading = document.createElement('div');
         answerHeading.className = 'answer-hover-preview__answer-heading';
+        const answerSummary = document.createElement('span');
+        answerSummary.className = 'answer-hover-preview__answer-summary';
         const answerLabel = document.createElement('span');
         answerLabel.textContent = '작성한 답안';
         const count = document.createElement('span');
         count.className = 'answer-hover-preview__count';
         count.textContent = `${answerPreviewCharacterCount(answerContent)}자`;
-        answerHeading.append(answerLabel, count);
+        answerSummary.append(answerLabel, count);
+        const openButton = document.createElement('button');
+        openButton.type = 'button';
+        openButton.className = 'answer-hover-preview__open';
+        openButton.innerHTML = '저장<span class="answer-output-divider">|</span>출력';
+        openButton.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            const trigger = answerHoverTrigger;
+            hideAnswerHoverPreview(true);
+            if (trigger) trigger.click();
+        });
+        answerHeading.append(answerSummary, openButton);
 
         const content = document.createElement('div');
         content.className = 'answer-hover-preview__content';
