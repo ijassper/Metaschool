@@ -785,11 +785,11 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
 
     def test_teacher_portfolio_indexes_question_answers_and_followups(self):
         source = get_template('activities/answer_detail.html').template.source
-        self.assertIn('data-history-target="question"', source)
-        self.assertIn("entry.kind == 'answer'", source)
-        self.assertIn("entry.kind == 'feedback'", source)
-        view_source = Path('activities/views/result_views.py').read_text(encoding='utf-8')
-        self.assertIn("f'추후활동 [{feedback.display_title}]'", view_source)
+        self.assertIn('{% for entry in answer_entries %}', source)
+        self.assertIn('data-history-target="{{ entry.target }}"', source)
+        self.assertIn('{% for feedback in entry.feedbacks %}', source)
+        self.assertIn('추후활동 [{{ feedback.display_title }}]', source)
+        self.assertNotIn('data-history-target="feedback-', source)
 
     def test_student_result_exposes_rewrite_entry_point(self):
         source = get_template('activities/student_result_detail.html').template.source

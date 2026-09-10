@@ -56,17 +56,15 @@
 
     <main class="portfolio-folder">
         <nav class="portfolio-index" aria-label="포트폴리오 색인">
-            <button type="button" class="portfolio-index-tab is-active" data-history-target="question">
-                <span>01</span><span class="portfolio-index-label">평가문항</span>
-            </button>
-            {% for entry in portfolio_entries %}
-            <button type="button" class="portfolio-index-tab{% if entry.kind == 'feedback' %} is-followup{% endif %}" data-history-target="{{ entry.target }}" title="{{ entry.title }}">
-                <span>{{ entry.number }}</span><span class="portfolio-index-label">{{ entry.title }}</span>
+            {% for entry in answer_entries %}
+            <button type="button" class="portfolio-index-tab{% if forloop.first %} is-active{% endif %}" data-history-target="{{ entry.target }}" title="{{ entry.title }}">
+                <span>{{ forloop.counter|stringformat:"02d" }}</span><span class="portfolio-index-label">{{ entry.title }}</span>
             </button>
             {% endfor %}
         </nav>
 
-        <div id="portfolio-panel-question" class="portfolio-sheet portfolio-history-panel" data-history-panel="question">
+        {% for entry in answer_entries %}
+        <div id="portfolio-panel-{{ entry.target }}" class="portfolio-sheet portfolio-history-panel" data-history-panel="{{ entry.target }}"{% if not forloop.first %} hidden{% endif %}>
             <section class="portfolio-section activity-content-section first-section">
                 <header class="section-header">
                     <div>
@@ -91,15 +89,11 @@
                     {% endif %}
                 </article>
             </section>
-        </div>
 
-        {% for entry in portfolio_entries %}
-        {% if entry.kind == 'answer' %}
-        <div id="portfolio-panel-{{ entry.target }}" class="portfolio-sheet portfolio-history-panel" data-history-panel="{{ entry.target }}" hidden>
-            <section{% if entry.is_latest %} id="answerKanban"{% endif %} class="portfolio-section first-section">
+            <section{% if entry.is_latest %} id="answerKanban"{% endif %} class="portfolio-section">
                 <header class="section-header">
                     <div>
-                        <span class="section-number">{{ entry.number }}</span>
+                        <span class="section-number">02</span>
                         <div>
                             <h3>{{ entry.title }}</h3>
                             <p>{% if entry.revision.submitted_at %}{{ entry.revision.submitted_at|localtime|date:"Y.m.d H:i" }} 제출{% else %}제출 일시 없음{% endif %}</p>
@@ -155,6 +149,43 @@
                 </div>
             </section>
 
+            {% for feedback in entry.feedbacks %}
+            <section class="portfolio-section feedback-history-section">
+                <header class="section-header">
+                    <div>
+                        <span class="section-number">{{ forloop.counter|add:2|stringformat:"02d" }}</span>
+                        <div>
+                            <h3>추후활동 [{{ feedback.display_title }}]</h3>
+                            <p>{{ feedback.created_at|localtime|date:"Y.m.d H:i" }}에 최종 저장된 작업입니다.</p>
+                        </div>
+                    </div>
+                    <div class="feedback-history-actions">
+                        {% if feedback.is_editable %}
+                        <button type="button" class="feedback-history-edit-button" data-edit-feedback="{{ feedback.id }}"><i class="bi bi-pencil-square"></i> 수정하기</button>
+                        {% endif %}
+                        {% if feedback.is_published %}
+                        <span class="feedback-published-badge"><i class="bi bi-send-check"></i> 공개 완료</span>
+                        <time class="feedback-published-time" datetime="{{ feedback.published_at|date:'c' }}">{{ feedback.published_at|localtime|date:"Y.m.d H:i" }}</time>
+                        {% else %}
+                        <button type="button" class="feedback-history-publish-button" data-publish-feedback="{{ feedback.id }}"><i class="bi bi-send-check"></i> 학생에게 피드백 배부</button>
+                        {% endif %}
+                        {% if feedback.is_published and feedback.is_read %}<span class="feedback-read-badge"><i class="bi bi-check2-all"></i> 읽음 확인</span>{% endif %}
+                    </div>
+                </header>
+                <article id="feedbackContent-{{ feedback.id }}" class="feedback-history-content">{{ feedback.feedback_content }}</article>
+                {% if feedback.is_editable %}
+                <div id="feedbackEditor-{{ feedback.id }}" class="feedback-history-editor" hidden>
+                    <textarea rows="18" aria-label="{{ feedback.display_title }} 내용 수정">{{ feedback.feedback_content }}</textarea>
+                    <p class="feedback-history-edit-status" aria-live="polite"></p>
+                    <div class="feedback-history-editor-actions">
+                        <button type="button" class="feedback-history-edit-cancel" data-cancel-feedback="{{ feedback.id }}">취소</button>
+                        <button type="button" class="feedback-history-edit-save" data-save-feedback="{{ feedback.id }}">수정 내용 저장</button>
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+            {% endfor %}
+
             {% if entry.is_latest and answer.note %}
             <section class="portfolio-section">
                 <header class="section-header">
@@ -199,50 +230,6 @@
             </section>
             {% endif %}
         </div>
-        {% else %}
-        <div id="portfolio-panel-{{ entry.target }}" class="portfolio-sheet portfolio-history-panel feedback-history-sheet" data-history-panel="{{ entry.target }}" hidden>
-            <section class="portfolio-section first-section feedback-history-section">
-                <header class="section-header">
-                    <div>
-                        <span class="section-number">{{ entry.number }}</span>
-                        <div>
-                            <h3>{{ entry.title }}</h3>
-                            <p>{{ entry.feedback.created_at|localtime|date:"Y.m.d H:i" }}에 최종 저장된 작업입니다.</p>
-                        </div>
-                    </div>
-                    <div class="feedback-history-actions">
-                        {% if entry.feedback.is_editable %}
-                        <button type="button" class="feedback-history-edit-button" data-edit-feedback="{{ entry.feedback.id }}">
-                            <i class="bi bi-pencil-square"></i> 수정하기
-                        </button>
-                        {% endif %}
-                        {% if entry.feedback.is_published %}
-                        <span class="feedback-published-badge"><i class="bi bi-send-check"></i> 공개 완료</span>
-                        <time class="feedback-published-time" datetime="{{ entry.feedback.published_at|date:'c' }}">{{ entry.feedback.published_at|localtime|date:"Y.m.d H:i" }}</time>
-                        {% else %}
-                        <button type="button" class="feedback-history-publish-button" data-publish-feedback="{{ entry.feedback.id }}">
-                            <i class="bi bi-send-check"></i> 학생에게 피드백 배부
-                        </button>
-                        {% endif %}
-                        {% if entry.feedback.is_published and entry.feedback.is_read %}
-                        <span class="feedback-read-badge"><i class="bi bi-check2-all"></i> 읽음 확인</span>
-                        {% endif %}
-                    </div>
-                </header>
-                <article id="feedbackContent-{{ entry.feedback.id }}" class="feedback-history-content">{{ entry.feedback.feedback_content }}</article>
-                {% if entry.feedback.is_editable %}
-                <div id="feedbackEditor-{{ entry.feedback.id }}" class="feedback-history-editor" hidden>
-                    <textarea rows="18" aria-label="{{ entry.feedback.display_title }} 내용 수정">{{ entry.feedback.feedback_content }}</textarea>
-                    <p class="feedback-history-edit-status" aria-live="polite"></p>
-                    <div class="feedback-history-editor-actions">
-                        <button type="button" class="feedback-history-edit-cancel" data-cancel-feedback="{{ entry.feedback.id }}">취소</button>
-                        <button type="button" class="feedback-history-edit-save" data-save-feedback="{{ entry.feedback.id }}">수정 내용 저장</button>
-                    </div>
-                </div>
-                {% endif %}
-            </section>
-        </div>
-        {% endif %}
         {% endfor %}
     </main>
 </div>
@@ -679,16 +666,6 @@
     .portfolio-index-tab.is-active {
         background: #fff;
         color: var(--ingrid-primary);
-    }
-
-    .portfolio-index-tab.is-followup {
-        padding-left: 25px;
-    }
-
-    .portfolio-index-tab.is-followup .portfolio-index-label::before {
-        content: "↳";
-        margin-right: 5px;
-        color: #b975c7;
     }
 
     .portfolio-sheet {
@@ -2087,7 +2064,7 @@
         function showHistoryPanel(targetName) {
             const requestedPanel = Array.from(document.querySelectorAll('[data-history-panel]'))
                 .find((panel) => panel.dataset.historyPanel === targetName);
-            const selectedPanel = requestedPanel || document.querySelector('[data-history-panel="question"]');
+            const selectedPanel = requestedPanel || document.querySelector('[data-history-panel]');
             document.querySelectorAll('[data-history-panel]').forEach(function (panel) {
                 panel.hidden = panel !== selectedPanel;
             });

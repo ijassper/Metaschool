@@ -185,27 +185,16 @@ def answer_detail(request, answer_id):
         revision_id = feedback.answer_revision_id or latest_revision.id
         feedback_by_revision.setdefault(revision_id, []).append(feedback)
 
-    portfolio_entries = []
-    entry_number = 2  # 01 is the evaluation prompt.
+    answer_entries = []
     for revision_index, revision in enumerate(answer_revisions):
-        portfolio_entries.append({
-            'kind': 'answer',
-            'number': f'{entry_number:02d}',
+        answer_entries.append({
             'target': f'answer-{revision.id or "legacy"}',
             'title': revision.display_title,
             'revision': revision,
+            'feedbacks': feedback_by_revision.get(revision.id, []),
             'is_latest': revision_index == len(answer_revisions) - 1,
+            'feedbacks': feedback_by_revision.get(revision.id, []),
         })
-        entry_number += 1
-        for feedback in feedback_by_revision.get(revision.id, []):
-            portfolio_entries.append({
-                'kind': 'feedback',
-                'number': f'{entry_number:02d}',
-                'target': f'feedback-{feedback.id}',
-                'title': f'추후활동 [{feedback.display_title}]',
-                'feedback': feedback,
-            })
-            entry_number += 1
     ordered_answer_ids = list(
         Answer.objects.filter(
             question__activity=answer.question.activity,
@@ -229,7 +218,7 @@ def answer_detail(request, answer_id):
         'answer': answer,
         'activity': answer.question.activity,
         'feedback_logs': feedback_logs,
-        'portfolio_entries': portfolio_entries,
+        'answer_entries': answer_entries,
         'feedback_sessions': feedback_sessions,
         'next_answer_id': next_answer_id,
         'quick_score': quick_score,
