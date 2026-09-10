@@ -1221,6 +1221,7 @@ def api_process_db_row(request):
                                 student=student,
                                 activity=activity,
                                 answer=locked_answer,
+                                answer_revision=locked_answer.submission_revisions.order_by('-version', '-id').first(),
                                 created_by=request.user,
                                 feedback_title=session_title,
                                 content=result_text,

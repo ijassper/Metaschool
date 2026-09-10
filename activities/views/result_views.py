@@ -1,6 +1,7 @@
 # 제출 현황 및 답안 관리 (activity_result, answer_detail 등)
 
 import json
+from types import SimpleNamespace
 from urllib.parse import urlencode
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -156,6 +157,55 @@ def answer_detail(request, answer_id):
     feedback_sessions = answer.feedback_sessions.filter(
         created_by=request.user
     ).order_by('-version', '-id')
+    answer_revisions = list(answer.submission_revisions.order_by('version', 'id'))
+    if not answer_revisions:
+        # 마이그레이션 전 레거시 데이터도 화면에서 답안 1로 안전하게 표시합니다.
+        legacy_notebook_pages = list(answer.notebook_pages or [])
+        legacy_q1 = answer.ans_q1 or ''
+        if not legacy_notebook_pages and not any([answer.ans_q1, answer.ans_q2, answer.ans_q3]):
+            legacy_q1 = answer.display_content
+        answer_revisions = [SimpleNamespace(
+            id=None,
+            version=1,
+            display_title='답안',
+            content_snapshot={
+                'ans_q1': legacy_q1,
+                'ans_q2': answer.ans_q2 or '',
+                'ans_q3': answer.ans_q3 or '',
+                'notebook_pages': legacy_notebook_pages,
+            },
+            submitted_at=answer.submitted_at,
+        )]
+    feedback_logs = list(
+        answer.feedback_results.select_related('answer_revision').order_by('created_at', 'id')
+    )
+    feedback_by_revision = {}
+    latest_revision = answer_revisions[-1]
+    for feedback in feedback_logs:
+        revision_id = feedback.answer_revision_id or latest_revision.id
+        feedback_by_revision.setdefault(revision_id, []).append(feedback)
+
+    portfolio_entries = []
+    entry_number = 2  # 01 is the evaluation prompt.
+    for revision_index, revision in enumerate(answer_revisions):
+        portfolio_entries.append({
+            'kind': 'answer',
+            'number': f'{entry_number:02d}',
+            'target': f'answer-{revision.id or "legacy"}',
+            'title': revision.display_title,
+            'revision': revision,
+            'is_latest': revision_index == len(answer_revisions) - 1,
+        })
+        entry_number += 1
+        for feedback in feedback_by_revision.get(revision.id, []):
+            portfolio_entries.append({
+                'kind': 'feedback',
+                'number': f'{entry_number:02d}',
+                'target': f'feedback-{feedback.id}',
+                'title': f'추후활동 [{feedback.display_title}]',
+                'feedback': feedback,
+            })
+            entry_number += 1
     ordered_answer_ids = list(
         Answer.objects.filter(
             question__activity=answer.question.activity,
@@ -178,7 +228,8 @@ def answer_detail(request, answer_id):
     return render(request, 'activities/answer_detail.html', {
         'answer': answer,
         'activity': answer.question.activity,
-        'feedback_logs': answer.feedback_results.all(),
+        'feedback_logs': feedback_logs,
+        'portfolio_entries': portfolio_entries,
         'feedback_sessions': feedback_sessions,
         'next_answer_id': next_answer_id,
         'quick_score': quick_score,
@@ -295,7 +346,7 @@ def save_feedback_result(request, answer_id):
 
     feedback_session = None
     if feedback_session_id:
-        feedback_session = FeedbackSession.objects.select_related('final_result').filter(
+        feedback_session = FeedbackSession.objects.select_related('final_result', 'answer_revision').filter(
             id=feedback_session_id,
             answer=answer,
             created_by=request.user,
@@ -343,6 +394,7 @@ def save_feedback_result(request, answer_id):
                     student=answer.student,
                     activity=answer.question.activity,
                     answer=answer,
+                    answer_revision=feedback_session.answer_revision,
                     task_type=task_type,
                     feedback_title=feedback_title,
                     feedback_content=feedback_content,
@@ -362,6 +414,7 @@ def save_feedback_result(request, answer_id):
                 student=answer.student,
                 activity=answer.question.activity,
                 answer=answer,
+                answer_revision=answer.submission_revisions.order_by('-version', '-id').first(),
                 task_type=task_type,
                 feedback_title=feedback_title,
                 feedback_content=feedback_content,

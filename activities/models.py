@@ -458,6 +458,39 @@ class AnswerDraftRevision(models.Model):
         return f'{self.answer} · {self.created_at:%Y-%m-%d %H:%M:%S}'
 
 
+class AnswerSubmissionRevision(models.Model):
+    """학생이 최종 제출할 때마다 보존하는 답안 버전입니다."""
+
+    answer = models.ForeignKey(
+        Answer,
+        on_delete=models.CASCADE,
+        related_name='submission_revisions',
+        verbose_name='답안',
+    )
+    version = models.PositiveIntegerField(verbose_name='답안 버전')
+    content_snapshot = models.JSONField(default=dict, verbose_name='제출 답안 스냅샷')
+    submitted_at = models.DateTimeField(verbose_name='제출 일시')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='기록 일시')
+
+    class Meta:
+        verbose_name = '제출 답안 버전'
+        verbose_name_plural = '제출 답안 버전 목록'
+        ordering = ['version', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['answer', 'version'], name='unique_answer_submission_version'),
+        ]
+        indexes = [
+            models.Index(fields=['answer', 'version'], name='answer_submission_ver_idx'),
+        ]
+
+    @property
+    def display_title(self):
+        return '답안' if self.version == 1 else f'답안{self.version}'
+
+    def __str__(self):
+        return f'{self.answer} · {self.display_title}'
+
+
 class ActivityStudentScore(models.Model):
     """답안 및 응시 상태와 독립적으로 보관하는 활동별 학생 점수입니다."""
 
@@ -532,6 +565,14 @@ class FeedbackResult(models.Model):
     answer = models.ForeignKey(
         'Answer', on_delete=models.CASCADE, related_name='feedback_results', verbose_name='원본 답안'
     )
+    answer_revision = models.ForeignKey(
+        'AnswerSubmissionRevision',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='feedback_results',
+        verbose_name='기준 답안 버전',
+    )
     source_session = models.OneToOneField(
         'FeedbackSession',
         on_delete=models.SET_NULL,
@@ -596,6 +637,14 @@ class FeedbackSession(models.Model):
     )
     answer = models.ForeignKey(
         'Answer', on_delete=models.CASCADE, related_name='feedback_sessions', verbose_name='원본 답안'
+    )
+    answer_revision = models.ForeignKey(
+        'AnswerSubmissionRevision',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='feedback_sessions',
+        verbose_name='기준 답안 버전',
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='feedback_sessions', verbose_name='작성 교사'

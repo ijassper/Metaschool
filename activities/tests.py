@@ -17,6 +17,7 @@ from .views.exam_views import (
     pdf_viewer,
     snapshot_char_count,
     snapshot_fingerprint,
+    submission_revision_action,
     submitted_answer_char_count,
 )
 from .views.result_views import parse_quick_score
@@ -36,7 +37,9 @@ from .attachment_context import (
     normalize_openai_usage,
 )
 from .templatetags.answer_extras import non_whitespace_length
-from .models import Activity, Question, Answer, FeedbackResult, FeedbackSession
+from .models import (
+    Activity, Question, Answer, AnswerSubmissionRevision, FeedbackResult, FeedbackSession,
+)
 
 
 class ActivitySchedulingTests(SimpleTestCase):
@@ -756,6 +759,42 @@ class FeedbackResultTitleTests(SimpleTestCase):
         self.assertIn('data-edit-feedback', source)
         self.assertIn('data-save-feedback', source)
         self.assertIn('update_feedback_result', source)
+
+
+class AnswerSubmissionPortfolioTests(SimpleTestCase):
+    def test_changed_answer_without_followup_overwrites_current_revision(self):
+        self.assertEqual(
+            'OVERWRITE',
+            submission_revision_action({'ans_q1': '처음 답안'}, {'ans_q1': '수정 답안'}, False),
+        )
+
+    def test_changed_answer_with_followup_creates_next_revision(self):
+        self.assertEqual(
+            'CREATE',
+            submission_revision_action({'ans_q1': '처음 답안'}, {'ans_q1': '수정 답안'}, True),
+        )
+
+    def test_unchanged_answer_never_creates_an_extra_revision(self):
+        snapshot = {'ans_q1': '같은 답안'}
+        self.assertEqual('UNCHANGED', submission_revision_action(snapshot, snapshot, True))
+
+    def test_submission_revision_titles_start_without_number(self):
+        self.assertEqual('답안', AnswerSubmissionRevision(version=1).display_title)
+        self.assertEqual('답안2', AnswerSubmissionRevision(version=2).display_title)
+        self.assertEqual('답안3', AnswerSubmissionRevision(version=3).display_title)
+
+    def test_teacher_portfolio_indexes_question_answers_and_followups(self):
+        source = get_template('activities/answer_detail.html').template.source
+        self.assertIn('data-history-target="question"', source)
+        self.assertIn("entry.kind == 'answer'", source)
+        self.assertIn("entry.kind == 'feedback'", source)
+        view_source = Path('activities/views/result_views.py').read_text(encoding='utf-8')
+        self.assertIn("f'추후활동 [{feedback.display_title}]'", view_source)
+
+    def test_student_result_exposes_rewrite_entry_point(self):
+        source = get_template('activities/student_result_detail.html').template.source
+        self.assertIn('can_revise_answer', source)
+        self.assertIn('피드백을 반영해 답안 수정하기', source)
 
 
 class AnswerCharacterCountTests(SimpleTestCase):

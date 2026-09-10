@@ -7,6 +7,7 @@ from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import transaction
 from django.utils import timezone
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -16,7 +17,8 @@ from django.views.decorators.http import require_GET, require_POST
 from accounts.decorators import teacher_required
 from accounts.models import Student, SystemConfig
 from ..models import (
-    Activity, Question, Answer, AnswerDraftRevision, ActivityStudentScore, FeedbackResult,
+    Activity, Question, Answer, AnswerDraftRevision, AnswerSubmissionRevision,
+    ActivityStudentScore, FeedbackResult,
 )
 
 LOG_MESSAGES = {
@@ -62,6 +64,50 @@ def build_answer_snapshot(answer):
         'ans_q3': '' if notebook_pages else (answer.ans_q3 or ''),
         'notebook_pages': notebook_pages,
     }
+
+
+def submission_revision_action(latest_snapshot, current_snapshot, has_followup):
+    """현재 제출을 유지, 덮어쓰기, 새 버전 생성 중 하나로 판정합니다."""
+    if latest_snapshot is None:
+        return 'CREATE'
+    if snapshot_fingerprint(latest_snapshot) == snapshot_fingerprint(current_snapshot):
+        return 'UNCHANGED'
+    return 'CREATE' if has_followup else 'OVERWRITE'
+
+
+def record_answer_submission(answer):
+    """추후활동이 연결된 답안만 동결하고, 그 다음 제출을 새 버전으로 만듭니다."""
+    with transaction.atomic():
+        locked_answer = Answer.objects.select_for_update().get(pk=answer.pk)
+        snapshot = build_answer_snapshot(locked_answer)
+        latest_revision = locked_answer.submission_revisions.order_by('-version', '-id').first()
+        has_followup = bool(
+            latest_revision
+            and (
+                latest_revision.feedback_sessions.exists()
+                or latest_revision.feedback_results.exists()
+            )
+        )
+        action = submission_revision_action(
+            latest_revision.content_snapshot if latest_revision else None,
+            snapshot,
+            has_followup,
+        )
+        if action == 'UNCHANGED':
+            return latest_revision
+        if action == 'OVERWRITE':
+            latest_revision.content_snapshot = snapshot
+            latest_revision.submitted_at = locked_answer.submitted_at or timezone.now()
+            latest_revision.save(update_fields=['content_snapshot', 'submitted_at'])
+            return latest_revision
+
+        next_version = (latest_revision.version if latest_revision else 0) + 1
+        return AnswerSubmissionRevision.objects.create(
+            answer=locked_answer,
+            version=next_version,
+            content_snapshot=snapshot,
+            submitted_at=locked_answer.submitted_at or timezone.now(),
+        )
 
 
 def snapshot_char_count(snapshot):
@@ -357,6 +403,7 @@ def take_test(request, activity_id):
         answer.save()
 
         if is_final_submit:
+            record_answer_submission(answer)
             messages.success(request, "답안이 제출되었습니다")
             return redirect('dashboard')
         return JsonResponse({'status': 'success', 'message': '임시 저장 완료'})
@@ -371,6 +418,7 @@ def take_test(request, activity_id):
 def student_result_detail(request, activity_id):
     """학생 본인에게 응시 내용, 답안, 점수와 교사가 확정한 피드백을 보여줍니다."""
     activity = get_object_or_404(Activity.objects.select_related('teacher'), id=activity_id)
+    activity.sync_schedule_state(save=True)
     student_info, error_response = get_student_for_activity(request, activity)
     if error_response:
         return error_response
@@ -422,6 +470,9 @@ def student_result_detail(request, activity_id):
         'score': display_score,
         'feedback_results': feedback_results,
         'notebook_pages': notebook_pages,
+        'can_revise_answer': bool(
+            answer and activity.allow_edit_after_submission and activity.is_attainable
+        ),
     })
 
 
