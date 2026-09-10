@@ -366,7 +366,7 @@
         <section class="feedback-session-toolbar" aria-label="피드백 작업 버전 관리">
             <div class="feedback-session-field feedback-session-title-field">
                 <label id="feedbackSessionTitleLabel" for="feedbackSessionTitle">답안 채점/분석 제목</label>
-                <input id="feedbackSessionTitle" type="text" maxlength="150" placeholder="예: 1학기 답안 채점/분석" required aria-required="true">
+                <input id="feedbackSessionTitle" type="text" maxlength="150" value="피드백" placeholder="피드백">
             </div>
             <div class="feedback-session-field feedback-session-version-field">
                 <label id="feedbackSessionSelectLabel" for="feedbackSessionSelect">이전 답안 채점/분석 불러오기</label>
@@ -1551,7 +1551,7 @@
             const label = followupLabels[selectedFollowupType] || followupLabels.grading;
             designTitle.textContent = `${label} AI 설계`;
             sessionTitleLabel.textContent = `${label} 제목`;
-            sessionTitle.placeholder = `예: 1학기 ${label}`;
+            sessionTitle.placeholder = '피드백';
             sessionSelectLabel.textContent = `이전 ${label} 불러오기`;
             newSessionOption.textContent = `--- 새 ${label} 생성 ---`;
             compositionLabel.textContent = `${label} 구성 메뉴`;
@@ -1560,13 +1560,9 @@
         }
 
         function validateSessionTitle() {
-            const hasTitle = Boolean(sessionTitle.value.trim());
-            sessionTitle.setCustomValidity(hasTitle ? '' : '제목을 입력해주세요.');
-            if (!hasTitle) {
-                sessionTitle.reportValidity();
-                sessionTitle.focus();
-            }
-            return hasTitle;
+            if (!sessionTitle.value.trim()) sessionTitle.value = '피드백';
+            sessionTitle.setCustomValidity('');
+            return true;
         }
 
         function openLayer() {
@@ -1787,7 +1783,7 @@
                 const session = data.session;
                 currentFeedbackSessionId = session.id;
                 sessionSelect.value = String(session.id);
-                sessionTitle.value = session.feedback_title || '';
+                sessionTitle.value = session.feedback_title || '피드백';
                 draftText.value = session.content || '';
                 applySessionOptions(session.options_snapshot);
                 applyFeedbackResultState(session.feedback_result);
@@ -1806,7 +1802,7 @@
             currentFeedbackSessionId = null;
             applyFeedbackResultState(null);
             sessionSelect.value = '';
-            sessionTitle.value = '';
+            sessionTitle.value = '피드백';
             draftText.value = '';
             draftResult.hidden = true;
             saveButton.hidden = true;

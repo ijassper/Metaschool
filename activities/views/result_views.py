@@ -281,15 +281,13 @@ def save_feedback_result(request, answer_id):
     task_type = str(payload.get('task_type') or '').strip()
     persona_used = payload.get('persona_used') or {}
     feedback_session_id = payload.get('feedback_session_id')
-    feedback_title = str(payload.get('feedback_title') or '').strip()[:150]
+    feedback_title = (str(payload.get('feedback_title') or '').strip() or '피드백')[:150]
     options_snapshot = payload.get('options_snapshot')
     if not isinstance(options_snapshot, dict):
         options_snapshot = persona_used
     valid_task_types = {value for value, _ in FeedbackResult.TaskType.choices}
     if not feedback_content:
         return JsonResponse({'status': 'error', 'message': '저장할 결과 내용을 입력해주세요.'}, status=400)
-    if not feedback_title:
-        return JsonResponse({'status': 'error', 'message': '생성 결과 제목을 입력해주세요.'}, status=400)
     if task_type not in valid_task_types:
         return JsonResponse({'status': 'error', 'message': '지원하지 않는 작업 유형입니다.'}, status=400)
     if not isinstance(persona_used, dict):
@@ -507,14 +505,11 @@ def save_feedback_session(request, answer_id, session_id):
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': '저장 요청 형식이 올바르지 않습니다.'}, status=400)
 
-    title = str(payload.get('feedback_title') or '').strip()[:150]
+    title = (str(payload.get('feedback_title') or '').strip() or '피드백')[:150]
     content = str(payload.get('content') or '')
     options_snapshot = payload.get('options_snapshot')
     if options_snapshot is not None and not isinstance(options_snapshot, dict):
         return JsonResponse({'status': 'error', 'message': '생성 옵션 형식이 올바르지 않습니다.'}, status=400)
-    if not title:
-        return JsonResponse({'status': 'error', 'message': '생성 결과 제목을 입력해주세요.'}, status=400)
-
     with transaction.atomic():
         final_result = FeedbackResult.objects.select_for_update().filter(source_session=session).first()
         if final_result and not final_result.is_editable:

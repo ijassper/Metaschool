@@ -36,7 +36,7 @@ from .attachment_context import (
     normalize_openai_usage,
 )
 from .templatetags.answer_extras import non_whitespace_length
-from .models import Activity, Question, Answer, FeedbackResult
+from .models import Activity, Question, Answer, FeedbackResult, FeedbackSession
 
 
 class ActivitySchedulingTests(SimpleTestCase):
@@ -707,6 +707,26 @@ class AIFeedbackPromptContractTests(SimpleTestCase):
 
 
 class FeedbackResultTitleTests(SimpleTestCase):
+    def test_blank_feedback_title_uses_default_name(self):
+        self.assertEqual('피드백', FeedbackSession.resolve_unique_title('', []))
+
+    def test_default_feedback_title_uses_plain_incrementing_numbers(self):
+        existing_titles = ['피드백', '피드백2']
+        self.assertEqual('피드백3', FeedbackSession.resolve_unique_title('피드백', existing_titles))
+
+    def test_custom_duplicate_title_uses_same_numbering_rule(self):
+        existing_titles = ['학기말 피드백', '학기말 피드백2']
+        self.assertEqual(
+            '학기말 피드백3',
+            FeedbackSession.resolve_unique_title('학기말 피드백', existing_titles),
+        )
+
+    def test_answer_detail_starts_with_default_feedback_title(self):
+        source = get_template('activities/answer_detail.html').template.source
+        self.assertIn('id="feedbackSessionTitle"', source)
+        self.assertIn('value="피드백"', source)
+        self.assertIn("sessionTitle.value = '피드백'", source)
+
     def test_saved_title_is_used_for_portfolio_index(self):
         result = FeedbackResult(task_type='feedback', feedback_title='은채의 주장 글 피드백')
         self.assertEqual('은채의 주장 글 피드백', result.display_title)

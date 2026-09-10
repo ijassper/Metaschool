@@ -619,26 +619,36 @@ class FeedbackSession(models.Model):
         ]
         indexes = [models.Index(fields=['answer', '-version'], name='feedback_session_ver_idx')]
 
+    @staticmethod
+    def resolve_unique_title(title, existing_titles):
+        """기존 제목 목록을 기준으로 기본값과 숫자 접미사를 결정합니다."""
+        base_title = (str(title or '').strip() or '피드백')[:150]
+        normalized_titles = {
+            str(existing_title or '').strip().casefold()
+            for existing_title in existing_titles
+        }
+        if base_title.casefold() not in normalized_titles:
+            return base_title
+
+        sequence = 2
+        while True:
+            suffix = str(sequence)
+            candidate = f'{base_title[:150 - len(suffix)].rstrip()}{suffix}'
+            if candidate.casefold() not in normalized_titles:
+                return candidate
+            sequence += 1
+
     @classmethod
     def make_unique_title(cls, *, answer, created_by, title, exclude_session_id=None):
-        """같은 답안의 작업 제목이 겹치면 '(n)' 접미사를 붙여 새 제목을 반환합니다."""
-        base_title = str(title or '').strip()[:150]
-        if not base_title:
-            return ''
+        """같은 답안의 작업 제목이 겹치면 2부터 증가하는 번호를 붙입니다."""
 
         sessions = cls.objects.filter(answer=answer, created_by=created_by)
         if exclude_session_id:
             sessions = sessions.exclude(pk=exclude_session_id)
-        if not sessions.filter(feedback_title__iexact=base_title).exists():
-            return base_title
-
-        sequence = 1
-        while True:
-            suffix = f' ({sequence})'
-            candidate = f'{base_title[:150 - len(suffix)].rstrip()}{suffix}'
-            if not sessions.filter(feedback_title__iexact=candidate).exists():
-                return candidate
-            sequence += 1
+        return cls.resolve_unique_title(
+            title,
+            sessions.values_list('feedback_title', flat=True),
+        )
 
     def __str__(self):
         return f'{self.student.name} - v{self.version} {self.feedback_title}'
