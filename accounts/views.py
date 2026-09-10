@@ -205,9 +205,19 @@ def dashboard(request):
                     activity__in=activities_list,
                 ).values_list('activity_id', 'score')
             )
+            answers_by_activity = {
+                answer.question.activity_id: answer
+                for answer in Answer.objects.filter(
+                    student=student_profile,
+                    question__activity__in=activities_list,
+                ).select_related('question').prefetch_related(
+                    'submission_revisions__feedback_sessions',
+                    'submission_revisions__feedback_results',
+                )
+            }
             for activity in activities_list:
                 # 4대 상태 로직을 위한 정밀 매칭
-                ans = Answer.objects.filter(student=student_profile, question__activity=activity).first()
+                ans = answers_by_activity.get(activity.id)
                 activity.my_answer = ans
                 activity.has_submitted = bool(ans and ans.submitted_at)
                 # 학생 대시보드에는 미채점도 0점으로 일관되게 표시합니다.

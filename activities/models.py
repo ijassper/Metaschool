@@ -260,7 +260,11 @@ class Activity(models.Model):
 
     def get_student_exam_state(self, answer=None):
         if answer and answer.submitted_at:
-            if self.allow_edit_after_submission and self.is_attainable:
+            if (
+                self.allow_edit_after_submission
+                and self.is_attainable
+                and not answer.has_followup_on_latest_submission()
+            ):
                 return "submitted_editable"
             return "submitted_locked"
         if not self.is_attainable:
@@ -270,8 +274,11 @@ class Activity(models.Model):
     def can_student_enter(self, answer=None):
         if not self.is_attainable:
             return False
-        if answer and answer.submitted_at and not self.allow_edit_after_submission:
-            return False
+        if answer and answer.submitted_at:
+            if not self.allow_edit_after_submission:
+                return False
+            if answer.has_followup_on_latest_submission():
+                return False
         return True
 
     @property
@@ -389,6 +396,26 @@ class Answer(models.Model):
             or (self.activity_log or '').strip()
             or self.display_content.strip()
         )
+
+    def latest_submission_revision(self):
+        """현재 학생 답안을 대표하는 가장 최신 최종 제출 버전을 반환합니다."""
+        prefetched = getattr(self, '_prefetched_objects_cache', {}).get('submission_revisions')
+        if prefetched is not None:
+            return max(prefetched, key=lambda item: (item.version, item.id), default=None)
+        return self.submission_revisions.order_by('-version', '-id').first()
+
+    def has_followup_on_latest_submission(self):
+        """최신 답안 버전에 AI 작업이나 확정 피드백이 연결되었는지 확인합니다."""
+        revision = self.latest_submission_revision()
+        if not revision:
+            # 버전 도입 전 생성된 레거시 피드백도 수정 잠금 대상으로 유지합니다.
+            return self.feedback_sessions.exists() or self.feedback_results.exists()
+        prefetched = getattr(revision, '_prefetched_objects_cache', {})
+        sessions = prefetched.get('feedback_sessions')
+        results = prefetched.get('feedback_results')
+        if sessions is not None and results is not None:
+            return bool(sessions or results)
+        return revision.feedback_sessions.exists() or revision.feedback_results.exists()
 
     def participation_status(self, *, deadline_passed=False):
         """응시 이력을 기준으로 미응시·미제출·제출 상태를 구분합니다."""

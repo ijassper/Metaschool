@@ -24,6 +24,7 @@ from ..models import (
 LOG_MESSAGES = {
     'IN': '답안지 페이지 입장',
     'SUBMIT': '답안 제출',
+    'REWRITE': '피드백 반영 고쳐쓰기 제출',
     'RETURN': '답안지 페이지 입장',
     'RE_EDIT': '답안지 페이지 입장',
     'OUT': 'Alt+Tab 또는 창 전환으로 답안지 페이지 이탈',
@@ -361,8 +362,15 @@ def take_test(request, activity_id):
         return error_response
 
     existing_answer = Answer.objects.filter(student=student_info, question__activity=activity).first()
-    if existing_answer and existing_answer.submitted_at and not activity.allow_edit_after_submission:
-        messages.warning(request, "제출 완료된 평가 활동은 재입장할 수 없습니다")
+    if (
+        existing_answer
+        and existing_answer.submitted_at
+        and (
+            not activity.allow_edit_after_submission
+            or existing_answer.has_followup_on_latest_submission()
+        )
+    ):
+        messages.warning(request, "추후활동이 생성된 답안은 일반 수정이 불가능합니다. 상세 결과에서 고쳐쓰기를 이용해 주세요.")
         return redirect('dashboard')
 
     if not activity.is_attainable:
@@ -430,8 +438,12 @@ def student_result_detail(request, activity_id):
     )
     question = activity.questions.first()
     feedback_results = []
+    latest_feedback_results = []
+    latest_revision = None
+    rewrite_snapshot = {}
     notebook_pages = []
     if answer:
+        latest_revision = answer.latest_submission_revision()
         feedback_queryset = FeedbackResult.objects.filter(
                 answer=answer,
                 activity=activity,
@@ -439,6 +451,17 @@ def student_result_detail(request, activity_id):
                 is_published=True,
             ).order_by('-created_at', '-id')
         feedback_results = list(feedback_queryset)
+        latest_feedback_results = [
+            feedback for feedback in feedback_results
+            if (
+                (latest_revision and feedback.answer_revision_id == latest_revision.id)
+                or (not latest_revision and feedback.answer_revision_id is None)
+            )
+        ]
+        rewrite_snapshot = (
+            dict(latest_revision.content_snapshot or {})
+            if latest_revision else build_answer_snapshot(answer)
+        )
         unread_ids = [feedback.id for feedback in feedback_results if not feedback.is_read]
         if unread_ids:
             first_read_at = timezone.now()
@@ -470,9 +493,61 @@ def student_result_detail(request, activity_id):
         'score': display_score,
         'feedback_results': feedback_results,
         'notebook_pages': notebook_pages,
-        'can_revise_answer': bool(
-            answer and activity.allow_edit_after_submission and activity.is_attainable
-        ),
+        'latest_feedback_results': latest_feedback_results,
+        'rewrite_snapshot': rewrite_snapshot,
+        'can_start_rewrite': bool(answer and latest_feedback_results),
+    })
+
+
+@require_POST
+@login_required
+def submit_answer_rewrite(request, activity_id):
+    """공개된 최신 피드백을 반영한 학생 답안을 새 제출 버전으로 저장합니다."""
+    activity = get_object_or_404(Activity, id=activity_id)
+    student_info, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return JsonResponse({'status': 'error', 'message': '제출 권한이 없습니다.'}, status=403)
+
+    with transaction.atomic():
+        answer = (
+            Answer.objects.select_for_update()
+            .filter(student=student_info, question__activity=activity, submitted_at__isnull=False)
+            .first()
+        )
+        if not answer:
+            return JsonResponse({'status': 'error', 'message': '제출된 답안을 찾을 수 없습니다.'}, status=404)
+
+        latest_revision = answer.latest_submission_revision()
+        published_feedbacks = FeedbackResult.objects.filter(
+            answer=answer,
+            activity=activity,
+            student=student_info,
+            is_published=True,
+        )
+        if latest_revision:
+            published_feedbacks = published_feedbacks.filter(answer_revision=latest_revision)
+        else:
+            published_feedbacks = published_feedbacks.filter(answer_revision__isnull=True)
+        if not published_feedbacks.exists():
+            return JsonResponse(
+                {'status': 'error', 'message': '최신 답안에 배부된 피드백이 없어 고쳐쓰기를 시작할 수 없습니다.'},
+                status=403,
+            )
+
+        limit_error = character_limit_error(activity, submitted_answer_char_count(activity, request.POST))
+        if limit_error:
+            return JsonResponse({'status': 'error', 'message': limit_error}, status=400)
+
+        save_answer_content(answer, activity, request.POST)
+        answer.submitted_at = timezone.now()
+        append_activity_log(answer, 'REWRITE')
+        answer.save()
+        revision = record_answer_submission(answer)
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'{revision.display_title}으로 고쳐쓰기가 제출되었습니다.',
+        'revision': {'id': revision.id, 'version': revision.version, 'title': revision.display_title},
     })
 
 
@@ -490,7 +565,9 @@ def save_answer_draft(request, activity_id):
 
     question = ensure_exam_question(activity)
     answer, _ = Answer.objects.get_or_create(student=student_info, question=question)
-    if answer.submitted_at and not activity.allow_edit_after_submission:
+    if answer.submitted_at and (
+        not activity.allow_edit_after_submission or answer.has_followup_on_latest_submission()
+    ):
         return JsonResponse({'status': 'error', 'message': '제출이 완료되어 수정할 수 없습니다.'}, status=403)
 
     new_notebook_pages = (
@@ -586,6 +663,8 @@ def start_exam(request, activity_id):
 
     question = ensure_exam_question(activity)
     answer, _ = Answer.objects.get_or_create(student=student_info, question=question)
+    if answer.submitted_at and answer.has_followup_on_latest_submission():
+        return JsonResponse({'status': 'error', 'message': 'followup_locked'}, status=403)
     request._exam_log_answer = answer
     return JsonResponse({'status': 'success', 'answer_id': answer.id})
 
@@ -606,6 +685,8 @@ def re_enter_exam(request, activity_id):
     answer = Answer.objects.filter(student=student_info, question=question, submitted_at__isnull=False).first()
     if not answer:
         return JsonResponse({'status': 'error', 'message': 'submitted answer not found'}, status=404)
+    if answer.has_followup_on_latest_submission():
+        return JsonResponse({'status': 'error', 'message': 'followup_locked'}, status=403)
 
     request._exam_log_answer = answer
     return JsonResponse({'status': 'success', 'answer_id': answer.id})

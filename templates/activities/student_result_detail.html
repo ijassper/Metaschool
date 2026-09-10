@@ -33,15 +33,35 @@
   .feedback-date { color: #99919e; font-size: .78rem; }
   .feedback-body { margin-top: 14px; line-height: 1.8; white-space: pre-wrap; }
   .empty-state { padding: 28px; text-align: center; border-radius: 15px; background: #f8f6f9; color: #8a828e; }
-  .answer-revise-row { display: flex; justify-content: flex-end; margin-top: 16px; }
-  .answer-revise-button { padding: 10px 18px; border-radius: 999px; color: #fff; background: #8e44ad; text-decoration: none; font-weight: 800; }
   .followup-bar { display: flex; justify-content: space-between; align-items: center; gap: 20px; border-radius: 20px; padding: 22px 25px; background: linear-gradient(135deg, #fff0f7, #f3eaff); }
   .followup-bar h2 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 900; }
   .followup-bar p { margin: 0; color: #817987; font-size: .88rem; }
-  .followup-button { padding: 11px 18px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, #ef6cad, #8e44ad); text-decoration: none; font-weight: 800; white-space: nowrap; }
+  .followup-button { border: 0; cursor: pointer; padding: 11px 18px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, #ef6cad, #8e44ad); font-weight: 800; white-space: nowrap; }
+  .followup-button:disabled { cursor: not-allowed; opacity: .45; }
+  .rewrite-backdrop { position: fixed; inset: 0; z-index: 1090; background: rgba(36, 25, 42, .42); opacity: 0; pointer-events: none; transition: opacity .22s ease; }
+  .rewrite-backdrop.is-open { opacity: 1; pointer-events: auto; }
+  .rewrite-panel { position: fixed; top: 0; right: 0; z-index: 1100; width: min(1100px, 94vw); height: 100dvh; background: #fff; box-shadow: -18px 0 45px rgba(53, 31, 62, .2); transform: translateX(102%); transition: transform .25s ease; display: flex; flex-direction: column; }
+  .rewrite-panel.is-open { transform: translateX(0); }
+  .rewrite-panel-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 24px; border-bottom: 1px solid #eadfed; }
+  .rewrite-panel-head h2 { margin: 0; font-size: 1.25rem; font-weight: 900; }
+  .rewrite-close { width: 38px; height: 38px; border: 0; border-radius: 50%; background: #f4eef6; cursor: pointer; font-size: 1.25rem; }
+  .rewrite-columns { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+  .rewrite-column { min-width: 0; overflow-y: auto; padding: 24px; }
+  .rewrite-column:first-child { background: #fbf8fc; border-right: 1px solid #eadfed; }
+  .rewrite-column-title { margin: 0 0 16px; font-size: 1.05rem; font-weight: 900; color: #633174; }
+  .rewrite-field { margin-bottom: 16px; }
+  .rewrite-field label { display: block; margin-bottom: 7px; font-weight: 800; }
+  .rewrite-field textarea { width: 100%; min-height: 170px; resize: vertical; box-sizing: border-box; padding: 14px; border: 1px solid #d8cddd; border-radius: 13px; font: inherit; line-height: 1.7; }
+  .rewrite-submit-row { position: sticky; bottom: -24px; margin: 8px -24px -24px; padding: 16px 24px; border-top: 1px solid #eadfed; background: #fff; text-align: right; }
+  .rewrite-submit { border: 0; border-radius: 999px; padding: 12px 22px; color: #fff; background: #8e44ad; font-weight: 900; cursor: pointer; }
+  .rewrite-message { min-height: 22px; margin: 10px 0 0; color: #d33b58; font-size: .88rem; }
   @media (max-width: 800px) {
     .answer-grid, .score-feedback { grid-template-columns: 1fr; }
     .result-head, .followup-bar { flex-direction: column; align-items: stretch; }
+    .rewrite-panel { width: 100vw; }
+    .rewrite-columns { grid-template-columns: 1fr; overflow-y: auto; }
+    .rewrite-column { overflow: visible; }
+    .rewrite-column:first-child { border-right: 0; border-bottom: 1px solid #eadfed; }
   }
 </style>
 
@@ -83,11 +103,6 @@
     {% else %}
       <div class="empty-state">아직 작성된 답안이 없습니다.</div>
     {% endif %}
-    {% if can_revise_answer %}
-      <div class="answer-revise-row">
-        <a class="answer-revise-button" href="{% url 'take_test' activity.id %}"><i class="bi bi-pencil-square"></i> 피드백을 반영해 답안 수정하기</a>
-      </div>
-    {% endif %}
   </section>
 
   <section class="result-section">
@@ -110,8 +125,90 @@
   </section>
 
   <div class="followup-bar">
-    <div><h2>피드백을 다음 활동에 활용해 보세요.</h2><p>포트폴리오에서 선생님이 배정한 추후 활동을 확인할 수 있습니다.</p></div>
-    <a class="followup-button" href="{% url 'dashboard' %}#student-activities">추후 활동 확인하기 <i class="bi bi-arrow-right"></i></a>
+    <div><h2>다음 활동을 시작해보세요.</h2><p>선생님의 피드백을 참고해 답안을 발전시킬 수 있습니다.</p></div>
+    <button class="followup-button" type="button" data-open-rewrite {% if not can_start_rewrite %}disabled title="최신 답안에 배부된 피드백이 없습니다."{% endif %}>고쳐쓰기 <i class="bi bi-arrow-right"></i></button>
   </div>
 </main>
+
+{% if can_start_rewrite %}
+<div class="rewrite-backdrop" data-rewrite-backdrop></div>
+<aside class="rewrite-panel" data-rewrite-panel aria-hidden="true" aria-labelledby="rewritePanelTitle">
+  <header class="rewrite-panel-head">
+    <div><h2 id="rewritePanelTitle">고쳐쓰기</h2><small>피드백을 확인하면서 답안을 수정한 뒤 제출하세요.</small></div>
+    <button class="rewrite-close" type="button" data-close-rewrite aria-label="닫기">&times;</button>
+  </header>
+  <div class="rewrite-columns">
+    <section class="rewrite-column">
+      <h3 class="rewrite-column-title">선생님의 피드백</h3>
+      {% for feedback in latest_feedback_results %}
+        <article class="feedback-card">
+          <div class="feedback-type">{{ feedback.type_name }}</div>
+          <h3>{{ feedback.display_title }}</h3>
+          <div class="feedback-date">{{ feedback.published_at|default:feedback.created_at|localtime|date:"Y.m.d H:i" }}</div>
+          <div class="feedback-body">{{ feedback.feedback_content }}</div>
+        </article>
+      {% endfor %}
+    </section>
+    <section class="rewrite-column">
+      <h3 class="rewrite-column-title">답안 고쳐쓰기</h3>
+      <form method="post" action="{% url 'submit_answer_rewrite' activity.id %}" data-rewrite-form>
+        {% csrf_token %}
+        {% if activity.is_notebook %}
+          <input type="hidden" name="notebook_pages" data-rewrite-notebook-pages>
+          {% for page in rewrite_snapshot.notebook_pages %}
+            <div class="rewrite-field"><label>{{ forloop.counter }}쪽</label><textarea class="rewrite-notebook-page">{{ page }}</textarea></div>
+          {% endfor %}
+        {% else %}
+          <div class="rewrite-field"><label>{{ activity.q1_title|default:"문항 1" }}</label><textarea name="ans_q1">{{ rewrite_snapshot.ans_q1 }}</textarea></div>
+          {% if activity.q2_title %}<div class="rewrite-field"><label>{{ activity.q2_title }}</label><textarea name="ans_q2">{{ rewrite_snapshot.ans_q2 }}</textarea></div>{% endif %}
+          {% if activity.q3_title %}<div class="rewrite-field"><label>{{ activity.q3_title }}</label><textarea name="ans_q3">{{ rewrite_snapshot.ans_q3 }}</textarea></div>{% endif %}
+        {% endif %}
+        <p class="rewrite-message" data-rewrite-message role="alert"></p>
+        <div class="rewrite-submit-row"><button class="rewrite-submit" type="submit">고쳐쓰기 제출</button></div>
+      </form>
+    </section>
+  </div>
+</aside>
+<script>
+(() => {
+  const panel = document.querySelector('[data-rewrite-panel]');
+  const backdrop = document.querySelector('[data-rewrite-backdrop]');
+  const openButton = document.querySelector('[data-open-rewrite]');
+  const form = document.querySelector('[data-rewrite-form]');
+  if (!panel || !backdrop || !openButton || !form) return;
+  const setOpen = (open) => {
+    panel.classList.toggle('is-open', open);
+    backdrop.classList.toggle('is-open', open);
+    panel.setAttribute('aria-hidden', String(!open));
+    document.body.style.overflow = open ? 'hidden' : '';
+  };
+  openButton.addEventListener('click', () => setOpen(true));
+  backdrop.addEventListener('click', () => setOpen(false));
+  document.querySelector('[data-close-rewrite]').addEventListener('click', () => setOpen(false));
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setOpen(false); });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submit = form.querySelector('[type="submit"]');
+    const message = form.querySelector('[data-rewrite-message]');
+    const notebookInput = form.querySelector('[data-rewrite-notebook-pages]');
+    if (notebookInput) notebookInput.value = JSON.stringify(
+      [...form.querySelectorAll('.rewrite-notebook-page')].map((field) => field.value)
+    );
+    submit.disabled = true;
+    message.textContent = '';
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST', body: new FormData(form), headers: {'X-Requested-With': 'XMLHttpRequest'}
+      });
+      const payload = await response.json();
+      if (!response.ok || payload.status !== 'success') throw new Error(payload.message || '고쳐쓰기를 제출하지 못했습니다.');
+      window.location.reload();
+    } catch (error) {
+      message.textContent = error.message;
+      submit.disabled = false;
+    }
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

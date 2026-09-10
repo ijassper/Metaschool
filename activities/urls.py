@@ -36,6 +36,7 @@ urlpatterns = [
     path('pdf-viewer/', pdf_viewer, name='pdf_viewer'),
     path('take/<int:activity_id>/', take_test, name='take_test'),
     path('student/result/<int:activity_id>/', student_result_detail, name='student_result_detail'),
+    path('student/result/<int:activity_id>/rewrite/', submit_answer_rewrite, name='submit_answer_rewrite'),
     path('take/<int:activity_id>/draft/', save_answer_draft, name='save_answer_draft'),
     path('take/<int:activity_id>/start/', start_exam, name='start_exam'),
     path('take/<int:activity_id>/re-enter/', re_enter_exam, name='re_enter_exam'),

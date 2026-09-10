@@ -793,8 +793,33 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
 
     def test_student_result_exposes_rewrite_entry_point(self):
         source = get_template('activities/student_result_detail.html').template.source
-        self.assertIn('can_revise_answer', source)
-        self.assertIn('피드백을 반영해 답안 수정하기', source)
+        self.assertIn('can_start_rewrite', source)
+        self.assertIn('다음 활동을 시작해보세요.', source)
+        self.assertIn('data-rewrite-panel', source)
+        self.assertIn('submit_answer_rewrite', source)
+
+    def test_latest_followup_locks_regular_student_entry(self):
+        activity = Activity(is_active=True, allow_edit_after_submission=True)
+        answer = SimpleNamespace(
+            submitted_at=timezone.now(),
+            has_followup_on_latest_submission=lambda: True,
+        )
+        self.assertEqual('submitted_locked', activity.get_student_exam_state(answer))
+        self.assertFalse(activity.can_student_enter(answer))
+
+    def test_submitted_answer_without_followup_remains_editable_during_period(self):
+        activity = Activity(is_active=True, allow_edit_after_submission=True)
+        answer = SimpleNamespace(
+            submitted_at=timezone.now(),
+            has_followup_on_latest_submission=lambda: False,
+        )
+        self.assertEqual('submitted_editable', activity.get_student_exam_state(answer))
+        self.assertTrue(activity.can_student_enter(answer))
+
+    def test_dashboard_uses_requested_locked_label(self):
+        source = get_template('activities/student_dashboard.html').template.source
+        self.assertIn('[제출 완료(수정 불가)]', source)
+        self.assertNotIn('[제출 완료(수정 불가능)]', source)
 
 
 class AnswerCharacterCountTests(SimpleTestCase):
