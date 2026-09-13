@@ -305,18 +305,19 @@
         /* 브랜드 컬러 클래스 추가 (설정 아이콘용) */
         .eval-item-card.priority-card,
         .eval-item-card.priority-card:hover {
-            border: 3px solid #8E44AD !important;
-            animation: priority-card-pulse 1.6s ease-in-out infinite;
+            border-width: 3px !important;
+            border-color: #8E44AD !important;
+            animation: priority-border-blink 1.6s steps(1, end) infinite;
         }
-        @keyframes priority-card-pulse {
-            0%, 100% { box-shadow: 0 0 8px rgba(142, 68, 173, 0.2); }
-            50% { box-shadow: 0 0 15px rgba(142, 68, 173, 0.55); }
+        @keyframes priority-border-blink {
+            0%, 45%, 100% { border-style: solid; }
+            50%, 95% { border-style: dashed; }
         }
         @media (prefers-reduced-motion: reduce) {
             .eval-item-card.priority-card,
             .eval-item-card.priority-card:hover {
                 animation: none;
-                box-shadow: 0 0 15px rgba(142, 68, 173, 0.2);
+                border-style: solid !important;
             }
         }
         .text-ingrid { color: #8E44AD !important; }

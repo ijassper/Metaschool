@@ -872,9 +872,10 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
     def test_base_defines_fixed_priority_card_highlight(self):
         source = get_template('base.html').template.source
         self.assertIn('.eval-item-card.priority-card', source)
-        self.assertIn('border: 3px solid #8E44AD !important;', source)
-        self.assertIn('0 0 15px rgba(142, 68, 173, 0.2)', source)
-        self.assertIn('@keyframes priority-card-pulse', source)
+        self.assertIn('border-width: 3px !important;', source)
+        self.assertIn('border-color: #8E44AD !important;', source)
+        self.assertIn('@keyframes priority-border-blink', source)
+        self.assertIn('border-style: dashed;', source)
         self.assertIn('prefers-reduced-motion: reduce', source)
 
 
