@@ -176,6 +176,62 @@
     min-width: 0;
   }
 
+  .priority-activity-section {
+    margin-bottom: 24px;
+    padding: 18px 20px 13px;
+    border: 1px solid rgba(142, 68, 173, 0.2);
+    border-radius: 22px;
+    background: linear-gradient(135deg, #fff 0%, #faf4ff 100%);
+    box-shadow: 0 8px 24px rgba(142, 68, 173, 0.08);
+  }
+  .priority-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .priority-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: #5f2a76;
+    font-size: 1.05rem;
+    font-weight: 900;
+  }
+  .priority-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 27px;
+    height: 27px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #8e44ad;
+    color: #fff;
+    font-size: 0.78rem;
+  }
+  .priority-expand-button {
+    border: 0;
+    background: transparent;
+    color: #7b2f91;
+    font-size: 0.82rem;
+    font-weight: 800;
+  }
+  .priority-activity-list {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .priority-activity-list:not(.is-expanded) .priority-duplicate-card:nth-child(n + 6) {
+    display: none;
+  }
+  .priority-activity-list .eval-item-card {
+    min-width: 0;
+    margin-bottom: 0;
+  }
+
   .submission-time {
     color: #868e96;
     font-size: 0.7rem;
@@ -393,6 +449,9 @@
     .dashboard-grid {
       grid-template-columns: repeat(2, 1fr);
     }
+    .priority-activity-list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
 
   @media (max-width: 768px) {
@@ -409,6 +468,9 @@
 
     .card-row-bottom {
       grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+    .priority-activity-list {
+      grid-template-columns: 1fr;
     }
   }
 </style>
@@ -456,6 +518,26 @@
     </div>
   </div>
 
+  {% if priority_activities %}
+  <section class="priority-activity-section" data-priority-section aria-labelledby="priority-activity-title">
+    <div class="priority-section-header">
+      <h3 class="priority-section-title" id="priority-activity-title">
+        <i class="bi bi-lightning-charge-fill"></i>
+        지금 먼저 해야 할 활동
+        <span class="priority-count-badge" data-priority-count>{{ priority_total }}</span>
+      </h3>
+      {% if priority_total > 5 %}
+      <button type="button" class="priority-expand-button" data-priority-expand aria-expanded="false">전체 보기</button>
+      {% endif %}
+    </div>
+    <div class="priority-activity-list" data-priority-list>
+      {% for act in priority_activities %}
+        {% include 'activities/components/student_activity_card.html' with act=act is_priority_duplicate=True %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <!-- 2. 4열 카테고리 그리드 -->
   <div class="dashboard-grid" id="student-activities">
     {% for block in category_blocks %}
@@ -466,59 +548,7 @@
 
       <div class="scroll-area">
         {% for act in block.items %}
-        <div class="eval-item-card {% if act.can_enter_exam %}is-clickable{% endif %} {% if act.is_new or act.has_new_feedback or act.needs_rewrite %}priority-card{% endif %} {% if act.is_new %}priority-status-new{% endif %} {% if act.has_new_feedback %}priority-status-feedback{% endif %} {% if act.needs_rewrite %}priority-status-rewrite{% endif %}"
-             data-priority-status="{{ act.priority_status }}"
-             data-priority-new="{{ act.is_new|yesno:'true,false' }}"
-             data-priority-feedback="{{ act.has_new_feedback|yesno:'true,false' }}"
-             data-priority-rewrite="{{ act.needs_rewrite|yesno:'true,false' }}"
-             {% if act.can_enter_exam %}data-href="{% url 'take_test' act.id %}" data-opened-url="{% url 'mark_activity_opened' act.id %}" tabindex="0" role="link"{% endif %}>
-          <!-- 1행: 소메뉴 | 제출 일시 | 응시 상태 -->
-          <div class="card-row-top">
-            <span class="sub-cat-label">
-              {{ act.sub_category|default:act.get_category_display }}
-            </span>
-            <span class="submission-time">
-              {% if act.my_answer and act.my_answer.submitted_at %}
-                {{ act.my_answer.submitted_at|localtime|date:"m/d H:i" }}
-              {% else %}
-                미제출
-              {% endif %}
-            </span>
-            {% if act.my_answer and act.my_answer.submitted_at %}
-              {% if act.dashboard_state == 'submitted_editable' %}
-                <span class="status-bar status-editable card-status-compact">[제출 완료(수정 가능)]</span>
-              {% else %}
-                <span class="status-bar status-locked card-status-compact">[제출 완료(수정 불가)]</span>
-              {% endif %}
-            {% elif act.dashboard_state == 'unavailable' %}
-              <span class="status-bar status-unavailable card-status-compact">[응시 불가능]</span>
-            {% else %}
-              <span class="status-bar status-ready card-status-compact">시험 시작하기</span>
-            {% endif %}
-          </div>
-
-          <!-- 2행: 활동명 -->
-          <span class="main-title-text" title="{{ act.section|default:'일반 활동' }}">
-            {{ act.section|default:"일반 활동" }}
-          </span>
-
-          <!-- 3행: 주제 -->
-          <span class="section-sub-text" title="{{ act.title }}">
-            <i class="bi bi-tag-fill small me-1"></i>{{ act.title }}
-          </span>
-
-          <!-- 4행: 선생님 | 점수 | 상세 결과 보기 -->
-          <div class="card-row-bottom">
-            <div class="meta-teacher-center">
-              <i class="bi bi-person-fill"></i>
-              <span title="{{ act.teacher.name }} 선생님">{{ act.teacher.name }} 선생님</span>
-            </div>
-            <span class="student-score-badge">점수 {{ act.student_score }}점</span>
-            <a class="student-result-link" href="{% url 'student_result_detail' act.id %}" data-feedback-view data-feedback-read-url="{% url 'mark_activity_feedback_read' act.id %}">
-              상세 결과 보기 <i class="bi bi-chevron-right"></i>
-            </a>
-          </div>
-        </div>
+          {% include 'activities/components/student_activity_card.html' with act=act %}
         {% endfor %}
       </div>
     </div>
@@ -532,20 +562,56 @@
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = '{{ csrf_token }}';
+    const cardsForActivity = function (activityId) {
+      return Array.from(document.querySelectorAll('.eval-item-card[data-activity-id]')).filter(function (card) {
+        return card.dataset.activityId === activityId;
+      });
+    };
     const refreshPriority = function (card) {
       const active = ['priorityNew', 'priorityFeedback', 'priorityRewrite'].some(function (key) {
         return card.dataset[key] === 'true';
       });
       card.classList.toggle('priority-card', active);
     };
+    const refreshPrioritySection = function () {
+      const section = document.querySelector('[data-priority-section]');
+      if (!section) return;
+      const remaining = section.querySelectorAll('.priority-duplicate-card').length;
+      const badge = section.querySelector('[data-priority-count]');
+      const expandButton = section.querySelector('[data-priority-expand]');
+      if (badge) badge.textContent = remaining;
+      if (expandButton && remaining <= 5) expandButton.hidden = true;
+      if (!remaining) section.remove();
+    };
+    const clearPriorityType = function (activityId, type) {
+      const datasetKey = type === 'new' ? 'priorityNew' : type === 'feedback' ? 'priorityFeedback' : 'priorityRewrite';
+      cardsForActivity(activityId).forEach(function (card) {
+        card.dataset[datasetKey] = 'false';
+        card.classList.remove('priority-status-' + type);
+        refreshPriority(card);
+      });
+      cardsForActivity(activityId).forEach(function (card) {
+        if (card.dataset.priorityDuplicate === 'true' && !card.classList.contains('priority-card')) card.remove();
+      });
+      refreshPrioritySection();
+    };
+
+    const expandButton = document.querySelector('[data-priority-expand]');
+    if (expandButton) {
+      expandButton.addEventListener('click', function () {
+        const list = document.querySelector('[data-priority-list]');
+        if (!list) return;
+        const expanded = list.classList.toggle('is-expanded');
+        expandButton.textContent = expanded ? '접기' : '전체 보기';
+        expandButton.setAttribute('aria-expanded', String(expanded));
+      });
+    }
 
     document.querySelectorAll('.eval-item-card [data-feedback-view]').forEach(function (link) {
       link.addEventListener('click', function () {
         const card = link.closest('.eval-item-card');
         if (!card) return;
-        card.dataset.priorityFeedback = 'false';
-        card.classList.remove('priority-status-feedback');
-        refreshPriority(card);
+        clearPriorityType(card.dataset.activityId, 'feedback');
         fetch(link.dataset.feedbackReadUrl, {
           method: 'POST',
           headers: {'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest'},
@@ -562,9 +628,7 @@
         isNavigatingToExam = true;
 
         if (card.dataset.priorityNew === 'true') {
-          card.dataset.priorityNew = 'false';
-          card.classList.remove('priority-status-new');
-          refreshPriority(card);
+          clearPriorityType(card.dataset.activityId, 'new');
           fetch(card.dataset.openedUrl, {
             method: 'POST',
             headers: {'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest'},

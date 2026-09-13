@@ -838,12 +838,15 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
         self.assertTrue(activity.can_student_enter(answer))
 
     def test_dashboard_uses_requested_locked_label(self):
-        source = get_template('activities/student_dashboard.html').template.source
+        source = get_template('activities/components/student_activity_card.html').template.source
         self.assertIn('[제출 완료(수정 불가)]', source)
         self.assertNotIn('[제출 완료(수정 불가능)]', source)
 
     def test_dashboard_renders_priority_flags_and_immediate_clear_logic(self):
-        source = get_template('activities/student_dashboard.html').template.source
+        source = (
+            get_template('activities/student_dashboard.html').template.source
+            + get_template('activities/components/student_activity_card.html').template.source
+        )
         self.assertIn('act.is_new or act.has_new_feedback or act.needs_rewrite', source)
         self.assertIn('priority-card', source)
         self.assertIn('data-priority-new', source)
@@ -851,12 +854,17 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
         self.assertIn('data-priority-rewrite', source)
         self.assertIn('mark_activity_opened', source)
         self.assertIn("card.classList.toggle('priority-card', active)", source)
+        self.assertIn('지금 먼저 해야 할 활동', source)
+        self.assertIn('data-priority-duplicate', source)
+        self.assertIn('clearPriorityType', source)
 
     def test_base_defines_fixed_priority_card_highlight(self):
         source = get_template('base.html').template.source
         self.assertIn('.eval-item-card.priority-card', source)
         self.assertIn('border: 3px solid #8E44AD !important;', source)
         self.assertIn('0 0 15px rgba(142, 68, 173, 0.2)', source)
+        self.assertIn('@keyframes priority-card-pulse', source)
+        self.assertIn('prefers-reduced-motion: reduce', source)
 
 
 class AnswerCharacterCountTests(SimpleTestCase):

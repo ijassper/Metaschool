@@ -1,0 +1,45 @@
+{% load tz %}
+<div class="eval-item-card {% if act.can_enter_exam %}is-clickable{% endif %} {% if act.is_new or act.has_new_feedback or act.needs_rewrite %}priority-card{% endif %} {% if act.is_new %}priority-status-new{% endif %} {% if act.has_new_feedback %}priority-status-feedback{% endif %} {% if act.needs_rewrite %}priority-status-rewrite{% endif %} {% if is_priority_duplicate %}priority-duplicate-card{% endif %}"
+     data-activity-id="{{ act.id }}"
+     data-priority-duplicate="{% if is_priority_duplicate %}true{% else %}false{% endif %}"
+     data-priority-status="{{ act.priority_status }}"
+     data-priority-new="{{ act.is_new|yesno:'true,false' }}"
+     data-priority-feedback="{{ act.has_new_feedback|yesno:'true,false' }}"
+     data-priority-rewrite="{{ act.needs_rewrite|yesno:'true,false' }}"
+     {% if act.can_enter_exam %}data-href="{% url 'take_test' act.id %}" data-opened-url="{% url 'mark_activity_opened' act.id %}" tabindex="0" role="link"{% endif %}>
+  <div class="card-row-top">
+    <span class="sub-cat-label">{{ act.sub_category|default:act.get_category_display }}</span>
+    <span class="submission-time">
+      {% if act.my_answer and act.my_answer.submitted_at %}
+        {{ act.my_answer.submitted_at|localtime|date:"m/d H:i" }}
+      {% else %}
+        미제출
+      {% endif %}
+    </span>
+    {% if act.my_answer and act.my_answer.submitted_at %}
+      {% if act.dashboard_state == 'submitted_editable' %}
+        <span class="status-bar status-editable card-status-compact">[제출 완료(수정 가능)]</span>
+      {% else %}
+        <span class="status-bar status-locked card-status-compact">[제출 완료(수정 불가)]</span>
+      {% endif %}
+    {% elif act.dashboard_state == 'unavailable' %}
+      <span class="status-bar status-unavailable card-status-compact">[응시 불가능]</span>
+    {% else %}
+      <span class="status-bar status-ready card-status-compact">시험 시작하기</span>
+    {% endif %}
+  </div>
+
+  <span class="main-title-text" title="{{ act.section|default:'일반 활동' }}">{{ act.section|default:"일반 활동" }}</span>
+  <span class="section-sub-text" title="{{ act.title }}"><i class="bi bi-tag-fill small me-1"></i>{{ act.title }}</span>
+
+  <div class="card-row-bottom">
+    <div class="meta-teacher-center">
+      <i class="bi bi-person-fill"></i>
+      <span title="{{ act.teacher.name }} 선생님">{{ act.teacher.name }} 선생님</span>
+    </div>
+    <span class="student-score-badge">점수 {{ act.student_score }}점</span>
+    <a class="student-result-link" href="{% url 'student_result_detail' act.id %}" data-feedback-view data-feedback-read-url="{% url 'mark_activity_feedback_read' act.id %}">
+      상세 결과 보기 <i class="bi bi-chevron-right"></i>
+    </a>
+  </div>
+</div>
