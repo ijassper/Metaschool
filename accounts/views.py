@@ -228,7 +228,9 @@ def dashboard(request):
                 )
                 activity.dashboard_state = activity.get_student_exam_state(ans)
                 activity.can_enter_exam = activity.can_student_enter(ans)
-                activity.is_new = ans is None
+                # 답안이 없더라도 예약 전이거나 마감된 활동은 수행할 수 없으므로
+                # 신규 우선순위에 포함하지 않습니다.
+                activity.is_new = ans is None and activity.can_enter_exam
                 activity.has_new_feedback = bool(
                     ans and any(
                         feedback.is_published and not feedback.is_read

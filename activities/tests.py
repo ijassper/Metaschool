@@ -859,6 +859,16 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
         self.assertIn('data-priority-duplicate', source)
         self.assertIn('clearPriorityType', source)
 
+    def test_new_priority_requires_exam_entry_to_be_available(self):
+        import inspect
+        from accounts.views import dashboard
+
+        dashboard_view_source = inspect.getsource(dashboard)
+        self.assertIn(
+            'activity.is_new = ans is None and activity.can_enter_exam',
+            dashboard_view_source,
+        )
+
     def test_base_defines_fixed_priority_card_highlight(self):
         source = get_template('base.html').template.source
         self.assertIn('.eval-item-card.priority-card', source)
