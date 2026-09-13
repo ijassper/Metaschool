@@ -495,7 +495,9 @@ def student_result_detail(request, activity_id):
         'notebook_pages': notebook_pages,
         'latest_feedback_results': latest_feedback_results,
         'rewrite_snapshot': rewrite_snapshot,
-        'can_start_rewrite': bool(answer and latest_feedback_results),
+        'can_start_rewrite': bool(
+            answer and any(feedback.is_rewrite_assigned for feedback in latest_feedback_results)
+        ),
     })
 
 
@@ -523,6 +525,7 @@ def submit_answer_rewrite(request, activity_id):
             activity=activity,
             student=student_info,
             is_published=True,
+            is_rewrite_assigned=True,
         )
         if latest_revision:
             published_feedbacks = published_feedbacks.filter(answer_revision=latest_revision)
@@ -530,7 +533,7 @@ def submit_answer_rewrite(request, activity_id):
             published_feedbacks = published_feedbacks.filter(answer_revision__isnull=True)
         if not published_feedbacks.exists():
             return JsonResponse(
-                {'status': 'error', 'message': '최신 답안에 배부된 피드백이 없어 고쳐쓰기를 시작할 수 없습니다.'},
+                {'status': 'error', 'message': '교사가 최신 답안에 고쳐쓰기 과제를 배부하지 않았습니다.'},
                 status=403,
             )
 

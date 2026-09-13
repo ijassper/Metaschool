@@ -321,6 +321,7 @@ def save_feedback_result(request, answer_id):
     task_type = str(payload.get('task_type') or '').strip()
     persona_used = payload.get('persona_used') or {}
     feedback_session_id = payload.get('feedback_session_id')
+    is_rewrite_assigned = payload.get('is_rewrite_assigned') is True
     feedback_title = (str(payload.get('feedback_title') or '').strip() or '피드백')[:150]
     options_snapshot = payload.get('options_snapshot')
     if not isinstance(options_snapshot, dict):
@@ -373,9 +374,10 @@ def save_feedback_result(request, answer_id):
                 feedback.feedback_title = feedback_title
                 feedback.feedback_content = feedback_content
                 feedback.persona_used = persona_used
+                feedback.is_rewrite_assigned = is_rewrite_assigned
                 feedback.save(update_fields=[
                     'student', 'activity', 'answer', 'task_type', 'feedback_title',
-                    'feedback_content', 'persona_used',
+                    'feedback_content', 'persona_used', 'is_rewrite_assigned',
                 ])
             else:
                 feedback = FeedbackResult.objects.create(
@@ -388,6 +390,7 @@ def save_feedback_result(request, answer_id):
                     feedback_title=feedback_title,
                     feedback_content=feedback_content,
                     persona_used=persona_used,
+                    is_rewrite_assigned=is_rewrite_assigned,
                 )
             session_updates = {
                 'content': feedback_content,
@@ -408,6 +411,7 @@ def save_feedback_result(request, answer_id):
                 feedback_title=feedback_title,
                 feedback_content=feedback_content,
                 persona_used=persona_used,
+                is_rewrite_assigned=is_rewrite_assigned,
             )
     return JsonResponse({
         'status': 'success',
@@ -417,6 +421,7 @@ def save_feedback_result(request, answer_id):
         'is_published': feedback.is_published,
         'is_read': feedback.is_read,
         'is_editable': feedback.is_editable,
+        'is_rewrite_assigned': feedback.is_rewrite_assigned,
     })
 
 
@@ -505,6 +510,7 @@ def _serialize_feedback_session(session):
             'is_published': feedback.is_published,
             'is_read': feedback.is_read,
             'is_editable': feedback.is_editable,
+            'is_rewrite_assigned': feedback.is_rewrite_assigned,
             'published_at': (
                 timezone.localtime(feedback.published_at).strftime('%Y.%m.%d %H:%M')
                 if feedback.published_at else None

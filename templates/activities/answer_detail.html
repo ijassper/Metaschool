@@ -356,6 +356,11 @@
                 </select>
             </div>
         </section>
+        <label class="rewrite-assignment-control" for="rewriteAssignmentEnabled">
+            <input id="rewriteAssignmentEnabled" type="checkbox">
+            <span class="rewrite-assignment-check"><i class="bi bi-check-lg"></i></span>
+            <span><strong>고쳐쓰기 과제 배부</strong><small>학생이 배부된 피드백을 참고해 새 답안을 작성할 수 있습니다.</small></span>
+        </label>
         <section class="followup-design-section">
             <label><span id="feedbackCompositionLabel">답안 채점/분석 구성 메뉴</span> <small>복수 선택 가능</small></label>
             <div class="feedback-component-toggles">
@@ -1332,6 +1337,13 @@
     .feedback-session-field select { width:100%; min-height:32px; padding:.35rem .55rem; border:1px solid #e5d9e7; border-radius:8px; background:#fff; color:#4b414e; font-size:.72rem; outline:none; }
     .feedback-session-field input:focus,
     .feedback-session-field select:focus { border-color:#a86fba; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
+    .rewrite-assignment-control { display:flex; align-items:center; gap:.65rem; margin-top:.65rem; padding:.68rem .78rem; border:1px solid #eadfeb; border-radius:11px; background:#fff8fc; color:#544759; cursor:pointer; }
+    .rewrite-assignment-control input { position:absolute; opacity:0; pointer-events:none; }
+    .rewrite-assignment-check { width:24px; height:24px; display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; border:1px solid #c9b2d0; border-radius:7px; background:#fff; color:transparent; }
+    .rewrite-assignment-control input:checked + .rewrite-assignment-check { border-color:#8e44ad; background:#8e44ad; color:#fff; }
+    .rewrite-assignment-control input:disabled + .rewrite-assignment-check { opacity:.5; }
+    .rewrite-assignment-control strong { display:block; font-size:.78rem; font-weight:820; }
+    .rewrite-assignment-control small { display:block; margin-top:.12rem; color:#918596; font-size:.65rem; }
     .feedback-auto-save-status { display:inline-flex; align-items:center; gap:.38rem; color:#847989; font-size:.7rem; font-weight:700; line-height:1.4; }
     .feedback-auto-save-status.is-saving { color:#8e44ad; }
     .feedback-auto-save-status.is-error { color:#b4233c; }
@@ -1461,6 +1473,7 @@
         const lengthLabel = document.getElementById('feedbackLengthLabel');
         const autoSaveStatus = document.getElementById('feedbackAutoSaveStatus');
         const publicationStatus = document.getElementById('feedbackPublicationStatus');
+        const rewriteAssignment = document.getElementById('rewriteAssignmentEnabled');
         const publishDialog = document.getElementById('feedbackPublishDialog');
         const confirmPublishButton = document.getElementById('confirmFeedbackPublish');
         const generateIdle = generateButton.querySelector('.followup-generate-idle');
@@ -1595,6 +1608,7 @@
                 tone_scale: 'centered_5',
                 requested_length: document.getElementById('followupLength').value,
                 feedback_components: Array.from(document.querySelectorAll('.feedback-toggle.is-selected')).map((button) => button.dataset.component),
+                is_rewrite_assigned: rewriteAssignment.checked,
                 persona_name: lastPersonaUsed.persona_name || ''
             };
         }
@@ -1615,6 +1629,8 @@
             currentFeedbackResultId = feedbackResult ? feedbackResult.id : null;
             currentFeedbackIsRead = Boolean(feedbackResult && feedbackResult.is_published && feedbackResult.is_read);
             draftText.readOnly = currentFeedbackIsRead;
+            rewriteAssignment.disabled = currentFeedbackIsRead;
+            if (feedbackResult) rewriteAssignment.checked = Boolean(feedbackResult.is_rewrite_assigned);
             saveButton.disabled = currentFeedbackIsRead;
             saveButton.setAttribute('aria-disabled', currentFeedbackIsRead ? 'true' : 'false');
             publishButton.hidden = !currentFeedbackResultId || Boolean(feedbackResult && feedbackResult.is_published);
@@ -1728,6 +1744,7 @@
                 slider.value = Math.max(-2, Math.min(2, centeredValue));
             });
             if (options.requested_length) document.getElementById('followupLength').value = options.requested_length;
+            if (typeof options.is_rewrite_assigned === 'boolean') rewriteAssignment.checked = options.is_rewrite_assigned;
             lastPersonaUsed = {
                 persona_name: options.persona_name || '',
                 teacher_types: options.teacher_types || [],
@@ -1785,6 +1802,8 @@
             draftResult.hidden = true;
             saveButton.hidden = true;
             lastPersonaUsed = {};
+            rewriteAssignment.checked = false;
+            rewriteAssignment.disabled = false;
             designError.hidden = true;
             setAutoSaveStatus('idle', 'AI 초안은 임시 보관되며, 최종 저장 후 포트폴리오에 등록됩니다.');
             sessionTitle.focus();
@@ -1824,6 +1843,7 @@
             sessionTitle.setCustomValidity('');
             scheduleAutoSave();
         });
+        rewriteAssignment.addEventListener('change', function () { scheduleAutoSave(); });
         draftText.addEventListener('input', function () { scheduleAutoSave(); });
         document.getElementById('followupLength').addEventListener('change', function () { scheduleAutoSave(); });
         sessionSelect.addEventListener('change', async function () {
@@ -1928,12 +1948,13 @@
                         persona_used: lastPersonaUsed,
                         options_snapshot: collectSessionOptions(),
                         feedback_session_id: currentFeedbackSessionId,
-                        feedback_title: sessionTitle.value.trim()
+                        feedback_title: sessionTitle.value.trim(),
+                        is_rewrite_assigned: rewriteAssignment.checked
                     })
                 });
                 const data = await response.json();
                 if (!response.ok || data.status !== 'success') throw new Error(data.message || '최종 결과 저장에 실패했습니다.');
-                applyFeedbackResultState({id:data.feedback_id,is_published:data.is_published,is_read:data.is_read,published_at:null,read_at:null});
+                applyFeedbackResultState({id:data.feedback_id,is_published:data.is_published,is_read:data.is_read,is_rewrite_assigned:data.is_rewrite_assigned,published_at:null,read_at:null});
                 setAutoSaveStatus('saved', '최종 저장됨');
                 saveButton.innerHTML = originalLabel;
                 saveButton.disabled = false;

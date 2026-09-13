@@ -795,8 +795,25 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
         source = get_template('activities/student_result_detail.html').template.source
         self.assertIn('can_start_rewrite', source)
         self.assertIn('다음 활동을 시작해보세요.', source)
+        self.assertIn('고쳐쓰기 대기 중', source)
+        self.assertIn('feedback.is_rewrite_assigned', source)
         self.assertIn('data-rewrite-panel', source)
         self.assertIn('submit_answer_rewrite', source)
+
+    def test_feedback_rewrite_assignment_defaults_to_disabled(self):
+        feedback = FeedbackResult()
+        self.assertFalse(feedback.is_rewrite_assigned)
+
+    def test_teacher_feedback_panel_exposes_rewrite_assignment_control(self):
+        source = get_template('activities/answer_detail.html').template.source
+        self.assertIn('rewriteAssignmentEnabled', source)
+        self.assertIn('고쳐쓰기 과제 배부', source)
+        self.assertIn('is_rewrite_assigned: rewriteAssignment.checked', source)
+
+    def test_rewrite_submission_requires_teacher_assignment(self):
+        source = Path('activities/views/exam_views.py').read_text(encoding='utf-8')
+        self.assertIn('is_rewrite_assigned=True', source)
+        self.assertIn('고쳐쓰기 과제를 배부하지 않았습니다.', source)
 
     def test_latest_followup_locks_regular_student_entry(self):
         activity = Activity(is_active=True, allow_edit_after_submission=True)

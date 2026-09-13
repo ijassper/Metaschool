@@ -614,6 +614,7 @@ class FeedbackResult(models.Model):
     feedback_title = models.TextField(max_length=150, blank=True, verbose_name='작업 제목')
     feedback_content = models.TextField(verbose_name='AI 피드백 본문')
     persona_used = models.JSONField(default=dict, blank=True, verbose_name='사용된 페르소나/어조 정보')
+    is_rewrite_assigned = models.BooleanField(default=False, verbose_name='고쳐쓰기 과제 배부 여부')
     is_published = models.BooleanField(default=False, verbose_name='학생 공개 여부')
     published_at = models.DateTimeField(null=True, blank=True, verbose_name='학생 공개 일시')
     is_read = models.BooleanField(default=False, verbose_name='학생 열람 여부')
