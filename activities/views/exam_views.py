@@ -503,6 +503,40 @@ def student_result_detail(request, activity_id):
 
 @require_POST
 @login_required
+def mark_activity_opened(request, activity_id):
+    """신규 활동 카드를 연 학생의 빈 답안 레코드를 만들어 신규 강조를 해제합니다."""
+    activity = get_object_or_404(Activity, id=activity_id)
+    activity.sync_schedule_state(save=True)
+    student_info, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return JsonResponse({'status': 'error', 'message': '접근 권한이 없습니다.'}, status=403)
+    if not activity.is_attainable:
+        return JsonResponse({'status': 'error', 'message': '현재 응시할 수 없는 활동입니다.'}, status=403)
+    question = ensure_exam_question(activity)
+    answer, created = Answer.objects.get_or_create(student=student_info, question=question)
+    return JsonResponse({'status': 'success', 'answer_id': answer.id, 'created': created})
+
+
+@require_POST
+@login_required
+def mark_activity_feedback_read(request, activity_id):
+    """학생이 결과 페이지를 여는 즉시 공개 피드백을 읽음 처리합니다."""
+    activity = get_object_or_404(Activity, id=activity_id)
+    student_info, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return JsonResponse({'status': 'error', 'message': '접근 권한이 없습니다.'}, status=403)
+    read_at = timezone.now()
+    updated = FeedbackResult.objects.filter(
+        activity=activity,
+        student=student_info,
+        is_published=True,
+        is_read=False,
+    ).update(is_read=True, read_at=read_at)
+    return JsonResponse({'status': 'success', 'updated': updated})
+
+
+@require_POST
+@login_required
 def submit_answer_rewrite(request, activity_id):
     """공개된 최신 피드백을 반영한 학생 답안을 새 제출 버전으로 저장합니다."""
     activity = get_object_or_404(Activity, id=activity_id)

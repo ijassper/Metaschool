@@ -211,6 +211,7 @@ def dashboard(request):
                     student=student_profile,
                     question__activity__in=activities_list,
                 ).select_related('question').prefetch_related(
+                    'feedback_results',
                     'submission_revisions__feedback_sessions',
                     'submission_revisions__feedback_results',
                 )
@@ -227,6 +228,26 @@ def dashboard(request):
                 )
                 activity.dashboard_state = activity.get_student_exam_state(ans)
                 activity.can_enter_exam = activity.can_student_enter(ans)
+                activity.is_new = ans is None
+                activity.has_new_feedback = bool(
+                    ans and any(
+                        feedback.is_published and not feedback.is_read
+                        for feedback in ans.feedback_results.all()
+                    )
+                )
+                latest_revision = ans.latest_submission_revision() if ans else None
+                activity.needs_rewrite = bool(
+                    latest_revision and any(
+                        feedback.is_published and feedback.is_rewrite_assigned
+                        for feedback in latest_revision.feedback_results.all()
+                    )
+                )
+                activity.priority_status = (
+                    'rewrite' if activity.needs_rewrite
+                    else 'feedback' if activity.has_new_feedback
+                    else 'new' if activity.is_new
+                    else ''
+                )
                 
                 # 디버깅 로그 추가
                 print(f"[DASHBOARD] 학생 {student_profile.name} - 활동 {activity.id} 매칭 결과: {ans}", flush=True)

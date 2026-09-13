@@ -838,6 +838,22 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
         self.assertIn('[제출 완료(수정 불가)]', source)
         self.assertNotIn('[제출 완료(수정 불가능)]', source)
 
+    def test_dashboard_renders_priority_flags_and_immediate_clear_logic(self):
+        source = get_template('activities/student_dashboard.html').template.source
+        self.assertIn('act.is_new or act.has_new_feedback or act.needs_rewrite', source)
+        self.assertIn('priority-card', source)
+        self.assertIn('data-priority-new', source)
+        self.assertIn('data-priority-feedback', source)
+        self.assertIn('data-priority-rewrite', source)
+        self.assertIn('mark_activity_opened', source)
+        self.assertIn("card.classList.toggle('priority-card', active)", source)
+
+    def test_base_defines_fixed_priority_card_highlight(self):
+        source = get_template('base.html').template.source
+        self.assertIn('.eval-item-card.priority-card', source)
+        self.assertIn('border: 3px solid #8E44AD !important;', source)
+        self.assertIn('0 0 15px rgba(142, 68, 173, 0.2)', source)
+
 
 class AnswerCharacterCountTests(SimpleTestCase):
     def test_non_whitespace_length_excludes_spaces_tabs_and_linebreaks(self):
