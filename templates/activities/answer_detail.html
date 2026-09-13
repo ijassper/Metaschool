@@ -167,6 +167,11 @@
                         <span class="feedback-published-badge"><i class="bi bi-send-check"></i> 공개 완료</span>
                         <time class="feedback-published-time" datetime="{{ feedback.published_at|date:'c' }}">{{ feedback.published_at|localtime|date:"Y.m.d H:i" }}</time>
                         {% else %}
+                        <label class="rewrite-assignment-control rewrite-assignment-compact" data-feedback-assignment-control>
+                            <input type="checkbox" data-feedback-rewrite-assignment="{{ feedback.id }}" {% if feedback.is_rewrite_assigned %}checked{% endif %}>
+                            <span class="rewrite-assignment-check"><i class="bi bi-check-lg"></i></span>
+                            <span><strong>고쳐쓰기 과제 배부</strong></span>
+                        </label>
                         <button type="button" class="feedback-history-publish-button" data-publish-feedback="{{ feedback.id }}"><i class="bi bi-send-check"></i> 학생에게 피드백 배부</button>
                         {% endif %}
                         {% if feedback.is_published and feedback.is_read %}<span class="feedback-read-badge"><i class="bi bi-check2-all"></i> 읽음 확인</span>{% endif %}
@@ -356,11 +361,6 @@
                 </select>
             </div>
         </section>
-        <label class="rewrite-assignment-control" for="rewriteAssignmentEnabled">
-            <input id="rewriteAssignmentEnabled" type="checkbox">
-            <span class="rewrite-assignment-check"><i class="bi bi-check-lg"></i></span>
-            <span><strong>고쳐쓰기 과제 배부</strong><small>학생이 배부된 피드백을 참고해 새 답안을 작성할 수 있습니다.</small></span>
-        </label>
         <section class="followup-design-section">
             <label><span id="feedbackCompositionLabel">답안 채점/분석 구성 메뉴</span> <small>복수 선택 가능</small></label>
             <div class="feedback-component-toggles">
@@ -443,6 +443,11 @@
             <button id="saveFollowupDraft" type="button" class="source-create-button followup-save-button" hidden>
                 <i class="bi bi-check2-circle"></i> 최종 저장
             </button>
+            <label id="rewriteAssignmentControl" class="rewrite-assignment-control rewrite-assignment-footer" for="rewriteAssignmentEnabled" hidden>
+                <input id="rewriteAssignmentEnabled" type="checkbox">
+                <span class="rewrite-assignment-check"><i class="bi bi-check-lg"></i></span>
+                <span><strong>고쳐쓰기 과제 배부</strong></span>
+            </label>
             <button id="publishFollowupDraft" type="button" class="source-create-button followup-publish-button" hidden>
                 <i class="bi bi-send-check"></i> 학생에게 피드백 배부
             </button>
@@ -1338,12 +1343,18 @@
     .feedback-session-field input:focus,
     .feedback-session-field select:focus { border-color:#a86fba; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
     .rewrite-assignment-control { display:flex; align-items:center; gap:.65rem; margin-top:.65rem; padding:.68rem .78rem; border:1px solid #eadfeb; border-radius:11px; background:#fff8fc; color:#544759; cursor:pointer; }
+    .rewrite-assignment-control[hidden] { display:none !important; }
     .rewrite-assignment-control input { position:absolute; opacity:0; pointer-events:none; }
     .rewrite-assignment-check { width:24px; height:24px; display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; border:1px solid #c9b2d0; border-radius:7px; background:#fff; color:transparent; }
     .rewrite-assignment-control input:checked + .rewrite-assignment-check { border-color:#8e44ad; background:#8e44ad; color:#fff; }
     .rewrite-assignment-control input:disabled + .rewrite-assignment-check { opacity:.5; }
     .rewrite-assignment-control strong { display:block; font-size:.78rem; font-weight:820; }
     .rewrite-assignment-control small { display:block; margin-top:.12rem; color:#918596; font-size:.65rem; }
+    .rewrite-assignment-footer { margin:0; padding:.42rem .62rem; border-radius:10px; white-space:nowrap; }
+    .rewrite-assignment-footer .rewrite-assignment-check { width:22px; height:22px; }
+    .rewrite-assignment-compact { margin:0; padding:.32rem .52rem; border-radius:999px; background:#fff; white-space:nowrap; }
+    .rewrite-assignment-compact .rewrite-assignment-check { width:20px; height:20px; border-radius:6px; }
+    .rewrite-assignment-compact strong { font-size:.72rem; }
     .feedback-auto-save-status { display:inline-flex; align-items:center; gap:.38rem; color:#847989; font-size:.7rem; font-weight:700; line-height:1.4; }
     .feedback-auto-save-status.is-saving { color:#8e44ad; }
     .feedback-auto-save-status.is-error { color:#b4233c; }
@@ -1474,6 +1485,7 @@
         const autoSaveStatus = document.getElementById('feedbackAutoSaveStatus');
         const publicationStatus = document.getElementById('feedbackPublicationStatus');
         const rewriteAssignment = document.getElementById('rewriteAssignmentEnabled');
+        const rewriteAssignmentControl = document.getElementById('rewriteAssignmentControl');
         const publishDialog = document.getElementById('feedbackPublishDialog');
         const confirmPublishButton = document.getElementById('confirmFeedbackPublish');
         const generateIdle = generateButton.querySelector('.followup-generate-idle');
@@ -1483,13 +1495,16 @@
         let currentFeedbackSessionId = null;
         let currentFeedbackResultId = null;
         let currentFeedbackIsRead = false;
+        let currentFeedbackIsPublished = false;
         let pendingPublishFeedbackId = null;
         let autoSaveTimer = null;
         let autoSavePromise = null;
         let autoSaveQueued = false;
+        const rewriteAssignmentSavePromises = new Map();
         const sessionDetailUrlTemplate = '{% url "feedback_session_detail" answer.id 999999 %}';
         const sessionSaveUrlTemplate = '{% url "save_feedback_session" answer.id 999999 %}';
         const feedbackUpdateUrlTemplate = '{% url "update_feedback_result" 999999 %}';
+        const rewriteAssignmentUrlTemplate = '{% url "update_feedback_rewrite_assignment" 999999 %}';
         const publishUrlTemplate = '{% url "publish_feedback_result" 999999 %}';
         const followupLabels = {
             grading: '답안 채점/분석',
@@ -1627,10 +1642,12 @@
 
         function applyFeedbackResultState(feedbackResult) {
             currentFeedbackResultId = feedbackResult ? feedbackResult.id : null;
+            currentFeedbackIsPublished = Boolean(feedbackResult && feedbackResult.is_published);
             currentFeedbackIsRead = Boolean(feedbackResult && feedbackResult.is_published && feedbackResult.is_read);
             draftText.readOnly = currentFeedbackIsRead;
             rewriteAssignment.disabled = currentFeedbackIsRead;
             if (feedbackResult) rewriteAssignment.checked = Boolean(feedbackResult.is_rewrite_assigned);
+            rewriteAssignmentControl.hidden = !draftText.value.trim() || currentFeedbackIsPublished;
             saveButton.disabled = currentFeedbackIsRead;
             saveButton.setAttribute('aria-disabled', currentFeedbackIsRead ? 'true' : 'false');
             publishButton.hidden = !currentFeedbackResultId || Boolean(feedbackResult && feedbackResult.is_published);
@@ -1804,6 +1821,7 @@
             lastPersonaUsed = {};
             rewriteAssignment.checked = false;
             rewriteAssignment.disabled = false;
+            rewriteAssignmentControl.hidden = true;
             designError.hidden = true;
             setAutoSaveStatus('idle', 'AI 초안은 임시 보관되며, 최종 저장 후 포트폴리오에 등록됩니다.');
             sessionTitle.focus();
@@ -1843,7 +1861,44 @@
             sessionTitle.setCustomValidity('');
             scheduleAutoSave();
         });
-        rewriteAssignment.addEventListener('change', function () { scheduleAutoSave(); });
+        async function persistRewriteAssignment(feedbackId, input) {
+            const previousValue = !input.checked;
+            input.disabled = true;
+            try {
+                const response = await fetch(rewriteAssignmentUrlTemplate.replace('999999', feedbackId), {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+                    body: JSON.stringify({is_rewrite_assigned: input.checked})
+                });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') throw new Error(data.message || '고쳐쓰기 배부 설정을 저장하지 못했습니다.');
+                input.checked = Boolean(data.is_rewrite_assigned);
+                return true;
+            } catch (error) {
+                input.checked = previousValue;
+                window.alert(error.message || '고쳐쓰기 배부 설정 저장 중 오류가 발생했습니다.');
+                return false;
+            } finally {
+                input.disabled = false;
+            }
+        }
+
+        function queueRewriteAssignmentSave(feedbackId, input) {
+            const key = String(feedbackId);
+            const promise = persistRewriteAssignment(feedbackId, input);
+            rewriteAssignmentSavePromises.set(key, promise);
+            promise.finally(function () {
+                if (rewriteAssignmentSavePromises.get(key) === promise) rewriteAssignmentSavePromises.delete(key);
+            });
+            return promise;
+        }
+
+        rewriteAssignment.addEventListener('change', function () {
+            scheduleAutoSave();
+            if (currentFeedbackResultId && !currentFeedbackIsPublished) {
+                queueRewriteAssignmentSave(currentFeedbackResultId, rewriteAssignment);
+            }
+        });
         draftText.addEventListener('input', function () { scheduleAutoSave(); });
         document.getElementById('followupLength').addEventListener('change', function () { scheduleAutoSave(); });
         sessionSelect.addEventListener('change', async function () {
@@ -1980,6 +2035,8 @@
             confirmPublishButton.disabled = true;
             confirmPublishButton.textContent = '배부 중...';
             try {
+                const assignmentSave = rewriteAssignmentSavePromises.get(String(feedbackId));
+                if (assignmentSave && !(await assignmentSave)) throw new Error('고쳐쓰기 배부 설정을 먼저 저장해주세요.');
                 const response = await fetch(publishUrlTemplate.replace('999999', feedbackId), {
                     method: 'POST',
                     headers: {'X-CSRFToken':'{{ csrf_token }}','X-Requested-With':'XMLHttpRequest'}
@@ -2001,6 +2058,11 @@
         document.querySelectorAll('[data-publish-feedback]').forEach(function (button) {
             button.addEventListener('click', function () {
                 openPublishDialog(button.dataset.publishFeedback);
+            });
+        });
+        document.querySelectorAll('[data-feedback-rewrite-assignment]').forEach(function (input) {
+            input.addEventListener('change', function () {
+                queueRewriteAssignmentSave(input.dataset.feedbackRewriteAssignment, input);
             });
         });
         confirmPublishButton.addEventListener('click', function () {

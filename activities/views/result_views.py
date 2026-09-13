@@ -367,6 +367,8 @@ def save_feedback_result(request, answer_id):
                     status=403,
                 )
             if feedback:
+                if feedback.is_published:
+                    is_rewrite_assigned = feedback.is_rewrite_assigned
                 feedback.student = answer.student
                 feedback.activity = answer.question.activity
                 feedback.answer = answer
@@ -421,6 +423,36 @@ def save_feedback_result(request, answer_id):
         'is_published': feedback.is_published,
         'is_read': feedback.is_read,
         'is_editable': feedback.is_editable,
+        'is_rewrite_assigned': feedback.is_rewrite_assigned,
+    })
+
+
+@require_POST
+@login_required
+@teacher_required
+def update_feedback_rewrite_assignment(request, feedback_id):
+    """학생 배부 전 피드백의 고쳐쓰기 과제 여부를 변경합니다."""
+    try:
+        payload = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': '요청 형식이 올바르지 않습니다.'}, status=400)
+
+    with transaction.atomic():
+        feedback = get_object_or_404(
+            FeedbackResult.objects.select_for_update().select_related('activity'),
+            id=feedback_id,
+            activity__teacher=request.user,
+        )
+        if feedback.is_published:
+            return JsonResponse(
+                {'status': 'error', 'message': '이미 학생에게 배부된 피드백의 고쳐쓰기 설정은 변경할 수 없습니다.'},
+                status=409,
+            )
+        feedback.is_rewrite_assigned = payload.get('is_rewrite_assigned') is True
+        feedback.save(update_fields=['is_rewrite_assigned'])
+    return JsonResponse({
+        'status': 'success',
+        'feedback_id': feedback.id,
         'is_rewrite_assigned': feedback.is_rewrite_assigned,
     })
 

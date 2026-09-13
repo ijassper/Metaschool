@@ -808,6 +808,10 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
         source = get_template('activities/answer_detail.html').template.source
         self.assertIn('rewriteAssignmentEnabled', source)
         self.assertIn('고쳐쓰기 과제 배부', source)
+        self.assertIn('rewriteAssignmentControl', source)
+        self.assertIn('rewrite-assignment-footer', source)
+        self.assertIn('data-feedback-rewrite-assignment', source)
+        self.assertIn('update_feedback_rewrite_assignment', source)
         self.assertIn('is_rewrite_assigned: rewriteAssignment.checked', source)
 
     def test_rewrite_submission_requires_teacher_assignment(self):
