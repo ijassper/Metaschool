@@ -854,7 +854,8 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
         self.assertIn('data-priority-rewrite', source)
         self.assertIn('mark_activity_opened', source)
         self.assertIn("card.classList.toggle('priority-card', active)", source)
-        self.assertIn('지금 먼저 해야 할 활동', source)
+        self.assertIn('data-category-priority-slot', source)
+        self.assertNotIn('지금 먼저 해야 할 활동', source)
         self.assertIn('data-priority-duplicate', source)
         self.assertIn('clearPriorityType', source)
 

@@ -176,60 +176,17 @@
     min-width: 0;
   }
 
-  .priority-activity-section {
-    margin-bottom: 24px;
-    padding: 18px 20px 13px;
-    border: 1px solid rgba(142, 68, 173, 0.2);
-    border-radius: 22px;
-    background: linear-gradient(135deg, #fff 0%, #faf4ff 100%);
-    box-shadow: 0 8px 24px rgba(142, 68, 173, 0.08);
-  }
-  .priority-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 12px;
-  }
-  .priority-section-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-    color: #5f2a76;
-    font-size: 1.05rem;
-    font-weight: 900;
-  }
-  .priority-count-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 27px;
-    height: 27px;
-    padding: 0 8px;
-    border-radius: 999px;
-    background: #8e44ad;
-    color: #fff;
-    font-size: 0.78rem;
-  }
-  .priority-expand-button {
-    border: 0;
-    background: transparent;
-    color: #7b2f91;
-    font-size: 0.82rem;
-    font-weight: 800;
-  }
-  .priority-activity-list {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 10px;
-  }
-  .priority-activity-list:not(.is-expanded) .priority-duplicate-card:nth-child(n + 6) {
+  .category-priority-slot:empty {
     display: none;
   }
-  .priority-activity-list .eval-item-card {
-    min-width: 0;
+  .category-priority-slot:not(:empty) {
+    margin-bottom: 7px;
+  }
+  .category-priority-slot .eval-item-card {
     margin-bottom: 0;
+  }
+  .category-priority-slot .priority-duplicate-card:nth-child(n + 2) {
+    display: none;
   }
 
   .submission-time {
@@ -449,9 +406,6 @@
     .dashboard-grid {
       grid-template-columns: repeat(2, 1fr);
     }
-    .priority-activity-list {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
   }
 
   @media (max-width: 768px) {
@@ -468,9 +422,6 @@
 
     .card-row-bottom {
       grid-template-columns: minmax(0, 1fr) auto auto;
-    }
-    .priority-activity-list {
-      grid-template-columns: 1fr;
     }
   }
 </style>
@@ -518,26 +469,6 @@
     </div>
   </div>
 
-  {% if priority_activities %}
-  <section class="priority-activity-section" data-priority-section aria-labelledby="priority-activity-title">
-    <div class="priority-section-header">
-      <h3 class="priority-section-title" id="priority-activity-title">
-        <i class="bi bi-lightning-charge-fill"></i>
-        지금 먼저 해야 할 활동
-        <span class="priority-count-badge" data-priority-count>{{ priority_total }}</span>
-      </h3>
-      {% if priority_total > 5 %}
-      <button type="button" class="priority-expand-button" data-priority-expand aria-expanded="false">전체 보기</button>
-      {% endif %}
-    </div>
-    <div class="priority-activity-list" data-priority-list>
-      {% for act in priority_activities %}
-        {% include 'activities/components/student_activity_card.html' with act=act is_priority_duplicate=True %}
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
-
   <!-- 2. 4열 카테고리 그리드 -->
   <div class="dashboard-grid" id="student-activities">
     {% for block in category_blocks %}
@@ -547,6 +478,11 @@
       <div class="block-title">{{ block.name }}</div>
 
       <div class="scroll-area">
+        <div class="category-priority-slot" data-category-priority-slot>
+          {% for act in block.priority_items %}
+            {% include 'activities/components/student_activity_card.html' with act=act is_priority_duplicate=True %}
+          {% endfor %}
+        </div>
         {% for act in block.items %}
           {% include 'activities/components/student_activity_card.html' with act=act %}
         {% endfor %}
@@ -573,16 +509,6 @@
       });
       card.classList.toggle('priority-card', active);
     };
-    const refreshPrioritySection = function () {
-      const section = document.querySelector('[data-priority-section]');
-      if (!section) return;
-      const remaining = section.querySelectorAll('.priority-duplicate-card').length;
-      const badge = section.querySelector('[data-priority-count]');
-      const expandButton = section.querySelector('[data-priority-expand]');
-      if (badge) badge.textContent = remaining;
-      if (expandButton && remaining <= 5) expandButton.hidden = true;
-      if (!remaining) section.remove();
-    };
     const clearPriorityType = function (activityId, type) {
       const datasetKey = type === 'new' ? 'priorityNew' : type === 'feedback' ? 'priorityFeedback' : 'priorityRewrite';
       cardsForActivity(activityId).forEach(function (card) {
@@ -593,19 +519,7 @@
       cardsForActivity(activityId).forEach(function (card) {
         if (card.dataset.priorityDuplicate === 'true' && !card.classList.contains('priority-card')) card.remove();
       });
-      refreshPrioritySection();
     };
-
-    const expandButton = document.querySelector('[data-priority-expand]');
-    if (expandButton) {
-      expandButton.addEventListener('click', function () {
-        const list = document.querySelector('[data-priority-list]');
-        if (!list) return;
-        const expanded = list.classList.toggle('is-expanded');
-        expandButton.textContent = expanded ? '접기' : '전체 보기';
-        expandButton.setAttribute('aria-expanded', String(expanded));
-      });
-    }
 
     document.querySelectorAll('.eval-item-card [data-feedback-view]').forEach(function (link) {
       link.addEventListener('click', function () {

@@ -255,12 +255,7 @@ def dashboard(request):
                 if activity.has_submitted:
                     completed_count += 1
 
-            # 우선순위별로 묶되, 같은 우선순위에서는 기존 최신 생성순을 유지합니다.
             priority_rank = {'rewrite': 0, 'feedback': 1, 'new': 2}
-            priority_activities = sorted(
-                (activity for activity in activities_list if activity.priority_status),
-                key=lambda activity: priority_rank[activity.priority_status],
-            )
             
             # 3. [개편] 표준 카테고리 기준 블록 생성
             category_blocks = []
@@ -271,17 +266,20 @@ def dashboard(request):
                 items = [a for a in activities_list if cat_code.strip().lower() in a.category.strip().lower()]
                 
                 if items:
+                    priority_items = sorted(
+                        (activity for activity in items if activity.priority_status),
+                        key=lambda activity: priority_rank[activity.priority_status],
+                    )
                     category_blocks.append({
                         'name': cat_name,
-                        'items': items
+                        'items': items,
+                        'priority_items': priority_items,
                     })
 
             context.update({
                 'student': student_profile,
                 'category_blocks': category_blocks,
                 'activities': activities_list,
-                'priority_activities': priority_activities,
-                'priority_total': len(priority_activities),
                 'completed_count': completed_count,
                 'ongoing_count': len(activities_list) - completed_count,
                 'now': now
