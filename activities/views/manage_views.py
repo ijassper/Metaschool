@@ -270,6 +270,7 @@ def unified_create(request):
                 title=request.POST.get('title', '제목 없음') + extra_str,
                 exam_mode=request.POST.get('exam_mode', 'CLOSED_LOCK'),
                 allow_edit_after_submission=request.POST.get('allow_edit_after_submission') == 'True',
+                proctor_mode=request.POST.get('proctor_mode') == 'on',
                 start_time=start_time,
                 deadline=deadline,
                 is_active=start_time <= schedule_now <= deadline,
@@ -510,6 +511,7 @@ def unified_update(request, activity_id):
         activity.title = request.POST.get('title', activity.title)
         activity.exam_mode = request.POST.get('exam_mode', 'CLOSED_LOCK')
         activity.allow_edit_after_submission = request.POST.get('allow_edit_after_submission') == 'True'
+        activity.proctor_mode = request.POST.get('proctor_mode') == 'on'
         
         # [섹션 2: 세부 평가 내용] - 루프 없이 직접 매핑하여 유실 차단
         # HTML의 <textarea name="question"> 값을 직접 가져옴
@@ -771,6 +773,7 @@ def creative_create(request):
             attachment=attachment,
             char_limit=char_limit,
             exam_mode=exam_mode,
+            proctor_mode=request.POST.get('proctor_mode') == 'on',
         )
 
         # 3. 자율활동용 문항(Question) 자동 생성 (답안 제출 에러 방지)

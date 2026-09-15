@@ -8,15 +8,15 @@ from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Q
-from django.http import JsonResponse
+from django.db.models import OuterRef, Q, Subquery
+from django.http import FileResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
 from accounts.models import Persona, Student
-from ..models import Activity, Answer, ActivityStudentScore, FeedbackResult, FeedbackSession
+from ..models import Activity, Answer, ActivityStudentScore, FeedbackResult, FeedbackSession, ProctorSnapshot
 from .main_views import get_accessible_students
 
 
@@ -139,6 +139,62 @@ def activity_result(request, activity_id, template_name='activities/activity_res
         ).select_related('creator'),
     }
     return render(request, template_name, context)
+
+
+@login_required
+@teacher_required
+def proctor_monitor(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    if not activity.proctor_mode:
+        messages.warning(request, '감독 모드가 활성화된 활동이 아닙니다.')
+        return redirect('activity_result', activity_id=activity.id)
+    return render(request, 'activities/proctor_monitor.html', {'activity': activity})
+
+
+@login_required
+@teacher_required
+@require_GET
+def proctor_feed(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    latest = ProctorSnapshot.objects.filter(
+        activity=activity, student_id=OuterRef('pk')
+    ).order_by('-created_at', '-id')
+    students = activity.target_students.annotate(
+        latest_snapshot_id=Subquery(latest.values('id')[:1]),
+        latest_snapshot_at=Subquery(latest.values('created_at')[:1]),
+    ).order_by('grade', 'class_no', 'number', 'name')
+    return JsonResponse({
+        'status': 'success',
+        'server_time': timezone.now().isoformat(),
+        'students': [
+            {
+                'id': student.id,
+                'name': student.name,
+                'grade': student.grade,
+                'class_no': student.class_no,
+                'number': student.number,
+                'snapshot_id': student.latest_snapshot_id,
+                'captured_at': student.latest_snapshot_at.isoformat() if student.latest_snapshot_at else None,
+                'image_url': reverse('proctor_snapshot_image', args=[student.latest_snapshot_id]) if student.latest_snapshot_id else None,
+            }
+            for student in students
+        ],
+    })
+
+
+@login_required
+@teacher_required
+@require_GET
+def proctor_snapshot_image(request, snapshot_id):
+    snapshot = get_object_or_404(
+        ProctorSnapshot.objects.select_related('activity'),
+        id=snapshot_id,
+        activity__teacher=request.user,
+    )
+    response = FileResponse(snapshot.image.open('rb'), content_type='image/jpeg')
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 # [2] 답안 상세 페이지
 @login_required

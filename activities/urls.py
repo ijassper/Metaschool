@@ -58,6 +58,7 @@ urlpatterns = [
     path('analysis-work/<int:activity_id>/', activity_analysis_work, name='activity_analysis_work'),
     path('api/get-or-create-batch/', get_or_create_batch, name='get_or_create_batch'),
     path('take/<int:activity_id>/draft/', save_answer_draft, name='save_answer_draft'),
+    path('take/<int:activity_id>/proctor-snapshot/', upload_proctor_snapshot, name='upload_proctor_snapshot'),
     path('take/<int:activity_id>/draft-revisions/', draft_revision_list, name='draft_revision_list'),
     path(
         'take/<int:activity_id>/draft-revisions/<int:revision_id>/',
@@ -79,6 +80,9 @@ urlpatterns = [
         name='activity_result_test',
     ),
     path('result/<int:activity_id>/', activity_result, name='activity_result'),
+    path('result/<int:activity_id>/proctor/', proctor_monitor, name='proctor_monitor'),
+    path('result/<int:activity_id>/proctor/feed/', proctor_feed, name='proctor_feed'),
+    path('result/proctor/snapshot/<int:snapshot_id>/', proctor_snapshot_image, name='proctor_snapshot_image'),
     path('answer/detail/<int:answer_id>/', answer_detail, name='answer_detail'),
     path('answer/<int:answer_id>/score/', update_answer_score, name='update_answer_score'),
     path(

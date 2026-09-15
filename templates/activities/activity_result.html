@@ -65,7 +65,12 @@
             </div>
 
             <!-- [우측 끝] 3. 학생답안 다운로드 (ms-auto로 밀기) -->
-            <div class="col-auto ms-auto">
+            <div class="col-auto ms-auto d-flex gap-2 align-items-center">
+                {% if activity.proctor_mode %}
+                <a href="{% url 'proctor_monitor' activity.id %}" class="btn btn-danger rounded-pill px-4 shadow-sm fw-bold">
+                    <i class="bi bi-broadcast-pin me-1"></i> 실시간 감독
+                </a>
+                {% endif %}
                 <div class="dropdown">
                     <button class="btn btn-success dropdown-toggle rounded-pill px-4 shadow-sm fw-bold" type="button" data-bs-toggle="dropdown">
                         <i class="bi bi-download me-1"></i> 학생답안 다운로드

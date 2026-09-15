@@ -7,6 +7,7 @@ from .models import (
     Answer,
     FeedbackResult,
     FeedbackSession,
+    ProctorSnapshot,
     Question,
 )
 
@@ -18,8 +19,8 @@ class QuestionInline(admin.StackedInline):
 # 2. 평가(Activity) 관리자 설정
 @admin.register(Activity)
 class ActivityAdmin(admin.ModelAdmin):
-    list_display = ['title', 'subject_name', 'section', 'teacher', 'is_active', 'created_at']
-    list_filter = ['is_active', 'subject_name']
+    list_display = ['title', 'subject_name', 'section', 'teacher', 'is_active', 'proctor_mode', 'created_at']
+    list_filter = ['is_active', 'proctor_mode', 'subject_name']
     search_fields = ['title', 'subject_name']
     inlines = [QuestionInline] # 평가 상세 페이지에서 문항도 같이 수정 가능
 
@@ -44,6 +45,14 @@ class AnswerAdmin(admin.ModelAdmin):
 
 # 문항 모델도 단독으로 관리하고 싶을 경우 등록
 admin.site.register(Question)
+
+
+@admin.register(ProctorSnapshot)
+class ProctorSnapshotAdmin(admin.ModelAdmin):
+    list_display = ['activity', 'student', 'created_at']
+    list_filter = ['activity', 'created_at']
+    search_fields = ['activity__title', 'student__name']
+    readonly_fields = ['activity', 'student', 'image', 'client_captured_at', 'created_at']
 
 
 @admin.register(FeedbackResult)

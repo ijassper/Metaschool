@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.utils import timezone
 from django.http import JsonResponse
+from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
@@ -18,7 +19,7 @@ from accounts.decorators import teacher_required
 from accounts.models import Student, SystemConfig
 from ..models import (
     Activity, Question, Answer, AnswerDraftRevision, AnswerSubmissionRevision,
-    ActivityStudentScore, FeedbackResult,
+    ActivityStudentScore, FeedbackResult, ProctorSnapshot,
 )
 
 LOG_MESSAGES = {
@@ -207,6 +208,41 @@ def get_student_for_activity(request, activity):
         return None, redirect('dashboard')
 
     return student_info, None
+
+
+@login_required
+@require_POST
+def upload_proctor_snapshot(request, activity_id):
+    """감독 모드 화면을 제한된 크기와 주기로 저장합니다."""
+    activity = get_object_or_404(Activity, id=activity_id)
+    student, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return JsonResponse({'status': 'error', 'message': '접근 권한이 없습니다.'}, status=403)
+    if not activity.proctor_mode:
+        return JsonResponse({'status': 'error', 'message': '감독 모드가 활성화되지 않았습니다.'}, status=400)
+
+    uploaded = request.FILES.get('snapshot')
+    if not uploaded:
+        return JsonResponse({'status': 'error', 'message': '화면 이미지가 없습니다.'}, status=400)
+    if uploaded.content_type not in {'image/jpeg', 'image/webp'}:
+        return JsonResponse({'status': 'error', 'message': '지원하지 않는 이미지 형식입니다.'}, status=400)
+    if uploaded.size > 500 * 1024:
+        return JsonResponse({'status': 'error', 'message': '화면 이미지가 너무 큽니다.'}, status=413)
+
+    latest = ProctorSnapshot.objects.filter(activity=activity, student=student).only('created_at').first()
+    if latest and (timezone.now() - latest.created_at).total_seconds() < 2:
+        return JsonResponse({'status': 'ignored', 'message': '전송 간격이 너무 짧습니다.'}, status=202)
+
+    client_time = parse_datetime(request.POST.get('captured_at', ''))
+    if client_time and timezone.is_naive(client_time):
+        client_time = timezone.make_aware(client_time)
+    snapshot = ProctorSnapshot.objects.create(
+        activity=activity,
+        student=student,
+        image=uploaded,
+        client_captured_at=client_time,
+    )
+    return JsonResponse({'status': 'success', 'snapshot_id': snapshot.id})
 
 
 def ensure_exam_question(activity):

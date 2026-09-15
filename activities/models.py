@@ -46,6 +46,7 @@ class Activity(models.Model):
     ]
     exam_mode = models.CharField(max_length=11, choices=EXAM_MODE_CHOICES, default='CLOSED_LOCK', verbose_name="응시 환경")
     allow_edit_after_submission = models.BooleanField(default=True, verbose_name="제출 후 수정 허용")
+    proctor_mode = models.BooleanField(default=False, verbose_name="감독 모드")
     char_limit = models.IntegerField(default=0, verbose_name="분량 제한(자)") # 0은 무제한
     LIMIT_TYPE_CHOICES = [
         ('NONE', '제한 없음'),
@@ -552,6 +553,32 @@ class ActivityStudentScore(models.Model):
 
     def __str__(self):
         return f'{self.activity} · {self.student} · {self.score}점'
+
+
+class ProctorSnapshot(models.Model):
+    """감독 모드에서 학생이 공유한 화면의 저해상도 주기 스냅숏."""
+
+    activity = models.ForeignKey(
+        Activity, on_delete=models.CASCADE, related_name='proctor_snapshots', verbose_name='활동'
+    )
+    student = models.ForeignKey(
+        Student, on_delete=models.CASCADE, related_name='proctor_snapshots', verbose_name='학생'
+    )
+    image = models.FileField(upload_to='proctor_snapshots/%Y/%m/%d/', verbose_name='화면 이미지')
+    client_captured_at = models.DateTimeField(null=True, blank=True, verbose_name='학생 기기 촬영 시각')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='서버 수신 시각')
+
+    class Meta:
+        verbose_name = '감독 화면 스냅숏'
+        verbose_name_plural = '감독 화면 스냅숏 목록'
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['activity', 'student', '-created_at'], name='proctor_activity_student_idx'),
+            models.Index(fields=['activity', '-created_at'], name='proctor_activity_time_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.activity} · {self.student} · {self.created_at:%Y-%m-%d %H:%M:%S}'
 
 # AI 분석 결과 모델 (다중 결과 지원)
 class AnalysisResult(models.Model):

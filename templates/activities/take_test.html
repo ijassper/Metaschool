@@ -970,6 +970,12 @@
 
                 <div class="card prep-glass-card prep-action-card">
                     <div class="card-body p-3">
+                        {% if activity.proctor_mode %}
+                        <div class="alert alert-warning border-warning mb-3 text-start small">
+                            <strong><i class="bi bi-display me-1"></i>감독 모드 활동입니다.</strong>
+                            시작 시 공유할 화면을 직접 선택해야 하며, 선택한 화면이 3초마다 이미지로 저장되어 담당 교사에게 표시됩니다. 오디오는 수집하지 않습니다.
+                        </div>
+                        {% endif %}
                         <div class="d-flex flex-column flex-sm-row gap-2 prep-action-row">
                             <button type="button" id="start-btn" class="btn btn-lg px-4 py-3 rounded-pill fw-bold text-white flex-fill"
                                     style="background: var(--ingrid-gradient, linear-gradient(135deg, #FF80B5 0%, #8E44AD 100%)); border: none; transition: transform 0.2s;"
@@ -1620,6 +1626,9 @@
     const deadlineAt = deadlineValue ? new Date(deadlineValue) : null;
     let answerId = "{{ answer_id }}"; 
     const csrfToken = '{{ csrf_token }}';
+    const PROCTOR_MODE = {{ activity.proctor_mode|yesno:"true,false" }};
+    const PROCTOR_UPLOAD_URL = "{% url 'upload_proctor_snapshot' activity.id %}";
+    const PROCTOR_INTERVAL_MS = 3000;
     const entryLogUrl = '{% url entry_action_url activity.id %}';
     let entryLogged = false;
     const IS_TYPING_ACTIVITY = {{ activity.typing_type|yesno:"true,false" }};
@@ -1647,6 +1656,11 @@
     let isStartingExam = false;
     let is_modal_active = false;
     let modalInteractionGraceUntil = 0;
+    let proctorStream = null;
+    let proctorVideo = null;
+    let proctorCanvas = null;
+    let proctorTimer = null;
+    let proctorUploadInFlight = false;
 
     function isPdfModalInteractionActive() {
         if (!is_modal_active) return false;
@@ -1929,11 +1943,94 @@
         }
     }
 
+    function setProctorStatus(message, isError = false) {
+        let badge = document.getElementById('proctorStatusBadge');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'proctorStatusBadge';
+            badge.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:1090;padding:9px 14px;border-radius:999px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.18)';
+            document.body.appendChild(badge);
+        }
+        badge.textContent = message;
+        badge.style.background = isError ? '#dc3545' : '#198754';
+        badge.style.color = '#fff';
+    }
+
+    async function acquireProctorScreen() {
+        if (!PROCTOR_MODE) return;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+            throw new Error('이 브라우저는 화면 공유를 지원하지 않습니다. 최신 Chrome 또는 Edge를 사용해 주세요.');
+        }
+        proctorStream = await navigator.mediaDevices.getDisplayMedia({
+            video: { frameRate: { ideal: 1, max: 2 }, displaySurface: 'monitor' },
+            audio: false,
+        });
+        proctorVideo = document.createElement('video');
+        proctorVideo.muted = true;
+        proctorVideo.playsInline = true;
+        proctorVideo.srcObject = proctorStream;
+        await proctorVideo.play();
+        proctorCanvas = document.createElement('canvas');
+        const track = proctorStream.getVideoTracks()[0];
+        track.addEventListener('ended', () => {
+            stopProctorCapture();
+            setProctorStatus('화면 공유 중단됨 · 다시 입장해 공유해 주세요', true);
+            alert('감독 화면 공유가 중단되었습니다. 답안을 안전하게 저장한 뒤 페이지를 새로고침하고 다시 공유해 주세요.');
+        });
+    }
+
+    async function uploadProctorFrame() {
+        if (!PROCTOR_MODE || !proctorVideo || !proctorStream || proctorUploadInFlight) return;
+        const track = proctorStream.getVideoTracks()[0];
+        if (!track || track.readyState !== 'live' || proctorVideo.videoWidth < 1) return;
+        proctorUploadInFlight = true;
+        try {
+            const scale = Math.min(1, 960 / proctorVideo.videoWidth);
+            proctorCanvas.width = Math.round(proctorVideo.videoWidth * scale);
+            proctorCanvas.height = Math.round(proctorVideo.videoHeight * scale);
+            proctorCanvas.getContext('2d', {alpha:false}).drawImage(proctorVideo, 0, 0, proctorCanvas.width, proctorCanvas.height);
+            const blob = await new Promise(resolve => proctorCanvas.toBlob(resolve, 'image/jpeg', 0.55));
+            if (!blob) return;
+            const body = new FormData();
+            body.append('snapshot', blob, `screen-${Date.now()}.jpg`);
+            body.append('captured_at', new Date().toISOString());
+            const response = await fetch(PROCTOR_UPLOAD_URL, {method:'POST', headers:{'X-CSRFToken':csrfToken, 'X-Requested-With':'XMLHttpRequest'}, body});
+            if (response.ok) setProctorStatus('감독 화면 공유 중 · 3초 간격');
+        } catch (error) {
+            console.error('감독 화면 전송 실패', error);
+            setProctorStatus('감독 화면 전송 재시도 중', true);
+        } finally {
+            proctorUploadInFlight = false;
+        }
+    }
+
+    function startProctorCapture() {
+        if (!PROCTOR_MODE || proctorTimer) return;
+        uploadProctorFrame();
+        proctorTimer = window.setInterval(uploadProctorFrame, PROCTOR_INTERVAL_MS);
+    }
+
+    function stopProctorCapture() {
+        if (proctorTimer) window.clearInterval(proctorTimer);
+        proctorTimer = null;
+    }
+
+    window.addEventListener('pagehide', stopProctorCapture);
+
     async function startTest(event) {
         if (event) event.preventDefault();
         if (isStartingExam) return;
 
         isStartingExam = true;
+        if (PROCTOR_MODE) {
+            try {
+                await acquireProctorScreen();
+            } catch (error) {
+                isStartingExam = false;
+                alert(error && error.message ? error.message : '감독 모드 화면 공유를 승인해야 시작할 수 있습니다.');
+                return;
+            }
+        }
         try {
             await requestExamFullscreen();
             logFullscreenState('start-click-success');
@@ -1948,6 +2045,7 @@
         }
 
         completeStart();
+        startProctorCapture();
         window.setTimeout(function () {
             isStartingExam = false;
         }, 500);
