@@ -147,17 +147,18 @@
                                 const parts = data.deadline_display.split(' ');
                                 deadlineTarget.innerHTML = '';
 
+                                const startDisplay = deadlineTarget.dataset.startDisplay;
+                                if (startDisplay) {
+                                    const startLine = document.createElement('span');
+                                    startLine.className = 'deadline-date';
+                                    startLine.textContent = `${startDisplay} ~`;
+                                    deadlineTarget.appendChild(startLine);
+                                }
+
                                 const dateLine = document.createElement('span');
                                 dateLine.className = 'deadline-date';
-                                dateLine.textContent = parts[0] || data.deadline_display;
+                                dateLine.textContent = parts[1] ? `${parts[0]} ${parts[1]}` : data.deadline_display;
                                 deadlineTarget.appendChild(dateLine);
-
-                                if (parts[1]) {
-                                    const timeLine = document.createElement('span');
-                                    timeLine.className = 'deadline-time';
-                                    timeLine.textContent = parts[1];
-                                    deadlineTarget.appendChild(timeLine);
-                                }
                             } else {
                                 deadlineTarget.textContent = data.deadline_display;
                             }
