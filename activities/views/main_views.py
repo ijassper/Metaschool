@@ -4,6 +4,7 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from urllib.parse import urlencode
 from accounts.models import Student
 from ..models import Activity  # [중요] 한 단계 위 폴더의 models에서 가져옴
@@ -398,7 +399,8 @@ def get_menu_items(request):
                 'id': activity.id,
                 'activity_name': activity.section or '이름 없는 활동',
                 'detail_topic': activity.title or '세부 주제 없음',
-                'url': list_url,
+                'created_date': timezone.localtime(activity.created_at).strftime('%Y-%m-%d'),
+                'url': reverse('activity_result', args=[activity.id]),
             }
             for activity in activities
         ],

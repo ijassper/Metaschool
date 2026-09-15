@@ -313,6 +313,19 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        .sidebar-mega-item-head {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: start;
+            gap: 8px;
+        }
+        .sidebar-mega-item-date {
+            color: #a096a4;
+            font-size: 0.66rem;
+            font-weight: 650;
+            line-height: 1.35;
+            white-space: nowrap;
+        }
         .sidebar-mega-item-topic {
             display: -webkit-box;
             margin-top: 3px;
@@ -883,15 +896,24 @@
                     link.className = 'sidebar-mega-item';
                     link.href = item.url;
 
+                    const head = document.createElement('span');
+                    head.className = 'sidebar-mega-item-head';
+
                     const name = document.createElement('span');
                     name.className = 'sidebar-mega-item-name';
                     name.textContent = item.activity_name;
+
+                    const date = document.createElement('span');
+                    date.className = 'sidebar-mega-item-date';
+                    date.textContent = item.created_date;
+
+                    head.append(name, date);
 
                     const topic = document.createElement('span');
                     topic.className = 'sidebar-mega-item-topic';
                     topic.textContent = item.detail_topic;
 
-                    link.append(name, topic);
+                    link.append(head, topic);
                     fragment.appendChild(link);
                 });
                 panelBody.appendChild(fragment);

@@ -90,7 +90,12 @@ class SidebarMegaMenuTests(SimpleTestCase):
             {'category': 'CREATIVE', 'sub': '범교과교육'},
         )
         request.user = self.teacher
-        activity = SimpleNamespace(id=17, section='환경 교육', title='플라스틱 사용 줄이기')
+        activity = SimpleNamespace(
+            id=17,
+            section='환경 교육',
+            title='플라스틱 사용 줄이기',
+            created_at=timezone.now(),
+        )
 
         with patch('activities.views.main_views.Activity.objects') as manager:
             manager.filter.return_value.only.return_value.order_by.return_value = [activity]
@@ -100,7 +105,9 @@ class SidebarMegaMenuTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(payload['items'][0]['activity_name'], '환경 교육')
         self.assertEqual(payload['items'][0]['detail_topic'], '플라스틱 사용 줄이기')
-        self.assertIn('category=CREATIVE', payload['items'][0]['url'])
+        self.assertRegex(payload['items'][0]['created_date'], r'^\d{4}-\d{2}-\d{2}$')
+        self.assertEqual(payload['items'][0]['url'], reverse('activity_result', args=[17]))
+        self.assertIn('category=CREATIVE', payload['list_url'])
 
     def test_base_has_slide_out_submenu_panel_and_cached_fetch(self):
         source = get_template('base.html').template.source
@@ -110,6 +117,7 @@ class SidebarMegaMenuTests(SimpleTestCase):
         self.assertIn("fetch(endpoint + '?' + params.toString()", source)
         self.assertIn('item.activity_name', source)
         self.assertIn('item.detail_topic', source)
+        self.assertIn('item.created_date', source)
 
 class NotebookPageDataTests(SimpleTestCase):
     def test_parses_page_json_and_preserves_page_order(self):
