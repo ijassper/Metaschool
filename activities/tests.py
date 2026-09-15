@@ -1,7 +1,9 @@
 from types import SimpleNamespace
 from pathlib import Path
 import re
+import json
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.template.loader import get_template
@@ -21,7 +23,7 @@ from .views.exam_views import (
     submitted_answer_char_count,
 )
 from .views.result_views import parse_quick_score
-from .views.main_views import get_form_config
+from .views.main_views import get_form_config, get_menu_items
 from .views.ai_views import (
     FEEDBACK_BASE_PROMPT,
     compose_ai_system_prompt,
@@ -72,6 +74,42 @@ class ActivitySchedulingTests(SimpleTestCase):
         source = get_template('activities/unified_list.html').template.source
         self.assertIn('자동 제어 중', source)
 
+
+class SidebarMegaMenuTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.teacher = SimpleNamespace(
+            is_authenticated=True,
+            is_approved=True,
+            role='TEACHER',
+        )
+
+    def test_menu_api_returns_two_line_activity_data(self):
+        request = self.factory.get(
+            '/activities/get-menu-items/',
+            {'category': 'CREATIVE', 'sub': '범교과교육'},
+        )
+        request.user = self.teacher
+        activity = SimpleNamespace(id=17, section='환경 교육', title='플라스틱 사용 줄이기')
+
+        with patch('activities.views.main_views.Activity.objects') as manager:
+            manager.filter.return_value.only.return_value.order_by.return_value = [activity]
+            response = get_menu_items(request)
+
+        payload = json.loads(response.content)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload['items'][0]['activity_name'], '환경 교육')
+        self.assertEqual(payload['items'][0]['detail_topic'], '플라스틱 사용 줄이기')
+        self.assertIn('category=CREATIVE', payload['items'][0]['url'])
+
+    def test_base_has_slide_out_submenu_panel_and_cached_fetch(self):
+        source = get_template('base.html').template.source
+        self.assertIn('sidebarSubmenuPanel', source)
+        self.assertIn('data-submenu-panel-body', source)
+        self.assertIn("const responseCache = new Map()", source)
+        self.assertIn("fetch(endpoint + '?' + params.toString()", source)
+        self.assertIn('item.activity_name', source)
+        self.assertIn('item.detail_topic', source)
 
 class NotebookPageDataTests(SimpleTestCase):
     def test_parses_page_json_and_preserves_page_order(self):

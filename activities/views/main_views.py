@@ -2,6 +2,9 @@
 
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.urls import reverse
+from urllib.parse import urlencode
 from accounts.models import Student
 from ..models import Activity  # [중요] 한 단계 위 폴더의 models에서 가져옴
 
@@ -355,6 +358,50 @@ def unified_list(request):
         'cat_code': cat_code,
         'sub_menu': sub_name,    # 템플릿의 버튼 링크 생성용
         'config': config  # 템플릿에서 머리글로 사용하기 위해 전달
+    })
+
+
+@teacher_required
+def get_menu_items(request):
+    """사이드바 소메뉴 패널에 표시할 교사 소유 활동을 반환합니다."""
+    category = (request.GET.get('category') or '').strip()
+    sub_category = (request.GET.get('sub') or '').strip()
+    valid_categories = {code for code, _label in Activity.CATEGORY_CHOICES}
+
+    if category not in valid_categories or not sub_category:
+        return JsonResponse(
+            {'status': 'error', 'message': '올바른 메뉴 정보를 입력해주세요.'},
+            status=400,
+        )
+
+    activities = (
+        Activity.objects.filter(
+            teacher=request.user,
+            category=category,
+            sub_category=sub_category,
+        )
+        .only('id', 'section', 'title', 'created_at')
+        .order_by('-created_at')
+    )
+    list_url = '{}?{}'.format(
+        reverse('unified_list'),
+        urlencode({'category': category, 'sub': sub_category}),
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'category': category,
+        'sub': sub_category,
+        'list_url': list_url,
+        'items': [
+            {
+                'id': activity.id,
+                'activity_name': activity.section or '이름 없는 활동',
+                'detail_topic': activity.title or '세부 주제 없음',
+                'url': list_url,
+            }
+            for activity in activities
+        ],
     })
 
 # 창의적체험활동 목록

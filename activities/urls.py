@@ -19,6 +19,7 @@ urlpatterns = [
     # 1. 공통 및 목록 (main_views)
     path('find-account/', find_account, name='find_account'), 
     path('list/', unified_list, name='unified_list'),
+    path('get-menu-items/', get_menu_items, name='get_menu_items'),
     path('creative/', creative_list, name='creative_list'),
     path('detail/<int:activity_id>/', activity_detail, name='activity_detail'),
     path('creative/<int:pk>/', creative_detail, name='creative_detail'),

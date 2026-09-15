@@ -218,6 +218,118 @@
             /*font-weight: 600;*/
         }
 
+        .sidebar-submenu-panel {
+            position: fixed;
+            top: 0;
+            left: var(--sidebar-expanded-width);
+            z-index: 999;
+            width: var(--sidebar-expanded-width);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.96);
+            border-right: 1px solid rgba(142, 68, 173, 0.14);
+            box-shadow: 18px 0 42px rgba(62, 38, 74, 0.14);
+            backdrop-filter: blur(18px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateX(-18px);
+            transition: transform 0.22s ease, opacity 0.22s ease, visibility 0.22s;
+        }
+        .sidebar-submenu-panel.is-open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
+        body.sidebar-collapsed .sidebar-submenu-panel {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateX(-24px);
+        }
+        .sidebar-submenu-panel-header {
+            min-height: 84px;
+            padding: 20px 18px 14px;
+            border-bottom: 1px solid rgba(142, 68, 173, 0.12);
+        }
+        .sidebar-submenu-panel-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .sidebar-submenu-panel-title {
+            margin: 0;
+            color: #3f3543;
+            font-size: 1.08rem;
+            font-weight: 850;
+        }
+        .sidebar-submenu-panel-close {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 50%;
+            background: #f6eef8;
+            color: #77527f;
+        }
+        .sidebar-submenu-panel-all {
+            display: inline-flex;
+            margin-top: 8px;
+            color: var(--ingrid-primary);
+            font-size: 0.78rem;
+            font-weight: 750;
+            text-decoration: none;
+        }
+        .sidebar-submenu-panel-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            padding: 12px;
+            overflow-y: auto;
+        }
+        .sidebar-mega-item {
+            display: block;
+            padding: 12px 13px;
+            margin-bottom: 7px;
+            border: 1px solid rgba(142, 68, 173, 0.11);
+            border-radius: 14px;
+            background: rgba(250, 247, 252, 0.88);
+            text-decoration: none;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+        .sidebar-mega-item:hover {
+            transform: translateX(3px);
+            border-color: rgba(142, 68, 173, 0.38);
+            background: #fff;
+        }
+        .sidebar-mega-item-name {
+            display: block;
+            overflow: hidden;
+            color: #392f3d;
+            font-size: 0.9rem;
+            font-weight: 800;
+            line-height: 1.35;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .sidebar-mega-item-topic {
+            display: -webkit-box;
+            margin-top: 3px;
+            overflow: hidden;
+            color: #8a808e;
+            font-size: 0.77rem;
+            line-height: 1.35;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 1;
+        }
+        .sidebar-submenu-panel-state {
+            padding: 30px 12px;
+            color: #8a808e;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
         /* 화살표 아이콘 */
         .arrow-icon { font-size: 0.8rem; transition: transform 0.2s; }
         .menu-btn:not(.collapsed) .arrow-icon { transform: rotate(180deg); }
@@ -293,6 +405,10 @@
             body.sidebar-collapsed .main-content-shell {
                 padding-left: 1rem;
                 padding-top: 4.25rem;
+            }
+
+            .sidebar-submenu-panel {
+                display: none;
             }
         }
 
@@ -596,6 +712,20 @@
                     </div>
                 </div>
             </nav>
+            <aside id="sidebarSubmenuPanel" class="sidebar-submenu-panel" aria-hidden="true" aria-labelledby="sidebarSubmenuPanelTitle">
+                <header class="sidebar-submenu-panel-header">
+                    <div class="sidebar-submenu-panel-heading">
+                        <h2 id="sidebarSubmenuPanelTitle" class="sidebar-submenu-panel-title">활동 목록</h2>
+                        <button type="button" class="sidebar-submenu-panel-close" data-submenu-panel-close aria-label="서브 메뉴 닫기">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <a href="#" class="sidebar-submenu-panel-all" data-submenu-panel-all>전체 목록 보기 <i class="bi bi-chevron-right ms-1"></i></a>
+                </header>
+                <div class="sidebar-submenu-panel-body" data-submenu-panel-body>
+                    <div class="sidebar-submenu-panel-state">소메뉴를 선택해주세요.</div>
+                </div>
+            </aside>
             {% endif %}
 
             <!-- [오른쪽 메인 콘텐츠 영역] -->
@@ -686,6 +816,144 @@
                     }
                 });
             }
+        })();
+    </script>
+    <script>
+        (function () {
+            const panel = document.getElementById('sidebarSubmenuPanel');
+            const sidebar = document.getElementById('sidebarMenu');
+            if (!panel || !sidebar) return;
+
+            const panelTitle = document.getElementById('sidebarSubmenuPanelTitle');
+            const panelBody = panel.querySelector('[data-submenu-panel-body]');
+            const allLink = panel.querySelector('[data-submenu-panel-all]');
+            const closeButton = panel.querySelector('[data-submenu-panel-close]');
+            const endpoint = '{% url "get_menu_items" %}';
+            const desktopMedia = window.matchMedia('(min-width: 992px)');
+            const responseCache = new Map();
+            let closeTimer = null;
+            let requestSerial = 0;
+
+            function menuInfo(link) {
+                try {
+                    const url = new URL(link.href, window.location.origin);
+                    const category = url.searchParams.get('category');
+                    const sub = url.searchParams.get('sub');
+                    if (url.pathname !== '{% url "unified_list" %}' || !category || !sub) return null;
+                    return {category: category, sub: sub, listUrl: url.pathname + url.search};
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            function setPanelOpen(open) {
+                panel.classList.toggle('is-open', open);
+                panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+            }
+
+            function cancelClose() {
+                if (closeTimer) window.clearTimeout(closeTimer);
+                closeTimer = null;
+            }
+
+            function scheduleClose() {
+                cancelClose();
+                closeTimer = window.setTimeout(function () {
+                    setPanelOpen(false);
+                }, 260);
+            }
+
+            function renderState(message) {
+                panelBody.replaceChildren();
+                const state = document.createElement('div');
+                state.className = 'sidebar-submenu-panel-state';
+                state.textContent = message;
+                panelBody.appendChild(state);
+            }
+
+            function renderItems(data) {
+                panelBody.replaceChildren();
+                if (!data.items.length) {
+                    renderState('등록된 활동이 없습니다.');
+                    return;
+                }
+                const fragment = document.createDocumentFragment();
+                data.items.forEach(function (item) {
+                    const link = document.createElement('a');
+                    link.className = 'sidebar-mega-item';
+                    link.href = item.url;
+
+                    const name = document.createElement('span');
+                    name.className = 'sidebar-mega-item-name';
+                    name.textContent = item.activity_name;
+
+                    const topic = document.createElement('span');
+                    topic.className = 'sidebar-mega-item-topic';
+                    topic.textContent = item.detail_topic;
+
+                    link.append(name, topic);
+                    fragment.appendChild(link);
+                });
+                panelBody.appendChild(fragment);
+            }
+
+            async function openPanel(link) {
+                if (!desktopMedia.matches || document.body.classList.contains('sidebar-collapsed')) return;
+                const info = menuInfo(link);
+                if (!info) return;
+
+                cancelClose();
+                setPanelOpen(true);
+                panelTitle.textContent = info.sub;
+                allLink.href = info.listUrl;
+
+                const cacheKey = info.category + '::' + info.sub;
+                if (responseCache.has(cacheKey)) {
+                    renderItems(responseCache.get(cacheKey));
+                    return;
+                }
+
+                const currentRequest = ++requestSerial;
+                renderState('활동을 불러오는 중입니다.');
+                try {
+                    const params = new URLSearchParams({category: info.category, sub: info.sub});
+                    const response = await fetch(endpoint + '?' + params.toString(), {
+                        headers: {'X-Requested-With': 'XMLHttpRequest'}
+                    });
+                    if (!response.ok) throw new Error('menu request failed');
+                    const data = await response.json();
+                    if (currentRequest !== requestSerial) return;
+                    responseCache.set(cacheKey, data);
+                    renderItems(data);
+                } catch (error) {
+                    if (currentRequest === requestSerial) renderState('활동을 불러오지 못했습니다.');
+                }
+            }
+
+            sidebar.querySelectorAll('.sub-menu-item').forEach(function (link) {
+                if (!menuInfo(link)) return;
+                link.addEventListener('mouseenter', function () { openPanel(link); });
+                link.addEventListener('mouseleave', scheduleClose);
+                link.addEventListener('focus', function () { openPanel(link); });
+                link.addEventListener('click', function (event) {
+                    if (!desktopMedia.matches) return;
+                    event.preventDefault();
+                    openPanel(link);
+                });
+            });
+
+            panel.addEventListener('mouseenter', cancelClose);
+            panel.addEventListener('mouseleave', scheduleClose);
+            closeButton.addEventListener('click', function () { setPanelOpen(false); });
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') setPanelOpen(false);
+            });
+            window.addEventListener('resize', function () {
+                if (!desktopMedia.matches) setPanelOpen(false);
+            });
+            sidebar.querySelectorAll('#sidebarToggleBtn').forEach(function (button) {
+                button.addEventListener('click', function () { setPanelOpen(false); });
+            });
         })();
     </script>
     <script>
