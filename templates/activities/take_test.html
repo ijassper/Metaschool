@@ -177,6 +177,18 @@
         font-weight: 800;
         white-space: nowrap;
     }
+    .proctor-recording-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        flex: 1 0 auto;
+        padding: 0 16px;
+        color: #dc3545;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+    .proctor-recording-status.is-error { white-space: normal; }
     .typing-topic-title {
         font-size: clamp(1rem, 1.8vw, 1.2rem);
         line-height: 1.25;
@@ -972,8 +984,7 @@
                     <div class="card-body p-3">
                         {% if activity.proctor_mode %}
                         <div class="alert alert-warning border-warning mb-3 text-start small">
-                            <strong><i class="bi bi-display me-1"></i>감독 모드 활동입니다.</strong>
-                            시작 시 공유할 화면을 직접 선택해야 하며, 선택한 화면이 3초마다 이미지로 저장되어 담당 교사에게 표시됩니다. 오디오는 수집하지 않습니다.
+                            <strong><i class="bi bi-display me-1"></i>CCTV 모드:</strong> 시험 시작과 동시에 화면이 녹화되며 다른 페이지를 열게 되면 감독선생님에게 보고됩니다.
                         </div>
                         {% endif %}
                         <div class="d-flex flex-column flex-sm-row gap-2 prep-action-row">
@@ -1299,6 +1310,9 @@
                             {{ user.name }}{% if user.school %} · {{ user.school.name }}{% endif %}
                         </div>
                     </div>
+                    {% if activity.proctor_mode %}
+                    <span id="proctorStatusBadge" class="proctor-recording-status d-none" role="status" aria-live="polite"></span>
+                    {% endif %}
                     <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end ms-auto">
                         <span id="remainingTime" class="exam-status-pill">
                             <i class="bi bi-clock-history"></i> 남은 시간 확인 중
@@ -1946,14 +1960,23 @@
     function setProctorStatus(message, isError = false) {
         let badge = document.getElementById('proctorStatusBadge');
         if (!badge) {
-            badge = document.createElement('div');
+            badge = document.createElement('span');
             badge.id = 'proctorStatusBadge';
-            badge.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:1090;padding:9px 14px;border-radius:999px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.18)';
-            document.body.appendChild(badge);
+            badge.className = 'proctor-recording-status';
+            badge.setAttribute('role', 'status');
+            const header = document.querySelector('#testContainer .exam-sticky-header');
+            if (!header) return;
+            header.appendChild(badge);
         }
-        badge.textContent = message;
-        badge.style.background = isError ? '#dc3545' : '#198754';
-        badge.style.color = '#fff';
+        badge.classList.remove('d-none');
+        badge.classList.toggle('is-error', isError);
+        badge.replaceChildren();
+        const icon = document.createElement('i');
+        icon.className = isError ? 'bi bi-exclamation-circle-fill' : 'bi bi-record-circle-fill';
+        icon.setAttribute('aria-hidden', 'true');
+        const text = document.createElement('span');
+        text.textContent = isError ? message : '화면 녹화중';
+        badge.append(icon, text);
     }
 
     async function acquireProctorScreen() {
