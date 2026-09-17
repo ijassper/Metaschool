@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+from datetime import datetime, time, timedelta, timezone as datetime_timezone
 from pathlib import Path
 
 from django.conf import settings
@@ -21,6 +22,14 @@ from accounts.models import Student
 from ..models import Activity, ProctorSnapshot
 
 
+def recording_day_bounds(day):
+    """Convert local midnight bounds in Python, not MySQL CONVERT_TZ."""
+    zone = timezone.get_default_timezone()
+    start = timezone.make_aware(datetime.combine(day, time.min), zone)
+    end = timezone.make_aware(datetime.combine(day + timedelta(days=1), time.min), zone)
+    return start.astimezone(datetime_timezone.utc), end.astimezone(datetime_timezone.utc)
+
+
 def selected_recording(request, activity_id, student_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
     # Include recorded students even if the target list was subsequently edited.
@@ -30,7 +39,8 @@ def selected_recording(request, activity_id, student_id):
         parsed = parse_date(day)
         if not parsed:
             raise ValueError('날짜 형식이 올바르지 않습니다.')
-        frames = frames.filter(created_at__date=parsed)
+        start, end = recording_day_bounds(parsed)
+        frames = frames.filter(created_at__gte=start, created_at__lt=end)
     return activity, frames
 
 
@@ -49,8 +59,10 @@ def proctor_replay(request, activity_id):
     if selected_date is None:
         latest = activity.proctor_snapshots.order_by('-created_at', '-id').first()
         selected_date = timezone.localdate(latest.created_at) if latest else timezone.localdate()
+    start, end = recording_day_bounds(selected_date)
     recordings = ProctorSnapshot.objects.filter(
-        activity=activity, student_id=OuterRef('pk'), created_at__date=selected_date,
+        activity=activity, student_id=OuterRef('pk'),
+        created_at__gte=start, created_at__lt=end,
     )
     counts = recordings.order_by().values('student_id').annotate(total=Count('id'))
     # Preserve previously recorded students even after target roster changes.

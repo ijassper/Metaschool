@@ -1,6 +1,6 @@
 import json
 import io
-from datetime import timedelta, datetime, timezone as datetime_timezone
+from datetime import timedelta, datetime, date, timezone as datetime_timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -33,6 +33,31 @@ class ReplayTests(SimpleTestCase):
         with patch.object(views, 'selected_recording', return_value=(None, [])):
             response = views.proctor_download(self.request, 3, 7)
         self.assertEqual(response.status_code, 404)
+
+    @override_settings(TIME_ZONE='Asia/Seoul')
+    def test_day_bounds_are_utc_and_half_open(self):
+        start, end = views.recording_day_bounds(date(2026, 9, 17))
+        self.assertEqual(start, datetime(2026, 9, 16, 15, tzinfo=datetime_timezone.utc))
+        self.assertEqual(end, datetime(2026, 9, 17, 15, tzinfo=datetime_timezone.utc))
+        recorded = datetime(2026, 9, 17, 11, 38, 25, tzinfo=datetime_timezone.utc)
+        self.assertTrue(start <= recorded < end)
+        self.assertFalse(start <= end < end)
+
+    def test_recording_uses_range_not_database_date_conversion(self):
+        self.request.GET = {'date': '2026-09-17'}
+        query = MagicMock()
+        with patch.object(views, 'get_object_or_404'), \
+                patch.object(views.ProctorSnapshot.objects, 'filter', return_value=query):
+            views.selected_recording(self.request, 3, 7)
+        filters = query.order_by.return_value.filter.call_args.kwargs
+        self.assertIn('created_at__gte', filters)
+        self.assertIn('created_at__lt', filters)
+        self.assertNotIn('created_at__date', filters)
+
+    def test_date_range_sql_has_no_convert_tz(self):
+        start, end = views.recording_day_bounds(date(2026, 9, 17))
+        sql = str(views.ProctorSnapshot.objects.filter(created_at__gte=start, created_at__lt=end).query)
+        self.assertNotIn('CONVERT_TZ', sql)
 
     def test_ffmpeg_unavailable_is_explained(self):
         frames = [SimpleNamespace(created_at=timezone.now())]
