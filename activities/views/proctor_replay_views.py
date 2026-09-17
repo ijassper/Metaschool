@@ -8,13 +8,16 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.dateparse import parse_date
+from django.utils import timezone
 from django.views.decorators.http import require_GET
 
 from accounts.decorators import teacher_required
+from accounts.models import Student
 from ..models import Activity, ProctorSnapshot
 
 
@@ -36,10 +39,33 @@ def selected_recording(request, activity_id, student_id):
 @require_GET
 def proctor_replay(request, activity_id):
     activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
-    students = activity.proctor_snapshots.values(
-        'student_id', 'student__name', 'student__grade', 'student__class_no', 'student__number'
-    ).distinct().order_by('student__grade', 'student__class_no', 'student__number')
-    return render(request, 'activities/proctor_replay.html', {'activity': activity, 'students': students})
+    day = request.GET.get('date', '')
+    try:
+        selected_date = parse_date(day) if day else None
+        if day and not selected_date:
+            raise ValueError('invalid date')
+    except ValueError:
+        return JsonResponse({'message': '날짜 형식이 올바르지 않습니다.'}, status=400)
+    if selected_date is None:
+        latest = activity.proctor_snapshots.order_by('-created_at', '-id').first()
+        selected_date = timezone.localdate(latest.created_at) if latest else timezone.localdate()
+    recordings = ProctorSnapshot.objects.filter(
+        activity=activity, student_id=OuterRef('pk'), created_at__date=selected_date,
+    )
+    counts = recordings.order_by().values('student_id').annotate(total=Count('id'))
+    # Preserve previously recorded students even after target roster changes.
+    students = Student.objects.filter(
+        Q(pk__in=activity.target_students.values('pk')) |
+        Q(pk__in=activity.proctor_snapshots.order_by().values('student_id'))
+    ).annotate(
+        thumbnail_id=Subquery(recordings.order_by('created_at', 'id').values('id')[:1]),
+        snapshot_count=Subquery(counts.values('total')[:1]),
+    ).order_by('grade', 'class_no', 'number', 'name', 'id')
+    response = render(request, 'activities/proctor_replay.html', {
+        'activity': activity, 'students': students, 'selected_date': selected_date.isoformat(),
+    })
+    response['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @login_required

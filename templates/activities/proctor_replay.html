@@ -1,46 +1,91 @@
 {% extends 'base.html' %}
 {% block content %}
+<style>
+ .replay-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px; }
+ .replay-card { position:relative;display:block;width:100%;padding:0;overflow:hidden;border:1px solid #dee2e6;border-radius:16px;background:#20242a;aspect-ratio:16/10; }
+ .replay-card:not(:disabled):hover { border-color:#8e44ad;box-shadow:0 0 0 2px #8e44ad; }
+ .replay-card img { width:100%;height:100%;object-fit:contain; }
+ .replay-card:disabled { opacity:.7; }
+ .replay-card-info { position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;gap:8px;padding:8px 10px;background:rgba(0,0,0,.7);color:#fff;font-size:.85rem; }
+ .replay-card-play { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;background:rgba(0,0,0,.5);border-radius:50%;padding:8px 14px;font-size:1.6rem; }
+ .replay-toolbar { display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap; }
+ .replay-player { background:#20242a;text-align:center;min-height:200px; }
+ .replay-player img { max-width:100%;max-height:65vh; }
+ @media(max-width:600px) { .replay-grid { grid-template-columns:1fr; } #replayTime { width:100%;font-size:.8rem; } }
+</style>
 <div class="container-fluid py-2">
-  <div class="d-flex align-items-center gap-3 mb-3">
-    <h4 class="m-0"><i class="bi bi-film"></i> 감독 기록 다시보기</h4>
-    <span>{{ activity.section }} · {{ activity.title }}</span>
-    <a class="btn btn-outline-secondary ms-auto" href="{% url 'activity_result' activity.id %}">제출현황으로</a>
+ <div class="replay-toolbar">
+  <h4 class="m-0"><i class="bi bi-film"></i> 감독 기록 다시보기</h4>
+  <span>{{ activity.section }} · {{ activity.title }}</span>
+  <a class="btn btn-outline-secondary ms-auto" href="{% url 'activity_result' activity.id %}">제출현황으로</a>
+ </div>
+ <form method="get" class="d-flex align-items-center flex-wrap gap-2 mb-3">
+  <label for="recordDate">기록 날짜</label>
+  <input id="recordDate" name="date" type="date" value="{{ selected_date }}" required class="form-control" style="width:auto">
+  <button class="btn btn-outline-primary">기록 조회</button>
+  <span class="text-secondary">학생 카드를 클릭하면 기록을 재생합니다.</span>
+ </form>
+ <div class="replay-grid">
+ {% for s in students %}
+  <button type="button" class="replay-card" data-student="{{ s.id }}" data-name="{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}" {% if not s.thumbnail_id %}disabled{% endif %} aria-label="{{ s.name }} 감독 기록 {% if s.thumbnail_id %}재생{% else %}없음{% endif %}">
+   {% if s.thumbnail_id %}
+    <img src="{% url 'proctor_snapshot_image' s.thumbnail_id %}" loading="lazy" alt="{{ s.name }} 기록 썸네일">
+    <span class="replay-card-play"><i class="bi bi-play-fill"></i></span>
+   {% else %}<span class="text-white-50">기록 없음</span>{% endif %}
+   <span class="replay-card-info"><span>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 <strong>{{ s.name }}</strong></span><span>{% if s.thumbnail_id %}{{ s.snapshot_count }}장{% else %}기록 없음{% endif %}</span></span>
+  </button>
+ {% empty %}<p class="text-secondary">대상 학생과 저장된 감독 기록이 없습니다.</p>{% endfor %}
+ </div>
+</div>
+<div class="modal fade" id="replayModal" tabindex="-1" aria-labelledby="replayTitle" aria-hidden="true">
+ <div class="modal-dialog modal-xl modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header"><h5 id="replayTitle" class="modal-title">감독 기록</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="닫기"></button></div>
+  <div class="modal-body">
+   <div id="replayNotice" role="status" class="text-secondary mb-2"></div>
+   <div class="replay-player"><img id="replayFrame" alt="감독 기록 화면"></div>
+   <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+    <button id="replayPlay" class="btn btn-outline-primary" disabled>재생</button>
+    <select id="replaySpeed" class="form-select" style="width:auto" aria-label="재생 배속"><option value="1">1배속</option><option value="2">2배속</option><option value="4">4배속</option><option value="8">8배속</option></select>
+    <input id="replayTimeline" type="range" min="0" max="0" value="0" class="flex-grow-1" aria-label="촬영 시각 이동" disabled>
+    <span id="replayTime"></span>
+   </div>
+   <small class="text-secondary">3초 간격의 저장 이미지입니다. 촬영 공백에는 이전 화면이 유지되며 실제 연속 영상이 아닙니다.</small>
   </div>
-  <div class="d-flex flex-wrap gap-2 mb-2">
-    <select id="student" class="form-select" style="width:auto" aria-label="학생 선택">
-      {% for s in students %}<option value="{{ s.student_id }}">{{ s.student__grade }}학년 {{ s.student__class_no }}반 {{ s.student__number }}번 {{ s.student__name }}</option>{% endfor %}
-    </select>
-    <input id="day" type="date" class="form-control" style="width:auto" aria-label="기록 날짜">
-    <button id="load" class="btn btn-outline-primary">기록 조회</button>
-    <button id="download" class="btn btn-primary" disabled>MP4 다운로드</button>
-  </div>
-  <div id="notice" role="status" class="text-secondary mb-2">학생을 선택해 기록을 조회하세요. 날짜를 비우면 전체 기록을 조회합니다.</div>
-  <div style="background:#20242a;text-align:center;min-height:200px"><img id="frame" alt="감독 기록 화면" style="max-width:100%;max-height:65vh"></div>
-  <div class="d-flex align-items-center gap-2 mt-2">
-    <button id="play" class="btn btn-outline-primary" disabled>재생</button>
-    <select id="speed" class="form-select" style="width:auto" aria-label="재생 배속"><option value="1">1배속</option><option value="2">2배속</option><option value="4">4배속</option><option value="8">8배속</option></select>
-    <input id="timeline" type="range" min="0" max="0" value="0" class="flex-grow-1" aria-label="촬영 시각 이동" disabled>
-    <span id="time" class="text-nowrap"></span>
-  </div>
-  <small class="text-secondary">3초 간격의 저장 이미지입니다. 촬영되지 않은 구간에는 이전 화면이 유지되며, 실제 연속 영상이 아닙니다. MP4는 요청 시 생성되며 서버에 별도 보관하지 않습니다.</small>
+  <div class="modal-footer"><button id="replayDownload" class="btn btn-primary" disabled>MP4 다운로드</button><button class="btn btn-secondary" data-bs-dismiss="modal">닫기</button></div>
+ </div></div>
 </div>
 <script>
 (() => {
- const el = id => document.getElementById(id);
- const url = "{% url 'proctor_recording' activity.id 0 %}";
- let frames=[], index=0, timer=null, playing=false, downloadUrl='', generation=0;
- function pause(){playing=false; clearTimeout(timer); el('play').textContent='재생';}
- function show(){if(!frames.length)return; el('frame').src=frames[index].url; el('timeline').value=index; el('time').textContent=new Date(frames[index].time).toLocaleString('ko-KR')+` (${index+1}/${frames.length})`;}
- function step(){if(!playing)return; if(index>=frames.length-1){pause();return;} const delay=(new Date(frames[index+1].time)-new Date(frames[index].time))/Number(el('speed').value); timer=setTimeout(()=>{index++;show();step();},Math.max(100,delay));}
- async function load(){pause(); const token=++generation; frames=[]; el('frame').removeAttribute('src'); el('play').disabled=el('timeline').disabled=el('download').disabled=true; el('notice').textContent='기록을 불러오는 중…'; el('time').textContent='';
-  if(!el('student').value){el('notice').textContent='저장된 감독 기록이 없습니다.';return;}
-  try{const response=await fetch(url.replace('/0/','/'+el('student').value+'/')+'?date='+el('day').value); const data=await response.json();if(token!==generation)return; if(!response.ok)throw Error(data.message||'조회 실패'); frames=data.frames; index=0; downloadUrl=data.download_url+'?date='+el('day').value; el('notice').textContent=frames.length?`저장 화면 ${frames.length}장`:'해당 기간에 저장된 화면이 없습니다.'; el('timeline').max=Math.max(0,frames.length-1); el('play').disabled=el('timeline').disabled=el('download').disabled=!frames.length;show();}catch(e){el('notice').textContent=e.message;}
+ const el=id=>document.getElementById(id);
+ const baseUrl="{% url 'proctor_recording' activity.id 0 %}";
+ const modalEl=el('replayModal');
+ let modal, frames=[], index=0, timer=null, playing=false, downloadUrl='', generation=0, controller;
+ function pause(){playing=false;clearTimeout(timer);el('replayPlay').textContent='재생';}
+ function show(){if(!frames.length)return;el('replayFrame').src=frames[index].url;el('replayTimeline').value=index;el('replayTime').textContent=new Date(frames[index].time).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+` (${index+1}/${frames.length})`;}
+ function step(){if(!playing)return;if(index>=frames.length-1){pause();return;}const delay=(new Date(frames[index+1].time)-new Date(frames[index].time))/Number(el('replaySpeed').value);timer=setTimeout(()=>{index++;show();step();},Math.max(100,delay));}
+ async function open(card){
+  pause();controller?.abort();controller=new AbortController();const token=++generation;
+  frames=[];index=0;downloadUrl='';el('replayFrame').removeAttribute('src');el('replayTime').textContent='';el('replayTimeline').value=0;el('replaySpeed').value='1';
+  el('replayPlay').disabled=el('replayTimeline').disabled=el('replayDownload').disabled=true;
+  el('replayTitle').textContent=card.dataset.name+' · '+el('recordDate').defaultValue;
+  el('replayNotice').textContent='기록을 불러오는 중…';
+  modal=modal||new bootstrap.Modal(modalEl);modal.show();
+  try{
+   const query='?date='+encodeURIComponent(el('recordDate').defaultValue);
+   const response=await fetch(baseUrl.replace('/0/','/'+card.dataset.student+'/')+query,{signal:controller.signal});
+   const data=await response.json();if(token!==generation)return;if(!response.ok)throw Error(data.message||'기록 조회 실패');
+   frames=data.frames;downloadUrl=data.download_url+query;
+   el('replayNotice').textContent=frames.length?`저장 화면 ${frames.length}장`:'해당 날짜에 저장된 화면이 없습니다.';
+   el('replayTimeline').max=Math.max(0,frames.length-1);el('replayPlay').disabled=el('replayTimeline').disabled=el('replayDownload').disabled=!frames.length;show();
+  }catch(e){if(token===generation&&e.name!=='AbortError')el('replayNotice').textContent=e.message;}
  }
- el('load').onclick=load;el('student').onchange=load;el('day').onchange=load;
- el('play').onclick=()=>{if(playing){pause();return;}if(index===frames.length-1){index=0;show();}playing=true;el('play').textContent='일시정지';step();};
- el('timeline').oninput=()=>{pause();index=Number(el('timeline').value);show();};el('speed').onchange=()=>{clearTimeout(timer);step();};
- el('download').onclick=()=>{el('notice').textContent='새 탭에서 MP4 다운로드를 시작합니다. 영상 생성에 시간이 걸릴 수 있습니다.';window.open(downloadUrl,'_blank','noopener');};
- window.addEventListener('pagehide',pause);load();
+ document.querySelectorAll('.replay-card:not(:disabled)').forEach(card=>card.addEventListener('click',()=>open(card)));
+ el('replayPlay').onclick=()=>{if(playing){pause();return;}if(!frames.length)return;if(index===frames.length-1){index=0;show();}playing=true;el('replayPlay').textContent='일시정지';step();};
+ el('replayTimeline').oninput=()=>{pause();index=Number(el('replayTimeline').value);show();};
+ el('replaySpeed').onchange=()=>{clearTimeout(timer);step();};
+ el('replayDownload').onclick=()=>{if(!downloadUrl)return;el('replayNotice').textContent='새 탭에서 MP4를 생성·다운로드합니다. 완료까지 시간이 걸릴 수 있습니다.';window.open(downloadUrl,'_blank','noopener');};
+ modalEl.addEventListener('hide.bs.modal',()=>{pause();generation++;controller?.abort();frames=[];el('replayFrame').removeAttribute('src');});
+ window.addEventListener('pagehide',()=>{pause();controller?.abort();});
 })();
 </script>
 {% endblock %}

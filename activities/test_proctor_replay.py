@@ -1,12 +1,12 @@
 import json
 import io
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone as datetime_timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from django.http import Http404
 from django.template.loader import get_template
-from django.test import RequestFactory, SimpleTestCase
+from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.utils import timezone
 
 from .views import proctor_replay_views as views
@@ -52,6 +52,43 @@ class ReplayTests(SimpleTestCase):
 
     def test_replay_template_compiles(self):
         self.assertIn('MP4 다운로드', get_template('activities/proctor_replay.html').template.source)
+
+    @override_settings(DEBUG=True)
+    def test_cards_show_recorded_and_unrecorded_students(self):
+        students = [SimpleNamespace(id=7, name='기록학생', grade=2, class_no=6, number=1,
+                                    thumbnail_id=21, snapshot_count=12),
+                    SimpleNamespace(id=8, name='미기록학생', grade=2, class_no=6, number=2,
+                                    thumbnail_id=None, snapshot_count=None)]
+        html = get_template('activities/proctor_replay.html').render({
+            'activity': SimpleNamespace(id=3, section='활동', title='테스트'),
+            'students': students, 'selected_date': '2026-09-17',
+        })
+        self.assertIn('value="2026-09-17"', html)
+        self.assertIn('12장', html)
+        self.assertIn('미기록학생 감독 기록 없음', html)
+        self.assertIn('id="replayModal"', html)
+        self.assertIn('loading="lazy"', html)
+        self.assertEqual(html.count('class="replay-card"'), 2)
+
+    def test_gallery_rejects_invalid_dates(self):
+        self.request.GET = {'date': '2026-99-99'}
+        with patch.object(views, 'get_object_or_404'):
+            response = views.proctor_replay(self.request, 3)
+        self.assertEqual(response.status_code, 400)
+
+    def test_gallery_defaults_to_latest_local_recording_date(self):
+        activity = MagicMock()
+        # UTC evening belongs to the following day in Seoul.
+        timestamp = datetime(2026, 9, 16, 23, 30, tzinfo=datetime_timezone.utc)
+        activity.proctor_snapshots.order_by.return_value.first.return_value = SimpleNamespace(created_at=timestamp)
+        with timezone.override('Asia/Seoul'), \
+                patch.object(views, 'get_object_or_404', return_value=activity), \
+                patch.object(views.ProctorSnapshot.objects, 'filter'), \
+                patch.object(views.Student.objects, 'filter'), \
+                patch.object(views, 'Subquery'), \
+                patch.object(views, 'render') as render:
+            views.proctor_replay(self.request, 3)
+        self.assertEqual(render.call_args.args[2]['selected_date'], '2026-09-17')
 
     def test_mp4_is_streamed_and_resources_closed(self):
         frames = [SimpleNamespace(created_at=timezone.now(), image=SimpleNamespace(path='record.jpg'))]
