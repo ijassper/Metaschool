@@ -6,22 +6,31 @@
     .proctor-tile { overflow:hidden; border:1px solid #dee2e6; border-radius:1rem; background:#fff; box-shadow:0 .25rem 1rem rgba(0,0,0,.07); }
     .proctor-screen { position:relative; aspect-ratio:16/10; background:#20242a; display:flex; align-items:center; justify-content:center; color:#adb5bd; cursor:zoom-in; }
     .proctor-screen img { width:100%; height:100%; object-fit:contain; }
+    .proctor-screen-info { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; background:rgba(0,0,0,.65); color:#fff; font-size:.85rem; line-height:1.25; }
+    .proctor-student-info { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .proctor-screen-info .proctor-state { flex:0 0 auto; padding:2px 7px; }
     .proctor-state { font-size:.78rem; border-radius:999px; padding:.25rem .55rem; font-weight:700; }
     .state-live { background:#d1e7dd; color:#0f5132; }
     .state-stale { background:#fff3cd; color:#664d03; }
     .state-wait { background:#e9ecef; color:#6c757d; }
+    .proctor-toolbar { display:flex; align-items:center; gap:16px; margin-bottom:12px; min-width:0; }
+    .proctor-toolbar-heading { flex:0 0 auto; margin:0; font-size:1.25rem; font-weight:800; white-space:nowrap; }
+    .proctor-toolbar-detail { display:flex; align-items:center; gap:12px; flex:1 1 auto; min-width:0; }
+    .proctor-toolbar-label { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:5px 10px; border:1px solid #e5d8ed; border-radius:8px; background:#fff; }
+    .proctor-toolbar-label:first-child { flex:0 1 35%; font-weight:700; }
+    .proctor-toolbar-label:last-child { flex:1 1 auto; color:#6c757d; }
+    .proctor-toolbar-back { flex:0 0 auto; margin-left:auto; white-space:nowrap; }
+    @media (max-width:768px) { .proctor-toolbar { gap:8px; } .proctor-toolbar-heading { font-size:1rem; } .proctor-toolbar-detail { gap:6px; } .proctor-toolbar-back { padding:5px 10px !important; font-size:.8rem; } }
 </style>
 
-<div class="container-fluid py-4 px-lg-5">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <div>
-            <h3 class="fw-bold mb-1"><i class="bi bi-broadcast-pin text-danger me-2"></i>실시간 감독</h3>
-            <div class="text-muted">{{ activity.title }} · 학생 화면을 3초 간격으로 갱신합니다.</div>
+<div class="container-fluid py-2 px-lg-3">
+    <div class="proctor-toolbar">
+        <h3 class="proctor-toolbar-heading"><i class="bi bi-display text-danger me-2"></i>학생 모니터 감시 중</h3>
+        <div class="proctor-toolbar-detail">
+            <span class="proctor-toolbar-label" title="{{ activity.section }}">{{ activity.section }}</span>
+            <span class="proctor-toolbar-label" title="{{ activity.title }}">{{ activity.title }}</span>
         </div>
-        <a href="{% url 'activity_result' activity.id %}" class="btn btn-outline-secondary rounded-pill px-4">제출 현황으로</a>
-    </div>
-    <div class="alert alert-light border small">
-        화면 이미지는 감독 모드에 동의하고 공유를 시작한 학생에게서만 수신됩니다. 오디오는 수집하지 않습니다.
+        <a href="{% url 'activity_result' activity.id %}" class="proctor-toolbar-back btn btn-outline-secondary rounded-pill px-3">제출현황으로</a>
     </div>
     <div id="proctorGrid" class="proctor-grid"></div>
 </div>
@@ -44,7 +53,7 @@
         if (tiles.has(student.id)) return tiles.get(student.id);
         const tile = document.createElement('article');
         tile.className = 'proctor-tile';
-        tile.innerHTML = `<div class="proctor-screen"><span class="empty-message">화면 수신 대기</span><img class="d-none" alt=""></div><div class="p-3 d-flex justify-content-between align-items-center gap-2"><div><strong class="student-name"></strong><div class="small text-muted student-meta"></div></div><span class="proctor-state state-wait">대기</span></div>`;
+        tile.innerHTML = `<div class="proctor-screen"><span class="empty-message">화면 수신 대기</span><img class="d-none" alt=""><div class="proctor-screen-info"><span class="proctor-student-info"><span class="student-meta"></span> <strong class="student-name"></strong></span><span class="proctor-state state-wait">대기</span></div></div>`;
         tile.querySelector('.student-name').textContent = student.name;
         tile.querySelector('.student-meta').textContent = `${student.grade}학년 ${student.class_no}반 ${student.number}번`;
         tile.querySelector('.proctor-screen').addEventListener('click', () => {
