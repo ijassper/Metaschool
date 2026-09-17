@@ -71,6 +71,9 @@
                     <i class="bi bi-broadcast-pin me-1"></i> 실시간 감독
                 </a>
                 {% endif %}
+                {% if activity.proctor_mode or has_proctor_recordings %}
+                <a href="{% url 'proctor_replay' activity.id %}" class="btn btn-outline-primary rounded-pill px-3 fw-bold"><i class="bi bi-film me-1"></i> 기록 다시보기</a>
+                {% endif %}
                 <div class="dropdown">
                     <button class="btn btn-success dropdown-toggle rounded-pill px-4 shadow-sm fw-bold" type="button" data-bs-toggle="dropdown">
                         <i class="bi bi-download me-1"></i> 학생답안 다운로드

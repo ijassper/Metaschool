@@ -30,8 +30,10 @@
             <span class="proctor-toolbar-label" title="{{ activity.section }}">{{ activity.section }}</span>
             <span class="proctor-toolbar-label" title="{{ activity.title }}">{{ activity.title }}</span>
         </div>
+        <a href="{% url 'proctor_replay' activity.id %}" class="btn btn-outline-primary rounded-pill text-nowrap">기록 다시보기</a>
         <a href="{% url 'activity_result' activity.id %}" class="proctor-toolbar-back btn btn-outline-secondary rounded-pill px-3">제출현황으로</a>
     </div>
+    <div id="storageWarning" class="alert alert-danger py-2 mt-2 d-none" role="alert"></div>
     <div id="proctorGrid" class="proctor-grid"></div>
 </div>
 
@@ -69,6 +71,10 @@
     }
 
     function render(data) {
+        const warning = document.getElementById('storageWarning');
+        const paused = data.storage && !data.storage.allowed;
+        warning.classList.toggle('d-none', !paused);
+        warning.textContent = paused ? data.storage.message : '';
         const serverNow = new Date(data.server_time).getTime();
         data.students.forEach(student => {
             const tile = ensureTile(student);

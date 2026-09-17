@@ -17,6 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
 from accounts.models import Student, SystemConfig
+from ..proctor_storage import proctor_storage_status
 from ..models import (
     Activity, Question, Answer, AnswerDraftRevision, AnswerSubmissionRevision,
     ActivityStudentScore, FeedbackResult, ProctorSnapshot,
@@ -236,12 +237,15 @@ def upload_proctor_snapshot(request, activity_id):
     client_time = parse_datetime(request.POST.get('captured_at', ''))
     if client_time and timezone.is_naive(client_time):
         client_time = timezone.make_aware(client_time)
-    snapshot = ProctorSnapshot.objects.create(
-        activity=activity,
-        student=student,
-        image=uploaded,
-        client_captured_at=client_time,
-    )
+    with proctor_storage_status(uploaded.size) as storage:
+        if not storage['allowed']:
+            return JsonResponse({'status': 'storage_paused', **storage}, status=507)
+        snapshot = ProctorSnapshot.objects.create(
+            activity=activity,
+            student=student,
+            image=uploaded,
+            client_captured_at=client_time,
+        )
     return JsonResponse({'status': 'success', 'snapshot_id': snapshot.id})
 
 

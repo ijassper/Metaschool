@@ -2018,6 +2018,11 @@
             body.append('snapshot', blob, `screen-${Date.now()}.jpg`);
             body.append('captured_at', new Date().toISOString());
             const response = await fetch(PROCTOR_UPLOAD_URL, {method:'POST', headers:{'X-CSRFToken':csrfToken, 'X-Requested-With':'XMLHttpRequest'}, body});
+            if (response.status === 507) {
+                stopProctorCapture();
+                setProctorStatus('화면 저장 중단 · 답안 저장 가능', true);
+                return;
+            }
             if (response.ok) setProctorStatus('감독 화면 공유 중 · 3초 간격');
         } catch (error) {
             console.error('감독 화면 전송 실패', error);

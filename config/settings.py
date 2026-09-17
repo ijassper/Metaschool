@@ -199,6 +199,16 @@ AUTHENTICATION_BACKENDS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Gabia contractual web quota (not the entire physical server disk).
+# Point ROOT at the complete hosting account directory in production.
+# Conservative 500MB baseline covers unmeasured account files when using BASE_DIR.
+PROCTOR_STORAGE_ROOT = os.environ.get('PROCTOR_STORAGE_ROOT', str(BASE_DIR))
+PROCTOR_STORAGE_QUOTA_BYTES = int(os.environ.get('PROCTOR_STORAGE_QUOTA_BYTES', '5000000000'))
+PROCTOR_STORAGE_STOP_RATIO = 0.90
+PROCTOR_STORAGE_BASELINE_BYTES = int(os.environ.get('PROCTOR_STORAGE_BASELINE_BYTES', '500000000'))
+PROCTOR_STORAGE_RESERVE_BYTES = 100000000  # room for concurrent non-proctor writes
+PROCTOR_FFMPEG = os.environ.get('PROCTOR_FFMPEG', 'ffmpeg')
+
 # 같은 도메인 내에서는 iframe(미리보기)을 허용하도록 설정
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 

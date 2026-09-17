@@ -16,6 +16,7 @@ from django.views.decorators.http import require_GET, require_POST
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
 from accounts.models import Persona, Student
+from ..proctor_storage import proctor_storage_status
 from ..models import Activity, Answer, ActivityStudentScore, FeedbackResult, FeedbackSession, ProctorSnapshot
 from .main_views import get_accessible_students
 
@@ -130,6 +131,7 @@ def activity_result(request, activity_id, template_name='activities/activity_res
 
     context = {
         'activity': activity,
+        'has_proctor_recordings': activity.proctor_snapshots.exists(),
         'submission_list': submission_list,
         'filter_data': filter_data,
         'selected_targets': selected_targets,
@@ -163,8 +165,11 @@ def proctor_feed(request, activity_id):
         latest_snapshot_id=Subquery(latest.values('id')[:1]),
         latest_snapshot_at=Subquery(latest.values('created_at')[:1]),
     ).order_by('grade', 'class_no', 'number', 'name')
+    with proctor_storage_status() as storage:
+        storage_status = storage
     return JsonResponse({
         'status': 'success',
+        'storage': storage_status,
         'server_time': timezone.now().isoformat(),
         'students': [
             {
