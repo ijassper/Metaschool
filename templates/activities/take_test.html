@@ -183,15 +183,16 @@
         justify-content: center;
         gap: 7px;
         width: 100%;
-        min-height: 38px;
+        min-height: 56px;
         padding: 6px 16px;
         background: #fff;
         color: #dc3545;
         font-weight: 800;
-        font-size: 1rem;
+        font-size: 2rem;
         white-space: nowrap;
     }
     .proctor-recording-status.is-error { white-space: normal; }
+    .exam-answer-scroll.has-proctor-status { padding-top: 0 !important; }
     .typing-topic-title {
         font-size: clamp(1rem, 1.8vw, 1.2rem);
         line-height: 1.25;
@@ -1327,7 +1328,7 @@
                 {% endif %}
 
                 <!-- 답안 영역만 별도 스크롤 -->
-                <div class="flex-grow-1 scroll-panel p-5 bg-light-subtle exam-answer-scroll">
+                <div class="flex-grow-1 scroll-panel p-5 bg-light-subtle exam-answer-scroll{% if activity.proctor_mode %} has-proctor-status{% endif %}">
                     <div class="w-100">
                         <!-- 보안 모드 안내 -->
                         {% if enable_exit_detection or enable_copy_protection %}
