@@ -178,14 +178,17 @@
         white-space: nowrap;
     }
     .proctor-recording-status {
-        display: inline-flex;
+        display: flex;
         align-items: center;
         justify-content: center;
         gap: 7px;
-        flex: 1 0 auto;
-        padding: 0 16px;
+        width: 100%;
+        min-height: 38px;
+        padding: 6px 16px;
+        background: #fff;
         color: #dc3545;
         font-weight: 800;
+        font-size: 1rem;
         white-space: nowrap;
     }
     .proctor-recording-status.is-error { white-space: normal; }
@@ -1310,9 +1313,6 @@
                             {{ user.name }}{% if user.school %} · {{ user.school.name }}{% endif %}
                         </div>
                     </div>
-                    {% if activity.proctor_mode %}
-                    <span id="proctorStatusBadge" class="proctor-recording-status d-none" role="status" aria-live="polite"></span>
-                    {% endif %}
                     <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end ms-auto">
                         <span id="remainingTime" class="exam-status-pill">
                             <i class="bi bi-clock-history"></i> 남은 시간 확인 중
@@ -1322,6 +1322,9 @@
                         <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">답안 제출</button>
                     </div>
                 </div>
+                {% if activity.proctor_mode %}
+                <div id="proctorStatusBadge" class="proctor-recording-status d-none" role="status" aria-live="polite"></div>
+                {% endif %}
 
                 <!-- 답안 영역만 별도 스크롤 -->
                 <div class="flex-grow-1 scroll-panel p-5 bg-light-subtle exam-answer-scroll">
@@ -1674,6 +1677,7 @@
     let proctorVideo = null;
     let proctorCanvas = null;
     let proctorTimer = null;
+    let proctorClockTimer = null;
     let proctorUploadInFlight = false;
 
     function isPdfModalInteractionActive() {
@@ -1957,16 +1961,38 @@
         }
     }
 
+    function formatProctorDateTime(date = new Date()) {
+        const pad = value => String(value).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
+    function updateProctorClock() {
+        const clock = document.getElementById('proctorRecordingClock');
+        if (clock) clock.textContent = formatProctorDateTime();
+    }
+
+    function startProctorClock() {
+        updateProctorClock();
+        if (!proctorClockTimer) {
+            proctorClockTimer = window.setInterval(updateProctorClock, 1000);
+        }
+    }
+
+    function stopProctorClock() {
+        if (proctorClockTimer) window.clearInterval(proctorClockTimer);
+        proctorClockTimer = null;
+    }
+
     function setProctorStatus(message, isError = false) {
         let badge = document.getElementById('proctorStatusBadge');
         if (!badge) {
-            badge = document.createElement('span');
+            badge = document.createElement('div');
             badge.id = 'proctorStatusBadge';
             badge.className = 'proctor-recording-status';
             badge.setAttribute('role', 'status');
             const header = document.querySelector('#testContainer .exam-sticky-header');
             if (!header) return;
-            header.appendChild(badge);
+            header.insertAdjacentElement('afterend', badge);
         }
         badge.classList.remove('d-none');
         badge.classList.toggle('is-error', isError);
@@ -1977,6 +2003,15 @@
         const text = document.createElement('span');
         text.textContent = isError ? message : '화면 녹화중';
         badge.append(icon, text);
+        if (isError) {
+            stopProctorClock();
+            return;
+        }
+        const clock = document.createElement('time');
+        clock.id = 'proctorRecordingClock';
+        clock.setAttribute('aria-hidden', 'true');
+        badge.appendChild(clock);
+        startProctorClock();
     }
 
     async function acquireProctorScreen() {
@@ -2041,6 +2076,7 @@
     function stopProctorCapture() {
         if (proctorTimer) window.clearInterval(proctorTimer);
         proctorTimer = null;
+        stopProctorClock();
     }
 
     window.addEventListener('pagehide', stopProctorCapture);
