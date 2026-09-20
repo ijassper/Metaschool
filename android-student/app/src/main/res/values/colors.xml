@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ingrid_purple">#A747B4</color>
+    <color name="ingrid_purple_dark">#713080</color>
+    <color name="ingrid_pink">#EF6BA9</color>
+    <color name="ingrid_background">#F8F7FB</color>
+    <color name="ingrid_text">#25232A</color>
+    <color name="ingrid_text_muted">#746E7C</color>
+</resources>

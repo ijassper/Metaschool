@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">인그리드 학생</string>
+    <string name="brand_name">Ingrid</string>
+    <string name="student_app">학생용 평가 앱</string>
+    <string name="welcome_title">안전한 평가를 시작해요</string>
+    <string name="welcome_body">인그리드 활동과 답안 작성을 학생 앱에서 진행합니다.</string>
+    <string name="preparing">연결 준비</string>
+    <string name="proctor_title">감독 모드 안내</string>
+    <string name="proctor_step_one">1. 시험 시작 전에 화면 공유를 승인합니다.</string>
+    <string name="proctor_step_two">2. 응시 중에는 화면이 3초 간격으로 기록됩니다.</string>
+    <string name="proctor_step_three">3. 화면 공유 중단과 앱 이탈은 감독 선생님에게 표시됩니다.</string>
+    <string name="login_button">인그리드 로그인</string>
+    <string name="prototype_notice">현재 기본 UI 검증 단계입니다.</string>
+    <string name="web_title">Ingrid 학생 평가</string>
+    <string name="close_web">로그인 화면 닫기</string>
+    <string name="capture_permission_required">화면 공유를 승인해야 시험을 시작할 수 있습니다.</string>
+    <string name="invalid_capture_url">유효하지 않은 감독 서버 주소입니다.</string>
+    <string name="capture_notification_title">인그리드 화면 녹화중</string>
+    <string name="capture_notification_body">감독 선생님에게 시험 화면을 전송하고 있습니다.</string>
+</resources>

@@ -1647,6 +1647,9 @@
     const PROCTOR_MODE = {{ activity.proctor_mode|yesno:"true,false" }};
     const PROCTOR_UPLOAD_URL = "{% url 'upload_proctor_snapshot' activity.id %}";
     const PROCTOR_INTERVAL_MS = 3000;
+    const IS_INGRID_ANDROID_APP = Boolean(
+        window.IngridAndroid && typeof window.IngridAndroid.requestScreenCapture === 'function'
+    );
     const entryLogUrl = '{% url entry_action_url activity.id %}';
     let entryLogged = false;
     const IS_TYPING_ACTIVITY = {{ activity.typing_type|yesno:"true,false" }};
@@ -2015,8 +2018,33 @@
         startProctorClock();
     }
 
+    function acquireAndroidProctorScreen() {
+        return new Promise((resolve, reject) => {
+            let settled = false;
+            const timeout = window.setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                reject(new Error('화면 공유 승인 응답이 지연되고 있습니다. 다시 시도해 주세요.'));
+            }, 120000);
+            window.onIngridCaptureResult = function (success, message) {
+                if (settled) return;
+                settled = true;
+                window.clearTimeout(timeout);
+                if (success) resolve();
+                else reject(new Error(message || '화면 공유를 승인해야 시험을 시작할 수 있습니다.'));
+            };
+            const absoluteUploadUrl = new URL(PROCTOR_UPLOAD_URL, window.location.origin).href;
+            window.IngridAndroid.requestScreenCapture(absoluteUploadUrl, csrfToken);
+        });
+    }
+
     async function acquireProctorScreen() {
         if (!PROCTOR_MODE) return;
+        if (IS_INGRID_ANDROID_APP) {
+            await acquireAndroidProctorScreen();
+            setProctorStatus('화면 녹화중');
+            return;
+        }
         if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
             throw new Error('이 브라우저는 화면 공유를 지원하지 않습니다. 최신 Chrome 또는 Edge를 사용해 주세요.');
         }
@@ -2070,6 +2098,10 @@
 
     function startProctorCapture() {
         if (!PROCTOR_MODE || proctorTimer) return;
+        if (IS_INGRID_ANDROID_APP) {
+            setProctorStatus('화면 녹화중');
+            return;
+        }
         uploadProctorFrame();
         proctorTimer = window.setInterval(uploadProctorFrame, PROCTOR_INTERVAL_MS);
     }
@@ -2078,6 +2110,9 @@
         if (proctorTimer) window.clearInterval(proctorTimer);
         proctorTimer = null;
         stopProctorClock();
+        if (IS_INGRID_ANDROID_APP && typeof window.IngridAndroid.stopScreenCapture === 'function') {
+            window.IngridAndroid.stopScreenCapture();
+        }
     }
 
     window.addEventListener('pagehide', stopProctorCapture);
