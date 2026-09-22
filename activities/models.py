@@ -580,6 +580,69 @@ class ProctorSnapshot(models.Model):
     def __str__(self):
         return f'{self.activity} · {self.student} · {self.created_at:%Y-%m-%d %H:%M:%S}'
 
+
+class ProctorSession(models.Model):
+    """활동별 학생 감독 연결의 현재 상태."""
+
+    class Status(models.TextChoices):
+        WAITING = 'WAITING', '대기'
+        RECORDING = 'RECORDING', '녹화 중'
+        AWAY = 'AWAY', '앱 이탈'
+        DISCONNECTED = 'DISCONNECTED', '연결 끊김'
+        ENDED = 'ENDED', '종료'
+        ERROR = 'ERROR', '오류'
+
+    activity = models.ForeignKey(
+        Activity, on_delete=models.CASCADE, related_name='proctor_sessions', verbose_name='활동'
+    )
+    student = models.ForeignKey(
+        Student, on_delete=models.CASCADE, related_name='proctor_sessions', verbose_name='학생'
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.WAITING)
+    started_at = models.DateTimeField(null=True, blank=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    left_at = models.DateTimeField(null=True, blank=True)
+    returned_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    last_message = models.CharField(max_length=255, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['activity', 'student'], name='unique_proctor_session')
+        ]
+        indexes = [models.Index(fields=['activity', 'status'], name='proctor_session_status_idx')]
+
+    def __str__(self):
+        return f'{self.activity} · {self.student} · {self.get_status_display()}'
+
+
+class ProctorEvent(models.Model):
+    """감독 앱에서 발생한 상태 변경의 감사 이력."""
+
+    class EventType(models.TextChoices):
+        CAPTURE_STARTED = 'CAPTURE_STARTED', '녹화 시작'
+        APP_BACKGROUND = 'APP_BACKGROUND', '앱 이탈'
+        APP_FOREGROUND = 'APP_FOREGROUND', '앱 복귀'
+        CAPTURE_STOPPED = 'CAPTURE_STOPPED', '녹화 중단'
+        EXAM_ENDED = 'EXAM_ENDED', '시험 종료'
+        ERROR = 'ERROR', '오류'
+
+    session = models.ForeignKey(
+        ProctorSession, on_delete=models.CASCADE, related_name='events', verbose_name='감독 세션'
+    )
+    event_type = models.CharField(max_length=30, choices=EventType.choices)
+    client_occurred_at = models.DateTimeField(null=True, blank=True)
+    message = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [models.Index(fields=['session', '-created_at'], name='proctor_event_time_idx')]
+
+    def __str__(self):
+        return f'{self.session} · {self.get_event_type_display()}'
+
 # AI 분석 결과 모델 (다중 결과 지원)
 class AnalysisResult(models.Model):
     answer = models.ForeignKey('Answer', on_delete=models.CASCADE, related_name='analysis_results')

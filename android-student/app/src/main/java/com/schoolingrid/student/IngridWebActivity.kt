@@ -24,8 +24,14 @@ class IngridWebActivity : Activity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var projectionManager: MediaProjectionManager
     private var pendingUploadUrl: String? = null
+    private var pendingEventUrl: String? = null
     private var pendingCsrfToken: String? = null
     private var captureActive = false
+    private var awaitingCapturePermission = false
+    private var reportedBackground = false
+    private var eventUrl = ""
+    private var eventCsrfToken = ""
+    private var eventCookie = ""
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -97,27 +103,50 @@ class IngridWebActivity : Activity() {
         if (requestCode != SCREEN_CAPTURE_REQUEST) return
 
         val uploadUrl = pendingUploadUrl
+        val requestedEventUrl = pendingEventUrl
         val csrfToken = pendingCsrfToken
         pendingUploadUrl = null
+        pendingEventUrl = null
         pendingCsrfToken = null
+        awaitingCapturePermission = false
 
-        if (resultCode != RESULT_OK || data == null || uploadUrl == null || csrfToken == null) {
+        if (resultCode != RESULT_OK || data == null || uploadUrl == null || requestedEventUrl == null || csrfToken == null) {
             notifyCaptureResult(false, getString(R.string.capture_permission_required))
             return
         }
 
         val cookie = CookieManager.getInstance().getCookie(INGRID_ORIGIN).orEmpty()
+        eventUrl = requestedEventUrl
+        eventCsrfToken = csrfToken
+        eventCookie = cookie
         val serviceIntent = Intent(this, ProctorCaptureService::class.java).apply {
             action = ProctorCaptureService.ACTION_START
             putExtra(ProctorCaptureService.EXTRA_RESULT_CODE, resultCode)
             putExtra(ProctorCaptureService.EXTRA_RESULT_DATA, data)
             putExtra(ProctorCaptureService.EXTRA_UPLOAD_URL, uploadUrl)
+            putExtra(ProctorCaptureService.EXTRA_EVENT_URL, requestedEventUrl)
             putExtra(ProctorCaptureService.EXTRA_CSRF_TOKEN, csrfToken)
             putExtra(ProctorCaptureService.EXTRA_COOKIE, cookie)
         }
         startForegroundService(serviceIntent)
         captureActive = true
         notifyCaptureResult(true, "")
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (captureActive && reportedBackground) {
+            reportedBackground = false
+            ProctorEventReporter.send(eventUrl, eventCsrfToken, eventCookie, "APP_FOREGROUND")
+        }
+    }
+
+    override fun onStop() {
+        if (captureActive && !awaitingCapturePermission && !isChangingConfigurations) {
+            reportedBackground = true
+            ProctorEventReporter.send(eventUrl, eventCsrfToken, eventCookie, "APP_BACKGROUND")
+        }
+        super.onStop()
     }
 
     @Deprecated("Deprecated in Java")
@@ -152,10 +181,13 @@ class IngridWebActivity : Activity() {
 
     private inner class AndroidExamBridge {
         @JavascriptInterface
-        fun requestScreenCapture(uploadUrl: String, csrfToken: String) {
+        fun requestScreenCapture(uploadUrl: String, eventUrl: String, csrfToken: String) {
             runOnUiThread {
                 val uri = Uri.parse(uploadUrl)
-                if (uri.scheme != "https" || !isIngridHost(uri.host)) {
+                val eventUri = Uri.parse(eventUrl)
+                if (uri.scheme != "https" || !isIngridHost(uri.host) ||
+                    eventUri.scheme != "https" || !isIngridHost(eventUri.host)
+                ) {
                     notifyCaptureResult(false, getString(R.string.invalid_capture_url))
                     return@runOnUiThread
                 }
@@ -164,7 +196,9 @@ class IngridWebActivity : Activity() {
                     return@runOnUiThread
                 }
                 pendingUploadUrl = uploadUrl
+                pendingEventUrl = eventUrl
                 pendingCsrfToken = csrfToken
+                awaitingCapturePermission = true
                 startActivityForResult(
                     projectionManager.createScreenCaptureIntent(),
                     SCREEN_CAPTURE_REQUEST,
@@ -179,6 +213,7 @@ class IngridWebActivity : Activity() {
                     action = ProctorCaptureService.ACTION_STOP
                 })
                 captureActive = false
+                reportedBackground = false
             }
         }
     }

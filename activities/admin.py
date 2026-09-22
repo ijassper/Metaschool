@@ -7,6 +7,8 @@ from .models import (
     Answer,
     FeedbackResult,
     FeedbackSession,
+    ProctorEvent,
+    ProctorSession,
     ProctorSnapshot,
     Question,
 )
@@ -53,6 +55,22 @@ class ProctorSnapshotAdmin(admin.ModelAdmin):
     list_filter = ['activity', 'created_at']
     search_fields = ['activity__title', 'student__name']
     readonly_fields = ['activity', 'student', 'image', 'client_captured_at', 'created_at']
+
+
+@admin.register(ProctorSession)
+class ProctorSessionAdmin(admin.ModelAdmin):
+    list_display = ['activity', 'student', 'status', 'last_seen_at', 'updated_at']
+    list_filter = ['status', 'activity']
+    search_fields = ['activity__title', 'student__name']
+    readonly_fields = ['started_at', 'last_seen_at', 'left_at', 'returned_at', 'ended_at', 'updated_at']
+
+
+@admin.register(ProctorEvent)
+class ProctorEventAdmin(admin.ModelAdmin):
+    list_display = ['session', 'event_type', 'client_occurred_at', 'created_at']
+    list_filter = ['event_type', 'session__activity']
+    search_fields = ['session__activity__title', 'session__student__name', 'message']
+    readonly_fields = ['session', 'event_type', 'client_occurred_at', 'message', 'created_at']
 
 
 @admin.register(FeedbackResult)

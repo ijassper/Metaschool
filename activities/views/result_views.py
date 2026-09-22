@@ -17,7 +17,10 @@ from django.views.decorators.http import require_GET, require_POST
 from accounts.decorators import teacher_required
 from accounts.models import Persona, Student
 from ..proctor_storage import proctor_storage_status
-from ..models import Activity, Answer, ActivityStudentScore, FeedbackResult, FeedbackSession, ProctorSnapshot
+from ..models import (
+    Activity, Answer, ActivityStudentScore, FeedbackResult, FeedbackSession,
+    ProctorSession, ProctorSnapshot,
+)
 from .main_views import get_accessible_students
 
 
@@ -161,9 +164,13 @@ def proctor_feed(request, activity_id):
     latest = ProctorSnapshot.objects.filter(
         activity=activity, student_id=OuterRef('pk')
     ).order_by('-created_at', '-id')
+    session = ProctorSession.objects.filter(activity=activity, student_id=OuterRef('pk'))
     students = activity.target_students.annotate(
         latest_snapshot_id=Subquery(latest.values('id')[:1]),
         latest_snapshot_at=Subquery(latest.values('created_at')[:1]),
+        proctor_status=Subquery(session.values('status')[:1]),
+        proctor_status_at=Subquery(session.values('updated_at')[:1]),
+        proctor_message=Subquery(session.values('last_message')[:1]),
     ).order_by('grade', 'class_no', 'number', 'name')
     with proctor_storage_status() as storage:
         storage_status = storage
@@ -181,6 +188,9 @@ def proctor_feed(request, activity_id):
                 'snapshot_id': student.latest_snapshot_id,
                 'captured_at': student.latest_snapshot_at.isoformat() if student.latest_snapshot_at else None,
                 'image_url': reverse('proctor_snapshot_image', args=[student.latest_snapshot_id]) if student.latest_snapshot_id else None,
+                'proctor_status': student.proctor_status,
+                'proctor_status_at': student.proctor_status_at.isoformat() if student.proctor_status_at else None,
+                'proctor_message': student.proctor_message or '',
             }
             for student in students
         ],

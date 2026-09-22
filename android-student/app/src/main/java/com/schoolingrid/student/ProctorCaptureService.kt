@@ -34,6 +34,7 @@ class ProctorCaptureService : Service() {
     private var captureThread: HandlerThread? = null
     private var lastCaptureAt = 0L
     private var uploadUrl = ""
+    private var eventUrl = ""
     private var csrfToken = ""
     private var cookie = ""
     private val uploadInFlight = AtomicBoolean(false)
@@ -62,6 +63,7 @@ class ProctorCaptureService : Service() {
 
         startForeground(NOTIFICATION_ID, buildNotification())
         uploadUrl = intent.getStringExtra(EXTRA_UPLOAD_URL).orEmpty()
+        eventUrl = intent.getStringExtra(EXTRA_EVENT_URL).orEmpty()
         csrfToken = intent.getStringExtra(EXTRA_CSRF_TOKEN).orEmpty()
         cookie = intent.getStringExtra(EXTRA_COOKIE).orEmpty()
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, ActivityResultCodeMissing)
@@ -110,6 +112,7 @@ class ProctorCaptureService : Service() {
             null,
             handler,
         )
+        ProctorEventReporter.send(eventUrl, csrfToken, cookie, "CAPTURE_STARTED")
     }
 
     private fun onImageAvailable(reader: ImageReader) {
@@ -210,6 +213,9 @@ class ProctorCaptureService : Service() {
         .build()
 
     override fun onDestroy() {
+        if (eventUrl.isNotBlank()) {
+            ProctorEventReporter.send(eventUrl, csrfToken, cookie, "CAPTURE_STOPPED")
+        }
         imageReader?.setOnImageAvailableListener(null, null)
         virtualDisplay?.release()
         imageReader?.close()
@@ -229,6 +235,7 @@ class ProctorCaptureService : Service() {
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
         const val EXTRA_UPLOAD_URL = "upload_url"
+        const val EXTRA_EVENT_URL = "event_url"
         const val EXTRA_CSRF_TOKEN = "csrf_token"
         const val EXTRA_COOKIE = "cookie"
         private const val NOTIFICATION_CHANNEL = "ingrid_proctor_capture"

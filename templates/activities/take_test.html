@@ -1646,6 +1646,7 @@
     const csrfToken = '{{ csrf_token }}';
     const PROCTOR_MODE = {{ activity.proctor_mode|yesno:"true,false" }};
     const PROCTOR_UPLOAD_URL = "{% url 'upload_proctor_snapshot' activity.id %}";
+    const PROCTOR_EVENT_URL = "{% url 'report_proctor_event' activity.id %}";
     const PROCTOR_INTERVAL_MS = 3000;
     const IS_INGRID_ANDROID_APP = Boolean(
         window.IngridAndroid && typeof window.IngridAndroid.requestScreenCapture === 'function'
@@ -2034,7 +2035,8 @@
                 else reject(new Error(message || '화면 공유를 승인해야 시험을 시작할 수 있습니다.'));
             };
             const absoluteUploadUrl = new URL(PROCTOR_UPLOAD_URL, window.location.origin).href;
-            window.IngridAndroid.requestScreenCapture(absoluteUploadUrl, csrfToken);
+            const absoluteEventUrl = new URL(PROCTOR_EVENT_URL, window.location.origin).href;
+            window.IngridAndroid.requestScreenCapture(absoluteUploadUrl, absoluteEventUrl, csrfToken);
         });
     }
 

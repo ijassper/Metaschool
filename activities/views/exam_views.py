@@ -20,7 +20,7 @@ from accounts.models import Student, SystemConfig
 from ..proctor_storage import proctor_storage_status
 from ..models import (
     Activity, Question, Answer, AnswerDraftRevision, AnswerSubmissionRevision,
-    ActivityStudentScore, FeedbackResult, ProctorSnapshot,
+    ActivityStudentScore, FeedbackResult, ProctorEvent, ProctorSession, ProctorSnapshot,
 )
 
 LOG_MESSAGES = {
@@ -246,7 +246,81 @@ def upload_proctor_snapshot(request, activity_id):
             image=uploaded,
             client_captured_at=client_time,
         )
+        session, _ = ProctorSession.objects.get_or_create(activity=activity, student=student)
+        session.last_seen_at = timezone.now()
+        if not session.started_at:
+            session.started_at = session.last_seen_at
+        if session.status != ProctorSession.Status.AWAY:
+            session.status = ProctorSession.Status.RECORDING
+        session.save(update_fields=['last_seen_at', 'started_at', 'status', 'updated_at'])
     return JsonResponse({'status': 'success', 'snapshot_id': snapshot.id})
+
+
+@login_required
+@require_POST
+def report_proctor_event(request, activity_id):
+    """학생 앱의 녹화·이탈·복귀 상태를 감사 이력과 현재 세션에 반영합니다."""
+    activity = get_object_or_404(Activity, id=activity_id)
+    student, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return JsonResponse({'status': 'error', 'message': '접근 권한이 없습니다.'}, status=403)
+    if not activity.proctor_mode:
+        return JsonResponse({'status': 'error', 'message': '감독 모드가 활성화되지 않았습니다.'}, status=400)
+
+    try:
+        payload = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': '잘못된 요청입니다.'}, status=400)
+
+    event_type = payload.get('event_type', '')
+    allowed = {choice for choice, _ in ProctorEvent.EventType.choices}
+    if event_type not in allowed:
+        return JsonResponse({'status': 'error', 'message': '지원하지 않는 이벤트입니다.'}, status=400)
+
+    client_time = parse_datetime(payload.get('occurred_at', '') or '')
+    if client_time and timezone.is_naive(client_time):
+        client_time = timezone.make_aware(client_time)
+    message = str(payload.get('message', ''))[:255]
+    now = timezone.now()
+    status_map = {
+        ProctorEvent.EventType.CAPTURE_STARTED: ProctorSession.Status.RECORDING,
+        ProctorEvent.EventType.APP_BACKGROUND: ProctorSession.Status.AWAY,
+        ProctorEvent.EventType.APP_FOREGROUND: ProctorSession.Status.RECORDING,
+        ProctorEvent.EventType.CAPTURE_STOPPED: ProctorSession.Status.DISCONNECTED,
+        ProctorEvent.EventType.EXAM_ENDED: ProctorSession.Status.ENDED,
+        ProctorEvent.EventType.ERROR: ProctorSession.Status.ERROR,
+    }
+
+    with transaction.atomic():
+        session, _ = ProctorSession.objects.select_for_update().get_or_create(
+            activity=activity,
+            student=student,
+        )
+        session.status = status_map[event_type]
+        session.last_seen_at = now
+        session.last_message = message
+        update_fields = ['status', 'last_seen_at', 'last_message', 'updated_at']
+        if event_type == ProctorEvent.EventType.CAPTURE_STARTED and not session.started_at:
+            session.started_at = now
+            update_fields.append('started_at')
+        elif event_type == ProctorEvent.EventType.APP_BACKGROUND:
+            session.left_at = now
+            update_fields.append('left_at')
+        elif event_type == ProctorEvent.EventType.APP_FOREGROUND:
+            session.returned_at = now
+            update_fields.append('returned_at')
+        elif event_type == ProctorEvent.EventType.EXAM_ENDED:
+            session.ended_at = now
+            update_fields.append('ended_at')
+        session.save(update_fields=update_fields)
+        ProctorEvent.objects.create(
+            session=session,
+            event_type=event_type,
+            client_occurred_at=client_time,
+            message=message,
+        )
+
+    return JsonResponse({'status': 'success', 'session_status': session.status})
 
 
 def ensure_exam_question(activity):

@@ -63,6 +63,7 @@ urlpatterns = [
     path('api/get-or-create-batch/', get_or_create_batch, name='get_or_create_batch'),
     path('take/<int:activity_id>/draft/', save_answer_draft, name='save_answer_draft'),
     path('take/<int:activity_id>/proctor-snapshot/', upload_proctor_snapshot, name='upload_proctor_snapshot'),
+    path('take/<int:activity_id>/proctor-event/', report_proctor_event, name='report_proctor_event'),
     path('take/<int:activity_id>/draft-revisions/', draft_revision_list, name='draft_revision_list'),
     path(
         'take/<int:activity_id>/draft-revisions/<int:revision_id>/',
