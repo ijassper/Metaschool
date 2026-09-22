@@ -5,8 +5,10 @@ import android.app.Activity
 import android.app.Activity.RESULT_OK
 import android.content.Intent
 import android.graphics.Bitmap
+import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.webkit.JavascriptInterface
 import android.view.View
@@ -18,6 +20,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ImageButton
 import android.widget.ProgressBar
+import org.json.JSONArray
 
 class IngridWebActivity : Activity() {
     private lateinit var webView: WebView
@@ -26,6 +29,7 @@ class IngridWebActivity : Activity() {
     private var pendingUploadUrl: String? = null
     private var pendingEventUrl: String? = null
     private var pendingCsrfToken: String? = null
+    private var pendingStudentName: String? = null
     private var captureActive = false
     private var awaitingCapturePermission = false
     private var reportedBackground = false
@@ -110,9 +114,11 @@ class IngridWebActivity : Activity() {
         val uploadUrl = pendingUploadUrl
         val requestedEventUrl = pendingEventUrl
         val csrfToken = pendingCsrfToken
+        val studentName = pendingStudentName.orEmpty()
         pendingUploadUrl = null
         pendingEventUrl = null
         pendingCsrfToken = null
+        pendingStudentName = null
         awaitingCapturePermission = false
 
         if (resultCode != RESULT_OK || data == null || uploadUrl == null || requestedEventUrl == null || csrfToken == null) {
@@ -132,6 +138,7 @@ class IngridWebActivity : Activity() {
             putExtra(ProctorCaptureService.EXTRA_EVENT_URL, requestedEventUrl)
             putExtra(ProctorCaptureService.EXTRA_CSRF_TOKEN, csrfToken)
             putExtra(ProctorCaptureService.EXTRA_COOKIE, cookie)
+            putExtra(ProctorCaptureService.EXTRA_STUDENT_NAME, studentName)
         }
         startForegroundService(serviceIntent)
         captureActive = true
@@ -142,6 +149,7 @@ class IngridWebActivity : Activity() {
         super.onStart()
         if (captureActive && reportedBackground) {
             reportedBackground = false
+            updateCaptureContext(false)
             ProctorEventReporter.send(eventUrl, eventCsrfToken, eventCookie, "APP_FOREGROUND")
         }
     }
@@ -149,6 +157,7 @@ class IngridWebActivity : Activity() {
     override fun onStop() {
         if (captureActive && !awaitingCapturePermission && !isChangingConfigurations) {
             reportedBackground = true
+            updateCaptureContext(true)
             ProctorEventReporter.send(eventUrl, eventCsrfToken, eventCookie, "APP_BACKGROUND")
         }
         super.onStop()
@@ -188,6 +197,39 @@ class IngridWebActivity : Activity() {
         @JavascriptInterface
         fun requestScreenCapture(uploadUrl: String, eventUrl: String, csrfToken: String) {
             runOnUiThread {
+                webView.evaluateJavascript(
+                    "(() => (document.querySelector('.exam-student-identity')?.textContent || '').trim().split('·')[0].trim())()",
+                ) { encodedName ->
+                    val pageName = runCatching {
+                        JSONArray("[$encodedName]").optString(0).trim()
+                    }.getOrDefault("")
+                    beginScreenCapture(
+                        uploadUrl,
+                        eventUrl,
+                        csrfToken,
+                        pageName.ifBlank { "학생" },
+                    )
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun requestScreenCaptureWithStudent(
+            uploadUrl: String,
+            eventUrl: String,
+            csrfToken: String,
+            studentName: String,
+        ) {
+            beginScreenCapture(uploadUrl, eventUrl, csrfToken, studentName)
+        }
+
+        private fun beginScreenCapture(
+            uploadUrl: String,
+            eventUrl: String,
+            csrfToken: String,
+            studentName: String,
+        ) {
+            runOnUiThread {
                 val uri = Uri.parse(uploadUrl)
                 val eventUri = Uri.parse(eventUrl)
                 if (uri.scheme != "https" || !isIngridHost(uri.host) ||
@@ -203,9 +245,17 @@ class IngridWebActivity : Activity() {
                 pendingUploadUrl = uploadUrl
                 pendingEventUrl = eventUrl
                 pendingCsrfToken = csrfToken
+                pendingStudentName = studentName.take(40)
                 awaitingCapturePermission = true
+                val captureIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    projectionManager.createScreenCaptureIntent(
+                        MediaProjectionConfig.createConfigForDefaultDisplay(),
+                    )
+                } else {
+                    projectionManager.createScreenCaptureIntent()
+                }
                 startActivityForResult(
-                    projectionManager.createScreenCaptureIntent(),
+                    captureIntent,
                     SCREEN_CAPTURE_REQUEST,
                 )
             }
@@ -221,6 +271,17 @@ class IngridWebActivity : Activity() {
                 reportedBackground = false
             }
         }
+    }
+
+    private fun updateCaptureContext(isAway: Boolean) {
+        startService(Intent(this, ProctorCaptureService::class.java).apply {
+            action = if (isAway) {
+                ProctorCaptureService.ACTION_APP_BACKGROUND
+            } else {
+                ProctorCaptureService.ACTION_APP_FOREGROUND
+            }
+            putExtra(ProctorCaptureService.EXTRA_OCCURRED_AT_MILLIS, System.currentTimeMillis())
+        })
     }
 
     private fun isIngridHost(host: String?): Boolean {

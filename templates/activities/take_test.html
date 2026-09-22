@@ -2132,7 +2132,17 @@
             };
             const absoluteUploadUrl = new URL(PROCTOR_UPLOAD_URL, window.location.origin).href;
             const absoluteEventUrl = new URL(PROCTOR_EVENT_URL, window.location.origin).href;
-            window.IngridAndroid.requestScreenCapture(absoluteUploadUrl, absoluteEventUrl, csrfToken);
+            const studentName = '{{ user.name|default:"학생"|escapejs }}';
+            if (typeof window.IngridAndroid.requestScreenCaptureWithStudent === 'function') {
+                window.IngridAndroid.requestScreenCaptureWithStudent(
+                    absoluteUploadUrl,
+                    absoluteEventUrl,
+                    csrfToken,
+                    studentName,
+                );
+            } else {
+                window.IngridAndroid.requestScreenCapture(absoluteUploadUrl, absoluteEventUrl, csrfToken);
+            }
         });
     }
 

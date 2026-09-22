@@ -6,7 +6,11 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.PixelFormat
+import android.graphics.RectF
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.Image
@@ -23,6 +27,9 @@ import java.io.DataOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
@@ -37,6 +44,9 @@ class ProctorCaptureService : Service() {
     private var eventUrl = ""
     private var csrfToken = ""
     private var cookie = ""
+    private var studentName = "학생"
+    @Volatile private var externalAppVisible = false
+    @Volatile private var externalSinceMillis = 0L
     private val uploadInFlight = AtomicBoolean(false)
     private val uploadExecutor = Executors.newSingleThreadExecutor()
 
@@ -53,6 +63,17 @@ class ProctorCaptureService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
+            ACTION_APP_BACKGROUND -> {
+                externalAppVisible = true
+                externalSinceMillis = intent.getLongExtra(
+                    EXTRA_OCCURRED_AT_MILLIS,
+                    System.currentTimeMillis(),
+                )
+            }
+            ACTION_APP_FOREGROUND -> {
+                externalAppVisible = false
+                externalSinceMillis = 0L
+            }
             ACTION_START -> startProjection(intent)
         }
         return START_NOT_STICKY
@@ -66,6 +87,11 @@ class ProctorCaptureService : Service() {
         eventUrl = intent.getStringExtra(EXTRA_EVENT_URL).orEmpty()
         csrfToken = intent.getStringExtra(EXTRA_CSRF_TOKEN).orEmpty()
         cookie = intent.getStringExtra(EXTRA_COOKIE).orEmpty()
+        studentName = intent.getStringExtra(EXTRA_STUDENT_NAME)
+            ?.trim()
+            ?.take(40)
+            ?.ifBlank { "학생" }
+            ?: "학생"
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, ActivityResultCodeMissing)
         val resultData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(EXTRA_RESULT_DATA, Intent::class.java)
@@ -150,11 +176,82 @@ class ProctorCaptureService : Service() {
         val padded = Bitmap.createBitmap(paddedWidth, image.height, Bitmap.Config.ARGB_8888)
         padded.copyPixelsFromBuffer(buffer)
         val cropped = Bitmap.createBitmap(padded, 0, 0, image.width, image.height)
+        val uploadBitmap = if (externalAppVisible) {
+            cropped.copy(Bitmap.Config.ARGB_8888, true).also {
+                addExternalAppEvidenceOverlay(it, externalSinceMillis)
+            }
+        } else {
+            cropped
+        }
         val output = ByteArrayOutputStream()
-        cropped.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output)
+        uploadBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output)
+        if (uploadBitmap !== cropped) uploadBitmap.recycle()
         cropped.recycle()
         padded.recycle()
         return output.toByteArray()
+    }
+
+    private fun addExternalAppEvidenceOverlay(bitmap: Bitmap, detectedAtMillis: Long) {
+        val canvas = Canvas(bitmap)
+        val width = bitmap.width.toFloat()
+        val height = bitmap.height.toFloat()
+        val systemMask = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(32, 33, 36)
+            style = Paint.Style.FILL
+        }
+        canvas.drawRect(0f, 0f, width, (height * 0.05f).coerceAtLeast(12f), systemMask)
+        canvas.drawRect(0f, height - (height * 0.055f).coerceAtLeast(12f), width, height, systemMask)
+
+        val messageSize = minOf(width * 0.058f, height * 0.10f).coerceAtLeast(24f)
+        val detailSize = (messageSize * 0.58f).coerceAtLeast(15f)
+        val lineGap = messageSize * 1.32f
+        val bannerHeight = maxOf(height * 0.45f, lineGap * 3.25f)
+        val centerY = height / 2f
+        val banner = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(246, 15, 15, 18)
+            style = Paint.Style.FILL
+        }
+        canvas.drawRoundRect(
+            RectF(width * 0.03f, centerY - bannerHeight / 2f, width * 0.97f, centerY + bannerHeight / 2f),
+            messageSize * 0.45f,
+            messageSize * 0.45f,
+            banner,
+        )
+
+        val messagePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textAlign = Paint.Align.CENTER
+            textSize = messageSize
+            isFakeBoldText = true
+        }
+        val detailPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(255, 205, 210)
+            textAlign = Paint.Align.CENTER
+            textSize = detailSize
+            isFakeBoldText = true
+        }
+        val displayName = studentName.ifBlank { "학생" }
+        val studentLabel = if (displayName.endsWith("학생")) "${displayName}이" else "${displayName} 학생이"
+        val occurredAt = if (detectedAtMillis > 0L) detectedAtMillis else System.currentTimeMillis()
+        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.KOREA).format(Date(occurredAt))
+        canvas.drawText(
+            "$studentLabel 외부 페이지를",
+            width / 2f,
+            centerY - lineGap * 0.62f,
+            messagePaint,
+        )
+        canvas.drawText(
+            "화면에 띄우고 있습니다.",
+            width / 2f,
+            centerY + lineGap * 0.28f,
+            messagePaint,
+        )
+        canvas.drawText(
+            "외부 앱 이탈 감지  ·  $timestamp",
+            width / 2f,
+            centerY + lineGap * 1.02f,
+            detailPaint,
+        )
     }
 
     private fun uploadSnapshot(jpeg: ByteArray): Int {
@@ -232,12 +329,16 @@ class ProctorCaptureService : Service() {
     companion object {
         const val ACTION_START = "com.schoolingrid.student.action.START_PROCTOR"
         const val ACTION_STOP = "com.schoolingrid.student.action.STOP_PROCTOR"
+        const val ACTION_APP_BACKGROUND = "com.schoolingrid.student.action.APP_BACKGROUND"
+        const val ACTION_APP_FOREGROUND = "com.schoolingrid.student.action.APP_FOREGROUND"
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
         const val EXTRA_UPLOAD_URL = "upload_url"
         const val EXTRA_EVENT_URL = "event_url"
         const val EXTRA_CSRF_TOKEN = "csrf_token"
         const val EXTRA_COOKIE = "cookie"
+        const val EXTRA_STUDENT_NAME = "student_name"
+        const val EXTRA_OCCURRED_AT_MILLIS = "occurred_at_millis"
         private const val NOTIFICATION_CHANNEL = "ingrid_proctor_capture"
         private const val NOTIFICATION_ID = 2101
         private const val MAX_CAPTURE_WIDTH = 960
