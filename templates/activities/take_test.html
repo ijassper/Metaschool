@@ -803,6 +803,18 @@
         }
     }
     @media (max-width: 767.98px) {
+        .container-fluid {
+            padding: 0 !important;
+        }
+        #testContainer {
+            margin-top: 0 !important;
+        }
+        #testContainer > .main-row,
+        #testContainer > .row {
+            display: flex !important;
+            flex-direction: column !important;
+            flex-wrap: nowrap !important;
+        }
         .start-sidebar-col {
             width: 100% !important;
             max-width: 100% !important;
@@ -837,18 +849,102 @@
         }
         .exam-answer-panel {
             min-height: 100dvh;
+            width: 100% !important;
+            flex: 0 0 auto !important;
         }
         .exam-answer-scroll {
             overflow-y: visible !important;
-            padding: 1.25rem 1rem 130px !important;
+            padding: 0.75rem 0.75rem 118px !important;
         }
         .exam-sticky-header {
             align-items: center !important;
-            gap: 0.75rem;
+            gap: 0.5rem;
+            min-height: 0;
+            padding: 0.65rem 0.75rem !important;
+        }
+        .exam-header-left,
+        .exam-sticky-header > .d-flex {
+            width: 100%;
+        }
+        .exam-header-title {
+            font-size: 1rem;
+        }
+        .exam-student-identity {
+            max-width: 100%;
+            margin-left: 0 !important;
+            font-size: 1rem;
+            line-height: 1.25;
+        }
+        .exam-status-pill {
+            padding: 0.32rem 0.55rem;
+            font-size: 0.78rem;
+        }
+        .exam-sticky-header .btn {
+            padding: 0.3rem 0.7rem !important;
+            font-size: 0.78rem;
+        }
+        .exam-question-panel {
+            width: 100% !important;
+            height: auto !important;
+            max-height: 38dvh;
+            flex: 0 0 auto !important;
+            padding: 0.75rem !important;
+            border-right: 0 !important;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .exam-question-panel > h4 {
+            margin-bottom: 0.65rem !important;
+            font-size: 1.05rem;
+        }
+        .exam-question-panel .glass-card {
+            margin-bottom: 0.65rem !important;
+            padding: 0.75rem !important;
+            border-radius: 0.8rem !important;
+        }
+        textarea.answer-input {
+            height: clamp(320px, 55dvh, 520px) !important;
+            padding: 1rem !important;
+            margin-bottom: 1.25rem;
+            border-radius: 14px !important;
+            font-size: 1rem !important;
+            line-height: 1.65 !important;
+        }
+        .exam-answer-scroll h5 {
+            font-size: 1rem;
+            margin-bottom: 0.6rem !important;
+        }
+        .exam-answer-scroll .mb-5 {
+            margin-bottom: 1.25rem !important;
+        }
+        .proctor-recording-status {
+            min-height: 40px;
+            padding: 4px 8px;
+            gap: 5px;
+            font-size: 1.05rem;
+        }
+        .security-notice {
+            margin-bottom: 0.75rem;
+            padding: 0.65rem 0.75rem;
+            font-size: 0.78rem;
         }
         .floating-submit-bar .container-fluid {
             height: auto !important;
             padding: 0 !important;
+        }
+        .floating-submit-bar {
+            padding: 0.5rem 0.65rem calc(0.5rem + env(safe-area-inset-bottom));
+        }
+        .floating-submit-bar .d-flex {
+            gap: 0.4rem !important;
+        }
+        .floating-submit-bar .btn {
+            min-height: 38px;
+            padding: 0.35rem 0.65rem !important;
+            font-size: 0.76rem;
+        }
+        .exam-action-group {
+            padding-left: 0;
+            border-left: 0;
         }
     }
     @media (max-width: 767.98px), (orientation: portrait) {
@@ -1256,7 +1352,7 @@
         {% else %}
         
         <!-- [좌측 영역: 문제지 - 5대 섹션 반영] -->
-        <div class="col-md-3 border-end bg-light scroll-panel p-4">
+        <div class="col-md-3 border-end bg-light scroll-panel p-4 exam-question-panel">
             <h4 class="fw-bold mb-4 text-primary"><i class="bi bi-file-earmark-text"></i> 문제지</h4>
             
             <!-- 섹션 1: 기본 정보 -->

@@ -53,6 +53,11 @@ class IngridWebActivity : Activity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
+            useWideViewPort = true
+            loadWithOverviewMode = false
+            textZoom = 100
+            builtInZoomControls = false
+            displayZoomControls = false
             allowFileAccess = false
             allowContentAccess = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
