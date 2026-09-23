@@ -3,7 +3,10 @@ package com.schoolingrid.student
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Activity.RESULT_OK
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
@@ -36,6 +39,26 @@ class IngridWebActivity : Activity() {
     private var eventUrl = ""
     private var eventCsrfToken = ""
     private var eventCookie = ""
+    private var captureStateReceiverRegistered = false
+    private val captureStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.getStringExtra(ProctorCaptureService.EXTRA_CAPTURE_STATE)) {
+                ProctorCaptureService.CAPTURE_STATE_STARTED -> {
+                    captureActive = true
+                    notifyCaptureStateChanged(true, "")
+                }
+                ProctorCaptureService.CAPTURE_STATE_STOPPED -> {
+                    captureActive = false
+                    reportedBackground = false
+                    notifyCaptureStateChanged(
+                        false,
+                        intent.getStringExtra(ProctorCaptureService.EXTRA_CAPTURE_MESSAGE)
+                            ?: "화면 녹화가 중단되었습니다.",
+                    )
+                }
+            }
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,6 +68,7 @@ class IngridWebActivity : Activity() {
         webView = findViewById(R.id.ingridWebView)
         progressBar = findViewById(R.id.webProgress)
         projectionManager = getSystemService(MediaProjectionManager::class.java)
+        registerCaptureStateReceiver()
 
         findViewById<ImageButton>(R.id.closeWebButton).setOnClickListener { finish() }
 
@@ -174,6 +198,10 @@ class IngridWebActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (captureStateReceiverRegistered) {
+            unregisterReceiver(captureStateReceiver)
+            captureStateReceiverRegistered = false
+        }
         webView.apply {
             stopLoading()
             webChromeClient = null
@@ -191,6 +219,28 @@ class IngridWebActivity : Activity() {
             "window.onIngridCaptureResult && window.onIngridCaptureResult(${success}, '$escaped');",
             null,
         )
+    }
+
+    private fun notifyCaptureStateChanged(active: Boolean, message: String) {
+        val escaped = message
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\n", "\\n")
+        webView.evaluateJavascript(
+            "window.onIngridCaptureStateChanged && window.onIngridCaptureStateChanged(${active}, '$escaped');",
+            null,
+        )
+    }
+
+    private fun registerCaptureStateReceiver() {
+        val filter = IntentFilter(ProctorCaptureService.ACTION_CAPTURE_STATE_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(captureStateReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(captureStateReceiver, filter)
+        }
+        captureStateReceiverRegistered = true
     }
 
     private inner class AndroidExamBridge {

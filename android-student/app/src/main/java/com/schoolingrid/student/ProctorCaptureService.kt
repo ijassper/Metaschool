@@ -10,7 +10,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PixelFormat
-import android.graphics.RectF
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.Image
@@ -139,6 +138,7 @@ class ProctorCaptureService : Service() {
             handler,
         )
         ProctorEventReporter.send(eventUrl, csrfToken, cookie, "CAPTURE_STARTED")
+        notifyCaptureState(CAPTURE_STATE_STARTED)
     }
 
     private fun onImageAvailable(reader: ImageReader) {
@@ -205,18 +205,12 @@ class ProctorCaptureService : Service() {
         val messageSize = minOf(width * 0.058f, height * 0.10f).coerceAtLeast(24f)
         val detailSize = (messageSize * 0.58f).coerceAtLeast(15f)
         val lineGap = messageSize * 1.32f
-        val bannerHeight = maxOf(height * 0.45f, lineGap * 3.25f)
         val centerY = height / 2f
         val banner = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(246, 15, 15, 18)
+            color = Color.argb(224, 8, 8, 10)
             style = Paint.Style.FILL
         }
-        canvas.drawRoundRect(
-            RectF(width * 0.03f, centerY - bannerHeight / 2f, width * 0.97f, centerY + bannerHeight / 2f),
-            messageSize * 0.45f,
-            messageSize * 0.45f,
-            banner,
-        )
+        canvas.drawRect(0f, 0f, width, height, banner)
 
         val messagePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
@@ -323,7 +317,16 @@ class ProctorCaptureService : Service() {
         imageReader = null
         mediaProjection = null
         captureThread = null
+        notifyCaptureState(CAPTURE_STATE_STOPPED, "화면 녹화가 중단되었습니다. 다시 시작해 주세요.")
         super.onDestroy()
+    }
+
+    private fun notifyCaptureState(state: String, message: String = "") {
+        sendBroadcast(Intent(ACTION_CAPTURE_STATE_CHANGED).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_CAPTURE_STATE, state)
+            putExtra(EXTRA_CAPTURE_MESSAGE, message)
+        })
     }
 
     companion object {
@@ -331,6 +334,9 @@ class ProctorCaptureService : Service() {
         const val ACTION_STOP = "com.schoolingrid.student.action.STOP_PROCTOR"
         const val ACTION_APP_BACKGROUND = "com.schoolingrid.student.action.APP_BACKGROUND"
         const val ACTION_APP_FOREGROUND = "com.schoolingrid.student.action.APP_FOREGROUND"
+        const val ACTION_CAPTURE_STATE_CHANGED = "com.schoolingrid.student.action.CAPTURE_STATE_CHANGED"
+        const val CAPTURE_STATE_STARTED = "started"
+        const val CAPTURE_STATE_STOPPED = "stopped"
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
         const val EXTRA_UPLOAD_URL = "upload_url"
@@ -339,6 +345,8 @@ class ProctorCaptureService : Service() {
         const val EXTRA_COOKIE = "cookie"
         const val EXTRA_STUDENT_NAME = "student_name"
         const val EXTRA_OCCURRED_AT_MILLIS = "occurred_at_millis"
+        const val EXTRA_CAPTURE_STATE = "capture_state"
+        const val EXTRA_CAPTURE_MESSAGE = "capture_message"
         private const val NOTIFICATION_CHANNEL = "ingrid_proctor_capture"
         private const val NOTIFICATION_ID = 2101
         private const val MAX_CAPTURE_WIDTH = 960

@@ -192,6 +192,18 @@
         white-space: nowrap;
     }
     .proctor-recording-status.is-error { white-space: normal; }
+    .proctor-restart-button {
+        margin-left: 0.75rem;
+        padding: 0.45rem 1rem;
+        border: 1px solid #dc3545;
+        border-radius: 999px;
+        background: #dc3545;
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+    .proctor-restart-button:disabled { opacity: 0.58; }
     .exam-answer-scroll.has-proctor-status { padding-top: 0 !important; }
     .typing-topic-title {
         font-size: clamp(1rem, 1.8vw, 1.2rem);
@@ -921,6 +933,11 @@
             padding: 4px 8px;
             gap: 5px;
             font-size: 1.05rem;
+        }
+        .proctor-restart-button {
+            margin-left: 0.35rem;
+            padding: 0.32rem 0.65rem;
+            font-size: 0.75rem;
         }
         .security-notice {
             margin-bottom: 0.75rem;
@@ -2114,6 +2131,38 @@
         badge.appendChild(clock);
         startProctorClock();
     }
+
+    function showProctorRestart(message) {
+        setProctorStatus(message || '화면 녹화가 중단되었습니다.', true);
+        const badge = document.getElementById('proctorStatusBadge');
+        if (!badge || badge.querySelector('.proctor-restart-button')) return;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'proctor-restart-button';
+        button.textContent = '녹화 다시 시작';
+        button.addEventListener('click', restartAndroidProctorCapture);
+        badge.appendChild(button);
+    }
+
+    async function restartAndroidProctorCapture(event) {
+        const button = event?.currentTarget;
+        if (button) {
+            button.disabled = true;
+            button.textContent = '승인 대기 중';
+        }
+        try {
+            await acquireAndroidProctorScreen();
+            setProctorStatus('화면 녹화중');
+        } catch (error) {
+            showProctorRestart(error?.message || '화면 공유를 다시 승인해 주세요.');
+        }
+    }
+
+    window.onIngridCaptureStateChanged = function (active, message) {
+        if (!IS_INGRID_ANDROID_APP || !PROCTOR_MODE) return;
+        if (active) setProctorStatus('화면 녹화중');
+        else showProctorRestart(message || '화면 녹화가 중단되었습니다.');
+    };
 
     function acquireAndroidProctorScreen() {
         return new Promise((resolve, reject) => {
