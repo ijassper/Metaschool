@@ -4,6 +4,8 @@
 /gradle/gradle-daemon-jvm.properties
 **/build/
 *.iml
+keystore.properties
+signing/
 captures/
 .externalNativeBuild/
 .cxx/

@@ -2,6 +2,12 @@ plugins {
     id "com.android.application"
 }
 
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace "com.schoolingrid.student"
     compileSdk 37
@@ -17,5 +23,38 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            release {
+                storeFile rootProject.file(keystoreProperties["storeFile"])
+                storePassword keystoreProperties["storePassword"]
+                keyAlias keystoreProperties["keyAlias"]
+                keyPassword keystoreProperties["keyPassword"]
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+}
+
+tasks.register("stageReleaseApk", Copy) {
+    dependsOn("assembleRelease")
+    from(layout.buildDirectory.file("outputs/apk/release/app-release.apk"))
+    into(rootProject.file("../releases"))
+    rename { "ingrid-student.apk" }
+    doFirst {
+        if (!keystorePropertiesFile.exists()) {
+            throw new GradleException("keystore.properties가 없습니다. scripts/create-release-keystore.ps1을 먼저 실행하세요.")
+        }
     }
 }
