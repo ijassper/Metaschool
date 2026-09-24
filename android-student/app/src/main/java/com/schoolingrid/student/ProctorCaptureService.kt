@@ -48,9 +48,10 @@ class ProctorCaptureService : Service() {
     @Volatile private var externalAppVisible = false
     @Volatile private var externalSinceMillis = 0L
     private val uploadWorkerRunning = AtomicBoolean(false)
-    private val pendingSnapshots = ArrayDeque<PendingSnapshot>()
+    private val pendingSnapshots = ArrayDeque<EncryptedSnapshotBuffer.Item>()
     private val pendingSnapshotsLock = Any()
     private val uploadExecutor = Executors.newSingleThreadExecutor()
+    private var snapshotBuffer: EncryptedSnapshotBuffer? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -89,6 +90,7 @@ class ProctorCaptureService : Service() {
         eventUrl = intent.getStringExtra(EXTRA_EVENT_URL).orEmpty()
         csrfToken = intent.getStringExtra(EXTRA_CSRF_TOKEN).orEmpty()
         cookie = intent.getStringExtra(EXTRA_COOKIE).orEmpty()
+        snapshotBuffer = EncryptedSnapshotBuffer(this, uploadUrl, MAX_PENDING_SNAPSHOTS)
         studentName = intent.getStringExtra(EXTRA_STUDENT_NAME)
             ?.trim()
             ?.take(40)
@@ -147,6 +149,7 @@ class ProctorCaptureService : Service() {
         )
         ProctorEventReporter.send(eventUrl, csrfToken, cookie, "CAPTURE_STARTED")
         notifyCaptureState(CAPTURE_STATE_STARTED)
+        restorePendingSnapshots()
     }
 
     private fun onImageAvailable(reader: ImageReader) {
@@ -160,7 +163,7 @@ class ProctorCaptureService : Service() {
         try {
             val jpeg = imageToJpeg(image)
             val capturedAt = Instant.now().toString()
-            enqueueSnapshot(PendingSnapshot(jpeg, capturedAt))
+            snapshotBuffer?.save(jpeg, capturedAt)?.let(::enqueueSnapshot)
         } catch (_: Exception) {
             // 다음 3초 촬영에서 다시 시도합니다.
         } finally {
@@ -168,10 +171,19 @@ class ProctorCaptureService : Service() {
         }
     }
 
-    private fun enqueueSnapshot(snapshot: PendingSnapshot) {
+    private fun restorePendingSnapshots() {
+        val restored = snapshotBuffer?.restore().orEmpty()
+        synchronized(pendingSnapshotsLock) {
+            pendingSnapshots.clear()
+            pendingSnapshots.addAll(restored)
+        }
+        if (restored.isNotEmpty()) startUploadWorker()
+    }
+
+    private fun enqueueSnapshot(snapshot: EncryptedSnapshotBuffer.Item) {
         synchronized(pendingSnapshotsLock) {
             if (pendingSnapshots.size >= MAX_PENDING_SNAPSHOTS) {
-                pendingSnapshots.removeFirst()
+                snapshotBuffer?.delete(pendingSnapshots.removeFirst())
             }
             pendingSnapshots.addLast(snapshot)
         }
@@ -200,15 +212,24 @@ class ProctorCaptureService : Service() {
                 return
             }
 
-            val status = uploadSnapshotWithRetry(pending.jpeg, pending.capturedAt)
+            val jpeg = snapshotBuffer?.read(pending)
+            if (jpeg == null) {
+                snapshotBuffer?.delete(pending)
+                continue
+            }
+            val status = uploadSnapshotWithRetry(jpeg, pending.capturedAt)
             if (status == HTTP_INSUFFICIENT_STORAGE) {
                 stopSelf()
                 return
             }
+            if (status != null && status !in RETRYABLE_HTTP_STATUS) {
+                snapshotBuffer?.delete(pending)
+                continue
+            }
             if (status == null || status in RETRYABLE_HTTP_STATUS) {
                 synchronized(pendingSnapshotsLock) {
                     if (pendingSnapshots.size >= MAX_PENDING_SNAPSHOTS) {
-                        pendingSnapshots.removeFirst()
+                        snapshotBuffer?.delete(pendingSnapshots.removeFirst())
                     }
                     pendingSnapshots.addFirst(pending)
                 }
@@ -452,8 +473,4 @@ class ProctorCaptureService : Service() {
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
     }
 
-    private data class PendingSnapshot(
-        val jpeg: ByteArray,
-        val capturedAt: String,
-    )
 }
