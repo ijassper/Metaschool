@@ -11,7 +11,8 @@
     <string name="proctor_step_two">2. 응시 중에는 화면이 3초 간격으로 기록됩니다.</string>
     <string name="proctor_step_three">3. 화면 공유 중단과 앱 이탈은 감독 선생님에게 표시됩니다.</string>
     <string name="login_button">인그리드 로그인</string>
-    <string name="prototype_notice">현재 기본 UI 검증 단계입니다.</string>
+    <string name="app_version_loading">앱 버전 확인 중</string>
+    <string name="app_version_format">앱 버전 %1$s · 업데이트 자동 확인</string>
     <string name="web_title">Ingrid 학생 평가</string>
     <string name="close_web">로그인 화면 닫기</string>
     <string name="capture_permission_required">화면 공유를 승인해야 시험을 시작할 수 있습니다.</string>

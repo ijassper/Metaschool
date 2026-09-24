@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
+import android.widget.TextView
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -15,6 +16,11 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        findViewById<TextView>(R.id.appVersionText).text = getString(
+            R.string.app_version_format,
+            currentVersionName(),
+        )
 
         findViewById<Button>(R.id.loginButton).setOnClickListener {
             startActivity(Intent(this, IngridWebActivity::class.java))

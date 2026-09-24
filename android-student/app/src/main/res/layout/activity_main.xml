@@ -127,10 +127,11 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/appVersionText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="@string/prototype_notice"
+            android:text="@string/app_version_loading"
             android:textColor="@color/ingrid_text_muted"
             android:textSize="13sp" />
     </LinearLayout>
