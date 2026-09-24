@@ -37,6 +37,19 @@ C:\GitHub\Metaschool\releases\ingrid-student.apk
 /web/metaschool/releases/ingrid-student.apk
 ```
 
+로컬 프로젝트 루트에서 업로드 스크립트를 실행하면 파일 크기와 SHA-256을 확인한 뒤 정해진 서버 경로로 전송합니다.
+
+```powershell
+cd C:\GitHub\Metaschool
+.\upload-android.ps1
+```
+
+서버 주소나 계정이 바뀐 경우에만 매개변수로 지정합니다.
+
+```powershell
+.\upload-android.ps1 -ServerHost "서버주소" -ServerUser "계정명"
+```
+
 파일이 존재하면 `/accounts/student-app/` 페이지의 QR 코드와 다운로드 버튼이 자동 활성화됩니다.
 
 ## 앱 업데이트

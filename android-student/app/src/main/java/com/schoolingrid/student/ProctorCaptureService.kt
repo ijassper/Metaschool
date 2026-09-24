@@ -47,7 +47,9 @@ class ProctorCaptureService : Service() {
     private var captureScope = CAPTURE_SCOPE_FULL_DISPLAY
     @Volatile private var externalAppVisible = false
     @Volatile private var externalSinceMillis = 0L
-    private val uploadInFlight = AtomicBoolean(false)
+    private val uploadWorkerRunning = AtomicBoolean(false)
+    private val pendingSnapshots = ArrayDeque<PendingSnapshot>()
+    private val pendingSnapshotsLock = Any()
     private val uploadExecutor = Executors.newSingleThreadExecutor()
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -150,7 +152,7 @@ class ProctorCaptureService : Service() {
     private fun onImageAvailable(reader: ImageReader) {
         val image = reader.acquireLatestImage() ?: return
         val now = SystemClock.elapsedRealtime()
-        if (now - lastCaptureAt < CAPTURE_INTERVAL_MS || !uploadInFlight.compareAndSet(false, true)) {
+        if (now - lastCaptureAt < CAPTURE_INTERVAL_MS) {
             image.close()
             return
         }
@@ -158,18 +160,61 @@ class ProctorCaptureService : Service() {
         try {
             val jpeg = imageToJpeg(image)
             val capturedAt = Instant.now().toString()
-            uploadExecutor.execute {
-                try {
-                    val status = uploadSnapshotWithRetry(jpeg, capturedAt)
-                    if (status == HTTP_INSUFFICIENT_STORAGE) stopSelf()
-                } finally {
-                    uploadInFlight.set(false)
-                }
-            }
+            enqueueSnapshot(PendingSnapshot(jpeg, capturedAt))
         } catch (_: Exception) {
-            uploadInFlight.set(false)
+            // 다음 3초 촬영에서 다시 시도합니다.
         } finally {
             image.close()
+        }
+    }
+
+    private fun enqueueSnapshot(snapshot: PendingSnapshot) {
+        synchronized(pendingSnapshotsLock) {
+            if (pendingSnapshots.size >= MAX_PENDING_SNAPSHOTS) {
+                pendingSnapshots.removeFirst()
+            }
+            pendingSnapshots.addLast(snapshot)
+        }
+        startUploadWorker()
+    }
+
+    private fun startUploadWorker() {
+        if (!uploadWorkerRunning.compareAndSet(false, true)) return
+        uploadExecutor.execute {
+            try {
+                drainPendingSnapshots()
+            } finally {
+                uploadWorkerRunning.set(false)
+                val hasPending = synchronized(pendingSnapshotsLock) { pendingSnapshots.isNotEmpty() }
+                if (hasPending && !uploadExecutor.isShutdown) startUploadWorker()
+            }
+        }
+    }
+
+    private fun drainPendingSnapshots() {
+        while (!Thread.currentThread().isInterrupted) {
+            val pending = synchronized(pendingSnapshotsLock) {
+                if (pendingSnapshots.isEmpty()) null else pendingSnapshots.removeFirst()
+            } ?: run {
+                updateNotification(getString(R.string.capture_notification_body))
+                return
+            }
+
+            val status = uploadSnapshotWithRetry(pending.jpeg, pending.capturedAt)
+            if (status == HTTP_INSUFFICIENT_STORAGE) {
+                stopSelf()
+                return
+            }
+            if (status == null || status in RETRYABLE_HTTP_STATUS) {
+                synchronized(pendingSnapshotsLock) {
+                    if (pendingSnapshots.size >= MAX_PENDING_SNAPSHOTS) {
+                        pendingSnapshots.removeFirst()
+                    }
+                    pendingSnapshots.addFirst(pending)
+                }
+                updateNotification(getString(R.string.capture_notification_buffering))
+                Thread.sleep(QUEUE_RETRY_DELAY_MS)
+            }
         }
     }
 
@@ -355,6 +400,7 @@ class ProctorCaptureService : Service() {
         mediaProjection?.stop()
         captureThread?.quitSafely()
         uploadExecutor.shutdownNow()
+        synchronized(pendingSnapshotsLock) { pendingSnapshots.clear() }
         virtualDisplay = null
         imageReader = null
         mediaProjection = null
@@ -397,10 +443,17 @@ class ProctorCaptureService : Service() {
         private const val JPEG_QUALITY = 55
         private const val HTTP_INSUFFICIENT_STORAGE = 507
         private const val MAX_UPLOAD_ATTEMPTS = 3
+        private const val MAX_PENDING_SNAPSHOTS = 20
+        private const val QUEUE_RETRY_DELAY_MS = 5_000L
         private val RETRY_DELAYS_MS = longArrayOf(1_500L, 3_000L)
         private val RETRYABLE_HTTP_STATUS = setOf(408, 425, 429, 500, 502, 503, 504)
         private const val ActivityResultCodeMissing = Int.MIN_VALUE
         private const val CAPTURE_SCOPE_FULL_DISPLAY = "FULL_DISPLAY"
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
     }
+
+    private data class PendingSnapshot(
+        val jpeg: ByteArray,
+        val capturedAt: String,
+    )
 }
