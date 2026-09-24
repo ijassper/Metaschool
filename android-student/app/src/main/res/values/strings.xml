@@ -18,10 +18,10 @@
     <string name="device_network_checking">인터넷 연결 확인 중</string>
     <string name="device_network_ready">✓ 인터넷 연결 정상</string>
     <string name="device_network_unavailable">! 인터넷 연결을 확인해 주세요</string>
-    <string name="device_notification_checking">감독 알림 권한 확인 중</string>
-    <string name="device_notification_ready">✓ 감독 알림 권한 허용됨</string>
-    <string name="device_notification_required">! 감독 알림 권한을 허용해 주세요</string>
-    <string name="device_notification_allow">알림 권한 허용</string>
+    <string name="device_notification_checking">화면 녹화 상태 알림 확인 중</string>
+    <string name="device_notification_ready">✓ 화면 녹화 상태 알림 허용됨</string>
+    <string name="device_notification_required">! 화면 전송 중임을 표시하는 알림을 허용해 주세요</string>
+    <string name="device_notification_allow">녹화 알림 허용</string>
     <string name="web_title">Ingrid 학생 평가</string>
     <string name="close_web">로그인 화면 닫기</string>
     <string name="capture_permission_required">화면 공유를 승인해야 시험을 시작할 수 있습니다.</string>
@@ -32,4 +32,5 @@
     <string name="update_later">나중에</string>
     <string name="capture_notification_title">인그리드 화면 녹화중</string>
     <string name="capture_notification_body">감독 선생님에게 시험 화면을 전송하고 있습니다.</string>
+    <string name="capture_notification_retrying">네트워크 연결을 확인하며 화면 전송을 다시 시도하고 있습니다.</string>
 </resources>

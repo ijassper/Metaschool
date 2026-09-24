@@ -157,9 +157,10 @@ class ProctorCaptureService : Service() {
         lastCaptureAt = now
         try {
             val jpeg = imageToJpeg(image)
+            val capturedAt = Instant.now().toString()
             uploadExecutor.execute {
                 try {
-                    val status = uploadSnapshot(jpeg)
+                    val status = uploadSnapshotWithRetry(jpeg, capturedAt)
                     if (status == HTTP_INSUFFICIENT_STORAGE) stopSelf()
                 } finally {
                     uploadInFlight.set(false)
@@ -259,7 +260,28 @@ class ProctorCaptureService : Service() {
         )
     }
 
-    private fun uploadSnapshot(jpeg: ByteArray): Int {
+    private fun uploadSnapshotWithRetry(jpeg: ByteArray, capturedAt: String): Int? {
+        var retrying = false
+        try {
+            for (attempt in 0 until MAX_UPLOAD_ATTEMPTS) {
+                val status = runCatching { uploadSnapshot(jpeg, capturedAt) }.getOrNull()
+                if (status != null && (status in 200..299 || status == HTTP_INSUFFICIENT_STORAGE)) {
+                    return status
+                }
+                if (status != null && status !in RETRYABLE_HTTP_STATUS) return status
+                if (attempt == MAX_UPLOAD_ATTEMPTS - 1) return status
+
+                retrying = true
+                updateNotification(getString(R.string.capture_notification_retrying))
+                Thread.sleep(RETRY_DELAYS_MS[attempt])
+            }
+            return null
+        } finally {
+            if (retrying) updateNotification(getString(R.string.capture_notification_body))
+        }
+    }
+
+    private fun uploadSnapshot(jpeg: ByteArray, capturedAt: String): Int {
         val boundary = "----IngridAndroid${System.currentTimeMillis()}"
         val connection = (URL(uploadUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
@@ -281,7 +303,7 @@ class ProctorCaptureService : Service() {
                 output.write(value.toByteArray(Charsets.UTF_8))
                 output.writeBytes("\r\n")
             }
-            field("captured_at", Instant.now().toString())
+            field("captured_at", capturedAt)
             output.writeBytes("--$boundary\r\n")
             output.writeBytes("Content-Disposition: form-data; name=\"snapshot\"; filename=\"screen-${System.currentTimeMillis()}.jpg\"\r\n")
             output.writeBytes("Content-Type: image/jpeg\r\n\r\n")
@@ -306,10 +328,19 @@ class ProctorCaptureService : Service() {
         }
     }
 
-    private fun buildNotification() = Notification.Builder(this, NOTIFICATION_CHANNEL)
+    private fun updateNotification(body: String) {
+        getSystemService(NotificationManager::class.java).notify(
+            NOTIFICATION_ID,
+            buildNotification(body),
+        )
+    }
+
+    private fun buildNotification(
+        body: String = getString(R.string.capture_notification_body),
+    ) = Notification.Builder(this, NOTIFICATION_CHANNEL)
         .setSmallIcon(android.R.drawable.presence_video_online)
         .setContentTitle(getString(R.string.capture_notification_title))
-        .setContentText(getString(R.string.capture_notification_body))
+        .setContentText(body)
         .setOngoing(true)
         .setOnlyAlertOnce(true)
         .build()
@@ -365,6 +396,9 @@ class ProctorCaptureService : Service() {
         private const val CAPTURE_INTERVAL_MS = 3_000L
         private const val JPEG_QUALITY = 55
         private const val HTTP_INSUFFICIENT_STORAGE = 507
+        private const val MAX_UPLOAD_ATTEMPTS = 3
+        private val RETRY_DELAYS_MS = longArrayOf(1_500L, 3_000L)
+        private val RETRYABLE_HTTP_STATUS = setOf(408, 425, 429, 500, 502, 503, 504)
         private const val ActivityResultCodeMissing = Int.MIN_VALUE
         private const val CAPTURE_SCOPE_FULL_DISPLAY = "FULL_DISPLAY"
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
