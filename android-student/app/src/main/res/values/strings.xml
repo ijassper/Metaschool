@@ -13,6 +13,15 @@
     <string name="login_button">인그리드 로그인</string>
     <string name="app_version_loading">앱 버전 확인 중</string>
     <string name="app_version_format">앱 버전 %1$s · 업데이트 자동 확인</string>
+    <string name="device_check_title">시험 전 기기 점검</string>
+    <string name="device_android_supported">✓ Android 버전 지원</string>
+    <string name="device_network_checking">인터넷 연결 확인 중</string>
+    <string name="device_network_ready">✓ 인터넷 연결 정상</string>
+    <string name="device_network_unavailable">! 인터넷 연결을 확인해 주세요</string>
+    <string name="device_notification_checking">감독 알림 권한 확인 중</string>
+    <string name="device_notification_ready">✓ 감독 알림 권한 허용됨</string>
+    <string name="device_notification_required">! 감독 알림 권한을 허용해 주세요</string>
+    <string name="device_notification_allow">알림 권한 허용</string>
     <string name="web_title">Ingrid 학생 평가</string>
     <string name="close_web">로그인 화면 닫기</string>
     <string name="capture_permission_required">화면 공유를 승인해야 시험을 시작할 수 있습니다.</string>
