@@ -214,7 +214,7 @@ ANDROID_STUDENT_APK_PATH = os.environ.get(
     'ANDROID_STUDENT_APK_PATH',
     str(BASE_DIR / 'releases' / 'ingrid-student.apk'),
 )
-ANDROID_STUDENT_APP_VERSION = os.environ.get('ANDROID_STUDENT_APP_VERSION', '0.1.0')
+ANDROID_STUDENT_APP_VERSION = os.environ.get('ANDROID_STUDENT_APP_VERSION', '0.1.1')
 
 # 같은 도메인 내에서는 iframe(미리보기)을 허용하도록 설정
 X_FRAME_OPTIONS = 'SAMEORIGIN'
