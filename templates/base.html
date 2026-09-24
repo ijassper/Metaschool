@@ -696,6 +696,14 @@
                                 </a>
                             </li>
 
+                            {% if user.role == 'TEACHER' or user.role == 'LEADER' or user.role == 'ADMIN' %}
+                            <li>
+                                <a class="dropdown-item rounded-2 py-2" href="{% url 'student_app_install' %}">
+                                    <i class="bi bi-qr-code me-2"></i>학생 앱 설치
+                                </a>
+                            </li>
+                            {% endif %}
+
                             <!-- [추가] 2. 관리자 전용 메뉴 (ADMIN 권한일 때만 노출) -->
                             {% if user.role == 'ADMIN' %}
                             <li><hr class="dropdown-divider mx-2"></li>

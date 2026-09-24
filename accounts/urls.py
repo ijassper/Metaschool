@@ -30,6 +30,9 @@ from .views import (
     student_export_excel,
     student_list,
     student_upload,
+    student_app_download,
+    student_app_install,
+    student_app_qr,
 )
 
 urlpatterns = [
@@ -48,6 +51,9 @@ urlpatterns = [
     path("student/bulk-action/", student_bulk_action, name="student_bulk_action"),
     path("student/reset-pw/<int:student_id>/", reset_student_password, name="reset_student_password"),
     path("student/delete/<int:student_id>/", student_delete, name="student_delete"),
+    path("student-app/", student_app_install, name="student_app_install"),
+    path("student-app/download/", student_app_download, name="student_app_download"),
+    path("student-app/qr/", student_app_qr, name="student_app_qr"),
 
     path("search/school/", search_school, name="search_school"),
     path("check-email/", check_email_duplicate, name="check_email"),

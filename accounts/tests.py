@@ -1,6 +1,7 @@
 from pathlib import Path
 import inspect
 import re
+import tempfile
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -12,7 +13,64 @@ from django.urls import resolve, reverse
 from django.template.loader import get_template
 
 from .middleware import StudentSessionValidationMiddleware
-from .views import admin_system_settings, login_view, persona_create
+from .views import (
+    admin_system_settings,
+    login_view,
+    persona_create,
+    student_app_download,
+    student_app_install,
+    student_app_qr,
+)
+
+
+@override_settings(
+    STATICFILES_STORAGE='django.contrib.staticfiles.storage.StaticFilesStorage'
+)
+class StudentAppDistributionTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def test_teacher_can_open_install_center(self):
+        request = self.factory.get(reverse('student_app_install'))
+        request.user = SimpleNamespace(is_authenticated=True, role='TEACHER')
+
+        with patch('accounts.views._android_student_apk_path', return_value=None):
+            response = student_app_install(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('설치 파일을 준비하고 있습니다'.encode(), response.content)
+
+    def test_student_cannot_open_install_center(self):
+        request = self.factory.get(reverse('student_app_install'))
+        request.user = SimpleNamespace(is_authenticated=True, role='STUDENT')
+        request._messages = SimpleNamespace(add=lambda *args, **kwargs: None)
+
+        with patch('accounts.views.messages.error'):
+            response = student_app_install(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard'))
+
+    def test_download_serves_apk_with_fixed_filename(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            apk_path = Path(temp_dir) / 'student.apk'
+            apk_path.write_bytes(b'ingrid-apk')
+            with patch('accounts.views._android_student_apk_path', return_value=apk_path):
+                response = student_app_download(self.factory.get(reverse('student_app_download')))
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response['Content-Type'], 'application/vnd.android.package-archive')
+            self.assertIn('ingrid-student.apk', response['Content-Disposition'])
+            response.close()
+
+    def test_qr_endpoint_returns_svg_for_download_url(self):
+        with tempfile.NamedTemporaryFile(suffix='.apk') as apk:
+            with patch('accounts.views._android_student_apk_path', return_value=Path(apk.name)):
+                response = student_app_qr(self.factory.get(reverse('student_app_qr')))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/svg+xml')
+        self.assertIn(b'<svg', response.content)
 
 
 class AdminSystemSettingsPersonaTests(SimpleTestCase):

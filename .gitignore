@@ -11,6 +11,7 @@ __pycache__/
 .env
 .vscode/
 backups/
+releases/*.apk
 
 # 운영체제 관련
 .DS_Store

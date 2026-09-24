@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block content %}
+<main class="app-install-center">
+  <header class="install-heading">
+    <div>
+      <span>INGRID ANDROID</span>
+      <h2><i class="bi bi-phone"></i> 학생 앱 설치</h2>
+      <p>학생의 Android 태블릿 또는 휴대전화에서 QR 코드를 스캔해 설치 파일을 내려받으세요.</p>
+    </div>
+    <span class="version-badge">v{{ app_version }}</span>
+  </header>
+
+  <section class="install-card">
+    {% if apk_available %}
+    <div class="qr-box">
+      <img src="{% url 'student_app_qr' %}" alt="Ingrid 학생 앱 다운로드 QR 코드" width="260" height="260">
+    </div>
+    <div class="install-copy">
+      <span class="ready-badge"><i class="bi bi-check-circle-fill"></i> 설치 파일 준비 완료</span>
+      <h3>QR 코드를 학생 기기로 스캔하세요</h3>
+      <p>QR 코드를 스캔하면 Ingrid 학생 앱 APK 다운로드가 시작됩니다. Android의 보안 안내가 나타나면 학교에서 제공한 앱인지 확인한 뒤 설치를 허용하세요.</p>
+      <dl>
+        <div><dt>버전</dt><dd>{{ app_version }}</dd></div>
+        <div><dt>파일 크기</dt><dd>{{ apk_size_mb }} MB</dd></div>
+        <div><dt>지원 기기</dt><dd>Android 태블릿·휴대전화</dd></div>
+      </dl>
+      <a class="download-button" href="{% url 'student_app_download' %}"><i class="bi bi-download"></i> 이 기기에서 APK 다운로드</a>
+      <div class="download-address"><strong>다운로드 주소</strong><span>{{ download_url }}</span></div>
+    </div>
+    {% else %}
+    <div class="pending-state">
+      <i class="bi bi-hourglass-split"></i>
+      <h3>설치 파일을 준비하고 있습니다</h3>
+      <p>서명된 APK를 서버의 배포 폴더에 등록하면 QR 코드와 다운로드 버튼이 자동으로 활성화됩니다.</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="install-notice">
+    <h4><i class="bi bi-shield-check"></i> 배포 전 확인사항</h4>
+    <ol>
+      <li>학교 배포용으로 서명된 APK인지 확인합니다.</li>
+      <li>앱을 업데이트할 때는 버전 번호를 올리고 새 APK로 교체합니다.</li>
+      <li>학생 기기에서 기존 버전 위에 정상적으로 업데이트되는지 먼저 시험합니다.</li>
+    </ol>
+  </section>
+</main>
+
+<style>
+.app-install-center{max-width:1040px;margin:0 auto;padding:2rem 1.5rem;color:#39333d}.install-heading{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.1rem}.install-heading>div>span{color:#9650aa;font-size:.7rem;font-weight:850;letter-spacing:.12em}.install-heading h2{margin:.25rem 0;font-size:1.75rem;font-weight:850}.install-heading h2 i{color:#a54db4}.install-heading p{margin:0;color:#8c828f;font-size:.84rem}.version-badge,.ready-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.42rem .72rem;border-radius:999px;background:#f2e7f5;color:#884997;font-size:.73rem;font-weight:800}.install-card{display:grid;grid-template-columns:330px 1fr;gap:2rem;align-items:center;padding:2rem;border:1px solid #eadfeb;border-radius:22px;background:linear-gradient(145deg,#fff,#fff9fc);box-shadow:0 14px 38px rgba(76,43,89,.08)}.qr-box{display:flex;align-items:center;justify-content:center;padding:1.15rem;border:1px solid #e8dce9;border-radius:20px;background:#fff}.qr-box img{display:block;width:100%;height:auto}.install-copy h3{margin:1rem 0 .55rem;font-size:1.25rem;font-weight:840}.install-copy>p{margin:0;color:#766c79;font-size:.84rem;line-height:1.7}.install-copy dl{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin:1.2rem 0}.install-copy dl div{padding:.75rem;border-radius:12px;background:#f8f4fa}.install-copy dt{color:#978d9a;font-size:.68rem}.install-copy dd{margin:.25rem 0 0;font-size:.78rem;font-weight:780}.download-button{display:inline-flex;align-items:center;gap:.45rem;padding:.78rem 1rem;border-radius:11px;background:var(--ingrid-gradient);color:#fff;font-size:.8rem;font-weight:800;text-decoration:none}.download-address{margin-top:1rem;padding:.75rem;border:1px dashed #dfd1e2;border-radius:10px;color:#817683;font-size:.68rem}.download-address strong{display:block;margin-bottom:.25rem;color:#5f5562}.download-address span{word-break:break-all}.install-notice{margin-top:1rem;padding:1.2rem 1.35rem;border-radius:16px;background:#fff8db;color:#685f43}.install-notice h4{margin:0 0 .65rem;font-size:.9rem;font-weight:820}.install-notice ol{margin:0;padding-left:1.1rem;font-size:.76rem;line-height:1.8}.pending-state{grid-column:1/-1;padding:3rem;text-align:center}.pending-state>i{color:#ad65bd;font-size:2.4rem}.pending-state h3{margin:.8rem 0 .35rem;font-weight:830}.pending-state p{margin:0;color:#8c828f;font-size:.8rem}@media(max-width:767px){.app-install-center{padding:1rem}.install-heading{gap:.8rem}.install-heading h2{font-size:1.35rem}.install-card{grid-template-columns:1fr;padding:1.1rem}.qr-box{max-width:300px;margin:0 auto}.install-copy dl{grid-template-columns:1fr}.version-badge{white-space:nowrap}}
+</style>
+{% endblock %}

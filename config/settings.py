@@ -209,6 +209,13 @@ PROCTOR_STORAGE_BASELINE_BYTES = int(os.environ.get('PROCTOR_STORAGE_BASELINE_BY
 PROCTOR_STORAGE_RESERVE_BYTES = 100000000  # room for concurrent non-proctor writes
 PROCTOR_FFMPEG = os.environ.get('PROCTOR_FFMPEG', 'ffmpeg')
 
+# Android 학생 앱 배포 파일. 운영 서버에서는 서명된 APK를 이 경로에 배치합니다.
+ANDROID_STUDENT_APK_PATH = os.environ.get(
+    'ANDROID_STUDENT_APK_PATH',
+    str(BASE_DIR / 'releases' / 'ingrid-student.apk'),
+)
+ANDROID_STUDENT_APP_VERSION = os.environ.get('ANDROID_STUDENT_APP_VERSION', '0.1.0')
+
 # 같은 도메인 내에서는 iframe(미리보기)을 허용하도록 설정
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 

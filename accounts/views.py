@@ -1,6 +1,7 @@
 from django.db.models import Q  # 다중 필터 기능
-from django.urls import reverse_lazy
-from django.http import JsonResponse, HttpResponse  # 검색 기능을 위해 필요, API 응답을 위해 필요
+from django.urls import reverse, reverse_lazy
+from django.http import FileResponse, Http404, JsonResponse, HttpResponse  # 검색 기능을 위해 필요, API 응답을 위해 필요
+from django.conf import settings
 from django.views import generic
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie    # API 뷰에서 CSRF 예외 처리를 위해 필요
 from django.views.decorators.cache import never_cache
@@ -24,6 +25,7 @@ from activities.views import get_form_config
 import openai
 import io
 import json
+from pathlib import Path
 import pandas as pd  # 엑셀 처리를 위해 필요
 from openpyxl import Workbook   # 엑셀 파일 생성 및 조작을 위해 필요
 from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm, CustomAuthenticationForm  # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼, 로그인 폼
@@ -36,6 +38,69 @@ from activities.views.main_views import get_accessible_students, get_student_tre
 logger = logging.getLogger(__name__)
 
 FORCED_AI_ANALYSIS_MODEL = 'gpt-4o-mini'
+
+
+def _android_student_apk_path():
+    configured_path = Path(settings.ANDROID_STUDENT_APK_PATH)
+    if configured_path.is_file():
+        return configured_path
+
+    # 개발 PC에서는 가장 최근 디버그 APK로 설치 화면을 바로 점검할 수 있습니다.
+    if settings.DEBUG:
+        debug_apk = settings.BASE_DIR / 'android-student' / 'app' / 'build' / 'outputs' / 'apk' / 'debug' / 'app-debug.apk'
+        if debug_apk.is_file():
+            return debug_apk
+    return None
+
+
+def _can_access_student_app_center(user):
+    return getattr(user, 'role', None) in {
+        CustomUser.Role.TEACHER,
+        CustomUser.Role.LEADER,
+        CustomUser.Role.ADMIN,
+    }
+
+
+@login_required
+def student_app_install(request):
+    if not _can_access_student_app_center(request.user):
+        messages.error(request, '접근 권한이 없습니다.')
+        return redirect('dashboard')
+
+    apk_path = _android_student_apk_path()
+    download_url = request.build_absolute_uri(reverse('student_app_download'))
+    return render(request, 'accounts/student_app_install.html', {
+        'apk_available': apk_path is not None,
+        'apk_size_mb': f'{apk_path.stat().st_size / (1024 * 1024):.1f}' if apk_path else None,
+        'app_version': settings.ANDROID_STUDENT_APP_VERSION,
+        'download_url': download_url,
+    })
+
+
+def student_app_download(request):
+    apk_path = _android_student_apk_path()
+    if apk_path is None:
+        raise Http404('학생 앱 설치 파일이 아직 준비되지 않았습니다.')
+    return FileResponse(
+        apk_path.open('rb'),
+        as_attachment=True,
+        filename='ingrid-student.apk',
+        content_type='application/vnd.android.package-archive',
+    )
+
+
+def student_app_qr(request):
+    if _android_student_apk_path() is None:
+        raise Http404('학생 앱 설치 파일이 아직 준비되지 않았습니다.')
+
+    import qrcode
+    import qrcode.image.svg
+
+    download_url = request.build_absolute_uri(reverse('student_app_download'))
+    qr_image = qrcode.make(download_url, image_factory=qrcode.image.svg.SvgPathImage, box_size=8, border=2)
+    output = io.BytesIO()
+    qr_image.save(output)
+    return HttpResponse(output.getvalue(), content_type='image/svg+xml')
 
 
 def can_manage_students(user):
