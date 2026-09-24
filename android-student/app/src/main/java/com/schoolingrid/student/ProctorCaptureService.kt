@@ -208,15 +208,16 @@ class ProctorCaptureService : Service() {
         canvas.drawRect(0f, 0f, width, (height * 0.05f).coerceAtLeast(12f), systemMask)
         canvas.drawRect(0f, height - (height * 0.055f).coerceAtLeast(12f), width, height, systemMask)
 
-        val messageSize = minOf(width * 0.058f, height * 0.10f).coerceAtLeast(24f)
-        val detailSize = (messageSize * 0.58f).coerceAtLeast(15f)
-        val lineGap = messageSize * 1.32f
+        val messageSize = 60f
+        val detailSize = 45f
+        val messageLineGap = 72f
+        val detailLineGap = 28f
         val centerY = height / 2f
         val banner = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = if (captureScope == CAPTURE_SCOPE_APP_ONLY) {
                 Color.rgb(8, 8, 10)
             } else {
-                Color.argb(224, 8, 8, 10)
+                Color.argb(204, 8, 8, 10)
             }
             style = Paint.Style.FILL
         }
@@ -241,19 +242,19 @@ class ProctorCaptureService : Service() {
         canvas.drawText(
             "$studentLabel 외부 페이지를",
             width / 2f,
-            centerY - lineGap * 0.62f,
+            centerY - messageLineGap,
             messagePaint,
         )
         canvas.drawText(
             "화면에 띄우고 있습니다.",
             width / 2f,
-            centerY + lineGap * 0.28f,
+            centerY,
             messagePaint,
         )
         canvas.drawText(
             "외부 앱 이탈 감지  ·  $timestamp",
             width / 2f,
-            centerY + lineGap * 1.02f,
+            centerY + messageSize + detailLineGap,
             detailPaint,
         )
     }
