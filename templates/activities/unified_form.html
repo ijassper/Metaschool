@@ -137,6 +137,28 @@
     }
     .exam-period-field .form-control { width: 100%; }
     .exam-period-start-label { margin-right: 100px; }
+    .proctor-scope-options {
+        padding: 0;
+        border: 0;
+        min-width: 0;
+    }
+    .proctor-scope-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid rgba(142, 68, 173, 0.16);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.76);
+        cursor: pointer;
+        transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .proctor-scope-option:has(input:checked) {
+        border-color: #8E44AD;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(142, 68, 173, 0.1);
+    }
+    .proctor-scope-option small { color: #6c757d; line-height: 1.45; }
 
     @media (max-width: 767.98px) {
         .exam-period-field {
@@ -210,6 +232,7 @@
                         <label class="form-check-label fw-bold" for="typing_proctor_mode">학생 답안 페이지 모니터링 및 녹화</label>
                     </div>
                     <small class="text-muted">학생의 화면 공유 승인이 필요하며 오디오는 수집하지 않습니다.</small>
+                    {% include 'activities/_proctor_scope.html' with proctor_prefix='typing' %}
                 </div>
             </div>
 
@@ -356,7 +379,7 @@
                     <div class="col-12 col-md-6 position-relative"><input class="exam-mode-input" type="radio" name="exam_mode" id="note_mode_open_free" value="OPEN_FREE" {% if form_data.exam_mode == 'OPEN_FREE' or activity.exam_mode == 'OPEN_FREE' or not activity and not form_data %}checked{% endif %}><label class="exam-mode-card d-flex align-items-center justify-content-between gap-3 p-3 h-100" for="note_mode_open_free"><span class="d-flex align-items-center gap-3"><span class="exam-mode-icon"><i class="bi bi-journal-check"></i></span><span><strong class="d-block">개방형 + 복사허용</strong><small class="text-muted fw-bold">참고자료 활용 환경</small></span></span><span class="exam-mode-badges d-flex flex-column gap-1"><span class="exam-mode-feature text-success">이동 자유</span><span class="exam-mode-feature text-success">복사 허용</span></span></label></div>
                 </div></div>
                 <div class="col-md-6"><label class="fw-bold mb-2 d-block">제출 후 수정 허용</label><div class="d-flex gap-4 py-3"><div class="form-check"><input class="form-check-input" type="radio" name="allow_edit_after_submission" id="note_edit_allow" value="True" {% if form_data.allow_edit_after_submission == 'True' or activity.allow_edit_after_submission or not activity and not form_data %}checked{% endif %}><label class="form-check-label fw-bold text-primary" for="note_edit_allow"><i class="bi bi-check-circle-fill me-1"></i>수정 허용</label></div><div class="form-check"><input class="form-check-input" type="radio" name="allow_edit_after_submission" id="note_edit_deny" value="False" {% if form_data.allow_edit_after_submission == 'False' or activity and not activity.allow_edit_after_submission %}checked{% endif %}><label class="form-check-label fw-bold text-danger" for="note_edit_deny"><i class="bi bi-slash-circle-fill me-1"></i>수정 불가</label></div></div><small class="text-muted"><i class="bi bi-info-circle me-1"></i>수정 불가 설정 시 제출 후에는 내용을 다시 고칠 수 없습니다.</small></div>
-                <div class="col-md-6"><label class="fw-bold mb-2 d-block">감독 모드</label><div class="form-check form-switch py-3"><input class="form-check-input" type="checkbox" role="switch" name="proctor_mode" id="note_proctor_mode" value="on" {% if form_data.proctor_mode == 'on' or not form_data and activity.proctor_mode %}checked{% endif %}><label class="form-check-label fw-bold" for="note_proctor_mode">학생 답안 페이지 모니터링 및 녹화</label></div><small class="text-muted"><i class="bi bi-display me-1"></i>학생이 화면 공유를 승인해야 입장할 수 있으며 오디오는 수집하지 않습니다.</small></div>
+                <div class="col-md-6"><label class="fw-bold mb-2 d-block">감독 모드</label><div class="form-check form-switch py-3"><input class="form-check-input" type="checkbox" role="switch" name="proctor_mode" id="note_proctor_mode" value="on" {% if form_data.proctor_mode == 'on' or not form_data and activity.proctor_mode %}checked{% endif %}><label class="form-check-label fw-bold" for="note_proctor_mode">학생 답안 페이지 모니터링 및 녹화</label></div><small class="text-muted"><i class="bi bi-display me-1"></i>학생이 화면 공유를 승인해야 입장할 수 있으며 오디오는 수집하지 않습니다.</small>{% include 'activities/_proctor_scope.html' with proctor_prefix='note' %}</div>
                 <div class="col-12"><label class="fw-bold mb-2">응시 기간</label><div class="row g-2 align-items-center"><div class="col-md-auto exam-period-field"><input type="text" id="start_time_picker" name="start_time" class="form-control p-3 border-0 shadow-sm" value="{% if form_data.start_time %}{{ form_data.start_time }}{% elif activity.start_time %}{{ activity.start_time|localtime|date:'Y. m. d. H:i' }}{% endif %}" placeholder="시작 날짜/시간" readonly></div><div class="col-md-auto fw-bold text-secondary exam-period-start-label">부터 응시(예약 발행)</div><div class="col-md-auto exam-period-field"><input type="text" id="deadline_picker" name="deadline" class="form-control p-3 border-0 shadow-sm" value="{% if form_data.deadline %}{{ form_data.deadline }}{% elif activity.deadline %}{{ activity.deadline|localtime|date:'Y. m. d. H:i' }}{% endif %}" placeholder="마감 날짜/시간" readonly></div><div class="col-md-auto fw-bold text-secondary">에 제출 마감(제출 기한)</div></div><small class="text-muted d-block mt-2">비워두면 시작은 현재 시각, 마감은 현재 시각부터 1년 후로 자동 설정됩니다.</small></div>
             </div>
         </div>
@@ -517,6 +540,7 @@
                         <label class="form-check-label fw-bold" for="proctor_mode">학생 답안 페이지 모니터링 및 녹화</label>
                     </div>
                     <small class="text-muted"><i class="bi bi-display me-1"></i>학생이 화면 공유를 승인해야 입장할 수 있으며 오디오는 수집하지 않습니다.</small>
+                    {% include 'activities/_proctor_scope.html' with proctor_prefix='standard' %}
                 </div>
             </div>
 
@@ -816,6 +840,14 @@
         const startInput = document.getElementById('start_time_picker');
         const endInput = document.getElementById('deadline_picker');
         const form = document.getElementById('unifiedForm');
+        const proctorModeToggle = document.querySelector('input[name="proctor_mode"]');
+        const proctorScopeOptions = document.querySelector('.proctor-scope-options');
+
+        function syncProctorScopeVisibility() {
+            if (proctorScopeOptions) proctorScopeOptions.hidden = !proctorModeToggle?.checked;
+        }
+        proctorModeToggle?.addEventListener('change', syncProctorScopeVisibility);
+        syncProctorScopeVisibility();
 
         // 3. 응시 시작 시간(start_time) 초기화
         let startPicker;

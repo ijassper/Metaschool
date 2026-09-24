@@ -21,7 +21,7 @@ class QuestionInline(admin.StackedInline):
 # 2. 평가(Activity) 관리자 설정
 @admin.register(Activity)
 class ActivityAdmin(admin.ModelAdmin):
-    list_display = ['title', 'subject_name', 'section', 'teacher', 'is_active', 'proctor_mode', 'created_at']
+    list_display = ['title', 'subject_name', 'section', 'teacher', 'is_active', 'proctor_mode', 'proctor_capture_scope', 'created_at']
     list_filter = ['is_active', 'proctor_mode', 'subject_name']
     search_fields = ['title', 'subject_name']
     inlines = [QuestionInline] # 평가 상세 페이지에서 문항도 같이 수정 가능

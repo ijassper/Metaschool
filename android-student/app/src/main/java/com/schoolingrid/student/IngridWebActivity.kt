@@ -23,6 +23,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ImageButton
 import android.widget.ProgressBar
+import android.widget.Toast
 import org.json.JSONArray
 
 class IngridWebActivity : Activity() {
@@ -33,6 +34,7 @@ class IngridWebActivity : Activity() {
     private var pendingEventUrl: String? = null
     private var pendingCsrfToken: String? = null
     private var pendingStudentName: String? = null
+    private var pendingCaptureScope: String = CAPTURE_SCOPE_FULL_DISPLAY
     private var captureActive = false
     private var awaitingCapturePermission = false
     private var reportedBackground = false
@@ -139,10 +141,12 @@ class IngridWebActivity : Activity() {
         val requestedEventUrl = pendingEventUrl
         val csrfToken = pendingCsrfToken
         val studentName = pendingStudentName.orEmpty()
+        val captureScope = pendingCaptureScope
         pendingUploadUrl = null
         pendingEventUrl = null
         pendingCsrfToken = null
         pendingStudentName = null
+        pendingCaptureScope = CAPTURE_SCOPE_FULL_DISPLAY
         awaitingCapturePermission = false
 
         if (resultCode != RESULT_OK || data == null || uploadUrl == null || requestedEventUrl == null || csrfToken == null) {
@@ -163,6 +167,7 @@ class IngridWebActivity : Activity() {
             putExtra(ProctorCaptureService.EXTRA_CSRF_TOKEN, csrfToken)
             putExtra(ProctorCaptureService.EXTRA_COOKIE, cookie)
             putExtra(ProctorCaptureService.EXTRA_STUDENT_NAME, studentName)
+            putExtra(ProctorCaptureService.EXTRA_CAPTURE_SCOPE, captureScope)
         }
         startForegroundService(serviceIntent)
         captureActive = true
@@ -270,7 +275,18 @@ class IngridWebActivity : Activity() {
             csrfToken: String,
             studentName: String,
         ) {
-            beginScreenCapture(uploadUrl, eventUrl, csrfToken, studentName)
+            beginScreenCapture(uploadUrl, eventUrl, csrfToken, studentName, CAPTURE_SCOPE_FULL_DISPLAY)
+        }
+
+        @JavascriptInterface
+        fun requestConfiguredScreenCapture(
+            uploadUrl: String,
+            eventUrl: String,
+            csrfToken: String,
+            studentName: String,
+            captureScope: String,
+        ) {
+            beginScreenCapture(uploadUrl, eventUrl, csrfToken, studentName, captureScope)
         }
 
         private fun beginScreenCapture(
@@ -278,6 +294,7 @@ class IngridWebActivity : Activity() {
             eventUrl: String,
             csrfToken: String,
             studentName: String,
+            captureScope: String = CAPTURE_SCOPE_FULL_DISPLAY,
         ) {
             runOnUiThread {
                 val uri = Uri.parse(uploadUrl)
@@ -292,17 +309,48 @@ class IngridWebActivity : Activity() {
                     notifyCaptureResult(true, "")
                     return@runOnUiThread
                 }
+                val normalizedScope = if (captureScope == CAPTURE_SCOPE_APP_ONLY) {
+                    CAPTURE_SCOPE_APP_ONLY
+                } else {
+                    CAPTURE_SCOPE_FULL_DISPLAY
+                }
+                if (normalizedScope == CAPTURE_SCOPE_APP_ONLY &&
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                ) {
+                    notifyCaptureResult(false, "이 기기는 인그리드 앱만 감독을 지원하지 않습니다. 교사에게 전체 화면 감독으로 변경을 요청해 주세요.")
+                    return@runOnUiThread
+                }
                 pendingUploadUrl = uploadUrl
                 pendingEventUrl = eventUrl
                 pendingCsrfToken = csrfToken
                 pendingStudentName = studentName.take(40)
+                pendingCaptureScope = normalizedScope
                 awaitingCapturePermission = true
-                val captureIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    projectionManager.createScreenCaptureIntent(
-                        MediaProjectionConfig.createConfigForDefaultDisplay(),
-                    )
-                } else {
-                    projectionManager.createScreenCaptureIntent()
+                val captureIntent = when {
+                    normalizedScope == CAPTURE_SCOPE_APP_ONLY && Build.VERSION.SDK_INT >= 37 -> {
+                        val config = MediaProjectionConfig.Builder()
+                            .setSourceEnabled(MediaProjectionConfig.PROJECTION_SOURCE_DISPLAY, false)
+                            .setSourceEnabled(MediaProjectionConfig.PROJECTION_SOURCE_APP, true)
+                            .setInitiallySelectedSource(MediaProjectionConfig.PROJECTION_SOURCE_APP)
+                            .build()
+                        projectionManager.createScreenCaptureIntent(config)
+                    }
+                    normalizedScope == CAPTURE_SCOPE_APP_ONLY -> {
+                        Toast.makeText(
+                            this@IngridWebActivity,
+                            "공유할 앱에서 인그리드를 선택해 주세요.",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        projectionManager.createScreenCaptureIntent(
+                            MediaProjectionConfig.createConfigForUserChoice(),
+                        )
+                    }
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
+                        projectionManager.createScreenCaptureIntent(
+                            MediaProjectionConfig.createConfigForDefaultDisplay(),
+                        )
+                    }
+                    else -> projectionManager.createScreenCaptureIntent()
                 }
                 startActivityForResult(
                     captureIntent,
@@ -342,5 +390,7 @@ class IngridWebActivity : Activity() {
         private const val SCREEN_CAPTURE_REQUEST = 4102
         private const val INGRID_ORIGIN = "https://schoolingrid.com"
         private const val LOGIN_URL = "https://schoolingrid.com/accounts/login/"
+        private const val CAPTURE_SCOPE_FULL_DISPLAY = "FULL_DISPLAY"
+        private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
     }
 }

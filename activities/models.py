@@ -47,6 +47,16 @@ class Activity(models.Model):
     exam_mode = models.CharField(max_length=11, choices=EXAM_MODE_CHOICES, default='CLOSED_LOCK', verbose_name="응시 환경")
     allow_edit_after_submission = models.BooleanField(default=True, verbose_name="제출 후 수정 허용")
     proctor_mode = models.BooleanField(default=False, verbose_name="감독 모드")
+    PROCTOR_CAPTURE_SCOPE_CHOICES = [
+        ('FULL_DISPLAY', '전체 화면 감독'),
+        ('APP_ONLY', '인그리드 앱만 감독'),
+    ]
+    proctor_capture_scope = models.CharField(
+        max_length=20,
+        choices=PROCTOR_CAPTURE_SCOPE_CHOICES,
+        default='FULL_DISPLAY',
+        verbose_name='감독 녹화 범위',
+    )
     char_limit = models.IntegerField(default=0, verbose_name="분량 제한(자)") # 0은 무제한
     LIMIT_TYPE_CHOICES = [
         ('NONE', '제한 없음'),

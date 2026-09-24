@@ -44,6 +44,7 @@ class ProctorCaptureService : Service() {
     private var csrfToken = ""
     private var cookie = ""
     private var studentName = "학생"
+    private var captureScope = CAPTURE_SCOPE_FULL_DISPLAY
     @Volatile private var externalAppVisible = false
     @Volatile private var externalSinceMillis = 0L
     private val uploadInFlight = AtomicBoolean(false)
@@ -91,6 +92,11 @@ class ProctorCaptureService : Service() {
             ?.take(40)
             ?.ifBlank { "학생" }
             ?: "학생"
+        captureScope = if (intent.getStringExtra(EXTRA_CAPTURE_SCOPE) == CAPTURE_SCOPE_APP_ONLY) {
+            CAPTURE_SCOPE_APP_ONLY
+        } else {
+            CAPTURE_SCOPE_FULL_DISPLAY
+        }
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, ActivityResultCodeMissing)
         val resultData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(EXTRA_RESULT_DATA, Intent::class.java)
@@ -207,7 +213,11 @@ class ProctorCaptureService : Service() {
         val lineGap = messageSize * 1.32f
         val centerY = height / 2f
         val banner = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(224, 8, 8, 10)
+            color = if (captureScope == CAPTURE_SCOPE_APP_ONLY) {
+                Color.rgb(8, 8, 10)
+            } else {
+                Color.argb(224, 8, 8, 10)
+            }
             style = Paint.Style.FILL
         }
         canvas.drawRect(0f, 0f, width, height, banner)
@@ -344,6 +354,7 @@ class ProctorCaptureService : Service() {
         const val EXTRA_CSRF_TOKEN = "csrf_token"
         const val EXTRA_COOKIE = "cookie"
         const val EXTRA_STUDENT_NAME = "student_name"
+        const val EXTRA_CAPTURE_SCOPE = "capture_scope"
         const val EXTRA_OCCURRED_AT_MILLIS = "occurred_at_millis"
         const val EXTRA_CAPTURE_STATE = "capture_state"
         const val EXTRA_CAPTURE_MESSAGE = "capture_message"
@@ -354,5 +365,7 @@ class ProctorCaptureService : Service() {
         private const val JPEG_QUALITY = 55
         private const val HTTP_INSUFFICIENT_STORAGE = 507
         private const val ActivityResultCodeMissing = Int.MIN_VALUE
+        private const val CAPTURE_SCOPE_FULL_DISPLAY = "FULL_DISPLAY"
+        private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
     }
 }

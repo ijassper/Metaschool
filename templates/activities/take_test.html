@@ -1758,6 +1758,7 @@
     let answerId = "{{ answer_id }}"; 
     const csrfToken = '{{ csrf_token }}';
     const PROCTOR_MODE = {{ activity.proctor_mode|yesno:"true,false" }};
+    const PROCTOR_CAPTURE_SCOPE = '{{ activity.proctor_capture_scope|default:"FULL_DISPLAY"|escapejs }}';
     const PROCTOR_UPLOAD_URL = "{% url 'upload_proctor_snapshot' activity.id %}";
     const PROCTOR_EVENT_URL = "{% url 'report_proctor_event' activity.id %}";
     const PROCTOR_INTERVAL_MS = 3000;
@@ -2182,7 +2183,15 @@
             const absoluteUploadUrl = new URL(PROCTOR_UPLOAD_URL, window.location.origin).href;
             const absoluteEventUrl = new URL(PROCTOR_EVENT_URL, window.location.origin).href;
             const studentName = '{{ user.name|default:"학생"|escapejs }}';
-            if (typeof window.IngridAndroid.requestScreenCaptureWithStudent === 'function') {
+            if (typeof window.IngridAndroid.requestConfiguredScreenCapture === 'function') {
+                window.IngridAndroid.requestConfiguredScreenCapture(
+                    absoluteUploadUrl,
+                    absoluteEventUrl,
+                    csrfToken,
+                    studentName,
+                    PROCTOR_CAPTURE_SCOPE,
+                );
+            } else if (typeof window.IngridAndroid.requestScreenCaptureWithStudent === 'function') {
                 window.IngridAndroid.requestScreenCaptureWithStudent(
                     absoluteUploadUrl,
                     absoluteEventUrl,

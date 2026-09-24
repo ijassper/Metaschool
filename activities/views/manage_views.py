@@ -49,6 +49,11 @@ def normalize_typing_duration(value):
 def get_allowed_choice_values(choices):
     return {value for value, _label in choices}
 
+def get_proctor_capture_scope(post_data):
+    allowed = get_allowed_choice_values(Activity.PROCTOR_CAPTURE_SCOPE_CHOICES)
+    value = post_data.get('proctor_capture_scope')
+    return value if value in allowed else 'FULL_DISPLAY'
+
 def apply_typing_settings_from_post(activity, post_data):
     typing_types = get_allowed_choice_values(Activity.TYPING_TYPE_CHOICES)
     typing_positions = get_allowed_choice_values(Activity.TYPING_POSITION_CHOICES)
@@ -271,6 +276,7 @@ def unified_create(request):
                 exam_mode=request.POST.get('exam_mode', 'CLOSED_LOCK'),
                 allow_edit_after_submission=request.POST.get('allow_edit_after_submission') == 'True',
                 proctor_mode=request.POST.get('proctor_mode') == 'on',
+                proctor_capture_scope=get_proctor_capture_scope(request.POST),
                 start_time=start_time,
                 deadline=deadline,
                 is_active=start_time <= schedule_now <= deadline,
@@ -512,6 +518,7 @@ def unified_update(request, activity_id):
         activity.exam_mode = request.POST.get('exam_mode', 'CLOSED_LOCK')
         activity.allow_edit_after_submission = request.POST.get('allow_edit_after_submission') == 'True'
         activity.proctor_mode = request.POST.get('proctor_mode') == 'on'
+        activity.proctor_capture_scope = get_proctor_capture_scope(request.POST)
         
         # [섹션 2: 세부 평가 내용] - 루프 없이 직접 매핑하여 유실 차단
         # HTML의 <textarea name="question"> 값을 직접 가져옴
@@ -774,6 +781,7 @@ def creative_create(request):
             char_limit=char_limit,
             exam_mode=exam_mode,
             proctor_mode=request.POST.get('proctor_mode') == 'on',
+            proctor_capture_scope=get_proctor_capture_scope(request.POST),
         )
 
         # 3. 자율활동용 문항(Question) 자동 생성 (답안 제출 에러 방지)

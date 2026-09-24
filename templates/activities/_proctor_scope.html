@@ -1,0 +1,24 @@
+<fieldset class="proctor-scope-options mt-3">
+    <legend class="small fw-bold mb-2">감독 녹화 범위</legend>
+    <div class="d-grid gap-2">
+        <label class="proctor-scope-option" for="{{ proctor_prefix }}_scope_full">
+            <input class="form-check-input" type="radio" name="proctor_capture_scope"
+                   id="{{ proctor_prefix }}_scope_full" value="FULL_DISPLAY"
+                   {% if form_data.proctor_capture_scope == 'FULL_DISPLAY' or not form_data and activity.proctor_capture_scope != 'APP_ONLY' %}checked{% endif %}>
+            <span>
+                <strong class="d-block">전체 화면 감독</strong>
+                <small>외부 앱 이동 화면까지 기록하여 부정행위 정황을 확인합니다.</small>
+            </span>
+        </label>
+        <label class="proctor-scope-option" for="{{ proctor_prefix }}_scope_app">
+            <input class="form-check-input" type="radio" name="proctor_capture_scope"
+                   id="{{ proctor_prefix }}_scope_app" value="APP_ONLY"
+                   {% if form_data.proctor_capture_scope == 'APP_ONLY' or not form_data and activity.proctor_capture_scope == 'APP_ONLY' %}checked{% endif %}>
+            <span>
+                <strong class="d-block">인그리드 앱만 감독</strong>
+                <small>인그리드 화면만 기록하고 외부 앱 이동은 이탈 시각만 남깁니다.</small>
+            </span>
+        </label>
+    </div>
+    <small class="text-muted d-block mt-2"><i class="bi bi-info-circle me-1"></i>앱만 감독은 Android 14 이상에서 사용할 수 있습니다.</small>
+</fieldset>
