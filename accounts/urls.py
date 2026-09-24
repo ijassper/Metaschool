@@ -33,6 +33,7 @@ from .views import (
     student_app_download,
     student_app_install,
     student_app_qr,
+    student_app_version,
 )
 
 urlpatterns = [
@@ -54,6 +55,7 @@ urlpatterns = [
     path("student-app/", student_app_install, name="student_app_install"),
     path("student-app/download/", student_app_download, name="student_app_download"),
     path("student-app/qr/", student_app_qr, name="student_app_qr"),
+    path("student-app/version/", student_app_version, name="student_app_version"),
 
     path("search/school/", search_school, name="search_school"),
     path("check-email/", check_email_duplicate, name="check_email"),

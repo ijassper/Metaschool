@@ -16,6 +16,10 @@
     <string name="close_web">로그인 화면 닫기</string>
     <string name="capture_permission_required">화면 공유를 승인해야 시험을 시작할 수 있습니다.</string>
     <string name="invalid_capture_url">유효하지 않은 감독 서버 주소입니다.</string>
+    <string name="update_available_title">새 버전이 준비되었습니다</string>
+    <string name="update_available_body">인그리드 학생 앱 %1$s 버전을 설치할 수 있습니다. 감독 기능을 안정적으로 사용하려면 업데이트해 주세요.</string>
+    <string name="update_now">지금 업데이트</string>
+    <string name="update_later">나중에</string>
     <string name="capture_notification_title">인그리드 화면 녹화중</string>
     <string name="capture_notification_body">감독 선생님에게 시험 화면을 전송하고 있습니다.</string>
 </resources>

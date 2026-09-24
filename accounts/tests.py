@@ -1,5 +1,6 @@
 from pathlib import Path
 import inspect
+import json
 import re
 import tempfile
 from types import SimpleNamespace
@@ -20,6 +21,7 @@ from .views import (
     student_app_download,
     student_app_install,
     student_app_qr,
+    student_app_version,
 )
 
 
@@ -71,6 +73,20 @@ class StudentAppDistributionTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'image/svg+xml')
         self.assertIn(b'<svg', response.content)
+
+    @override_settings(
+        ANDROID_STUDENT_APP_VERSION='0.1.2',
+        ANDROID_STUDENT_APP_VERSION_CODE=3,
+    )
+    def test_version_endpoint_exposes_current_release(self):
+        with patch('accounts.views._android_student_apk_path', return_value=Path('release.apk')):
+            response = student_app_version(self.factory.get(reverse('student_app_version')))
+
+        payload = json.loads(response.content)
+        self.assertEqual(payload['version_code'], 3)
+        self.assertEqual(payload['version_name'], '0.1.2')
+        self.assertTrue(payload['apk_available'])
+        self.assertTrue(payload['download_url'].endswith(reverse('student_app_download')))
 
 
 class AdminSystemSettingsPersonaTests(SimpleTestCase):

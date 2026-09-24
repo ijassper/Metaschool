@@ -103,6 +103,16 @@ def student_app_qr(request):
     return HttpResponse(output.getvalue(), content_type='image/svg+xml')
 
 
+def student_app_version(request):
+    """Android 앱이 로그인 전에 호출하는 공개 버전 정보입니다."""
+    return JsonResponse({
+        'version_code': settings.ANDROID_STUDENT_APP_VERSION_CODE,
+        'version_name': settings.ANDROID_STUDENT_APP_VERSION,
+        'download_url': request.build_absolute_uri(reverse('student_app_download')),
+        'apk_available': _android_student_apk_path() is not None,
+    })
+
+
 def can_manage_students(user):
     return bool(
         getattr(user, "is_approved", False)
