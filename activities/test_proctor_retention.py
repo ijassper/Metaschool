@@ -38,3 +38,31 @@ class ProctorRetentionScheduleTests(SimpleTestCase):
             self.assertEqual(payload['deleted'], 12)
             self.assertEqual(payload['completed_date'], timezone.localdate().isoformat())
             self.assertFalse((Path(temp_dir) / 'running.lock').exists())
+
+    def test_status_exposes_last_result(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state = Path(temp_dir) / 'state.json'
+            state.write_text(
+                json.dumps({
+                    'completed_date': '2026-09-25',
+                    'completed_at': '2026-09-25T09:00:00+09:00',
+                    'deleted': 18,
+                }),
+                encoding='utf-8',
+            )
+            with override_settings(PROCTOR_CLEANUP_STATE_DIR=temp_dir, PROCTOR_RETENTION_DAYS=30):
+                status = proctor_retention.get_cleanup_status()
+            self.assertEqual(status['deleted'], 18)
+            self.assertEqual(status['retention_days'], 30)
+
+    def test_force_claim_ignores_completed_today(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state = Path(temp_dir) / 'state.json'
+            state.write_text(
+                json.dumps({'completed_date': timezone.localdate().isoformat()}),
+                encoding='utf-8',
+            )
+            lock = proctor_retention._claim_daily_run(Path(temp_dir), force=True)
+            self.assertIsNotNone(lock)
+            if lock:
+                lock.rmdir()

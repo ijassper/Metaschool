@@ -57,10 +57,29 @@ def cleanup_expired_snapshots(days: Optional[int] = None) -> int:
     return delete_snapshot_files(frames)
 
 
-def _claim_daily_run(work_dir: Path) -> Optional[Path]:
+def get_cleanup_status() -> dict:
+    """Return display-safe status for the admin operations screen."""
+    work_dir = _work_dir()
+    state_file = work_dir / "state.json"
+    payload = {}
+    try:
+        payload = json.loads(state_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        pass
+    return {
+        "completed_date": payload.get("completed_date"),
+        "completed_at": payload.get("completed_at"),
+        "deleted": payload.get("deleted"),
+        "running": (work_dir / "running.lock").exists() or _thread_running,
+        "retention_days": getattr(settings, "PROCTOR_RETENTION_DAYS", 30),
+        "enabled": getattr(settings, "PROCTOR_AUTO_CLEANUP_ENABLED", True),
+    }
+
+
+def _claim_daily_run(work_dir: Path, force: bool = False) -> Optional[Path]:
     work_dir.mkdir(parents=True, exist_ok=True)
     state_file = work_dir / "state.json"
-    if _completed_today(state_file):
+    if not force and _completed_today(state_file):
         return None
 
     lock_dir = work_dir / "running.lock"
@@ -77,19 +96,19 @@ def _claim_daily_run(work_dir: Path) -> Optional[Path]:
         except (FileExistsError, FileNotFoundError, OSError):
             return None
 
-    if _completed_today(state_file):
+    if not force and _completed_today(state_file):
         shutil.rmtree(lock_dir, ignore_errors=True)
         return None
     return lock_dir
 
 
-def _run_daily_cleanup() -> None:
+def _run_daily_cleanup(force: bool = False) -> None:
     global _thread_running
     close_old_connections()
     work_dir = _work_dir()
     lock_dir = None
     try:
-        lock_dir = _claim_daily_run(work_dir)
+        lock_dir = _claim_daily_run(work_dir, force=force)
         if lock_dir is None:
             return
 
@@ -119,14 +138,14 @@ def _run_daily_cleanup() -> None:
             _thread_running = False
 
 
-def schedule_cleanup_after_admin_login() -> bool:
+def schedule_cleanup_after_admin_login(force: bool = False) -> bool:
     """Schedule today's cleanup once. Returns True only when a thread starts."""
     global _thread_running
-    if not getattr(settings, "PROCTOR_AUTO_CLEANUP_ENABLED", True):
+    if not force and not getattr(settings, "PROCTOR_AUTO_CLEANUP_ENABLED", True):
         return False
 
     state_file = _work_dir() / "state.json"
-    if _completed_today(state_file):
+    if not force and _completed_today(state_file):
         return False
 
     with _thread_guard:
@@ -136,6 +155,7 @@ def schedule_cleanup_after_admin_login() -> bool:
 
     thread = threading.Thread(
         target=_run_daily_cleanup,
+        kwargs={"force": force},
         name="proctor-retention-cleanup",
         daemon=True,
     )

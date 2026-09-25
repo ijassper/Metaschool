@@ -18,6 +18,7 @@ from django.contrib.auth import authenticate,login as auth_login
 from django.contrib.sessions.models import Session # 로그인 처리 함수 (회원가입 후 자동 로그인 위해 필요)
 from django.middleware.csrf import get_token, rotate_token
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 import requests
 import random
 import logging
@@ -34,7 +35,7 @@ from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemp
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import Activity, Student, Answer, ActivityStudentScore  # 평가관리, 학생, 답안 모델 가져오기
 from activities.views.main_views import get_accessible_students, get_student_tree
-from activities.proctor_retention import schedule_cleanup_after_admin_login
+from activities.proctor_retention import get_cleanup_status, schedule_cleanup_after_admin_login
 
 logger = logging.getLogger(__name__)
 
@@ -1475,6 +1476,14 @@ def _system_settings_context(active_tab='basic', **extra):
     google_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='GOOGLE_API_KEY')
     openai_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='OPENAI_API_KEY')
     personas = Persona.objects.select_related('creator').all()
+    cleanup_status = get_cleanup_status()
+    cleanup_completed_at = None
+    if cleanup_status['completed_at']:
+        try:
+            parsed_completed_at = parse_datetime(cleanup_status['completed_at'])
+            cleanup_completed_at = timezone.localtime(parsed_completed_at) if parsed_completed_at else None
+        except (TypeError, ValueError):
+            cleanup_completed_at = None
     context = {
         'active_tab': active_tab,
         'demo_mode': demo_cfg.value,
@@ -1486,6 +1495,8 @@ def _system_settings_context(active_tab='basic', **extra):
         'tone_options': PERSONA_TONES,
         'category_options': Persona.CategoryContext.choices,
         'task_type_options': Persona.TaskType.choices,
+        'cleanup_status': cleanup_status,
+        'cleanup_completed_at': cleanup_completed_at,
     }
     context.update(extra)
     return context
@@ -1522,6 +1533,12 @@ def admin_system_settings(request):
                 config.save(update_fields=['value'])
             messages.success(request, "AI 모델 및 API 설정을 저장했습니다.")
             return redirect(f"{reverse_lazy('admin_system_settings')}?tab=ai")
+        if section == 'proctor_cleanup':
+            if schedule_cleanup_after_admin_login(force=True):
+                messages.success(request, "감독 기록 정리를 시작했습니다. 잠시 후 실행 상태를 확인해 주세요.")
+            else:
+                messages.info(request, "감독 기록 정리가 이미 실행 중입니다.")
+            return redirect(f"{reverse_lazy('admin_system_settings')}?tab=basic")
 
     return render(request, 'accounts/system_settings.html', _system_settings_context(active_tab))
 
