@@ -53,6 +53,7 @@ class ProctorCaptureService : Service() {
     private val uploadExecutor = Executors.newSingleThreadExecutor()
     private var snapshotBuffer: EncryptedSnapshotBuffer? = null
     @Volatile private var bufferingSnapshots = false
+    private var lastUploadStartedAt = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -353,8 +354,12 @@ class ProctorCaptureService : Service() {
         var retrying = false
         try {
             for (attempt in 0 until MAX_UPLOAD_ATTEMPTS) {
+                waitForUploadSlot()
                 val status = runCatching { uploadSnapshot(jpeg, capturedAt) }.getOrNull()
-                if (status != null && (status in 200..299 || status == HTTP_INSUFFICIENT_STORAGE)) {
+                if (status == HTTP_INSUFFICIENT_STORAGE) {
+                    return status
+                }
+                if (status != null && status in 200..299 && status !in RETRYABLE_HTTP_STATUS) {
                     return status
                 }
                 if (status != null && status !in RETRYABLE_HTTP_STATUS) return status
@@ -368,6 +373,13 @@ class ProctorCaptureService : Service() {
         } finally {
             if (retrying) updateNotification(getString(R.string.capture_notification_body))
         }
+    }
+
+    private fun waitForUploadSlot() {
+        val now = SystemClock.elapsedRealtime()
+        val waitMillis = (lastUploadStartedAt + MIN_UPLOAD_SPACING_MS - now).coerceAtLeast(0L)
+        if (waitMillis > 0L) Thread.sleep(waitMillis)
+        lastUploadStartedAt = SystemClock.elapsedRealtime()
     }
 
     private fun uploadSnapshot(jpeg: ByteArray, capturedAt: String): Int {
@@ -500,8 +512,10 @@ class ProctorCaptureService : Service() {
         private const val MAX_UPLOAD_ATTEMPTS = 3
         private const val MAX_PENDING_SNAPSHOTS = 20
         private const val QUEUE_RETRY_DELAY_MS = 5_000L
+        private const val MIN_UPLOAD_SPACING_MS = 2_250L
         private val RETRY_DELAYS_MS = longArrayOf(1_500L, 3_000L)
-        private val RETRYABLE_HTTP_STATUS = setOf(408, 425, 429, 500, 502, 503, 504)
+        // 202 means the server ignored a frame sent inside its two-second throttle window.
+        private val RETRYABLE_HTTP_STATUS = setOf(202, 408, 425, 429, 500, 502, 503, 504)
         private const val ActivityResultCodeMissing = Int.MIN_VALUE
         private const val CAPTURE_SCOPE_FULL_DISPLAY = "FULL_DISPLAY"
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"

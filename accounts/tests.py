@@ -75,16 +75,16 @@ class StudentAppDistributionTests(SimpleTestCase):
         self.assertIn(b'<svg', response.content)
 
     @override_settings(
-        ANDROID_STUDENT_APP_VERSION='0.1.8',
-        ANDROID_STUDENT_APP_VERSION_CODE=9,
+        ANDROID_STUDENT_APP_VERSION='0.1.9',
+        ANDROID_STUDENT_APP_VERSION_CODE=10,
     )
     def test_version_endpoint_exposes_current_release(self):
         with patch('accounts.views._android_student_apk_path', return_value=Path('release.apk')):
             response = student_app_version(self.factory.get(reverse('student_app_version')))
 
         payload = json.loads(response.content)
-        self.assertEqual(payload['version_code'], 9)
-        self.assertEqual(payload['version_name'], '0.1.8')
+        self.assertEqual(payload['version_code'], 10)
+        self.assertEqual(payload['version_name'], '0.1.9')
         self.assertTrue(payload['apk_available'])
         self.assertTrue(payload['download_url'].endswith(reverse('student_app_download')))
 
