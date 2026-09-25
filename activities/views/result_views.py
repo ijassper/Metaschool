@@ -32,6 +32,30 @@ def parse_quick_score(value):
         raise ValueError('invalid score')
     return score
 
+
+PROCTOR_LIVE_SECONDS = 10
+PROCTOR_DELAYED_SECONDS = 30
+
+
+def get_proctor_connection_state(status, latest_snapshot_at, now=None):
+    """Return a teacher-facing state based on explicit events and recent server receipts."""
+    explicit_states = {
+        ProctorSession.Status.AWAY: 'AWAY',
+        ProctorSession.Status.DISCONNECTED: 'STOPPED',
+        ProctorSession.Status.ERROR: 'ERROR',
+        ProctorSession.Status.ENDED: 'ENDED',
+    }
+    if status in explicit_states:
+        return explicit_states[status]
+    if not latest_snapshot_at:
+        return 'NONE'
+    age_seconds = max(0, ((now or timezone.now()) - latest_snapshot_at).total_seconds())
+    if age_seconds <= PROCTOR_LIVE_SECONDS:
+        return 'LIVE'
+    if age_seconds <= PROCTOR_DELAYED_SECONDS:
+        return 'DELAYED'
+    return 'STOPPED'
+
 # [1] 제출 현황(답안) 목록 페이지
 @login_required
 @teacher_required
@@ -174,10 +198,11 @@ def proctor_feed(request, activity_id):
     ).order_by('grade', 'class_no', 'number', 'name')
     with proctor_storage_status() as storage:
         storage_status = storage
+    now = timezone.now()
     return JsonResponse({
         'status': 'success',
         'storage': storage_status,
-        'server_time': timezone.now().isoformat(),
+        'server_time': now.isoformat(),
         'students': [
             {
                 'id': student.id,
@@ -191,6 +216,11 @@ def proctor_feed(request, activity_id):
                 'proctor_status': student.proctor_status,
                 'proctor_status_at': student.proctor_status_at.isoformat() if student.proctor_status_at else None,
                 'proctor_message': student.proctor_message or '',
+                'connection_state': get_proctor_connection_state(
+                    student.proctor_status,
+                    student.latest_snapshot_at,
+                    now,
+                ),
             }
             for student in students
         ],
