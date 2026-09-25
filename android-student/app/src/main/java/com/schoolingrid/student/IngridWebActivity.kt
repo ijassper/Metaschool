@@ -23,12 +23,14 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ImageButton
 import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONArray
 
 class IngridWebActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
+    private lateinit var captureStatusText: TextView
     private lateinit var projectionManager: MediaProjectionManager
     private var pendingUploadUrl: String? = null
     private var pendingEventUrl: String? = null
@@ -47,11 +49,22 @@ class IngridWebActivity : Activity() {
             when (intent?.getStringExtra(ProctorCaptureService.EXTRA_CAPTURE_STATE)) {
                 ProctorCaptureService.CAPTURE_STATE_STARTED -> {
                     captureActive = true
+                    showCaptureStatus(CaptureUiState.RECORDING)
                     notifyCaptureStateChanged(true, "")
+                }
+                ProctorCaptureService.CAPTURE_STATE_BUFFERING -> {
+                    showCaptureStatus(
+                        CaptureUiState.BUFFERING,
+                        intent.getIntExtra(ProctorCaptureService.EXTRA_PENDING_COUNT, 0),
+                    )
+                }
+                ProctorCaptureService.CAPTURE_STATE_TRANSMITTING -> {
+                    showCaptureStatus(CaptureUiState.RECORDING)
                 }
                 ProctorCaptureService.CAPTURE_STATE_STOPPED -> {
                     captureActive = false
                     reportedBackground = false
+                    showCaptureStatus(CaptureUiState.STOPPED)
                     notifyCaptureStateChanged(
                         false,
                         intent.getStringExtra(ProctorCaptureService.EXTRA_CAPTURE_MESSAGE)
@@ -69,6 +82,7 @@ class IngridWebActivity : Activity() {
 
         webView = findViewById(R.id.ingridWebView)
         progressBar = findViewById(R.id.webProgress)
+        captureStatusText = findViewById(R.id.captureStatusText)
         projectionManager = getSystemService(MediaProjectionManager::class.java)
         registerCaptureStateReceiver()
 
@@ -171,6 +185,7 @@ class IngridWebActivity : Activity() {
         }
         startForegroundService(serviceIntent)
         captureActive = true
+        showCaptureStatus(CaptureUiState.RECORDING)
         notifyCaptureResult(true, "")
     }
 
@@ -235,6 +250,27 @@ class IngridWebActivity : Activity() {
             "window.onIngridCaptureStateChanged && window.onIngridCaptureStateChanged(${active}, '$escaped');",
             null,
         )
+    }
+
+    private fun showCaptureStatus(state: CaptureUiState, pendingCount: Int = 0) {
+        captureStatusText.visibility = View.VISIBLE
+        when (state) {
+            CaptureUiState.RECORDING -> {
+                captureStatusText.text = getString(R.string.capture_status_recording)
+                captureStatusText.setTextColor(android.graphics.Color.rgb(217, 52, 71))
+            }
+            CaptureUiState.BUFFERING -> {
+                captureStatusText.text = getString(
+                    R.string.capture_status_buffering,
+                    pendingCount.coerceAtLeast(1),
+                )
+                captureStatusText.setTextColor(android.graphics.Color.rgb(193, 103, 0))
+            }
+            CaptureUiState.STOPPED -> {
+                captureStatusText.text = getString(R.string.capture_status_stopped)
+                captureStatusText.setTextColor(android.graphics.Color.rgb(217, 52, 71))
+            }
+        }
     }
 
     private fun registerCaptureStateReceiver() {
@@ -392,5 +428,11 @@ class IngridWebActivity : Activity() {
         private const val LOGIN_URL = "https://schoolingrid.com/accounts/login/"
         private const val CAPTURE_SCOPE_FULL_DISPLAY = "FULL_DISPLAY"
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
+    }
+
+    private enum class CaptureUiState {
+        RECORDING,
+        BUFFERING,
+        STOPPED,
     }
 }

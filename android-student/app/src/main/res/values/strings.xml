@@ -34,4 +34,7 @@
     <string name="capture_notification_body">감독 선생님에게 시험 화면을 전송하고 있습니다.</string>
     <string name="capture_notification_retrying">네트워크 연결을 확인하며 화면 전송을 다시 시도하고 있습니다.</string>
     <string name="capture_notification_buffering">네트워크 연결이 불안정하여 화면을 기기에 잠시 보관하고 있습니다.</string>
+    <string name="capture_status_recording">● 화면 녹화중 · 정상 전송</string>
+    <string name="capture_status_buffering">● 연결 복구 대기 · %1$d장 임시 보관</string>
+    <string name="capture_status_stopped">● 화면 녹화 중단</string>
 </resources>

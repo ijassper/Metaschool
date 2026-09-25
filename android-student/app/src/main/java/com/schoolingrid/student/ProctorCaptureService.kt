@@ -52,6 +52,7 @@ class ProctorCaptureService : Service() {
     private val pendingSnapshotsLock = Any()
     private val uploadExecutor = Executors.newSingleThreadExecutor()
     private var snapshotBuffer: EncryptedSnapshotBuffer? = null
+    @Volatile private var bufferingSnapshots = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -177,7 +178,11 @@ class ProctorCaptureService : Service() {
             pendingSnapshots.clear()
             pendingSnapshots.addAll(restored)
         }
-        if (restored.isNotEmpty()) startUploadWorker()
+        if (restored.isNotEmpty()) {
+            bufferingSnapshots = true
+            notifyTransmissionState(CAPTURE_STATE_BUFFERING, restored.size)
+            startUploadWorker()
+        }
     }
 
     private fun enqueueSnapshot(snapshot: EncryptedSnapshotBuffer.Item) {
@@ -186,6 +191,9 @@ class ProctorCaptureService : Service() {
                 snapshotBuffer?.delete(pendingSnapshots.removeFirst())
             }
             pendingSnapshots.addLast(snapshot)
+            if (bufferingSnapshots) {
+                notifyTransmissionState(CAPTURE_STATE_BUFFERING, pendingSnapshots.size)
+            }
         }
         startUploadWorker()
     }
@@ -215,6 +223,7 @@ class ProctorCaptureService : Service() {
             val jpeg = snapshotBuffer?.read(pending)
             if (jpeg == null) {
                 snapshotBuffer?.delete(pending)
+                updateTransmissionProgress()
                 continue
             }
             val status = uploadSnapshotWithRetry(jpeg, pending.capturedAt)
@@ -224,6 +233,7 @@ class ProctorCaptureService : Service() {
             }
             if (status != null && status !in RETRYABLE_HTTP_STATUS) {
                 snapshotBuffer?.delete(pending)
+                updateTransmissionProgress()
                 continue
             }
             if (status == null || status in RETRYABLE_HTTP_STATUS) {
@@ -232,10 +242,23 @@ class ProctorCaptureService : Service() {
                         snapshotBuffer?.delete(pendingSnapshots.removeFirst())
                     }
                     pendingSnapshots.addFirst(pending)
+                    bufferingSnapshots = true
+                    notifyTransmissionState(CAPTURE_STATE_BUFFERING, pendingSnapshots.size)
                 }
                 updateNotification(getString(R.string.capture_notification_buffering))
                 Thread.sleep(QUEUE_RETRY_DELAY_MS)
             }
+        }
+    }
+
+    private fun updateTransmissionProgress() {
+        if (!bufferingSnapshots) return
+        val pendingCount = synchronized(pendingSnapshotsLock) { pendingSnapshots.size }
+        if (pendingCount == 0) {
+            bufferingSnapshots = false
+            notifyTransmissionState(CAPTURE_STATE_TRANSMITTING, 0)
+        } else {
+            notifyTransmissionState(CAPTURE_STATE_BUFFERING, pendingCount)
         }
     }
 
@@ -438,6 +461,14 @@ class ProctorCaptureService : Service() {
         })
     }
 
+    private fun notifyTransmissionState(state: String, pendingCount: Int) {
+        sendBroadcast(Intent(ACTION_CAPTURE_STATE_CHANGED).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_CAPTURE_STATE, state)
+            putExtra(EXTRA_PENDING_COUNT, pendingCount)
+        })
+    }
+
     companion object {
         const val ACTION_START = "com.schoolingrid.student.action.START_PROCTOR"
         const val ACTION_STOP = "com.schoolingrid.student.action.STOP_PROCTOR"
@@ -445,6 +476,8 @@ class ProctorCaptureService : Service() {
         const val ACTION_APP_FOREGROUND = "com.schoolingrid.student.action.APP_FOREGROUND"
         const val ACTION_CAPTURE_STATE_CHANGED = "com.schoolingrid.student.action.CAPTURE_STATE_CHANGED"
         const val CAPTURE_STATE_STARTED = "started"
+        const val CAPTURE_STATE_BUFFERING = "buffering"
+        const val CAPTURE_STATE_TRANSMITTING = "transmitting"
         const val CAPTURE_STATE_STOPPED = "stopped"
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_RESULT_DATA = "result_data"
@@ -457,6 +490,7 @@ class ProctorCaptureService : Service() {
         const val EXTRA_OCCURRED_AT_MILLIS = "occurred_at_millis"
         const val EXTRA_CAPTURE_STATE = "capture_state"
         const val EXTRA_CAPTURE_MESSAGE = "capture_message"
+        const val EXTRA_PENDING_COUNT = "pending_count"
         private const val NOTIFICATION_CHANNEL = "ingrid_proctor_capture"
         private const val NOTIFICATION_ID = 2101
         private const val MAX_CAPTURE_WIDTH = 960
