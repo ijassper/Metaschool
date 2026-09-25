@@ -472,9 +472,11 @@ class PdfViewerTests(SimpleTestCase):
         self.assertIn('await requestExamFullscreen()', take_test_source)
         self.assertIn('let isStartingExam = false', take_test_source)
         self.assertIn(
-            'isSubmitting || isStartingExam || IS_DEMO',
+            'isSubmitting || isStartingExam || !testStarted',
             take_test_source,
         )
+        self.assertNotIn('IS_DEMO', take_test_source)
+        self.assertNotIn('시연 모드', take_test_source)
         self.assertNotIn('const wasStarted = testStarted', take_test_source)
         self.assertIn(
             'await document.documentElement.requestFullscreen()',

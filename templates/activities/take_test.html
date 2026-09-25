@@ -1132,9 +1132,6 @@
                             <i class="bi bi-exclamation-triangle-fill me-2"></i> 응시 주의사항
                         </h6>
                         <ul class="mb-0 text-dark prep-body-text" style="padding-left: 1.25rem;">
-                            {% if is_demo %}
-                            <li>시연 모드에서는 화면 이탈 감지와 복사 제한이 비활성화됩니다.</li>
-                            {% else %}
                                 {% if enable_exit_detection %}
                                 <li><strong>전체 화면</strong>으로 응시가 진행되며 화면 이탈 기록이 남습니다.</li>
                                 <li>다른 탭이나 창으로 이동하면 부정행위로 간주될 수 있습니다.</li>
@@ -1147,7 +1144,6 @@
                                 <li>복사와 붙여넣기를 사용할 수 있습니다.</li>
                                 {% endif %}
                                 <li>설정된 응시 환경에 따른 특이사항은 선생님께 기록될 수 있습니다.</li>
-                            {% endif %}
                         </ul>
                     </div>
                 </div>
@@ -1752,7 +1748,6 @@
 
     /* 1. 환경 변수 및 초기 설정 */
     const EXAM_MODE = "{{ exam_mode }}";
-    const IS_DEMO = {{ is_demo|yesno:"true,false" }};
     const IS_COPY_PROTECTED = {{ IS_COPY_PROTECTED|yesno:"true,false" }};
     const ENABLE_EXIT_DETECTION = {{ enable_exit_detection|yesno:"true,false" }};
     const ENABLE_COPY_PROTECTION = {{ enable_copy_protection|yesno:"true,false" }};
@@ -3192,7 +3187,7 @@
 
     /* 3. 보안 제어: 화면 잠금(가림막) 함수 (Native Alert 대체) */
     const lockScreen = (message) => {
-        if (!ENABLE_EXIT_DETECTION || isSubmitting || isStartingExam || !testStarted || IS_DEMO) return;
+        if (!ENABLE_EXIT_DETECTION || isSubmitting || isStartingExam || !testStarted) return;
         
         const overlay = document.getElementById('startOverlay');
         const btn = overlay.querySelector('button');
@@ -3218,13 +3213,13 @@
 
     // 1. [CLOSED_ 계열] : 화면 이탈 및 창 전환 감시
     function initExitDetection() {
-        if (!ENABLE_EXIT_DETECTION || IS_DEMO) {
+        if (!ENABLE_EXIT_DETECTION) {
             console.log("이탈 감지 비활성화:", EXAM_MODE);
             return;
         }
 
         const checkSecurity = () => {
-            if (!testStarted || isSubmitting || isStartingExam || IS_DEMO) return;
+            if (!testStarted || isSubmitting || isStartingExam) return;
             
             const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
             const isTabActive = !document.hidden;
@@ -3245,7 +3240,7 @@
         
         // [Alt+Tab 및 외부 프로그램 사용 감지]
         window.addEventListener('blur', () => {
-            if (!testStarted || isSubmitting || isStartingExam || IS_DEMO) return;
+            if (!testStarted || isSubmitting || isStartingExam) return;
             window.setTimeout(() => {
                 if (isPdfModalInteractionActive()) return;
                 sendLog('OUT'); // [기록] 포커스 이탈
@@ -3261,7 +3256,7 @@
     history.pushState(null, null, location.href);
     window.onpopstate = function () {
         history.pushState(null, null, location.href);
-        if (ENABLE_EXIT_DETECTION && !IS_DEMO) {
+        if (ENABLE_EXIT_DETECTION) {
             sendLog('BACK_BUTTON'); // 폐쇄형일 때만 로그 기록
         }
         const backModal = new bootstrap.Modal(document.getElementById('backButtonModal'));
@@ -3269,7 +3264,7 @@
     };
 
     window.addEventListener('pagehide', function () {
-        if (!testStarted || isSubmitting || IS_DEMO || !answerId || answerId === "None" || answerId === "") return;
+        if (!testStarted || isSubmitting || !answerId || answerId === "None" || answerId === "") return;
         fetch('/activities/api/log/', {
             method: 'POST',
             keepalive: true,

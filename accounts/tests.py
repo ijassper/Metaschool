@@ -131,6 +131,10 @@ class AdminSystemSettingsPersonaTests(SimpleTestCase):
         self.assertIn('name="settings_section" value="proctor_cleanup"', source)
         self.assertIn('서버 웹 저장공간', source)
         self.assertIn('저장 중단', source)
+        self.assertNotIn('시연(Demo) 모드', source)
+        self.assertNotIn('name="demo_mode"', source)
+        self.assertIn('오늘의 감독 운영 현황', source)
+        self.assertIn('proctor_operations.live', source)
 
     def test_writing_menu_no_longer_contains_persona_link(self):
         source = get_template('base.html').template.source

@@ -1,4 +1,5 @@
 from django.db.models import Q  # 다중 필터 기능
+from datetime import datetime, time, timedelta
 from django.urls import reverse, reverse_lazy
 from django.http import FileResponse, Http404, JsonResponse, HttpResponse  # 검색 기능을 위해 필요, API 응답을 위해 필요
 from django.conf import settings
@@ -33,7 +34,9 @@ from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm, CustomAu
 from .models import Student, CustomUser, School, Persona # 학교 모델 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate # AI 생성기 관련 모델 가져오기
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
-from activities.models import Activity, Student, Answer, ActivityStudentScore  # 평가관리, 학생, 답안 모델 가져오기
+from activities.models import (  # 평가관리, 학생, 답안 모델 가져오기
+    Activity, Student, Answer, ActivityStudentScore, ProctorSession, ProctorSnapshot,
+)
 from activities.views.main_views import get_accessible_students, get_student_tree
 from activities.proctor_retention import get_cleanup_status, schedule_cleanup_after_admin_login
 from activities.proctor_storage import get_proctor_storage_report
@@ -1472,7 +1475,6 @@ def _persona_form_values(request):
 
 
 def _system_settings_context(active_tab='basic', **extra):
-    demo_cfg, _ = SystemConfig.objects.get_or_create(key_name='IS_DEMO_MODE')
     model_cfg, _ = SystemConfig.objects.get_or_create(key_name='SELECTED_AI_MODEL')
     google_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='GOOGLE_API_KEY')
     openai_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='OPENAI_API_KEY')
@@ -1502,9 +1504,33 @@ def _system_settings_context(active_tab='basic', **extra):
         'available_display': format_bytes(storage_status.get('available_bytes')),
         'snapshot_display': format_bytes(storage_status.get('snapshot_bytes')),
     })
+    now = timezone.now()
+    local_now = timezone.localtime(now)
+    today_start = timezone.make_aware(
+        datetime.combine(local_now.date(), time.min),
+        timezone.get_current_timezone(),
+    )
+    today_sessions = ProctorSession.objects.filter(updated_at__gte=today_start)
+    live_cutoff = now - timedelta(seconds=30)
+    proctor_operations = {
+        'live': today_sessions.filter(
+            status=ProctorSession.Status.RECORDING,
+            last_seen_at__gte=live_cutoff,
+        ).count(),
+        'away': today_sessions.filter(
+            status__in=[
+                ProctorSession.Status.AWAY,
+                ProctorSession.Status.DISCONNECTED,
+                ProctorSession.Status.ERROR,
+            ]
+        ).count(),
+        'ended': today_sessions.filter(status=ProctorSession.Status.ENDED).count(),
+        'snapshots': ProctorSnapshot.objects.filter(created_at__gte=today_start).count(),
+        'latest_received_at': ProctorSnapshot.objects.order_by('-created_at')
+        .values_list('created_at', flat=True).first(),
+    }
     context = {
         'active_tab': active_tab,
-        'demo_mode': demo_cfg.value,
         'current_model': model_cfg.value,
         'google_api_key': google_key_cfg.value,
         'openai_api_key': openai_key_cfg.value,
@@ -1516,6 +1542,7 @@ def _system_settings_context(active_tab='basic', **extra):
         'cleanup_status': cleanup_status,
         'cleanup_completed_at': cleanup_completed_at,
         'proctor_storage': storage_status,
+        'proctor_operations': proctor_operations,
     }
     context.update(extra)
     return context
@@ -1534,12 +1561,6 @@ def admin_system_settings(request):
 
     if request.method == 'POST':
         section = request.POST.get('settings_section')
-        if section == 'basic':
-            config, _ = SystemConfig.objects.get_or_create(key_name='IS_DEMO_MODE')
-            config.value = request.POST.get('demo_mode', 'N')
-            config.save(update_fields=['value'])
-            messages.success(request, "기본 시스템 설정을 저장했습니다.")
-            return redirect(f"{reverse_lazy('admin_system_settings')}?tab=basic")
         if section == 'ai':
             values = {
                 'SELECTED_AI_MODEL': request.POST.get('ai_model', '').strip(),

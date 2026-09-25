@@ -16,7 +16,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 # 커스텀 데코레이터 및 모델 임포트
 from accounts.decorators import teacher_required
-from accounts.models import Student, SystemConfig
+from accounts.models import Student
 from ..proctor_storage import proctor_storage_status
 from ..models import (
     Activity, Question, Answer, AnswerDraftRevision, AnswerSubmissionRevision,
@@ -356,18 +356,12 @@ def ensure_exam_question(activity):
 
 
 def build_exam_context(request, activity, question, answer=None, exam_started=False, student=None):
-    try:
-        demo_config = SystemConfig.objects.get(key_name='IS_DEMO_MODE')
-        is_demo = demo_config.value.strip().upper() == 'Y'
-    except SystemConfig.DoesNotExist:
-        is_demo = False
-
     security_state = update_exam_security_session(request, activity)
     is_copy_locked = security_state['is_copy_protected']
     exam_mode = activity.exam_mode
     is_closed_mode = exam_mode.startswith('CLOSED_') or exam_mode == 'CLOSED'
-    enable_exit_detection = is_closed_mode and not is_demo
-    enable_copy_protection = is_copy_locked and not is_demo
+    enable_exit_detection = is_closed_mode
+    enable_copy_protection = is_copy_locked
 
     notebook_pages = []
     if activity.is_notebook:
@@ -392,7 +386,6 @@ def build_exam_context(request, activity, question, answer=None, exam_started=Fa
         'IS_COPY_PROTECTED': is_copy_locked,
         'enable_exit_detection': enable_exit_detection,
         'enable_copy_protection': enable_copy_protection,
-        'is_demo': is_demo,
     }
 
 
