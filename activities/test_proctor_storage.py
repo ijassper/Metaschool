@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
 
-from .proctor_storage import proctor_storage_status
+from .proctor_storage import get_proctor_storage_report, proctor_storage_status
 
 
 class ProctorStorageTests(SimpleTestCase):
@@ -56,3 +56,13 @@ class ProctorStorageTests(SimpleTestCase):
         with patch('activities.proctor_storage.time.time', return_value=99999999999):
             with proctor_storage_status() as status:
                 self.assertFalse(status['allowed'])
+
+    def test_admin_report_includes_snapshot_usage_and_warning_level(self):
+        snapshot_dir = self.root / 'media' / 'proctor_snapshots'
+        snapshot_dir.mkdir(parents=True)
+        (snapshot_dir / 'one.jpg').write_bytes(b'x' * 75)
+        with override_settings(MEDIA_ROOT=str(self.root / 'media')):
+            report = get_proctor_storage_report()
+        self.assertEqual(report['snapshot_bytes'], 75)
+        self.assertEqual(report['snapshot_files'], 1)
+        self.assertEqual(report['level'], 'warning')

@@ -129,6 +129,8 @@ class AdminSystemSettingsPersonaTests(SimpleTestCase):
         self.assertIn("{% url 'persona_delete' persona.id %}", source)
         self.assertIn('감독 기록 자동 정리', source)
         self.assertIn('name="settings_section" value="proctor_cleanup"', source)
+        self.assertIn('서버 웹 저장공간', source)
+        self.assertIn('저장 중단', source)
 
     def test_writing_menu_no_longer_contains_persona_link(self):
         source = get_template('base.html').template.source

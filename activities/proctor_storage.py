@@ -33,6 +33,21 @@ def _measure_bytes(root):
     return total
 
 
+def _measure_file_tree(root):
+    """Return byte and file counts for an optional subdirectory."""
+    if not root.exists():
+        return 0, 0
+    total = 0
+    count = 0
+    for directory, _, files in os.walk(root, followlinks=False):
+        for filename in files:
+            path = Path(directory) / filename
+            if not path.is_symlink():
+                total += path.stat().st_size
+                count += 1
+    return total, count
+
+
 @contextmanager
 def _shared_lock(path):
     with _thread_lock, open(path, 'a+b') as handle:
@@ -65,6 +80,34 @@ def proctor_storage_status(incoming_bytes=0):
     caller's save to avoid recounting in-flight reservations.
     """
     return _storage_guard(incoming_bytes)
+
+
+def get_proctor_storage_report():
+    """Build the administrator-facing report using the upload guard's quota."""
+    with proctor_storage_status() as status:
+        report = dict(status)
+    snapshot_root = Path(settings.MEDIA_ROOT) / 'proctor_snapshots'
+    try:
+        snapshot_bytes, snapshot_files = _measure_file_tree(snapshot_root)
+    except OSError:
+        snapshot_bytes, snapshot_files = None, None
+
+    used_percent = report.get('used_percent')
+    if not report.get('allowed'):
+        level = 'blocked'
+    elif used_percent is not None and used_percent >= 80:
+        level = 'warning'
+    else:
+        level = 'normal'
+    report.update({
+        'level': level,
+        'snapshot_bytes': snapshot_bytes,
+        'snapshot_files': snapshot_files,
+        'available_bytes': max(0, report['quota_bytes'] - report['used_bytes'])
+        if report.get('quota_bytes') is not None and report.get('used_bytes') is not None
+        else None,
+    })
+    return report
 
 
 @contextmanager

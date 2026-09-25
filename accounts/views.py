@@ -36,6 +36,7 @@ from .decorators import teacher_required    # 교사 전용 접근 제어 데코
 from activities.models import Activity, Student, Answer, ActivityStudentScore  # 평가관리, 학생, 답안 모델 가져오기
 from activities.views.main_views import get_accessible_students, get_student_tree
 from activities.proctor_retention import get_cleanup_status, schedule_cleanup_after_admin_login
+from activities.proctor_storage import get_proctor_storage_report
 
 logger = logging.getLogger(__name__)
 
@@ -1484,6 +1485,23 @@ def _system_settings_context(active_tab='basic', **extra):
             cleanup_completed_at = timezone.localtime(parsed_completed_at) if parsed_completed_at else None
         except (TypeError, ValueError):
             cleanup_completed_at = None
+    storage_status = get_proctor_storage_report()
+
+    def format_bytes(value):
+        if value is None:
+            return '-'
+        size = float(value)
+        for unit in ('B', 'KB', 'MB', 'GB', 'TB'):
+            if size < 1024 or unit == 'TB':
+                return f'{size:.1f} {unit}'
+            size /= 1024
+
+    storage_status.update({
+        'used_display': format_bytes(storage_status.get('used_bytes')),
+        'quota_display': format_bytes(storage_status.get('quota_bytes')),
+        'available_display': format_bytes(storage_status.get('available_bytes')),
+        'snapshot_display': format_bytes(storage_status.get('snapshot_bytes')),
+    })
     context = {
         'active_tab': active_tab,
         'demo_mode': demo_cfg.value,
@@ -1497,6 +1515,7 @@ def _system_settings_context(active_tab='basic', **extra):
         'task_type_options': Persona.TaskType.choices,
         'cleanup_status': cleanup_status,
         'cleanup_completed_at': cleanup_completed_at,
+        'proctor_storage': storage_status,
     }
     context.update(extra)
     return context
