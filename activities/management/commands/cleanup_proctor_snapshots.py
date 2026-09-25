@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from activities.models import ProctorSnapshot
-from activities.views.proctor_replay_views import delete_snapshot_files
+from activities.proctor_retention import delete_snapshot_files
 
 
 class Command(BaseCommand):

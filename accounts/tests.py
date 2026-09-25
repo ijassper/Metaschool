@@ -15,6 +15,7 @@ from django.template.loader import get_template
 
 from .middleware import StudentSessionValidationMiddleware
 from .views import (
+    _should_trigger_proctor_cleanup,
     admin_system_settings,
     login_view,
     persona_create,
@@ -23,6 +24,18 @@ from .views import (
     student_app_qr,
     student_app_version,
 )
+
+
+class ProctorCleanupLoginTriggerTests(SimpleTestCase):
+    def test_only_system_admin_triggers_cleanup(self):
+        self.assertTrue(_should_trigger_proctor_cleanup(SimpleNamespace(role='ADMIN', is_superuser=False)))
+        self.assertTrue(_should_trigger_proctor_cleanup(SimpleNamespace(role='TEACHER', is_superuser=True)))
+        self.assertFalse(_should_trigger_proctor_cleanup(SimpleNamespace(role='LEADER', is_superuser=False)))
+        self.assertFalse(_should_trigger_proctor_cleanup(SimpleNamespace(role='TEACHER', is_superuser=False)))
+
+    def test_login_view_contains_non_blocking_cleanup_trigger(self):
+        source = inspect.getsource(login_view)
+        self.assertIn('schedule_cleanup_after_admin_login()', source)
 
 
 @override_settings(

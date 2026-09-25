@@ -34,10 +34,18 @@ from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemp
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import Activity, Student, Answer, ActivityStudentScore  # 평가관리, 학생, 답안 모델 가져오기
 from activities.views.main_views import get_accessible_students, get_student_tree
+from activities.proctor_retention import schedule_cleanup_after_admin_login
 
 logger = logging.getLogger(__name__)
 
 FORCED_AI_ANALYSIS_MODEL = 'gpt-4o-mini'
+
+
+def _should_trigger_proctor_cleanup(user):
+    return bool(
+        getattr(user, 'is_superuser', False)
+        or getattr(user, 'role', None) == CustomUser.Role.ADMIN
+    )
 
 
 def _android_student_apk_path():
@@ -213,6 +221,11 @@ def login_view(request):
                     return redirect('/accounts/profile-settings/?tab=profile')
                 if user.approval_status == CustomUser.ApprovalStatus.PENDING or not user.is_approved:
                     messages.warning(request, "승인 대기 중입니다. 대표 교사의 승인 후 교사 전용 기능을 사용할 수 있습니다.")
+
+            # 컨테이너 호스팅에 cron이 없어도 최고관리자 로그인 시 하루 한 번
+            # 감독 기록 보관기간 정리를 백그라운드에서 실행합니다.
+            if _should_trigger_proctor_cleanup(user):
+                schedule_cleanup_after_admin_login()
 
             return redirect('dashboard')
         else:

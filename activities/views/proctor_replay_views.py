@@ -21,6 +21,7 @@ from django.views.decorators.http import require_GET, require_POST
 from accounts.decorators import teacher_required
 from accounts.models import Student
 from ..models import Activity, ProctorSnapshot
+from ..proctor_retention import delete_snapshot_files
 
 
 def recording_day_bounds(day):
@@ -43,15 +44,6 @@ def selected_recording(request, activity_id, student_id):
         start, end = recording_day_bounds(parsed)
         frames = frames.filter(created_at__gte=start, created_at__lt=end)
     return activity, frames
-
-
-def delete_snapshot_files(frames):
-    deleted = 0
-    for frame in frames.iterator(chunk_size=100):
-        frame.image.delete(save=False)
-        frame.delete()
-        deleted += 1
-    return deleted
 
 
 @login_required
