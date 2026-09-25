@@ -51,13 +51,20 @@
    </div>
    <small class="text-secondary">3초 간격의 저장 이미지입니다. 촬영 공백에는 이전 화면이 유지되며 실제 연속 영상이 아닙니다.</small>
   </div>
-  <div class="modal-footer"><button id="replayDownload" class="btn btn-primary" disabled>MP4 다운로드</button><button class="btn btn-secondary" data-bs-dismiss="modal">닫기</button></div>
+  <div class="modal-footer">
+   <form id="replayDeleteForm" method="post" class="me-auto" onsubmit="return confirm('선택한 학생의 해당 날짜 감독 기록을 영구 삭제할까요? 삭제 후 복구할 수 없습니다.');">
+    {% csrf_token %}<input id="replayDeleteDate" type="hidden" name="date" value="{{ selected_date }}">
+    <button id="replayDelete" type="submit" class="btn btn-outline-danger" disabled>기록 삭제</button>
+   </form>
+   <button id="replayDownload" class="btn btn-primary" disabled>MP4 다운로드</button><button class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+  </div>
  </div></div>
 </div>
 <script>
 (() => {
  const el=id=>document.getElementById(id);
  const baseUrl="{% url 'proctor_recording' activity.id 0 %}";
+ const deleteUrl="{% url 'proctor_delete_recording' activity.id 0 %}";
  const modalEl=el('replayModal');
  let modal, frames=[], index=0, timer=null, playing=false, downloadUrl='', generation=0, controller;
  function pause(){playing=false;clearTimeout(timer);el('replayPlay').textContent='재생';}
@@ -67,6 +74,9 @@
   pause();controller?.abort();controller=new AbortController();const token=++generation;
   frames=[];index=0;downloadUrl='';el('replayFrame').removeAttribute('src');el('replayTime').textContent='';el('replayTimeline').value=0;el('replaySpeed').value='1';
   el('replayPlay').disabled=el('replayTimeline').disabled=el('replayDownload').disabled=true;
+  el('replayDelete').disabled=true;
+  el('replayDeleteForm').action=deleteUrl.replace('/0/','/'+card.dataset.student+'/');
+  el('replayDeleteDate').value=el('recordDate').defaultValue;
   el('replayTitle').textContent=card.dataset.name+' · '+el('recordDate').defaultValue;
   el('replayNotice').textContent='기록을 불러오는 중…';
   modal=modal||new bootstrap.Modal(modalEl);modal.show();
@@ -76,7 +86,7 @@
    const data=await response.json();if(token!==generation)return;if(!response.ok)throw Error(data.message||'기록 조회 실패');
    frames=data.frames;downloadUrl=data.download_url+query;
    el('replayNotice').textContent=frames.length?`저장 화면 ${frames.length}장`:'해당 날짜에 저장된 화면이 없습니다.';
-   el('replayTimeline').max=Math.max(0,frames.length-1);el('replayPlay').disabled=el('replayTimeline').disabled=el('replayDownload').disabled=!frames.length;show();
+   el('replayTimeline').max=Math.max(0,frames.length-1);el('replayPlay').disabled=el('replayTimeline').disabled=el('replayDownload').disabled=el('replayDelete').disabled=!frames.length;show();
   }catch(e){if(token===generation&&e.name!=='AbortError')el('replayNotice').textContent=e.message;}
  }
  document.querySelectorAll('.replay-card:not(:disabled)').forEach(card=>card.addEventListener('click',()=>open(card)));

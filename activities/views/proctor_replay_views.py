@@ -9,13 +9,14 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.db.models import Count, OuterRef, Q, Subquery
 from django.http import JsonResponse, StreamingHttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.dateparse import parse_date
 from django.utils import timezone
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 from accounts.decorators import teacher_required
 from accounts.models import Student
@@ -42,6 +43,38 @@ def selected_recording(request, activity_id, student_id):
         start, end = recording_day_bounds(parsed)
         frames = frames.filter(created_at__gte=start, created_at__lt=end)
     return activity, frames
+
+
+def delete_snapshot_files(frames):
+    deleted = 0
+    for frame in frames.iterator(chunk_size=100):
+        frame.image.delete(save=False)
+        frame.delete()
+        deleted += 1
+    return deleted
+
+
+@login_required
+@teacher_required
+@require_POST
+def proctor_delete_recording(request, activity_id, student_id):
+    try:
+        activity, frames = selected_recording(request, activity_id, student_id)
+        day = request.POST.get('date', '')
+        if day:
+            parsed = parse_date(day)
+            if not parsed:
+                raise ValueError('날짜 형식이 올바르지 않습니다.')
+            start, end = recording_day_bounds(parsed)
+            frames = frames.filter(created_at__gte=start, created_at__lt=end)
+    except ValueError as error:
+        return JsonResponse({'message': str(error)}, status=400)
+    deleted = delete_snapshot_files(frames)
+    messages.success(request, f'감독 화면 기록 {deleted}장을 삭제했습니다.')
+    destination = reverse('proctor_replay', args=[activity.id])
+    if day:
+        destination = f'{destination}?date={day}'
+    return redirect(destination)
 
 
 @login_required

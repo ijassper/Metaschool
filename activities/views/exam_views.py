@@ -378,6 +378,7 @@ def build_exam_context(request, activity, question, answer=None, exam_started=Fa
 
     return {
         'activity': activity,
+        'proctor_retention_days': getattr(settings, 'PROCTOR_RETENTION_DAYS', 30),
         'question': question,
         'answer': answer,
         'student': student or (answer.student if answer else None),

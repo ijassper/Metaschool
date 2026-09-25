@@ -1102,6 +1102,14 @@
                         {% if activity.proctor_mode %}
                         <div class="alert alert-warning border-warning mb-3 text-start small">
                             <strong><i class="bi bi-display me-1"></i>CCTV 모드:</strong> 시험 시작과 동시에 화면이 녹화되며 다른 페이지를 열게 되면 감독선생님에게 보고됩니다.
+                            <div class="mt-2 text-secondary">
+                                화면 이미지는 부정행위 확인을 위해 3초 간격으로 수집되며 오디오는 수집하지 않습니다.
+                                기록은 담당 교사만 열람할 수 있고 기본 {{ proctor_retention_days }}일 동안 보관됩니다.
+                            </div>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="proctorPrivacyConsent">
+                                <label class="form-check-label fw-bold" for="proctorPrivacyConsent">감독 기록 수집 및 보관 안내를 확인했습니다.</label>
+                            </div>
                         </div>
                         {% endif %}
                         <div class="d-flex flex-column flex-sm-row gap-2 prep-action-row">
@@ -3640,6 +3648,11 @@
         const startButton = document.getElementById('start-btn');
         if (startButton) {
             startButton.addEventListener('click', startTest);
+            const consent = document.getElementById('proctorPrivacyConsent');
+            if (consent) {
+                startButton.disabled = !consent.checked;
+                consent.addEventListener('change', () => { startButton.disabled = !consent.checked; });
+            }
         }
         initSecurityMode();
         requestTypingFullscreenOnLoad();

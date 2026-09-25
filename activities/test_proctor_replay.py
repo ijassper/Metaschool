@@ -76,7 +76,35 @@ class ReplayTests(SimpleTestCase):
         self.assertEqual(manifest.count('last.jpg'), 2)
 
     def test_replay_template_compiles(self):
-        self.assertIn('MP4 다운로드', get_template('activities/proctor_replay.html').template.source)
+        source = get_template('activities/proctor_replay.html').template.source
+        self.assertIn('MP4 다운로드', source)
+        self.assertIn('기록 삭제', source)
+
+    def test_snapshot_deletion_removes_files_and_rows(self):
+        frames = [MagicMock(), MagicMock()]
+        query = MagicMock()
+        query.iterator.return_value = iter(frames)
+        self.assertEqual(views.delete_snapshot_files(query), 2)
+        for frame in frames:
+            frame.image.delete.assert_called_once_with(save=False)
+            frame.delete.assert_called_once_with()
+
+    def test_delete_recording_limits_deletion_to_posted_date(self):
+        request = RequestFactory().post('/', {'date': '2026-09-17'})
+        request.user = self.request.user
+        activity = SimpleNamespace(id=3)
+        query = MagicMock()
+        filtered = query.filter.return_value
+        with patch.object(views, 'selected_recording', return_value=(activity, query)), \
+                patch.object(views, 'delete_snapshot_files', return_value=4) as delete, \
+                patch.object(views.messages, 'success'):
+            response = views.proctor_delete_recording(request, 3, 7)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('date=2026-09-17', response.url)
+        delete.assert_called_once_with(filtered)
+        filters = query.filter.call_args.kwargs
+        self.assertIn('created_at__gte', filters)
+        self.assertIn('created_at__lt', filters)
 
     @override_settings(DEBUG=True)
     def test_cards_show_recorded_and_unrecorded_students(self):
