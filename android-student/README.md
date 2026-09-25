@@ -25,6 +25,7 @@
 
 감독 화면은 기본 30일 보관하며 `PROCTOR_RETENTION_DAYS` 환경변수로 변경할 수 있습니다.
 자동 정리 작업을 등록하기 전 `python manage.py cleanup_proctor_snapshots --dry-run`으로 대상을 확인합니다.
+서버 자동 정리는 `bash scripts/install-proctor-cleanup-cron.sh`로 하루 한 번 등록합니다.
 
 ## 출시 후 개선 후보
 
