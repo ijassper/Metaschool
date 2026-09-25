@@ -256,6 +256,20 @@ def upload_proctor_snapshot(request, activity_id):
     return JsonResponse({'status': 'success', 'snapshot_id': snapshot.id})
 
 
+def get_proctor_diagnostics(payload):
+    """Keep only non-identifying fields needed to troubleshoot the student app."""
+    limits = {
+        'app_version': 32,
+        'android_version': 32,
+        'device_model': 100,
+        'capture_scope': 20,
+    }
+    return {
+        field: str(payload.get(field, '')).strip()[:limit]
+        for field, limit in limits.items()
+    }
+
+
 @login_required
 @require_POST
 def report_proctor_event(request, activity_id):
@@ -281,6 +295,7 @@ def report_proctor_event(request, activity_id):
     if client_time and timezone.is_naive(client_time):
         client_time = timezone.make_aware(client_time)
     message = str(payload.get('message', ''))[:255]
+    diagnostics = get_proctor_diagnostics(payload)
     now = timezone.now()
     status_map = {
         ProctorEvent.EventType.CAPTURE_STARTED: ProctorSession.Status.RECORDING,
@@ -303,6 +318,11 @@ def report_proctor_event(request, activity_id):
         if event_type == ProctorEvent.EventType.CAPTURE_STARTED and not session.started_at:
             session.started_at = now
             update_fields.append('started_at')
+        if event_type == ProctorEvent.EventType.CAPTURE_STARTED:
+            for field, value in diagnostics.items():
+                if value:
+                    setattr(session, field, value)
+                    update_fields.append(field)
         elif event_type == ProctorEvent.EventType.APP_BACKGROUND:
             session.left_at = now
             update_fields.append('left_at')

@@ -15,6 +15,7 @@ object ProctorEventReporter {
         cookie: String,
         eventType: String,
         message: String = "",
+        metadata: Map<String, String> = emptyMap(),
     ) {
         if (eventUrl.isBlank()) return
         executor.execute {
@@ -23,6 +24,7 @@ object ProctorEventReporter {
                     put("event_type", eventType)
                     put("occurred_at", Instant.now().toString())
                     put("message", message)
+                    metadata.forEach { (key, value) -> put(key, value) }
                 }.toString()
                 val connection = (URL(eventUrl).openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"

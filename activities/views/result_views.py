@@ -195,6 +195,10 @@ def proctor_feed(request, activity_id):
         proctor_status=Subquery(session.values('status')[:1]),
         proctor_status_at=Subquery(session.values('updated_at')[:1]),
         proctor_message=Subquery(session.values('last_message')[:1]),
+        proctor_app_version=Subquery(session.values('app_version')[:1]),
+        proctor_android_version=Subquery(session.values('android_version')[:1]),
+        proctor_device_model=Subquery(session.values('device_model')[:1]),
+        proctor_capture_scope=Subquery(session.values('capture_scope')[:1]),
     ).order_by('grade', 'class_no', 'number', 'name')
     with proctor_storage_status() as storage:
         storage_status = storage
@@ -221,6 +225,12 @@ def proctor_feed(request, activity_id):
                     student.latest_snapshot_at,
                     now,
                 ),
+                'diagnostics': {
+                    'app_version': student.proctor_app_version or '',
+                    'android_version': student.proctor_android_version or '',
+                    'device_model': student.proctor_device_model or '',
+                    'capture_scope': student.proctor_capture_scope or '',
+                },
             }
             for student in students
         ],

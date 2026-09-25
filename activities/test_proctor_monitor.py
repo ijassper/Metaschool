@@ -5,6 +5,7 @@ from django.test import SimpleTestCase
 from django.utils import timezone
 
 from .models import ProctorSession
+from .views.exam_views import get_proctor_diagnostics
 from .views.result_views import get_proctor_connection_state
 
 
@@ -46,3 +47,15 @@ class ProctorConnectionStateTests(SimpleTestCase):
         self.assertIn('summaryLive', source)
         self.assertIn('마지막 수신', source)
         self.assertIn('connection_state', source)
+
+    def test_device_diagnostics_are_allowlisted_and_bounded(self):
+        diagnostics = get_proctor_diagnostics({
+            'app_version': ' 0.2.0 ',
+            'android_version': '14 (API 34)',
+            'device_model': 'S' * 120,
+            'capture_scope': 'FULL_DISPLAY',
+            'android_id': 'must-not-be-stored',
+        })
+        self.assertEqual(diagnostics['app_version'], '0.2.0')
+        self.assertEqual(len(diagnostics['device_model']), 100)
+        self.assertNotIn('android_id', diagnostics)

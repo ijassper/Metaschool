@@ -149,7 +149,13 @@ class ProctorCaptureService : Service() {
             null,
             handler,
         )
-        ProctorEventReporter.send(eventUrl, csrfToken, cookie, "CAPTURE_STARTED")
+        ProctorEventReporter.send(
+            eventUrl,
+            csrfToken,
+            cookie,
+            "CAPTURE_STARTED",
+            metadata = deviceDiagnostics(),
+        )
         notifyCaptureState(CAPTURE_STATE_STARTED)
         restorePendingSnapshots()
     }
@@ -427,6 +433,18 @@ class ProctorCaptureService : Service() {
             )
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
+    }
+
+    private fun deviceDiagnostics(): Map<String, String> {
+        val appVersion = runCatching {
+            packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
+        }.getOrDefault("")
+        return mapOf(
+            "app_version" to appVersion,
+            "android_version" to "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+            "device_model" to "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
+            "capture_scope" to captureScope,
+        )
     }
 
     private fun updateNotification(body: String) {

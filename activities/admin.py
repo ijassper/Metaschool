@@ -59,10 +59,13 @@ class ProctorSnapshotAdmin(admin.ModelAdmin):
 
 @admin.register(ProctorSession)
 class ProctorSessionAdmin(admin.ModelAdmin):
-    list_display = ['activity', 'student', 'status', 'last_seen_at', 'updated_at']
+    list_display = ['activity', 'student', 'status', 'app_version', 'device_model', 'last_seen_at', 'updated_at']
     list_filter = ['status', 'activity']
     search_fields = ['activity__title', 'student__name']
-    readonly_fields = ['started_at', 'last_seen_at', 'left_at', 'returned_at', 'ended_at', 'updated_at']
+    readonly_fields = [
+        'started_at', 'last_seen_at', 'left_at', 'returned_at', 'ended_at',
+        'app_version', 'android_version', 'device_model', 'capture_scope', 'updated_at',
+    ]
 
 
 @admin.register(ProctorEvent)

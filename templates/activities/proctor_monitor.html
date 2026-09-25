@@ -8,7 +8,7 @@
     .proctor-screen img { width:100%; height:100%; object-fit:contain; }
     .proctor-screen-info { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; background:rgba(0,0,0,.65); color:#fff; font-size:.85rem; line-height:1.25; }
     .proctor-student-info { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .proctor-screen-info .proctor-state { flex:0 0 auto; padding:2px 7px; }
+    .proctor-screen-info .proctor-state { flex:0 0 auto; padding:2px 7px; cursor:help; }
     .proctor-state { font-size:.78rem; border-radius:999px; padding:.25rem .55rem; font-weight:700; }
     .state-live { background:#d1e7dd; color:#0f5132; }
     .state-stale { background:#fff3cd; color:#664d03; }
@@ -57,6 +57,13 @@
     </div></div>
 </div>
 
+<div class="modal fade" id="diagnosticModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+        <div class="modal-header"><h5 id="diagnosticModalTitle" class="modal-title">기기 진단 정보</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div id="diagnosticModalBody" class="modal-body" style="white-space:pre-line"></div>
+    </div></div>
+</div>
+
 <script>
 (() => {
     const feedUrl = "{% url 'proctor_feed' activity.id %}";
@@ -71,6 +78,28 @@
         tile.innerHTML = `<div class="proctor-screen"><span class="empty-message">화면 수신 대기</span><img class="d-none" alt=""><div class="proctor-screen-info"><span class="proctor-student-info"><span class="student-meta"></span> <strong class="student-name"></strong></span><span class="proctor-state state-wait">기록 없음</span></div></div>`;
         tile.querySelector('.student-name').textContent = student.name;
         tile.querySelector('.student-meta').textContent = `${student.grade}학년 ${student.class_no}반 ${student.number}번`;
+        const stateBadge = tile.querySelector('.proctor-state');
+        stateBadge.setAttribute('role', 'button');
+        stateBadge.setAttribute('tabindex', '0');
+        const showDiagnostics = event => {
+            event.stopPropagation();
+            const current = tile.currentStudent || student;
+            const diagnostics = current.diagnostics || {};
+            const scope = diagnostics.capture_scope === 'APP_ONLY' ? '인그리드 앱만' : diagnostics.capture_scope === 'FULL_DISPLAY' ? '전체 화면' : '확인되지 않음';
+            document.getElementById('diagnosticModalTitle').textContent = `${current.name} 학생 기기 진단`;
+            document.getElementById('diagnosticModalBody').textContent = [
+                `앱 버전: ${diagnostics.app_version || '확인되지 않음'}`,
+                `Android: ${diagnostics.android_version || '확인되지 않음'}`,
+                `기기 모델: ${diagnostics.device_model || '확인되지 않음'}`,
+                `감독 범위: ${scope}`,
+                `현재 상태: ${stateBadge.textContent}`,
+                `마지막 수신: ${stateBadge.title.replace(/^마지막 수신\s*/, '') || '기록 없음'}`,
+                current.proctor_message ? `오류 메시지: ${current.proctor_message}` : '',
+            ].filter(Boolean).join('\n');
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('diagnosticModal')).show();
+        };
+        stateBadge.addEventListener('click', showDiagnostics);
+        stateBadge.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') showDiagnostics(event); });
         tile.querySelector('.proctor-screen').addEventListener('click', () => {
             const image = tile.querySelector('img');
             if (image.classList.contains('d-none')) return;
@@ -92,6 +121,7 @@
         const counts = {live: 0, delayed: 0, problem: 0};
         data.students.forEach(student => {
             const tile = ensureTile(student);
+            tile.currentStudent = student;
             const image = tile.querySelector('img');
             const empty = tile.querySelector('.empty-message');
             const state = tile.querySelector('.proctor-state');

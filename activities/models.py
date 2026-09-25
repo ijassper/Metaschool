@@ -615,6 +615,10 @@ class ProctorSession(models.Model):
     returned_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
     last_message = models.CharField(max_length=255, blank=True)
+    app_version = models.CharField(max_length=32, blank=True, verbose_name='학생 앱 버전')
+    android_version = models.CharField(max_length=32, blank=True, verbose_name='Android 버전')
+    device_model = models.CharField(max_length=100, blank=True, verbose_name='기기 모델')
+    capture_scope = models.CharField(max_length=20, blank=True, verbose_name='감독 범위')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
