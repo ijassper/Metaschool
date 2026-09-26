@@ -135,6 +135,8 @@ class AdminSystemSettingsPersonaTests(SimpleTestCase):
         self.assertNotIn('name="demo_mode"', source)
         self.assertIn('오늘의 감독 운영 현황', source)
         self.assertIn('proctor_operations.live', source)
+        self.assertIn('proctor_status=attention', source)
+        self.assertIn('감독 화면', source)
 
     def test_writing_menu_no_longer_contains_persona_link(self):
         source = get_template('base.html').template.source

@@ -44,7 +44,7 @@
             <span id="summaryProblem" class="summary-problem">확인 필요 0</span>
         </div>
         <a href="{% url 'proctor_replay' activity.id %}" class="btn btn-outline-primary rounded-pill text-nowrap">기록 다시보기</a>
-        <a href="{% url 'activity_result' activity.id %}" class="proctor-toolbar-back btn btn-outline-secondary rounded-pill px-3">제출현황으로</a>
+        {% if is_activity_owner %}<a href="{% url 'activity_result' activity.id %}" class="proctor-toolbar-back btn btn-outline-secondary rounded-pill px-3">제출현황으로</a>{% else %}<a href="{% url 'admin_system_settings' %}?tab=basic&amp;proctor_status=attention" class="proctor-toolbar-back btn btn-outline-secondary rounded-pill px-3">운영 현황으로</a>{% endif %}
     </div>
     <div id="storageWarning" class="alert alert-danger py-2 mt-2 d-none" role="alert"></div>
     <div id="proctorGrid" class="proctor-grid"></div>

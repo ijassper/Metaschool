@@ -7,6 +7,9 @@ from django.utils import timezone
 from .models import ProctorSession
 from .views.exam_views import get_proctor_diagnostics
 from .views.result_views import get_proctor_connection_state
+from .views.result_views import get_proctor_activity_for_user
+from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
 
 
 class ProctorConnectionStateTests(SimpleTestCase):
@@ -59,3 +62,26 @@ class ProctorConnectionStateTests(SimpleTestCase):
         self.assertEqual(diagnostics['app_version'], '0.2.0')
         self.assertEqual(len(diagnostics['device_model']), 100)
         self.assertNotIn('android_id', diagnostics)
+
+    def test_admin_monitor_access_does_not_apply_teacher_filter(self):
+        queryset = MagicMock()
+        queryset.filter.return_value = queryset
+        with patch('activities.views.result_views.Activity.objects.all', return_value=queryset), \
+                patch('activities.views.result_views.get_object_or_404', return_value='activity') as get:
+            result = get_proctor_activity_for_user(
+                SimpleNamespace(role='ADMIN', is_superuser=False), 17
+            )
+        self.assertEqual(result, 'activity')
+        queryset.filter.assert_not_called()
+        get.assert_called_once_with(queryset, id=17)
+
+    def test_teacher_monitor_access_is_limited_to_owned_activity(self):
+        queryset = MagicMock()
+        owned = MagicMock()
+        queryset.filter.return_value = owned
+        teacher = SimpleNamespace(role='TEACHER', is_superuser=False)
+        with patch('activities.views.result_views.Activity.objects.all', return_value=queryset), \
+                patch('activities.views.result_views.get_object_or_404', return_value='activity') as get:
+            get_proctor_activity_for_user(teacher, 17)
+        queryset.filter.assert_called_once_with(teacher=teacher)
+        get.assert_called_once_with(owned, id=17)

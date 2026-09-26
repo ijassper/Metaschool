@@ -1474,7 +1474,7 @@ def _persona_form_values(request):
     }
 
 
-def _system_settings_context(active_tab='basic', **extra):
+def _system_settings_context(active_tab='basic', proctor_filter='', **extra):
     model_cfg, _ = SystemConfig.objects.get_or_create(key_name='SELECTED_AI_MODEL')
     google_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='GOOGLE_API_KEY')
     openai_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='OPENAI_API_KEY')
@@ -1518,17 +1518,37 @@ def _system_settings_context(active_tab='basic', **extra):
             last_seen_at__gte=live_cutoff,
         ).count(),
         'away': today_sessions.filter(
-            status__in=[
+            Q(status__in=[
                 ProctorSession.Status.AWAY,
                 ProctorSession.Status.DISCONNECTED,
                 ProctorSession.Status.ERROR,
-            ]
+            ])
+            | Q(status=ProctorSession.Status.RECORDING, last_seen_at__lt=live_cutoff)
         ).count(),
         'ended': today_sessions.filter(status=ProctorSession.Status.ENDED).count(),
         'snapshots': ProctorSnapshot.objects.filter(created_at__gte=today_start).count(),
         'latest_received_at': ProctorSnapshot.objects.order_by('-created_at')
         .values_list('created_at', flat=True).first(),
     }
+    proctor_filter = proctor_filter if proctor_filter in {'live', 'attention', 'ended'} else ''
+    filtered_sessions = today_sessions.none()
+    if proctor_filter == 'live':
+        filtered_sessions = today_sessions.filter(
+            status=ProctorSession.Status.RECORDING,
+            last_seen_at__gte=live_cutoff,
+        )
+    elif proctor_filter == 'attention':
+        filtered_sessions = today_sessions.filter(
+            Q(status__in=[
+                ProctorSession.Status.AWAY,
+                ProctorSession.Status.DISCONNECTED,
+                ProctorSession.Status.ERROR,
+            ])
+            | Q(status=ProctorSession.Status.RECORDING, last_seen_at__lt=live_cutoff)
+        )
+    elif proctor_filter == 'ended':
+        filtered_sessions = today_sessions.filter(status=ProctorSession.Status.ENDED)
+
     context = {
         'active_tab': active_tab,
         'current_model': model_cfg.value,
@@ -1543,6 +1563,10 @@ def _system_settings_context(active_tab='basic', **extra):
         'cleanup_completed_at': cleanup_completed_at,
         'proctor_storage': storage_status,
         'proctor_operations': proctor_operations,
+        'proctor_filter': proctor_filter,
+        'proctor_session_rows': filtered_sessions.select_related(
+            'activity', 'activity__teacher', 'student'
+        ).order_by('-updated_at')[:50],
     }
     context.update(extra)
     return context
@@ -1580,7 +1604,14 @@ def admin_system_settings(request):
                 messages.info(request, "감독 기록 정리가 이미 실행 중입니다.")
             return redirect(f"{reverse_lazy('admin_system_settings')}?tab=basic")
 
-    return render(request, 'accounts/system_settings.html', _system_settings_context(active_tab))
+    return render(
+        request,
+        'accounts/system_settings.html',
+        _system_settings_context(
+            active_tab,
+            proctor_filter=request.GET.get('proctor_status', '') if active_tab == 'basic' else '',
+        ),
+    )
 
 
 @login_required

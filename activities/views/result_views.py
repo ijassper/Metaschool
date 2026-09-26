@@ -37,6 +37,13 @@ PROCTOR_LIVE_SECONDS = 10
 PROCTOR_DELAYED_SECONDS = 30
 
 
+def get_proctor_activity_for_user(user, activity_id):
+    activities = Activity.objects.all()
+    if not (getattr(user, 'is_superuser', False) or getattr(user, 'role', None) == 'ADMIN'):
+        activities = activities.filter(teacher=user)
+    return get_object_or_404(activities, id=activity_id)
+
+
 def get_proctor_connection_state(status, latest_snapshot_at, now=None):
     """Return a teacher-facing state based on explicit events and recent server receipts."""
     explicit_states = {
@@ -173,18 +180,21 @@ def activity_result(request, activity_id, template_name='activities/activity_res
 @login_required
 @teacher_required
 def proctor_monitor(request, activity_id):
-    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    activity = get_proctor_activity_for_user(request.user, activity_id)
     if not activity.proctor_mode:
         messages.warning(request, '감독 모드가 활성화된 활동이 아닙니다.')
         return redirect('activity_result', activity_id=activity.id)
-    return render(request, 'activities/proctor_monitor.html', {'activity': activity})
+    return render(request, 'activities/proctor_monitor.html', {
+        'activity': activity,
+        'is_activity_owner': activity.teacher_id == request.user.id,
+    })
 
 
 @login_required
 @teacher_required
 @require_GET
 def proctor_feed(request, activity_id):
-    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    activity = get_proctor_activity_for_user(request.user, activity_id)
     latest = ProctorSnapshot.objects.filter(
         activity=activity, student_id=OuterRef('pk')
     ).order_by('-created_at', '-id')
@@ -241,11 +251,10 @@ def proctor_feed(request, activity_id):
 @teacher_required
 @require_GET
 def proctor_snapshot_image(request, snapshot_id):
-    snapshot = get_object_or_404(
-        ProctorSnapshot.objects.select_related('activity'),
-        id=snapshot_id,
-        activity__teacher=request.user,
-    )
+    snapshots = ProctorSnapshot.objects.select_related('activity')
+    if not (getattr(request.user, 'is_superuser', False) or getattr(request.user, 'role', None) == 'ADMIN'):
+        snapshots = snapshots.filter(activity__teacher=request.user)
+    snapshot = get_object_or_404(snapshots, id=snapshot_id)
     response = FileResponse(snapshot.image.open('rb'), content_type='image/jpeg')
     response['Cache-Control'] = 'private, no-store'
     response['X-Content-Type-Options'] = 'nosniff'
