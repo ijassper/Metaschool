@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.Service
+import android.content.pm.ServiceInfo
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -79,9 +80,54 @@ class ProctorCaptureService : Service() {
                 externalAppVisible = false
                 externalSinceMillis = 0L
             }
+            ACTION_START_SECURE -> startSecureCapture(intent)
+            ACTION_ENQUEUE_SECURE_FRAME -> enqueueSecureFrame(intent)
             ACTION_START -> startProjection(intent)
         }
         return START_NOT_STICKY
+    }
+
+    private fun startSecureCapture(intent: Intent) {
+        if (uploadUrl.isNotBlank()) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                buildNotification(),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        }
+        uploadUrl = intent.getStringExtra(EXTRA_UPLOAD_URL).orEmpty()
+        eventUrl = intent.getStringExtra(EXTRA_EVENT_URL).orEmpty()
+        csrfToken = intent.getStringExtra(EXTRA_CSRF_TOKEN).orEmpty()
+        cookie = intent.getStringExtra(EXTRA_COOKIE).orEmpty()
+        if (uploadUrl.isBlank()) {
+            stopSelf()
+            return
+        }
+        snapshotBuffer = EncryptedSnapshotBuffer(this, uploadUrl, MAX_PENDING_SNAPSHOTS)
+        studentName = intent.getStringExtra(EXTRA_STUDENT_NAME)
+            ?.trim()?.take(40)?.ifBlank { "학생" } ?: "학생"
+        captureScope = CAPTURE_SCOPE_SECURE_APP
+        ProctorEventReporter.send(
+            eventUrl,
+            csrfToken,
+            cookie,
+            "CAPTURE_STARTED",
+            metadata = deviceDiagnostics(),
+        )
+        notifyCaptureState(CAPTURE_STATE_STARTED)
+        restorePendingSnapshots()
+    }
+
+    private fun enqueueSecureFrame(intent: Intent) {
+        if (uploadUrl.isBlank()) return
+        val jpeg = intent.getByteArrayExtra(EXTRA_JPEG) ?: return
+        if (jpeg.isEmpty() || jpeg.size > MAX_SECURE_FRAME_BYTES) return
+        val capturedAt = intent.getStringExtra(EXTRA_CAPTURED_AT).orEmpty()
+            .ifBlank { Instant.now().toString() }
+        snapshotBuffer?.save(jpeg, capturedAt)?.let(::enqueueSnapshot)
     }
 
     private fun startProjection(intent: Intent) {
@@ -501,6 +547,8 @@ class ProctorCaptureService : Service() {
 
     companion object {
         const val ACTION_START = "com.schoolingrid.student.action.START_PROCTOR"
+        const val ACTION_START_SECURE = "com.schoolingrid.student.action.START_SECURE_PROCTOR"
+        const val ACTION_ENQUEUE_SECURE_FRAME = "com.schoolingrid.student.action.ENQUEUE_SECURE_FRAME"
         const val ACTION_STOP = "com.schoolingrid.student.action.STOP_PROCTOR"
         const val ACTION_APP_BACKGROUND = "com.schoolingrid.student.action.APP_BACKGROUND"
         const val ACTION_APP_FOREGROUND = "com.schoolingrid.student.action.APP_FOREGROUND"
@@ -521,11 +569,14 @@ class ProctorCaptureService : Service() {
         const val EXTRA_CAPTURE_STATE = "capture_state"
         const val EXTRA_CAPTURE_MESSAGE = "capture_message"
         const val EXTRA_PENDING_COUNT = "pending_count"
+        const val EXTRA_JPEG = "jpeg"
+        const val EXTRA_CAPTURED_AT = "captured_at"
         private const val NOTIFICATION_CHANNEL = "ingrid_proctor_capture"
         private const val NOTIFICATION_ID = 2101
         private const val MAX_CAPTURE_WIDTH = 960
         private const val CAPTURE_INTERVAL_MS = 3_000L
         private const val JPEG_QUALITY = 55
+        private const val MAX_SECURE_FRAME_BYTES = 480_000
         private const val HTTP_INSUFFICIENT_STORAGE = 507
         private const val MAX_UPLOAD_ATTEMPTS = 3
         private const val MAX_PENDING_SNAPSHOTS = 20
@@ -537,6 +588,7 @@ class ProctorCaptureService : Service() {
         private const val ActivityResultCodeMissing = Int.MIN_VALUE
         private const val CAPTURE_SCOPE_FULL_DISPLAY = "FULL_DISPLAY"
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
+        private const val CAPTURE_SCOPE_SECURE_APP = "SECURE_APP"
     }
 
 }

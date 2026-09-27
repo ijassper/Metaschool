@@ -7,9 +7,9 @@
     <string name="welcome_body">인그리드 활동과 답안 작성을 학생 앱에서 진행합니다.</string>
     <string name="preparing">연결 준비</string>
     <string name="proctor_title">감독 모드 안내</string>
-    <string name="proctor_step_one">1. 시험 시작 전에 화면 공유를 승인합니다.</string>
-    <string name="proctor_step_two">2. 응시 중에는 화면이 3초 간격으로 기록됩니다.</string>
-    <string name="proctor_step_three">3. 화면 공유 중단과 앱 이탈은 감독 선생님에게 표시됩니다.</string>
+    <string name="proctor_step_one">1. 시험 시작 전에 보안 모드(화면 고정)를 승인합니다.</string>
+    <string name="proctor_step_two">2. 응시 중에는 앱 화면이 3초 간격으로 기록됩니다.</string>
+    <string name="proctor_step_three">3. 화면 캡처와 다른 앱 이동이 제한됩니다.</string>
     <string name="login_button">인그리드 로그인</string>
     <string name="app_version_loading">앱 버전 확인 중</string>
     <string name="app_version_format">앱 버전 %1$s · 업데이트 자동 확인</string>
@@ -25,6 +25,8 @@
     <string name="web_title">Ingrid 학생 평가</string>
     <string name="close_web">로그인 화면 닫기</string>
     <string name="capture_permission_required">화면 공유를 승인해야 시험을 시작할 수 있습니다.</string>
+    <string name="secure_mode_required">화면 고정을 승인해야 시험을 시작할 수 있습니다. 기기 설정에서 화면 고정 기능을 켠 뒤 다시 시도해 주세요.</string>
+    <string name="secure_mode_external_blocked">시험 중에는 외부 페이지를 열 수 없습니다.</string>
     <string name="invalid_capture_url">유효하지 않은 감독 서버 주소입니다.</string>
     <string name="update_available_title">새 버전이 준비되었습니다</string>
     <string name="update_available_body">인그리드 학생 앱 %1$s 버전을 설치할 수 있습니다. 감독 기능을 안정적으로 사용하려면 업데이트해 주세요.</string>

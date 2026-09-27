@@ -85,7 +85,13 @@
             event.stopPropagation();
             const current = tile.currentStudent || student;
             const diagnostics = current.diagnostics || {};
-            const scope = diagnostics.capture_scope === 'APP_ONLY' ? '인그리드 앱만' : diagnostics.capture_scope === 'FULL_DISPLAY' ? '전체 화면' : '확인되지 않음';
+            const scope = diagnostics.capture_scope === 'SECURE_APP'
+                ? '보안 앱 화면'
+                : diagnostics.capture_scope === 'APP_ONLY'
+                    ? '인그리드 앱만'
+                    : diagnostics.capture_scope === 'FULL_DISPLAY'
+                        ? '전체 화면'
+                        : '확인되지 않음';
             document.getElementById('diagnosticModalTitle').textContent = `${current.name} 학생 기기 진단`;
             document.getElementById('diagnosticModalBody').textContent = [
                 `앱 버전: ${diagnostics.app_version || '확인되지 않음'}`,

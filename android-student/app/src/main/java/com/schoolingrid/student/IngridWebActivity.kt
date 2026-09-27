@@ -2,19 +2,21 @@ package com.schoolingrid.student
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.Activity.RESULT_OK
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
-import android.media.projection.MediaProjectionConfig
-import android.media.projection.MediaProjectionManager
+import android.graphics.Canvas
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.view.View
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -26,17 +28,16 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONArray
+import java.io.ByteArrayOutputStream
+import java.time.Instant
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.roundToInt
 
 class IngridWebActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var captureStatusText: TextView
-    private lateinit var projectionManager: MediaProjectionManager
-    private var pendingUploadUrl: String? = null
-    private var pendingEventUrl: String? = null
-    private var pendingCsrfToken: String? = null
-    private var pendingStudentName: String? = null
-    private var pendingCaptureScope: String = CAPTURE_SCOPE_FULL_DISPLAY
     private var captureActive = false
     private var awaitingCapturePermission = false
     private var reportedBackground = false
@@ -44,6 +45,17 @@ class IngridWebActivity : Activity() {
     private var eventCsrfToken = ""
     private var eventCookie = ""
     private var captureStateReceiverRegistered = false
+    private val captureHandler = Handler(Looper.getMainLooper())
+    private val captureExecutor = Executors.newSingleThreadExecutor()
+    private val frameEncoding = AtomicBoolean(false)
+    private var secureModeAttempt = 0
+    private val captureRunnable = object : Runnable {
+        override fun run() {
+            if (!captureActive) return
+            captureSecureAppFrame()
+            captureHandler.postDelayed(this, CAPTURE_INTERVAL_MS)
+        }
+    }
     private val captureStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.getStringExtra(ProctorCaptureService.EXTRA_CAPTURE_STATE)) {
@@ -64,6 +76,7 @@ class IngridWebActivity : Activity() {
                 ProctorCaptureService.CAPTURE_STATE_STOPPED -> {
                     captureActive = false
                     reportedBackground = false
+                    leaveSecureMode()
                     showCaptureStatus(CaptureUiState.STOPPED)
                     notifyCaptureStateChanged(
                         false,
@@ -83,10 +96,15 @@ class IngridWebActivity : Activity() {
         webView = findViewById(R.id.ingridWebView)
         progressBar = findViewById(R.id.webProgress)
         captureStatusText = findViewById(R.id.captureStatusText)
-        projectionManager = getSystemService(MediaProjectionManager::class.java)
         registerCaptureStateReceiver()
 
-        findViewById<ImageButton>(R.id.closeWebButton).setOnClickListener { finish() }
+        findViewById<ImageButton>(R.id.closeWebButton).setOnClickListener {
+            if (captureActive || awaitingCapturePermission) {
+                Toast.makeText(this, R.string.secure_mode_external_blocked, Toast.LENGTH_SHORT).show()
+            } else {
+                finish()
+            }
+        }
 
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
@@ -125,6 +143,14 @@ class IngridWebActivity : Activity() {
                 val uri = request.url
                 if (uri.scheme == "https" && isIngridHost(uri.host)) return false
                 if (uri.scheme == "http" || uri.scheme == "https") {
+                    if (captureActive || awaitingCapturePermission) {
+                        Toast.makeText(
+                            this@IngridWebActivity,
+                            R.string.secure_mode_external_blocked,
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        return true
+                    }
                     startActivity(Intent(Intent.ACTION_VIEW, uri))
                     return true
                 }
@@ -144,49 +170,6 @@ class IngridWebActivity : Activity() {
         } else {
             webView.restoreState(savedInstanceState)
         }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != SCREEN_CAPTURE_REQUEST) return
-
-        val uploadUrl = pendingUploadUrl
-        val requestedEventUrl = pendingEventUrl
-        val csrfToken = pendingCsrfToken
-        val studentName = pendingStudentName.orEmpty()
-        val captureScope = pendingCaptureScope
-        pendingUploadUrl = null
-        pendingEventUrl = null
-        pendingCsrfToken = null
-        pendingStudentName = null
-        pendingCaptureScope = CAPTURE_SCOPE_FULL_DISPLAY
-        awaitingCapturePermission = false
-
-        if (resultCode != RESULT_OK || data == null || uploadUrl == null || requestedEventUrl == null || csrfToken == null) {
-            notifyCaptureResult(false, getString(R.string.capture_permission_required))
-            return
-        }
-
-        val cookie = CookieManager.getInstance().getCookie(INGRID_ORIGIN).orEmpty()
-        eventUrl = requestedEventUrl
-        eventCsrfToken = csrfToken
-        eventCookie = cookie
-        val serviceIntent = Intent(this, ProctorCaptureService::class.java).apply {
-            action = ProctorCaptureService.ACTION_START
-            putExtra(ProctorCaptureService.EXTRA_RESULT_CODE, resultCode)
-            putExtra(ProctorCaptureService.EXTRA_RESULT_DATA, data)
-            putExtra(ProctorCaptureService.EXTRA_UPLOAD_URL, uploadUrl)
-            putExtra(ProctorCaptureService.EXTRA_EVENT_URL, requestedEventUrl)
-            putExtra(ProctorCaptureService.EXTRA_CSRF_TOKEN, csrfToken)
-            putExtra(ProctorCaptureService.EXTRA_COOKIE, cookie)
-            putExtra(ProctorCaptureService.EXTRA_STUDENT_NAME, studentName)
-            putExtra(ProctorCaptureService.EXTRA_CAPTURE_SCOPE, captureScope)
-        }
-        startForegroundService(serviceIntent)
-        captureActive = true
-        showCaptureStatus(CaptureUiState.RECORDING)
-        notifyCaptureResult(true, "")
     }
 
     override fun onStart() {
@@ -209,6 +192,10 @@ class IngridWebActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        if (captureActive || awaitingCapturePermission) {
+            Toast.makeText(this, R.string.secure_mode_external_blocked, Toast.LENGTH_SHORT).show()
+            return
+        }
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
@@ -218,6 +205,8 @@ class IngridWebActivity : Activity() {
     }
 
     override fun onDestroy() {
+        captureHandler.removeCallbacksAndMessages(null)
+        captureExecutor.shutdownNow()
         if (captureStateReceiverRegistered) {
             unregisterReceiver(captureStateReceiver)
             captureStateReceiverRegistered = false
@@ -345,53 +334,14 @@ class IngridWebActivity : Activity() {
                     notifyCaptureResult(true, "")
                     return@runOnUiThread
                 }
-                val normalizedScope = if (captureScope == CAPTURE_SCOPE_APP_ONLY) {
-                    CAPTURE_SCOPE_APP_ONLY
-                } else {
-                    CAPTURE_SCOPE_FULL_DISPLAY
-                }
-                if (normalizedScope == CAPTURE_SCOPE_APP_ONLY &&
-                    Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE
-                ) {
-                    notifyCaptureResult(false, "이 기기는 인그리드 앱만 감독을 지원하지 않습니다. 교사에게 전체 화면 감독으로 변경을 요청해 주세요.")
+                awaitingCapturePermission = true
+                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                runCatching { startLockTask() }.onFailure {
+                    failSecureModeStart()
                     return@runOnUiThread
                 }
-                pendingUploadUrl = uploadUrl
-                pendingEventUrl = eventUrl
-                pendingCsrfToken = csrfToken
-                pendingStudentName = studentName.take(40)
-                pendingCaptureScope = normalizedScope
-                awaitingCapturePermission = true
-                val captureIntent = when {
-                    normalizedScope == CAPTURE_SCOPE_APP_ONLY && Build.VERSION.SDK_INT >= 37 -> {
-                        val config = MediaProjectionConfig.Builder()
-                            .setSourceEnabled(MediaProjectionConfig.PROJECTION_SOURCE_DISPLAY, false)
-                            .setSourceEnabled(MediaProjectionConfig.PROJECTION_SOURCE_APP, true)
-                            .setInitiallySelectedSource(MediaProjectionConfig.PROJECTION_SOURCE_APP)
-                            .build()
-                        projectionManager.createScreenCaptureIntent(config)
-                    }
-                    normalizedScope == CAPTURE_SCOPE_APP_ONLY -> {
-                        Toast.makeText(
-                            this@IngridWebActivity,
-                            "공유할 앱에서 인그리드를 선택해 주세요.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                        projectionManager.createScreenCaptureIntent(
-                            MediaProjectionConfig.createConfigForUserChoice(),
-                        )
-                    }
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
-                        projectionManager.createScreenCaptureIntent(
-                            MediaProjectionConfig.createConfigForDefaultDisplay(),
-                        )
-                    }
-                    else -> projectionManager.createScreenCaptureIntent()
-                }
-                startActivityForResult(
-                    captureIntent,
-                    SCREEN_CAPTURE_REQUEST,
-                )
+                secureModeAttempt = 0
+                waitForSecureMode(uploadUrl, eventUrl, csrfToken, studentName.take(40))
             }
         }
 
@@ -403,6 +353,105 @@ class IngridWebActivity : Activity() {
                 })
                 captureActive = false
                 reportedBackground = false
+                leaveSecureMode()
+            }
+        }
+    }
+
+    private fun waitForSecureMode(
+        uploadUrl: String,
+        requestedEventUrl: String,
+        csrfToken: String,
+        studentName: String,
+    ) {
+        val manager = getSystemService(ActivityManager::class.java)
+        if (manager.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE) {
+            startSecureCapture(uploadUrl, requestedEventUrl, csrfToken, studentName)
+            return
+        }
+        if (++secureModeAttempt >= SECURE_MODE_CHECK_LIMIT) {
+            failSecureModeStart()
+            return
+        }
+        captureHandler.postDelayed({
+            waitForSecureMode(uploadUrl, requestedEventUrl, csrfToken, studentName)
+        }, SECURE_MODE_CHECK_INTERVAL_MS)
+    }
+
+    private fun startSecureCapture(
+        uploadUrl: String,
+        requestedEventUrl: String,
+        csrfToken: String,
+        studentName: String,
+    ) {
+        awaitingCapturePermission = false
+        val cookie = CookieManager.getInstance().getCookie(INGRID_ORIGIN).orEmpty()
+        eventUrl = requestedEventUrl
+        eventCsrfToken = csrfToken
+        eventCookie = cookie
+        captureActive = true
+        startForegroundService(Intent(this, ProctorCaptureService::class.java).apply {
+            action = ProctorCaptureService.ACTION_START_SECURE
+            putExtra(ProctorCaptureService.EXTRA_UPLOAD_URL, uploadUrl)
+            putExtra(ProctorCaptureService.EXTRA_EVENT_URL, requestedEventUrl)
+            putExtra(ProctorCaptureService.EXTRA_CSRF_TOKEN, csrfToken)
+            putExtra(ProctorCaptureService.EXTRA_COOKIE, cookie)
+            putExtra(ProctorCaptureService.EXTRA_STUDENT_NAME, studentName)
+            putExtra(ProctorCaptureService.EXTRA_CAPTURE_SCOPE, CAPTURE_SCOPE_SECURE_APP)
+        })
+        showCaptureStatus(CaptureUiState.RECORDING)
+        captureHandler.removeCallbacks(captureRunnable)
+        captureHandler.post(captureRunnable)
+        notifyCaptureResult(true, "")
+    }
+
+    private fun failSecureModeStart() {
+        awaitingCapturePermission = false
+        captureActive = false
+        leaveSecureMode()
+        notifyCaptureResult(false, getString(R.string.secure_mode_required))
+    }
+
+    private fun leaveSecureMode() {
+        captureHandler.removeCallbacks(captureRunnable)
+        runCatching { stopLockTask() }
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    }
+
+    private fun captureSecureAppFrame() {
+        if (!frameEncoding.compareAndSet(false, true)) return
+        val root = findViewById<View>(android.R.id.content)
+        val sourceWidth = root.width
+        val sourceHeight = root.height
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+            frameEncoding.set(false)
+            return
+        }
+        val scale = minOf(1f, MAX_CAPTURE_WIDTH.toFloat() / sourceWidth)
+        val bitmap = Bitmap.createBitmap(
+            (sourceWidth * scale).roundToInt().coerceAtLeast(1),
+            (sourceHeight * scale).roundToInt().coerceAtLeast(1),
+            Bitmap.Config.ARGB_8888,
+        )
+        Canvas(bitmap).apply {
+            scale(scale, scale)
+            root.draw(this)
+        }
+        captureExecutor.execute {
+            try {
+                val output = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output)
+                val jpeg = output.toByteArray()
+                if (jpeg.size <= MAX_SECURE_FRAME_BYTES && captureActive) {
+                    startService(Intent(this, ProctorCaptureService::class.java).apply {
+                        action = ProctorCaptureService.ACTION_ENQUEUE_SECURE_FRAME
+                        putExtra(ProctorCaptureService.EXTRA_JPEG, jpeg)
+                        putExtra(ProctorCaptureService.EXTRA_CAPTURED_AT, Instant.now().toString())
+                    })
+                }
+            } finally {
+                bitmap.recycle()
+                frameEncoding.set(false)
             }
         }
     }
@@ -423,11 +472,17 @@ class IngridWebActivity : Activity() {
     }
 
     companion object {
-        private const val SCREEN_CAPTURE_REQUEST = 4102
         private const val INGRID_ORIGIN = "https://schoolingrid.com"
         private const val LOGIN_URL = "https://schoolingrid.com/accounts/login/"
         private const val CAPTURE_SCOPE_FULL_DISPLAY = "FULL_DISPLAY"
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
+        private const val CAPTURE_SCOPE_SECURE_APP = "SECURE_APP"
+        private const val CAPTURE_INTERVAL_MS = 3_000L
+        private const val SECURE_MODE_CHECK_INTERVAL_MS = 500L
+        private const val SECURE_MODE_CHECK_LIMIT = 30
+        private const val MAX_CAPTURE_WIDTH = 960
+        private const val JPEG_QUALITY = 55
+        private const val MAX_SECURE_FRAME_BYTES = 480_000
     }
 
     private enum class CaptureUiState {
