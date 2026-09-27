@@ -15,6 +15,7 @@ from django.template.loader import get_template
 
 from .middleware import StudentSessionValidationMiddleware
 from .views import (
+    _notify_admin_storage_risk,
     _should_trigger_proctor_cleanup,
     admin_system_settings,
     login_view,
@@ -36,6 +37,35 @@ class ProctorCleanupLoginTriggerTests(SimpleTestCase):
     def test_login_view_contains_non_blocking_cleanup_trigger(self):
         source = inspect.getsource(login_view)
         self.assertIn('schedule_cleanup_after_admin_login()', source)
+        self.assertIn('_notify_admin_storage_risk(request)', source)
+
+    def test_storage_warning_is_silent_below_eighty_percent(self):
+        request = SimpleNamespace()
+        with patch('accounts.views.get_proctor_storage_report', return_value={
+            'level': 'normal', 'used_percent': 61.2,
+        }), patch('accounts.views.messages.warning') as warning, patch(
+            'accounts.views.messages.error'
+        ) as error:
+            _notify_admin_storage_risk(request)
+        warning.assert_not_called()
+        error.assert_not_called()
+
+    def test_storage_warning_is_shown_at_warning_level(self):
+        request = SimpleNamespace()
+        with patch('accounts.views.get_proctor_storage_report', return_value={
+            'level': 'warning', 'used_percent': 84.5,
+        }), patch('accounts.views.messages.warning') as warning:
+            _notify_admin_storage_risk(request)
+        self.assertIn('84.5%', warning.call_args.args[1])
+        self.assertIn('90%', warning.call_args.args[1])
+
+    def test_storage_failure_is_shown_as_error(self):
+        request = SimpleNamespace()
+        with patch('accounts.views.get_proctor_storage_report', return_value={
+            'level': 'blocked', 'used_percent': None,
+        }), patch('accounts.views.messages.error') as error:
+            _notify_admin_storage_risk(request)
+        self.assertIn('확인할 수 없습니다', error.call_args.args[1])
 
 
 @override_settings(

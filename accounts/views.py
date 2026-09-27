@@ -53,6 +53,28 @@ def _should_trigger_proctor_cleanup(user):
     )
 
 
+def _notify_admin_storage_risk(request):
+    """Show server-capacity warnings only to the system administrator."""
+    report = get_proctor_storage_report()
+    used_percent = report.get('used_percent')
+    if report.get('level') == 'blocked':
+        if used_percent is None:
+            messages.error(
+                request,
+                '감독 화면 저장공간을 확인할 수 없습니다. 안전을 위해 새 화면 저장이 중단됩니다. 시스템 설정 센터를 확인해 주세요.',
+            )
+        else:
+            messages.error(
+                request,
+                f'서버 웹 저장공간 사용률이 {used_percent}%입니다. 감독 화면 저장 보호가 작동 중이므로 즉시 기록 정리 또는 용량 증설이 필요합니다.',
+            )
+    elif report.get('level') == 'warning':
+        messages.warning(
+            request,
+            f'서버 웹 저장공간 사용률이 {used_percent}%입니다. 90%부터 감독 화면 저장이 중단되므로 용량을 점검해 주세요.',
+        )
+
+
 def _android_student_apk_path():
     configured_path = Path(settings.ANDROID_STUDENT_APK_PATH)
     if configured_path.is_file():
@@ -231,6 +253,7 @@ def login_view(request):
             # 감독 기록 보관기간 정리를 백그라운드에서 실행합니다.
             if _should_trigger_proctor_cleanup(user):
                 schedule_cleanup_after_admin_login()
+                _notify_admin_storage_risk(request)
 
             return redirect('dashboard')
         else:
