@@ -340,7 +340,7 @@ class IngridWebActivity : Activity() {
             runOnUiThread {
                 val normalizedExamMode = normalizeExamMode(examMode)
                 val requiresKiosk = normalizedExamMode.startsWith("CLOSED_")
-                val requiresScreenshotProtection = normalizedExamMode.endsWith("_LOCK")
+                val requiresScreenshotProtection = requiresKiosk || normalizedExamMode.endsWith("_LOCK")
                 screenshotProtectionActive = requiresScreenshotProtection
                 if (requiresScreenshotProtection) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
@@ -385,7 +385,7 @@ class IngridWebActivity : Activity() {
                 }
                 val normalizedExamMode = normalizeExamMode(examMode)
                 val requiresKiosk = normalizedExamMode.startsWith("CLOSED_")
-                val requiresScreenshotProtection = normalizedExamMode.endsWith("_LOCK")
+                val requiresScreenshotProtection = requiresKiosk || normalizedExamMode.endsWith("_LOCK")
                 screenshotProtectionActive = requiresScreenshotProtection
                 if (requiresScreenshotProtection) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
