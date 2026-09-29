@@ -75,6 +75,16 @@ class ActivitySchedulingTests(SimpleTestCase):
         self.assertIn('자동 제어 중', source)
 
 
+class AndroidExamSecurityContractTests(SimpleTestCase):
+    def test_exam_mode_is_forwarded_to_the_android_student_app(self):
+        source = get_template('activities/take_test.html').template.source
+
+        self.assertIn('requestExamScreenCapture', source)
+        self.assertIn('requestExamSecurity', source)
+        self.assertIn('PROCTOR_CAPTURE_SCOPE,', source)
+        self.assertIn('EXAM_MODE,', source)
+
+
 class SidebarMegaMenuTests(SimpleTestCase):
     def setUp(self):
         self.factory = RequestFactory()

@@ -7,9 +7,9 @@
     <string name="welcome_body">인그리드 활동과 답안 작성을 학생 앱에서 진행합니다.</string>
     <string name="preparing">연결 준비</string>
     <string name="proctor_title">감독 모드 안내</string>
-    <string name="proctor_step_one">1. 시험 시작 전에 보안 모드(화면 고정)를 승인합니다.</string>
+    <string name="proctor_step_one">1. 폐쇄형 평가는 시작 전에 화면 고정을 승인합니다.</string>
     <string name="proctor_step_two">2. 응시 중에는 앱 화면이 3초 간격으로 기록됩니다.</string>
-    <string name="proctor_step_three">3. 화면 캡처와 다른 앱 이동이 제한됩니다.</string>
+    <string name="proctor_step_three">3. 복사금지 평가는 화면 캡처가 제한됩니다.</string>
     <string name="login_button">인그리드 로그인</string>
     <string name="app_version_loading">앱 버전 확인 중</string>
     <string name="app_version_format">앱 버전 %1$s · 업데이트 자동 확인</string>

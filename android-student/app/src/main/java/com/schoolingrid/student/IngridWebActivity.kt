@@ -40,6 +40,8 @@ class IngridWebActivity : Activity() {
     private lateinit var captureStatusText: TextView
     private var captureActive = false
     private var awaitingCapturePermission = false
+    private var kioskModeActive = false
+    private var screenshotProtectionActive = false
     private var reportedBackground = false
     private var eventUrl = ""
     private var eventCsrfToken = ""
@@ -99,7 +101,7 @@ class IngridWebActivity : Activity() {
         registerCaptureStateReceiver()
 
         findViewById<ImageButton>(R.id.closeWebButton).setOnClickListener {
-            if (captureActive || awaitingCapturePermission) {
+            if (kioskModeActive || awaitingCapturePermission) {
                 Toast.makeText(this, R.string.secure_mode_external_blocked, Toast.LENGTH_SHORT).show()
             } else {
                 finish()
@@ -143,7 +145,7 @@ class IngridWebActivity : Activity() {
                 val uri = request.url
                 if (uri.scheme == "https" && isIngridHost(uri.host)) return false
                 if (uri.scheme == "http" || uri.scheme == "https") {
-                    if (captureActive || awaitingCapturePermission) {
+                    if (kioskModeActive || awaitingCapturePermission) {
                         Toast.makeText(
                             this@IngridWebActivity,
                             R.string.secure_mode_external_blocked,
@@ -192,7 +194,7 @@ class IngridWebActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (captureActive || awaitingCapturePermission) {
+        if (kioskModeActive || awaitingCapturePermission) {
             Toast.makeText(this, R.string.secure_mode_external_blocked, Toast.LENGTH_SHORT).show()
             return
         }
@@ -311,7 +313,53 @@ class IngridWebActivity : Activity() {
             studentName: String,
             captureScope: String,
         ) {
-            beginScreenCapture(uploadUrl, eventUrl, csrfToken, studentName, captureScope)
+            beginScreenCapture(
+                uploadUrl,
+                eventUrl,
+                csrfToken,
+                studentName,
+                captureScope,
+                EXAM_MODE_CLOSED_LOCK,
+            )
+        }
+
+        @JavascriptInterface
+        fun requestExamScreenCapture(
+            uploadUrl: String,
+            eventUrl: String,
+            csrfToken: String,
+            studentName: String,
+            captureScope: String,
+            examMode: String,
+        ) {
+            beginScreenCapture(uploadUrl, eventUrl, csrfToken, studentName, captureScope, examMode)
+        }
+
+        @JavascriptInterface
+        fun requestExamSecurity(examMode: String) {
+            runOnUiThread {
+                val normalizedExamMode = normalizeExamMode(examMode)
+                val requiresKiosk = normalizedExamMode.startsWith("CLOSED_")
+                val requiresScreenshotProtection = normalizedExamMode.endsWith("_LOCK")
+                screenshotProtectionActive = requiresScreenshotProtection
+                if (requiresScreenshotProtection) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+                if (!requiresKiosk) {
+                    kioskModeActive = false
+                    notifyExamSecurityResult(true, "")
+                    return@runOnUiThread
+                }
+                awaitingCapturePermission = true
+                runCatching { startLockTask() }.onFailure {
+                    failStandaloneSecurityStart()
+                    return@runOnUiThread
+                }
+                secureModeAttempt = 0
+                waitForStandaloneSecureMode()
+            }
         }
 
         private fun beginScreenCapture(
@@ -320,6 +368,7 @@ class IngridWebActivity : Activity() {
             csrfToken: String,
             studentName: String,
             captureScope: String = CAPTURE_SCOPE_FULL_DISPLAY,
+            examMode: String = EXAM_MODE_CLOSED_LOCK,
         ) {
             runOnUiThread {
                 val uri = Uri.parse(uploadUrl)
@@ -334,8 +383,24 @@ class IngridWebActivity : Activity() {
                     notifyCaptureResult(true, "")
                     return@runOnUiThread
                 }
+                val normalizedExamMode = normalizeExamMode(examMode)
+                val requiresKiosk = normalizedExamMode.startsWith("CLOSED_")
+                val requiresScreenshotProtection = normalizedExamMode.endsWith("_LOCK")
+                screenshotProtectionActive = requiresScreenshotProtection
+                if (requiresScreenshotProtection) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+
+                if (!requiresKiosk) {
+                    awaitingCapturePermission = false
+                    kioskModeActive = false
+                    startSecureCapture(uploadUrl, eventUrl, csrfToken, studentName.take(40), false)
+                    return@runOnUiThread
+                }
+
                 awaitingCapturePermission = true
-                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 runCatching { startLockTask() }.onFailure {
                     failSecureModeStart()
                     return@runOnUiThread
@@ -366,7 +431,7 @@ class IngridWebActivity : Activity() {
     ) {
         val manager = getSystemService(ActivityManager::class.java)
         if (manager.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE) {
-            startSecureCapture(uploadUrl, requestedEventUrl, csrfToken, studentName)
+            startSecureCapture(uploadUrl, requestedEventUrl, csrfToken, studentName, true)
             return
         }
         if (++secureModeAttempt >= SECURE_MODE_CHECK_LIMIT) {
@@ -378,13 +443,33 @@ class IngridWebActivity : Activity() {
         }, SECURE_MODE_CHECK_INTERVAL_MS)
     }
 
+    private fun waitForStandaloneSecureMode() {
+        val manager = getSystemService(ActivityManager::class.java)
+        if (manager.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE) {
+            awaitingCapturePermission = false
+            kioskModeActive = true
+            notifyExamSecurityResult(true, "")
+            return
+        }
+        if (++secureModeAttempt >= SECURE_MODE_CHECK_LIMIT) {
+            failStandaloneSecurityStart()
+            return
+        }
+        captureHandler.postDelayed(
+            { waitForStandaloneSecureMode() },
+            SECURE_MODE_CHECK_INTERVAL_MS,
+        )
+    }
+
     private fun startSecureCapture(
         uploadUrl: String,
         requestedEventUrl: String,
         csrfToken: String,
         studentName: String,
+        kioskEnabled: Boolean,
     ) {
         awaitingCapturePermission = false
+        kioskModeActive = kioskEnabled
         val cookie = CookieManager.getInstance().getCookie(INGRID_ORIGIN).orEmpty()
         eventUrl = requestedEventUrl
         eventCsrfToken = csrfToken
@@ -412,10 +497,41 @@ class IngridWebActivity : Activity() {
         notifyCaptureResult(false, getString(R.string.secure_mode_required))
     }
 
+    private fun failStandaloneSecurityStart() {
+        awaitingCapturePermission = false
+        leaveSecureMode()
+        notifyExamSecurityResult(false, getString(R.string.secure_mode_required))
+    }
+
+    private fun notifyExamSecurityResult(success: Boolean, message: String) {
+        val escaped = message
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\n", "\\n")
+        webView.evaluateJavascript(
+            "window.onIngridExamSecurityResult && window.onIngridExamSecurityResult(${success}, '$escaped');",
+            null,
+        )
+    }
+
     private fun leaveSecureMode() {
         captureHandler.removeCallbacks(captureRunnable)
-        runCatching { stopLockTask() }
-        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        if (kioskModeActive || awaitingCapturePermission) runCatching { stopLockTask() }
+        if (screenshotProtectionActive) window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        kioskModeActive = false
+        screenshotProtectionActive = false
+        awaitingCapturePermission = false
+    }
+
+    private fun normalizeExamMode(examMode: String): String {
+        return when (examMode) {
+            EXAM_MODE_CLOSED_LOCK,
+            EXAM_MODE_CLOSED_FREE,
+            EXAM_MODE_OPEN_LOCK,
+            EXAM_MODE_OPEN_FREE
+            -> examMode
+            else -> EXAM_MODE_CLOSED_LOCK
+        }
     }
 
     private fun captureSecureAppFrame() {
@@ -483,6 +599,10 @@ class IngridWebActivity : Activity() {
         private const val MAX_CAPTURE_WIDTH = 960
         private const val JPEG_QUALITY = 55
         private const val MAX_SECURE_FRAME_BYTES = 480_000
+        private const val EXAM_MODE_CLOSED_LOCK = "CLOSED_LOCK"
+        private const val EXAM_MODE_CLOSED_FREE = "CLOSED_FREE"
+        private const val EXAM_MODE_OPEN_LOCK = "OPEN_LOCK"
+        private const val EXAM_MODE_OPEN_FREE = "OPEN_FREE"
     }
 
     private enum class CaptureUiState {
