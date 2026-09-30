@@ -84,6 +84,12 @@ class ReplayTests(SimpleTestCase):
         self.assertIn('seekToEvent', source)
         self.assertIn('확인 필요 이벤트', source)
         self.assertIn('교사 검토 결과', source)
+        self.assertIn('검토 결과 CSV', source)
+
+    def test_csv_cells_neutralize_spreadsheet_formulas(self):
+        self.assertEqual(views.safe_csv_cell('=HYPERLINK("bad")'), "'=HYPERLINK(\"bad\")")
+        self.assertEqual(views.safe_csv_cell('+123'), "'+123")
+        self.assertEqual(views.safe_csv_cell('정상 메모'), '정상 메모')
 
     def test_recording_response_includes_review_events(self):
         now = timezone.now()

@@ -36,6 +36,7 @@
   <label for="recordDate">기록 날짜</label>
   <input id="recordDate" name="date" type="date" value="{{ selected_date }}" required class="form-control" style="width:auto">
   <button class="btn btn-outline-primary">기록 조회</button>
+  <a class="btn btn-outline-success" href="{% url 'proctor_review_csv' activity.id %}?date={{ selected_date }}"><i class="bi bi-file-earmark-spreadsheet me-1"></i>검토 결과 CSV</a>
   <span class="text-secondary">학생 카드를 클릭하면 기록을 재생합니다.</span>
  </form>
  <div class="replay-filters" aria-label="감독 기록 필터">

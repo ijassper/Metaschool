@@ -9,7 +9,7 @@ from .views.result_views import *
 from .views.ai_views import *
 from .views.export_views import *
 from .views.typing_views import *
-from .views.proctor_replay_views import proctor_replay, proctor_recording, proctor_download, proctor_delete_recording, proctor_save_review
+from .views.proctor_replay_views import proctor_replay, proctor_recording, proctor_download, proctor_delete_recording, proctor_save_review, proctor_review_csv
 
 urlpatterns = [
     path('result/<int:activity_id>/proctor/replay/', proctor_replay, name='proctor_replay'),
@@ -17,6 +17,7 @@ urlpatterns = [
     path('result/<int:activity_id>/proctor/download/<int:student_id>/', proctor_download, name='proctor_download'),
     path('result/<int:activity_id>/proctor/delete/<int:student_id>/', proctor_delete_recording, name='proctor_delete_recording'),
     path('result/<int:activity_id>/proctor/review/<int:student_id>/', proctor_save_review, name='proctor_save_review'),
+    path('result/<int:activity_id>/proctor/review-report.csv', proctor_review_csv, name='proctor_review_csv'),
     # 이전 북마크 호환: 실제 관리 기능과 권한 검사는 accounts 시스템 설정 센터에서 처리합니다.
     path('personas/', RedirectView.as_view(pattern_name='persona_list', permanent=False)),
     path('personas/create/', RedirectView.as_view(pattern_name='persona_create', permanent=False)),

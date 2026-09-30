@@ -1,5 +1,6 @@
 """Owner-only replay and on-demand MP4 streaming (no retained video file)."""
 import json
+import csv
 import os
 import shutil
 import subprocess
@@ -12,7 +13,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count, OuterRef, Q, Subquery
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.dateparse import parse_date
@@ -51,6 +52,12 @@ def review_events(activity, student_id, start, end):
         created_at__lt=end,
         event_type__in=REVIEW_EVENT_LABELS,
     ).order_by('created_at', 'id')
+
+
+def safe_csv_cell(value):
+    """Prevent spreadsheet software from interpreting user text as a formula."""
+    text = '' if value is None else str(value)
+    return f"'{text}" if text.startswith(('=', '+', '-', '@')) else text
 
 
 def selected_recording(request, activity_id, student_id):
@@ -148,6 +155,82 @@ def proctor_replay(request, activity_id):
     response = render(request, 'activities/proctor_replay.html', {
         'activity': activity, 'students': students, 'selected_date': selected_date.isoformat(),
     })
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
+@login_required
+@teacher_required
+@require_GET
+def proctor_review_csv(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    selected_date = parse_date(request.GET.get('date', ''))
+    if not selected_date:
+        return JsonResponse({'message': '기록 날짜를 선택해 주세요.'}, status=400)
+    start, end = recording_day_bounds(selected_date)
+    students = list(Student.objects.filter(
+        Q(pk__in=activity.target_students.values('pk')) |
+        Q(pk__in=activity.proctor_snapshots.order_by().values('student_id')) |
+        Q(pk__in=activity.proctor_sessions.order_by().values('student_id'))
+    ).distinct().order_by('grade', 'class_no', 'number', 'name', 'id'))
+    student_ids = [student.id for student in students]
+    snapshot_counts = dict(
+        ProctorSnapshot.objects.filter(
+            activity_id=activity_id,
+            student_id__in=student_ids,
+            created_at__gte=start,
+            created_at__lt=end,
+        ).values_list('student_id').annotate(total=Count('id'))
+    )
+    event_counts = {
+        row['session__student_id']: row
+        for row in ProctorEvent.objects.filter(
+            session__activity_id=activity_id,
+            session__student_id__in=student_ids,
+            created_at__gte=start,
+            created_at__lt=end,
+        ).values('session__student_id').annotate(
+            away=Count('id', filter=Q(event_type=ProctorEvent.EventType.APP_BACKGROUND)),
+            pinning=Count('id', filter=Q(event_type=ProctorEvent.EventType.PINNING_RELEASED)),
+            stopped=Count('id', filter=Q(event_type=ProctorEvent.EventType.CAPTURE_STOPPED)),
+            errors=Count('id', filter=Q(event_type=ProctorEvent.EventType.ERROR)),
+        )
+    }
+    reviews = {
+        review.student_id: review
+        for review in ProctorReview.objects.filter(
+            activity_id=activity_id,
+            student_id__in=student_ids,
+            review_date=selected_date,
+        ).select_related('reviewer')
+    }
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response.write('\ufeff')
+    response['Content-Disposition'] = (
+        f'attachment; filename="proctor-review-{activity_id}-{selected_date.isoformat()}.csv"'
+    )
+    writer = csv.writer(response)
+    writer.writerow([
+        '기록 날짜', '활동명', '학년', '반', '번호', '학생명', '저장 화면 수',
+        '앱 이탈', '화면 고정 해제', '녹화 중단', '녹화 오류',
+        '검토 결과', '검토 메모', '검토자', '검토 시각',
+    ])
+    for student in students:
+        counts = event_counts.get(student.id, {})
+        review = reviews.get(student.id)
+        reviewer_name = ''
+        if review and review.reviewer:
+            reviewer_name = review.reviewer.get_full_name() or review.reviewer.username
+        writer.writerow([
+            selected_date.isoformat(), safe_csv_cell(activity.title), student.grade,
+            student.class_no, student.number, safe_csv_cell(student.name),
+            snapshot_counts.get(student.id, 0), counts.get('away', 0),
+            counts.get('pinning', 0), counts.get('stopped', 0), counts.get('errors', 0),
+            review.get_status_display() if review else '미검토',
+            safe_csv_cell(review.note if review else ''), safe_csv_cell(reviewer_name),
+            timezone.localtime(review.reviewed_at).strftime('%Y-%m-%d %H:%M:%S')
+            if review and review.reviewed_at else '',
+        ])
     response['Cache-Control'] = 'private, no-store'
     return response
 
