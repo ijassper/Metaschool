@@ -305,16 +305,28 @@ def report_proctor_event(request, activity_id):
         ProctorEvent.EventType.EXAM_ENDED: ProctorSession.Status.ENDED,
         ProctorEvent.EventType.ERROR: ProctorSession.Status.ERROR,
     }
+    security_map = {
+        ProctorEvent.EventType.SECURITY_ACTIVE: ProctorSession.SecurityStatus.SECURE,
+        ProctorEvent.EventType.PINNING_RELEASED: ProctorSession.SecurityStatus.PINNING_RELEASED,
+        ProctorEvent.EventType.SECURITY_NOT_REQUIRED: ProctorSession.SecurityStatus.NOT_REQUIRED,
+    }
 
     with transaction.atomic():
         session, _ = ProctorSession.objects.select_for_update().get_or_create(
             activity=activity,
             student=student,
         )
-        session.status = status_map[event_type]
+        if event_type in status_map:
+            session.status = status_map[event_type]
         session.last_seen_at = now
         session.last_message = message
-        update_fields = ['status', 'last_seen_at', 'last_message', 'updated_at']
+        update_fields = ['last_seen_at', 'last_message', 'updated_at']
+        if event_type in status_map:
+            update_fields.append('status')
+        if event_type in security_map:
+            session.security_status = security_map[event_type]
+            session.security_updated_at = now
+            update_fields.extend(['security_status', 'security_updated_at'])
         if event_type == ProctorEvent.EventType.CAPTURE_STARTED and not session.started_at:
             session.started_at = now
             update_fields.append('started_at')

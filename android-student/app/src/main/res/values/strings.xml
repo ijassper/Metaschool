@@ -43,4 +43,5 @@
     <string name="capture_status_recording">● 화면 녹화중 · 정상 전송</string>
     <string name="capture_status_buffering">● 연결 복구 대기 · %1$d장 임시 보관</string>
     <string name="capture_status_stopped">● 화면 녹화 중단</string>
+    <string name="security_pinning_released_message">응시 중 Android 화면 고정이 해제되었습니다.</string>
 </resources>

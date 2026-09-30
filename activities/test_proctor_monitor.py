@@ -45,11 +45,18 @@ class ProctorConnectionStateTests(SimpleTestCase):
             'NONE',
         )
 
+    def test_security_states_are_independent_from_connection_state(self):
+        self.assertEqual(ProctorSession.SecurityStatus.SECURE, 'SECURE')
+        self.assertEqual(ProctorSession.SecurityStatus.PINNING_RELEASED, 'PINNING_RELEASED')
+        self.assertEqual(ProctorSession.SecurityStatus.NOT_REQUIRED, 'NOT_REQUIRED')
+
     def test_monitor_template_exposes_summary_and_last_receipt(self):
         source = get_template('activities/proctor_monitor.html').template.source
         self.assertIn('summaryLive', source)
         self.assertIn('마지막 수신', source)
         self.assertIn('connection_state', source)
+        self.assertIn('security_status', source)
+        self.assertIn('화면 고정 해제', source)
 
     def test_device_diagnostics_are_allowlisted_and_bounded(self):
         diagnostics = get_proctor_diagnostics({

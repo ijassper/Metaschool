@@ -19,6 +19,8 @@ import android.provider.Settings
 import android.webkit.JavascriptInterface
 import android.view.View
 import android.view.WindowManager
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -43,6 +45,8 @@ class IngridWebActivity : Activity() {
     private var captureActive = false
     private var awaitingCapturePermission = false
     private var kioskModeActive = false
+    private var kioskExpected = false
+    private var pinningLossReported = false
     private var screenshotProtectionActive = false
     private var reportedBackground = false
     private var eventUrl = ""
@@ -59,6 +63,36 @@ class IngridWebActivity : Activity() {
             if (!captureActive) return
             captureSecureAppFrame()
             captureHandler.postDelayed(this, CAPTURE_INTERVAL_MS)
+        }
+    }
+    private val securityMonitorRunnable = object : Runnable {
+        override fun run() {
+            if (!captureActive) return
+            if (kioskExpected) {
+                val manager = getSystemService(ActivityManager::class.java)
+                val pinned = manager.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE
+                if (!pinned && !pinningLossReported) {
+                    pinningLossReported = true
+                    kioskModeActive = false
+                    ProctorEventReporter.send(
+                        eventUrl,
+                        eventCsrfToken,
+                        eventCookie,
+                        "PINNING_RELEASED",
+                        getString(R.string.security_pinning_released_message),
+                    )
+                } else if (pinned && pinningLossReported) {
+                    pinningLossReported = false
+                    kioskModeActive = true
+                    ProctorEventReporter.send(
+                        eventUrl,
+                        eventCsrfToken,
+                        eventCookie,
+                        "SECURITY_ACTIVE",
+                    )
+                }
+            }
+            captureHandler.postDelayed(this, SECURITY_CHECK_INTERVAL_MS)
         }
     }
     private val captureStateReceiver = object : BroadcastReceiver() {
@@ -102,6 +136,12 @@ class IngridWebActivity : Activity() {
         progressBar = findViewById(R.id.webProgress)
         captureStatusText = findViewById(R.id.captureStatusText)
         registerCaptureStateReceiver()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                OnBackInvokedCallback { handleBackNavigation() },
+            )
+        }
 
         findViewById<ImageButton>(R.id.closeWebButton).setOnClickListener {
             if (kioskModeActive || awaitingCapturePermission) {
@@ -198,13 +238,18 @@ class IngridWebActivity : Activity() {
         super.onStop()
     }
 
+    @SuppressLint("GestureBackNavigation")
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        handleBackNavigation()
+    }
+
+    private fun handleBackNavigation() {
         if (kioskModeActive || awaitingCapturePermission) {
             Toast.makeText(this, R.string.secure_mode_external_blocked, Toast.LENGTH_SHORT).show()
             return
         }
-        if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+        if (webView.canGoBack()) webView.goBack() else finish()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -271,6 +316,7 @@ class IngridWebActivity : Activity() {
         }
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     private fun registerCaptureStateReceiver() {
         val filter = IntentFilter(ProctorCaptureService.ACTION_CAPTURE_STATE_CHANGED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -461,6 +507,8 @@ class IngridWebActivity : Activity() {
         }
         captureActive = false
         reportedBackground = false
+        kioskExpected = false
+        pinningLossReported = false
         leaveSecureMode()
     }
 
@@ -511,6 +559,8 @@ class IngridWebActivity : Activity() {
     ) {
         awaitingCapturePermission = false
         kioskModeActive = kioskEnabled
+        kioskExpected = kioskEnabled
+        pinningLossReported = false
         val cookie = CookieManager.getInstance().getCookie(INGRID_ORIGIN).orEmpty()
         eventUrl = requestedEventUrl
         eventCsrfToken = csrfToken
@@ -528,6 +578,14 @@ class IngridWebActivity : Activity() {
         showCaptureStatus(CaptureUiState.RECORDING)
         captureHandler.removeCallbacks(captureRunnable)
         captureHandler.post(captureRunnable)
+        captureHandler.removeCallbacks(securityMonitorRunnable)
+        captureHandler.post(securityMonitorRunnable)
+        ProctorEventReporter.send(
+            eventUrl,
+            eventCsrfToken,
+            eventCookie,
+            if (kioskEnabled) "SECURITY_ACTIVE" else "SECURITY_NOT_REQUIRED",
+        )
         notifyCaptureResult(true, "")
     }
 
@@ -557,9 +615,12 @@ class IngridWebActivity : Activity() {
 
     private fun leaveSecureMode() {
         captureHandler.removeCallbacks(captureRunnable)
+        captureHandler.removeCallbacks(securityMonitorRunnable)
         if (kioskModeActive || awaitingCapturePermission) runCatching { stopLockTask() }
         if (screenshotProtectionActive) window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         kioskModeActive = false
+        kioskExpected = false
+        pinningLossReported = false
         screenshotProtectionActive = false
         awaitingCapturePermission = false
     }
@@ -637,6 +698,7 @@ class IngridWebActivity : Activity() {
         private const val CAPTURE_SCOPE_SECURE_APP = "SECURE_APP"
         private const val CAPTURE_INTERVAL_MS = 3_000L
         private const val SECURE_MODE_CHECK_INTERVAL_MS = 500L
+        private const val SECURITY_CHECK_INTERVAL_MS = 1_000L
         private const val SECURE_MODE_CHECK_LIMIT = 30
         private const val MAX_CAPTURE_WIDTH = 960
         private const val JPEG_QUALITY = 55

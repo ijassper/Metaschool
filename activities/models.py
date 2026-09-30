@@ -602,6 +602,12 @@ class ProctorSession(models.Model):
         ENDED = 'ENDED', '종료'
         ERROR = 'ERROR', '오류'
 
+    class SecurityStatus(models.TextChoices):
+        UNKNOWN = 'UNKNOWN', '확인 중'
+        SECURE = 'SECURE', '보안 정상'
+        PINNING_RELEASED = 'PINNING_RELEASED', '화면 고정 해제'
+        NOT_REQUIRED = 'NOT_REQUIRED', '화면 고정 미적용'
+
     activity = models.ForeignKey(
         Activity, on_delete=models.CASCADE, related_name='proctor_sessions', verbose_name='활동'
     )
@@ -619,6 +625,13 @@ class ProctorSession(models.Model):
     android_version = models.CharField(max_length=32, blank=True, verbose_name='Android 버전')
     device_model = models.CharField(max_length=100, blank=True, verbose_name='기기 모델')
     capture_scope = models.CharField(max_length=20, blank=True, verbose_name='감독 범위')
+    security_status = models.CharField(
+        max_length=24,
+        choices=SecurityStatus.choices,
+        default=SecurityStatus.UNKNOWN,
+        verbose_name='보안 상태',
+    )
+    security_updated_at = models.DateTimeField(null=True, blank=True, verbose_name='보안 상태 확인 시각')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -641,6 +654,9 @@ class ProctorEvent(models.Model):
         CAPTURE_STOPPED = 'CAPTURE_STOPPED', '녹화 중단'
         EXAM_ENDED = 'EXAM_ENDED', '시험 종료'
         ERROR = 'ERROR', '오류'
+        SECURITY_ACTIVE = 'SECURITY_ACTIVE', '보안 정상'
+        PINNING_RELEASED = 'PINNING_RELEASED', '화면 고정 해제'
+        SECURITY_NOT_REQUIRED = 'SECURITY_NOT_REQUIRED', '화면 고정 미적용'
 
     session = models.ForeignKey(
         ProctorSession, on_delete=models.CASCADE, related_name='events', verbose_name='감독 세션'

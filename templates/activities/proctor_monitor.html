@@ -8,13 +8,18 @@
     .proctor-screen img { width:100%; height:100%; object-fit:contain; }
     .proctor-screen-info { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; background:rgba(0,0,0,.65); color:#fff; font-size:.85rem; line-height:1.25; }
     .proctor-student-info { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .proctor-screen-info .proctor-state { flex:0 0 auto; padding:2px 7px; cursor:help; }
+    .proctor-badges { display:flex; align-items:center; gap:5px; flex:0 0 auto; }
+    .proctor-screen-info .proctor-state, .proctor-screen-info .security-state { padding:2px 7px; cursor:help; }
     .proctor-state { font-size:.78rem; border-radius:999px; padding:.25rem .55rem; font-weight:700; }
     .state-live { background:#d1e7dd; color:#0f5132; }
     .state-stale { background:#fff3cd; color:#664d03; }
     .state-wait { background:#e9ecef; color:#6c757d; }
     .state-away, .state-error { background:#dc3545; color:#fff; animation:proctor-alert 1s ease-in-out infinite alternate; }
     .state-ended { background:#6c757d; color:#fff; }
+    .security-secure { background:#0f5132; color:#fff; }
+    .security-unpinned { background:#dc3545; color:#fff; animation:proctor-alert .75s ease-in-out infinite alternate; }
+    .security-optional { background:#495057; color:#fff; }
+    .security-unknown { background:#e9ecef; color:#6c757d; }
     .proctor-summary { display:flex; align-items:center; gap:6px; flex:0 0 auto; }
     .proctor-summary span { border-radius:999px; padding:4px 9px; font-size:.75rem; font-weight:800; white-space:nowrap; }
     .summary-live { background:#d1e7dd; color:#0f5132; }
@@ -75,10 +80,11 @@
         if (tiles.has(student.id)) return tiles.get(student.id);
         const tile = document.createElement('article');
         tile.className = 'proctor-tile';
-        tile.innerHTML = `<div class="proctor-screen"><span class="empty-message">화면 수신 대기</span><img class="d-none" alt=""><div class="proctor-screen-info"><span class="proctor-student-info"><span class="student-meta"></span> <strong class="student-name"></strong></span><span class="proctor-state state-wait">기록 없음</span></div></div>`;
+        tile.innerHTML = `<div class="proctor-screen"><span class="empty-message">화면 수신 대기</span><img class="d-none" alt=""><div class="proctor-screen-info"><span class="proctor-student-info"><span class="student-meta"></span> <strong class="student-name"></strong></span><span class="proctor-badges"><span class="proctor-state state-wait">기록 없음</span><span class="proctor-state security-state security-unknown">보안 확인 중</span></span></div></div>`;
         tile.querySelector('.student-name').textContent = student.name;
         tile.querySelector('.student-meta').textContent = `${student.grade}학년 ${student.class_no}반 ${student.number}번`;
         const stateBadge = tile.querySelector('.proctor-state');
+        const securityBadge = tile.querySelector('.security-state');
         stateBadge.setAttribute('role', 'button');
         stateBadge.setAttribute('tabindex', '0');
         const showDiagnostics = event => {
@@ -99,13 +105,17 @@
                 `기기 모델: ${diagnostics.device_model || '확인되지 않음'}`,
                 `감독 범위: ${scope}`,
                 `현재 상태: ${stateBadge.textContent}`,
+                `보안 상태: ${securityBadge.textContent}`,
                 `마지막 수신: ${stateBadge.title.replace(/^마지막 수신\s*/, '') || '기록 없음'}`,
+                `보안 확인: ${securityBadge.title.replace(/^마지막 확인\s*/, '') || '확인 기록 없음'}`,
                 current.proctor_message ? `오류 메시지: ${current.proctor_message}` : '',
             ].filter(Boolean).join('\n');
             bootstrap.Modal.getOrCreateInstance(document.getElementById('diagnosticModal')).show();
         };
         stateBadge.addEventListener('click', showDiagnostics);
         stateBadge.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') showDiagnostics(event); });
+        securityBadge.addEventListener('click', showDiagnostics);
+        securityBadge.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') showDiagnostics(event); });
         tile.querySelector('.proctor-screen').addEventListener('click', () => {
             const image = tile.querySelector('img');
             if (image.classList.contains('d-none')) return;
@@ -131,6 +141,7 @@
             const image = tile.querySelector('img');
             const empty = tile.querySelector('.empty-message');
             const state = tile.querySelector('.proctor-state');
+            const security = tile.querySelector('.security-state');
             const receivedAt = student.captured_at ? new Date(student.captured_at) : null;
             const age = receivedAt ? Math.max(0, (serverNow - receivedAt.getTime()) / 1000) : null;
             const ago = age === null ? '' : age < 5 ? '방금' : age < 60 ? `${Math.round(age)}초 전` : `${Math.floor(age / 60)}분 전`;
@@ -147,7 +158,19 @@
             const configured = stateConfig[student.connection_state] || stateConfig.NONE;
             state.className = `proctor-state ${configured[0]}`;
             state.textContent = configured[1];
-            if (student.connection_state === 'LIVE') counts.live += 1;
+            const securityConfig = {
+                SECURE: ['security-secure', '보안 정상'],
+                PINNING_RELEASED: ['security-unpinned', '화면 고정 해제'],
+                NOT_REQUIRED: ['security-optional', '고정 미적용'],
+                UNKNOWN: ['security-unknown', '보안 확인 중'],
+            };
+            const configuredSecurity = securityConfig[student.security_status] || securityConfig.UNKNOWN;
+            security.className = `proctor-state security-state ${configuredSecurity[0]}`;
+            security.textContent = configuredSecurity[1];
+            const securityAt = student.security_updated_at ? new Date(student.security_updated_at) : null;
+            security.title = securityAt ? `마지막 확인 ${securityAt.toLocaleString('ko-KR')}` : '보안 상태 확인 기록이 없습니다.';
+            if (student.security_status === 'PINNING_RELEASED') counts.problem += 1;
+            else if (student.connection_state === 'LIVE') counts.live += 1;
             else if (student.connection_state === 'DELAYED') counts.delayed += 1;
             else if (student.connection_state !== 'ENDED') counts.problem += 1;
             if (!student.snapshot_id) {

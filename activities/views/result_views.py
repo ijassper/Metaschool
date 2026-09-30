@@ -209,6 +209,8 @@ def proctor_feed(request, activity_id):
         proctor_android_version=Subquery(session.values('android_version')[:1]),
         proctor_device_model=Subquery(session.values('device_model')[:1]),
         proctor_capture_scope=Subquery(session.values('capture_scope')[:1]),
+        proctor_security_status=Subquery(session.values('security_status')[:1]),
+        proctor_security_updated_at=Subquery(session.values('security_updated_at')[:1]),
     ).order_by('grade', 'class_no', 'number', 'name')
     with proctor_storage_status() as storage:
         storage_status = storage
@@ -235,6 +237,8 @@ def proctor_feed(request, activity_id):
                     student.latest_snapshot_at,
                     now,
                 ),
+                'security_status': student.proctor_security_status or ProctorSession.SecurityStatus.UNKNOWN,
+                'security_updated_at': student.proctor_security_updated_at.isoformat() if student.proctor_security_updated_at else None,
                 'diagnostics': {
                     'app_version': student.proctor_app_version or '',
                     'android_version': student.proctor_android_version or '',
