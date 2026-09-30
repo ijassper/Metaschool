@@ -10,6 +10,12 @@
  .replay-card-play { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;background:rgba(0,0,0,.5);border-radius:50%;padding:8px 14px;font-size:1.6rem; }
  .replay-card-alerts { position:absolute;top:8px;left:8px;display:flex;gap:5px;flex-wrap:wrap; }
  .replay-alert-badge { padding:3px 7px;border-radius:999px;background:rgba(220,53,69,.92);color:#fff;font-size:.72rem;font-weight:800; }
+ .replay-review-badge { position:absolute;top:8px;right:8px;padding:3px 8px;border-radius:999px;font-size:.72rem;font-weight:800; }
+ .review-unreviewed { background:#e9ecef;color:#5f666d; }
+ .review-cleared { background:#d1e7dd;color:#0f5132; }
+ .review-attention { background:#dc3545;color:#fff; }
+ .replay-filters { display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px; }
+ .replay-filter.is-active { background:#8e44ad;color:#fff;border-color:#8e44ad; }
  .replay-toolbar { display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap; }
  .replay-player { background:#20242a;text-align:center;min-height:200px; }
  .replay-player img { max-width:100%;max-height:65vh; }
@@ -32,14 +38,24 @@
   <button class="btn btn-outline-primary">기록 조회</button>
   <span class="text-secondary">학생 카드를 클릭하면 기록을 재생합니다.</span>
  </form>
+ <div class="replay-filters" aria-label="감독 기록 필터">
+  <strong class="me-1">빠른 필터</strong>
+  <button type="button" class="btn btn-sm btn-outline-secondary replay-filter is-active" data-filter="all">전체</button>
+  <button type="button" class="btn btn-sm btn-outline-danger replay-filter" data-filter="risk">확인 필요 이벤트</button>
+  <button type="button" class="btn btn-sm btn-outline-danger replay-filter" data-filter="away">앱 이탈</button>
+  <button type="button" class="btn btn-sm btn-outline-danger replay-filter" data-filter="pinning">화면 고정 해제</button>
+  <button type="button" class="btn btn-sm btn-outline-secondary replay-filter" data-filter="unreviewed">미검토</button>
+  <span id="replayFilterCount" class="text-secondary small ms-1"></span>
+ </div>
  <div class="replay-grid">
  {% for s in students %}
-  <button type="button" class="replay-card" data-student="{{ s.id }}" data-name="{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}" {% if not s.thumbnail_id %}disabled{% endif %} aria-label="{{ s.name }} 감독 기록 {% if s.thumbnail_id %}재생{% else %}없음{% endif %}">
+  <button type="button" class="replay-card" data-student="{{ s.id }}" data-name="{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 {{ s.name }}" data-away="{{ s.away_count }}" data-pinning="{{ s.pinning_count }}" data-review="{{ s.review_status|default:'UNREVIEWED' }}" {% if not s.thumbnail_id and not s.away_count and not s.pinning_count %}disabled{% endif %} aria-label="{{ s.name }} 감독 기록 {% if s.thumbnail_id %}재생{% else %}없음{% endif %}">
    {% if s.thumbnail_id %}
     <img src="{% url 'proctor_snapshot_image' s.thumbnail_id %}" loading="lazy" alt="{{ s.name }} 기록 썸네일">
     <span class="replay-card-play"><i class="bi bi-play-fill"></i></span>
    {% else %}<span class="text-white-50">기록 없음</span>{% endif %}
    {% if s.away_count or s.pinning_count %}<span class="replay-card-alerts">{% if s.away_count %}<span class="replay-alert-badge">앱 이탈 {{ s.away_count }}회</span>{% endif %}{% if s.pinning_count %}<span class="replay-alert-badge">고정 해제 {{ s.pinning_count }}회</span>{% endif %}</span>{% endif %}
+   <span class="replay-review-badge {% if s.review_status == 'CLEARED' %}review-cleared{% elif s.review_status == 'ATTENTION' %}review-attention{% else %}review-unreviewed{% endif %}">{% if s.review_status == 'CLEARED' %}이상 없음{% elif s.review_status == 'ATTENTION' %}확인 필요{% else %}미검토{% endif %}</span>
    <span class="replay-card-info"><span>{{ s.grade }}학년 {{ s.class_no }}반 {{ s.number }}번 <strong>{{ s.name }}</strong></span><span>{% if s.thumbnail_id %}{{ s.snapshot_count }}장{% else %}기록 없음{% endif %}</span></span>
   </button>
  {% empty %}<p class="text-secondary">대상 학생과 저장된 감독 기록이 없습니다.</p>{% endfor %}
@@ -62,6 +78,15 @@
     <div class="d-flex justify-content-between align-items-center gap-2"><strong id="replayEventsTitle">보안 이벤트</strong><small id="replayEventSummary" class="text-secondary">기록 없음</small></div>
     <div id="replayEventList" class="replay-event-list"><span class="text-secondary small">기록된 보안 이벤트가 없습니다.</span></div>
    </section>
+   <section class="replay-events" aria-labelledby="reviewResultTitle">
+    <strong id="reviewResultTitle">교사 검토 결과</strong>
+    <div class="row g-2 mt-1">
+     <div class="col-md-3"><select id="reviewStatus" class="form-select"><option value="UNREVIEWED">미검토</option><option value="CLEARED">이상 없음</option><option value="ATTENTION">확인 필요</option></select></div>
+     <div class="col-md-7"><textarea id="reviewNote" class="form-control" rows="2" maxlength="500" placeholder="판단 근거나 추가 확인 내용을 기록하세요."></textarea></div>
+     <div class="col-md-2 d-grid"><button id="reviewSave" type="button" class="btn btn-outline-primary">검토 저장</button></div>
+    </div>
+    <small id="reviewSaveStatus" class="text-secondary"></small>
+   </section>
   </div>
   <div class="modal-footer">
    <form id="replayDeleteForm" method="post" class="me-auto" onsubmit="return confirm('선택한 학생의 해당 날짜 감독 기록을 영구 삭제할까요? 삭제 후 복구할 수 없습니다.');">
@@ -77,8 +102,9 @@
  const el=id=>document.getElementById(id);
  const baseUrl="{% url 'proctor_recording' activity.id 0 %}";
  const deleteUrl="{% url 'proctor_delete_recording' activity.id 0 %}";
+ const reviewUrl="{% url 'proctor_save_review' activity.id 0 %}";
  const modalEl=el('replayModal');
- let modal, frames=[], events=[], index=0, timer=null, playing=false, downloadUrl='', generation=0, controller;
+ let modal, frames=[], events=[], currentCard=null, index=0, timer=null, playing=false, downloadUrl='', generation=0, controller;
  function pause(){playing=false;clearTimeout(timer);el('replayPlay').textContent='재생';}
  function show(){if(!frames.length)return;el('replayFrame').src=frames[index].url;el('replayTimeline').value=index;el('replayTime').textContent=new Date(frames[index].time).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+` (${index+1}/${frames.length})`;}
  function step(){if(!playing)return;if(index>=frames.length-1){pause();return;}const delay=(new Date(frames[index+1].time)-new Date(frames[index].time))/Number(el('replaySpeed').value);timer=setTimeout(()=>{index++;show();step();},Math.max(100,delay));}
@@ -91,6 +117,7 @@
   events.forEach(event=>{const button=document.createElement('button');button.type='button';button.className=`replay-event replay-event-${event.severity}`;button.textContent=`${new Date(event.time).toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul'})} · ${event.label}`;button.title=event.message||`${event.label} 시점으로 이동`;button.onclick=()=>seekToEvent(event.time);list.appendChild(button);});
  }
  async function open(card){
+  currentCard=card;
   pause();controller?.abort();controller=new AbortController();const token=++generation;
   frames=[];events=[];index=0;downloadUrl='';el('replayFrame').removeAttribute('src');el('replayTime').textContent='';el('replayTimeline').value=0;el('replaySpeed').value='1';renderEvents();
   el('replayPlay').disabled=el('replayTimeline').disabled=el('replayDownload').disabled=true;
@@ -105,6 +132,7 @@
    const response=await fetch(baseUrl.replace('/0/','/'+card.dataset.student+'/')+query,{signal:controller.signal});
    const data=await response.json();if(token!==generation)return;if(!response.ok)throw Error(data.message||'기록 조회 실패');
    frames=data.frames;events=data.events||[];downloadUrl=data.download_url+query;renderEvents();
+   el('reviewStatus').value=data.review?.status||'UNREVIEWED';el('reviewNote').value=data.review?.note||'';el('reviewSaveStatus').textContent=data.review?.reviewed_at?`마지막 저장 ${new Date(data.review.reviewed_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})}`:'';
    el('replayNotice').textContent=frames.length?`저장 화면 ${frames.length}장`:'해당 날짜에 저장된 화면이 없습니다.';
    el('replayTimeline').max=Math.max(0,frames.length-1);el('replayPlay').disabled=el('replayTimeline').disabled=el('replayDownload').disabled=el('replayDelete').disabled=!frames.length;show();
   }catch(e){if(token===generation&&e.name!=='AbortError')el('replayNotice').textContent=e.message;}
@@ -114,6 +142,12 @@
  el('replayTimeline').oninput=()=>{pause();index=Number(el('replayTimeline').value);show();};
  el('replaySpeed').onchange=()=>{clearTimeout(timer);step();};
  el('replayDownload').onclick=()=>{if(!downloadUrl)return;el('replayNotice').textContent='새 탭에서 MP4를 생성·다운로드합니다. 완료까지 시간이 걸릴 수 있습니다.';window.open(downloadUrl,'_blank','noopener');};
+ el('reviewSave').onclick=async()=>{
+  if(!currentCard)return;const button=el('reviewSave');button.disabled=true;el('reviewSaveStatus').textContent='저장 중…';
+  try{const response=await fetch(reviewUrl.replace('/0/','/'+currentCard.dataset.student+'/'),{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':document.querySelector('[name=csrfmiddlewaretoken]').value,'X-Requested-With':'XMLHttpRequest'},body:JSON.stringify({date:el('recordDate').defaultValue,status:el('reviewStatus').value,note:el('reviewNote').value})});const data=await response.json();if(!response.ok)throw Error(data.message||'검토 결과 저장 실패');currentCard.dataset.review=data.status;const badge=currentCard.querySelector('.replay-review-badge');badge.className=`replay-review-badge ${data.status==='CLEARED'?'review-cleared':data.status==='ATTENTION'?'review-attention':'review-unreviewed'}`;badge.textContent=data.label;el('reviewSaveStatus').textContent='검토 결과를 저장했습니다.';applyFilter(document.querySelector('.replay-filter.is-active')?.dataset.filter||'all');}catch(error){el('reviewSaveStatus').textContent=error.message;}finally{button.disabled=false;}
+ };
+ function applyFilter(filter){let shown=0;document.querySelectorAll('.replay-card').forEach(card=>{const away=Number(card.dataset.away)>0;const pinning=Number(card.dataset.pinning)>0;const match=filter==='all'||(filter==='risk'&&(away||pinning))||(filter==='away'&&away)||(filter==='pinning'&&pinning)||(filter==='unreviewed'&&card.dataset.review==='UNREVIEWED');card.classList.toggle('d-none',!match);if(match)shown++;});el('replayFilterCount').textContent=`${shown}명 표시`;}
+ document.querySelectorAll('.replay-filter').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.replay-filter').forEach(item=>item.classList.remove('is-active'));button.classList.add('is-active');applyFilter(button.dataset.filter);}));applyFilter('all');
  modalEl.addEventListener('hide.bs.modal',()=>{pause();generation++;controller?.abort();frames=[];events=[];el('replayFrame').removeAttribute('src');});
  window.addEventListener('pagehide',()=>{pause();controller?.abort();});
 })();

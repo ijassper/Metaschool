@@ -10,7 +10,7 @@ from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.utils import timezone
 
 from .views import proctor_replay_views as views
-from .models import ProctorEvent
+from .models import ProctorEvent, ProctorReview
 
 
 class ReplayTests(SimpleTestCase):
@@ -82,6 +82,8 @@ class ReplayTests(SimpleTestCase):
         self.assertIn('기록 삭제', source)
         self.assertIn('보안 이벤트', source)
         self.assertIn('seekToEvent', source)
+        self.assertIn('확인 필요 이벤트', source)
+        self.assertIn('교사 검토 결과', source)
 
     def test_recording_response_includes_review_events(self):
         now = timezone.now()
@@ -93,13 +95,46 @@ class ReplayTests(SimpleTestCase):
             message='화면 고정이 해제되었습니다.',
         )
         self.request.GET = {'date': now.date().isoformat()}
+        review_query = MagicMock()
+        review_query.first.return_value = None
         with patch.object(views, 'selected_recording', return_value=(activity, [])), \
-                patch.object(views, 'review_events', return_value=[event]):
+                patch.object(views, 'review_events', return_value=[event]), \
+                patch.object(views.ProctorReview.objects, 'filter', return_value=review_query):
             response = views.proctor_recording(self.request, 3, 7)
         data = json.loads(response.content)
         self.assertEqual(data['events'][0]['type'], 'PINNING_RELEASED')
         self.assertEqual(data['events'][0]['label'], '화면 고정 해제')
         self.assertEqual(data['events'][0]['severity'], 'danger')
+
+    def test_teacher_can_save_daily_review_result(self):
+        request = RequestFactory().post(
+            '/',
+            data=json.dumps({
+                'date': '2026-09-30',
+                'status': 'ATTENTION',
+                'note': '화면 고정 해제를 추가 확인함',
+            }),
+            content_type='application/json',
+        )
+        request.user = self.request.user
+        activity = SimpleNamespace(
+            target_students=MagicMock(),
+            proctor_snapshots=MagicMock(),
+            proctor_sessions=MagicMock(),
+        )
+        student = SimpleNamespace(id=7)
+        saved = SimpleNamespace(
+            status=ProctorReview.Status.ATTENTION,
+            note='화면 고정 해제를 추가 확인함',
+            reviewed_at=timezone.now(),
+            get_status_display=lambda: '확인 필요',
+        )
+        with patch.object(views, 'get_object_or_404', side_effect=[activity, student]), \
+                patch.object(views.ProctorReview.objects, 'update_or_create', return_value=(saved, True)) as update:
+            response = views.proctor_save_review(request, 3, 7)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.content)['status'], 'ATTENTION')
+        self.assertEqual(update.call_args.kwargs['defaults']['reviewer'], request.user)
 
     def test_snapshot_deletion_removes_files_and_rows(self):
         frames = [MagicMock(), MagicMock()]

@@ -1,4 +1,5 @@
 """Owner-only replay and on-demand MP4 streaming (no retained video file)."""
+import json
 import os
 import shutil
 import subprocess
@@ -20,7 +21,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from accounts.decorators import teacher_required
 from accounts.models import Student
-from ..models import Activity, ProctorEvent, ProctorSnapshot
+from ..models import Activity, ProctorEvent, ProctorReview, ProctorSnapshot
 from ..proctor_retention import delete_snapshot_files
 
 
@@ -44,7 +45,7 @@ REVIEW_EVENT_LABELS = {
 
 def review_events(activity, student_id, start, end):
     return ProctorEvent.objects.filter(
-        session__activity=activity,
+        session__activity_id=activity.id,
         session__student_id=student_id,
         created_at__gte=start,
         created_at__lt=end,
@@ -110,20 +111,28 @@ def proctor_replay(request, activity_id):
         created_at__gte=start, created_at__lt=end,
     )
     counts = recordings.order_by().values('student_id').annotate(total=Count('id'))
+    reviews = ProctorReview.objects.filter(
+        activity_id=activity_id,
+        student_id=OuterRef('pk'),
+        review_date=selected_date,
+    )
     # Preserve previously recorded students even after target roster changes.
     students = list(Student.objects.filter(
         Q(pk__in=activity.target_students.values('pk')) |
-        Q(pk__in=activity.proctor_snapshots.order_by().values('student_id'))
+        Q(pk__in=activity.proctor_snapshots.order_by().values('student_id')) |
+        Q(pk__in=activity.proctor_sessions.order_by().values('student_id'))
     ).annotate(
         thumbnail_id=Subquery(recordings.order_by('created_at', 'id').values('id')[:1]),
         snapshot_count=Subquery(counts.values('total')[:1]),
+        review_status=Subquery(reviews.values('status')[:1]),
+        review_note=Subquery(reviews.values('note')[:1]),
     ).order_by('grade', 'class_no', 'number', 'name', 'id'))
     event_totals = {}
     if students:
         event_totals = {
             row['session__student_id']: row
             for row in ProctorEvent.objects.filter(
-                session__activity=activity,
+                session__activity_id=activity_id,
                 session__student_id__in=[student.id for student in students],
                 created_at__gte=start,
                 created_at__lt=end,
@@ -155,6 +164,11 @@ def proctor_recording(request, activity_id, student_id):
     parsed = parse_date(day) if day else timezone.localdate()
     start, end = recording_day_bounds(parsed)
     events = review_events(activity, student_id, start, end)
+    review = ProctorReview.objects.filter(
+        activity_id=activity_id,
+        student_id=student_id,
+        review_date=parsed,
+    ).first()
     response = JsonResponse({'frames': [
         {'time': frame.created_at.isoformat(), 'url': reverse('proctor_snapshot_image', args=[frame.id])}
         for frame in frames
@@ -167,9 +181,55 @@ def proctor_recording(request, activity_id, student_id):
             'message': event.message,
         }
         for event in events
-    ], 'download_url': reverse('proctor_download', args=[activity_id, student_id])})
+    ], 'review': {
+        'status': review.status if review else ProctorReview.Status.UNREVIEWED,
+        'note': review.note if review else '',
+        'reviewed_at': review.reviewed_at.isoformat() if review and review.reviewed_at else None,
+    }, 'download_url': reverse('proctor_download', args=[activity_id, student_id])})
     response['Cache-Control'] = 'private, no-store'
     return response
+
+
+@login_required
+@teacher_required
+@require_POST
+def proctor_save_review(request, activity_id, student_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    student = get_object_or_404(
+        Student.objects.filter(
+            Q(pk__in=activity.target_students.values('pk')) |
+            Q(pk__in=activity.proctor_snapshots.order_by().values('student_id')) |
+            Q(pk__in=activity.proctor_sessions.order_by().values('student_id'))
+        ).distinct(),
+        id=student_id,
+    )
+    try:
+        payload = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'message': '잘못된 요청입니다.'}, status=400)
+    review_date = parse_date(str(payload.get('date', '')))
+    status = str(payload.get('status', ''))
+    allowed = {choice for choice, _ in ProctorReview.Status.choices}
+    if not review_date or status not in allowed:
+        return JsonResponse({'message': '검토 날짜 또는 상태가 올바르지 않습니다.'}, status=400)
+    note = str(payload.get('note', '')).strip()[:500]
+    review, _ = ProctorReview.objects.update_or_create(
+        activity=activity,
+        student=student,
+        review_date=review_date,
+        defaults={
+            'status': status,
+            'note': note,
+            'reviewer': request.user,
+            'reviewed_at': timezone.now() if status != ProctorReview.Status.UNREVIEWED else None,
+        },
+    )
+    return JsonResponse({
+        'status': review.status,
+        'label': review.get_status_display(),
+        'note': review.note,
+        'reviewed_at': review.reviewed_at.isoformat() if review.reviewed_at else None,
+    })
 
 
 def concat_manifest(frames):

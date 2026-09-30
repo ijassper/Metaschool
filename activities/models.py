@@ -673,6 +673,49 @@ class ProctorEvent(models.Model):
     def __str__(self):
         return f'{self.session} · {self.get_event_type_display()}'
 
+
+class ProctorReview(models.Model):
+    """교사가 날짜별 학생 감독 기록을 검토한 결과."""
+
+    class Status(models.TextChoices):
+        UNREVIEWED = 'UNREVIEWED', '미검토'
+        CLEARED = 'CLEARED', '이상 없음'
+        ATTENTION = 'ATTENTION', '확인 필요'
+
+    activity = models.ForeignKey(
+        Activity, on_delete=models.CASCADE, related_name='proctor_reviews', verbose_name='활동'
+    )
+    student = models.ForeignKey(
+        Student, on_delete=models.CASCADE, related_name='proctor_reviews', verbose_name='학생'
+    )
+    review_date = models.DateField(verbose_name='기록 날짜')
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.UNREVIEWED)
+    note = models.CharField(max_length=500, blank=True, verbose_name='검토 메모')
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='proctor_reviews',
+        verbose_name='검토자',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='검토 시각')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['activity', 'student', 'review_date'],
+                name='unique_proctor_review_day',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['activity', 'review_date', 'status'], name='proctor_review_day_idx')
+        ]
+
+    def __str__(self):
+        return f'{self.activity} · {self.student} · {self.review_date} · {self.get_status_display()}'
+
 # AI 분석 결과 모델 (다중 결과 지원)
 class AnalysisResult(models.Model):
     answer = models.ForeignKey('Answer', on_delete=models.CASCADE, related_name='analysis_results')
