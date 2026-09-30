@@ -106,7 +106,7 @@ def get_form_config(sub_menu):
             'ai_info': ['achievement_standard'], # 설계도 준수: 성취 기준 포함
             'default_q': ['수행 기술', '연습 과정', '최종 성과']
         },
-        '수업 노트/연습장': {
+        '다목적 연습장': {
             'basic': {'section': '과목명', 'title': '노트 제목/단원'},
             'detail': {'date': '작성 기한', 'content': '노트 작성 안내'},
             'textareas': [{'name': 'question', 'label': '노트 작성 안내'}],
@@ -292,6 +292,8 @@ def get_form_config(sub_menu):
     configs['한글 타자 연습'] = configs['타자 연습']
     configs['영문 타자 연습'] = configs['타자 연습']
     configs['WRITING_TYPING'] = configs['타자 연습']
+    # 이전 URL과 마이그레이션 전 데이터도 동일한 다목적 연습장 설정을 사용합니다.
+    configs['수업 노트/연습장'] = configs['다목적 연습장']
 
     # 매칭되는 소메뉴가 없을 때 사용할 기본 설정
     default_config = {

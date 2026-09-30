@@ -4,6 +4,7 @@ from .models import (
     Activity,
     ActivityAnalysisContext,
     ActivityFile,
+    CourseNotebook,
     Answer,
     FeedbackResult,
     FeedbackSession,
@@ -83,6 +84,14 @@ class ProctorReviewAdmin(admin.ModelAdmin):
     list_filter = ['status', 'review_date', 'activity']
     search_fields = ['activity__title', 'student__name', 'note']
     readonly_fields = ['updated_at']
+
+
+@admin.register(CourseNotebook)
+class CourseNotebookAdmin(admin.ModelAdmin):
+    list_display = ['title', 'subject', 'academic_year', 'semester', 'teacher', 'is_archived', 'updated_at']
+    list_filter = ['academic_year', 'semester', 'subject', 'is_archived']
+    search_fields = ['title', 'subject', 'teacher__username']
+    filter_horizontal = ['target_students']
 
 
 @admin.register(FeedbackResult)

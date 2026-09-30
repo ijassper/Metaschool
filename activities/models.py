@@ -169,7 +169,7 @@ class Activity(models.Model):
 
     @property
     def is_notebook(self):
-        return self.sub_category == '수업 노트/연습장'
+        return self.sub_category in {'다목적 연습장', '수업 노트/연습장'}
 
     @property
     def note_background_hex(self):
@@ -715,6 +715,48 @@ class ProctorReview(models.Model):
 
     def __str__(self):
         return f'{self.activity} · {self.student} · {self.review_date} · {self.get_status_display()}'
+
+
+class CourseNotebook(models.Model):
+    """과목·단원·촬영 페이지를 담는 교과 수업 노트 보관함."""
+
+    class Semester(models.TextChoices):
+        FIRST = '1', '1학기'
+        SECOND = '2', '2학기'
+        YEAR = 'YEAR', '연간'
+
+    COVER_COLOR_CHOICES = [
+        ('PURPLE', '보라'), ('BLUE', '파랑'), ('GREEN', '초록'),
+        ('ORANGE', '주황'), ('PINK', '분홍'), ('GRAY', '회색'),
+    ]
+
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='course_notebooks', verbose_name='교사',
+    )
+    title = models.CharField(max_length=120, verbose_name='노트 이름')
+    subject = models.CharField(max_length=60, verbose_name='과목명')
+    academic_year = models.PositiveSmallIntegerField(verbose_name='학년도')
+    semester = models.CharField(max_length=8, choices=Semester.choices, default=Semester.FIRST)
+    description = models.TextField(blank=True, max_length=1000, verbose_name='사용 안내')
+    cover_color = models.CharField(
+        max_length=12, choices=COVER_COLOR_CHOICES, default='PURPLE', verbose_name='표지 색상'
+    )
+    target_students = models.ManyToManyField(
+        Student, blank=True, related_name='course_notebooks', verbose_name='대상 학생'
+    )
+    is_archived = models.BooleanField(default=False, verbose_name='보관 처리')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-academic_year', 'semester', 'subject', 'title']
+        indexes = [models.Index(fields=['teacher', 'is_archived'], name='course_note_teacher_idx')]
+        verbose_name = '교과 수업 노트'
+        verbose_name_plural = '교과 수업 노트 목록'
+
+    def __str__(self):
+        return f'{self.academic_year} {self.get_semester_display()} · {self.subject} · {self.title}'
 
 # AI 분석 결과 모델 (다중 결과 지원)
 class AnalysisResult(models.Model):

@@ -534,15 +534,15 @@
                     <!-- 4. 교과 수업활동 (확장형) -->
                     <div class="menu-group">
                         <!-- 현재 페이지가 SUBJECT_ACTIVITY 계열이면 collapsed 클래스를 제거하여 화살표 방향 유지 -->
-                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category == 'SUBJECT_ACTIVITY' or cat_code == 'SUBJECT_ACTIVITY' or activity.category == 'SUBJECT_ACTIVITY' %}active{% else %}collapsed{% endif %}" 
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category == 'SUBJECT_ACTIVITY' or cat_code == 'SUBJECT_ACTIVITY' or activity.category == 'SUBJECT_ACTIVITY' or request.resolver_match.url_name == 'course_notebook_list' or request.resolver_match.url_name == 'course_notebook_create' %}active{% else %}collapsed{% endif %}"
                             data-bs-toggle="collapse" href="#subjectMenu" role="button"
-                            aria-expanded="{% if request.GET.category == 'SUBJECT_ACTIVITY' or cat_code == 'SUBJECT_ACTIVITY' or activity.category == 'SUBJECT_ACTIVITY' %}true{% else %}false{% endif %}">
+                            aria-expanded="{% if request.GET.category == 'SUBJECT_ACTIVITY' or cat_code == 'SUBJECT_ACTIVITY' or activity.category == 'SUBJECT_ACTIVITY' or request.resolver_match.url_name == 'course_notebook_list' or request.resolver_match.url_name == 'course_notebook_create' %}true{% else %}false{% endif %}">
                             <span><i class="bi bi-journal-check me-2"></i> 교과 수업활동</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
                         
                         <!-- 현재 카테고리가 SUBJECT_ACTIVITY면 자동으로 펼쳐짐(show) -->
-                        <div class="collapse {% if request.GET.category == 'SUBJECT_ACTIVITY' or cat_code == 'SUBJECT_ACTIVITY' or activity.category == 'SUBJECT_ACTIVITY' %}show{% endif %}" id="subjectMenu" data-bs-parent="#sidebarMenu">
+                        <div class="collapse {% if request.GET.category == 'SUBJECT_ACTIVITY' or cat_code == 'SUBJECT_ACTIVITY' or activity.category == 'SUBJECT_ACTIVITY' or request.resolver_match.url_name == 'course_notebook_list' or request.resolver_match.url_name == 'course_notebook_create' %}show{% endif %}" id="subjectMenu" data-bs-parent="#sidebarMenu">
                             <div class="sub-menu-list">
                                 <!-- 각 메뉴별로 category와 sub 값을 다르게 전달 -->
                                 <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=발표활동 보고서" 
@@ -557,8 +557,11 @@
                                 <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=실기활동 보고서" 
                                 class="sub-menu-item {% if request.GET.sub == '실기활동 보고서' %}active{% endif %}">실기활동 보고서</a>
 
-                                <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=수업 노트/연습장"
-                                class="sub-menu-item {% if request.GET.sub == '수업 노트/연습장' %}active{% endif %}">수업 노트/연습장</a>
+                                <a href="{% url 'course_notebook_list' %}"
+                                class="sub-menu-item {% if request.resolver_match.url_name == 'course_notebook_list' or request.resolver_match.url_name == 'course_notebook_create' %}active{% endif %}">교과 수업 노트</a>
+
+                                <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=다목적 연습장"
+                                class="sub-menu-item {% if request.GET.sub == '다목적 연습장' %}active{% endif %}">다목적 연습장</a>
                             </div>
                         </div>
                     </div>

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.course-note-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:22px}.course-note-kicker{color:#9850ad;font-size:.76rem;font-weight:850;letter-spacing:.12em}.course-note-head h2{margin:3px 0 0;font-weight:900;letter-spacing:-.04em}.course-note-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}.course-note-card{overflow:hidden;border:1px solid #e8e1ec;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(72,48,82,.06)}.course-note-cover{height:112px;padding:20px;color:#fff;background:linear-gradient(135deg,#9148aa,#cf75bd)}.course-note-cover.BLUE{background:linear-gradient(135deg,#377fc0,#72b9df)}.course-note-cover.GREEN{background:linear-gradient(135deg,#33866d,#76b993)}.course-note-cover.ORANGE{background:linear-gradient(135deg,#c76e36,#eda46b)}.course-note-cover.PINK{background:linear-gradient(135deg,#c85883,#e994ae)}.course-note-cover.GRAY{background:linear-gradient(135deg,#58616d,#89929d)}.course-note-cover small{opacity:.88}.course-note-cover h3{margin:8px 0 0;font-size:1.2rem;font-weight:850}.course-note-body{padding:16px}.course-note-meta{display:flex;justify-content:space-between;color:#756d78;font-size:.82rem}.course-note-empty{padding:64px 20px;border:1px dashed #d9cedf;border-radius:18px;text-align:center;background:#fcfafd;color:#817687}
+</style>
+<div class="container-fluid py-3 px-lg-4">
+ <header class="course-note-head">
+  <div><div class="course-note-kicker">COURSE NOTEBOOK</div><h2><i class="bi bi-journals me-2 text-primary"></i>교과 수업 노트</h2><p class="mb-0 text-secondary">과목과 단원별로 학생의 촬영 노트와 학습 기록을 관리합니다.</p></div>
+  <a href="{% url 'course_notebook_create' %}" class="btn btn-primary rounded-pill px-4 fw-bold"><i class="bi bi-plus-lg me-1"></i>새 교과 수업 노트</a>
+ </header>
+ {% if notebooks %}<div class="course-note-grid">
+ {% for notebook in notebooks %}<article class="course-note-card">
+  <div class="course-note-cover {{ notebook.cover_color }}"><small>{{ notebook.academic_year }}학년도 · {{ notebook.get_semester_display }}</small><h3>{{ notebook.subject }} · {{ notebook.title }}</h3></div>
+  <div class="course-note-body"><p class="text-secondary small mb-3">{{ notebook.description|default:'노트 사용 안내가 아직 없습니다.'|truncatechars:90 }}</p><div class="course-note-meta"><span><i class="bi bi-people me-1"></i>{{ notebook.target_students.count }}명</span><span>{{ notebook.updated_at|date:'Y.m.d' }}</span></div></div>
+ </article>{% endfor %}
+ </div>{% else %}<div class="course-note-empty"><i class="bi bi-journal-plus fs-1"></i><h4 class="mt-3 fw-bold">아직 만든 교과 수업 노트가 없습니다.</h4><p>과목과 대상 학생을 지정해 첫 번째 노트를 만들어 보세요.</p><a href="{% url 'course_notebook_create' %}" class="btn btn-primary">노트 만들기</a></div>{% endif %}
+</div>
+{% endblock %}
