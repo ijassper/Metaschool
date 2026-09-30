@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .student-note-wrap{max-width:1080px;margin:0 auto}.student-note-hero{padding:24px;border-radius:24px;background:linear-gradient(135deg,#8f4aad,#d86d9e);color:#fff;box-shadow:0 14px 34px rgba(119,61,139,.18)}
+  .capture-card{margin-top:20px;padding:24px;border:1px solid #eadfed;border-radius:22px;background:#fff;box-shadow:0 8px 25px rgba(69,45,78,.06)}
+  .capture-zone{display:block;padding:28px 18px;border:2px dashed #bd91ca;border-radius:18px;background:#fcf8fd;text-align:center;cursor:pointer}.capture-zone i{font-size:2.7rem;color:#9148aa}.capture-zone input{position:absolute;width:1px;height:1px;opacity:0}
+  .capture-preview{display:none;max-height:360px;max-width:100%;margin:16px auto 0;border-radius:14px;object-fit:contain}.note-page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}.note-page-card{overflow:hidden;border:1px solid #e8e0eb;border-radius:18px;background:#fff;box-shadow:0 5px 16px rgba(40,25,48,.06)}.note-page-card img{width:100%;height:245px;object-fit:cover;background:#f1eef2}.note-page-meta{padding:12px}.empty-pages{padding:40px 20px;border:1px dashed #d8cadc;border-radius:18px;text-align:center;color:#7c7180;background:#fff}
+  @media(max-width:600px){.student-note-wrap{padding:0}.student-note-hero,.capture-card{border-radius:18px}.student-note-hero{padding:20px}.capture-card{padding:17px}.note-page-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.note-page-card img{height:180px}}
+</style>
+<div class="container-fluid px-3 px-lg-4 py-4"><div class="student-note-wrap">
+  <section class="student-note-hero">
+    <a href="{% url 'dashboard' %}" class="text-white text-decoration-none small"><i class="bi bi-arrow-left me-1"></i>학생 대시보드</a>
+    <div class="mt-3 small opacity-75">{{ notebook.academic_year }}학년도 · {{ notebook.get_semester_display }} · {{ notebook.subject }}</div>
+    <h2 class="fw-bold mb-1">{{ notebook.title }}</h2>
+    <p class="mb-0 opacity-75">{{ notebook.description|default:'수업 중 작성한 손글씨 노트를 촬영해 보관하세요.' }}</p>
+  </section>
+
+  <section class="capture-card">
+    <div class="d-flex align-items-start justify-content-between gap-3 mb-3"><div><h4 class="fw-bold mb-1"><i class="bi bi-camera me-2 text-primary"></i>노트 촬영하기</h4><p class="text-secondary mb-0">종이 노트가 화면에 가득 차도록 밝은 곳에서 촬영해 주세요.</p></div><span class="badge rounded-pill text-bg-light">최대 12MB</span></div>
+    <form method="post" enctype="multipart/form-data">{% csrf_token %}
+      <label class="capture-zone" for="noteImage">
+        <i class="bi bi-camera-fill"></i><strong class="d-block mt-2">카메라로 촬영하거나 사진 선택</strong><span class="small text-secondary">JPG, PNG 등 이미지 파일</span>
+        <input id="noteImage" name="image" type="file" accept="image/*" capture="environment" required>
+        <img id="notePreview" class="capture-preview" alt="선택한 노트 사진 미리보기">
+      </label>
+      <div class="mt-3"><label for="noteMemo" class="form-label fw-bold">한 줄 메모 <span class="text-secondary fw-normal">(선택)</span></label><input id="noteMemo" name="memo" maxlength="200" class="form-control" placeholder="예: 조선의 건국 과정 정리"></div>
+      <button class="btn btn-primary btn-lg w-100 mt-3 fw-bold"><i class="bi bi-cloud-arrow-up me-2"></i>노트 사진 저장</button>
+    </form>
+  </section>
+
+  <section class="mt-4"><div class="d-flex align-items-center justify-content-between mb-3"><h4 class="fw-bold mb-0">내가 올린 노트</h4><span class="text-secondary">{{ pages|length }}장</span></div>
+    {% if pages %}<div class="note-page-grid">{% for page in pages %}<article class="note-page-card"><img src="{{ page.image.url }}" alt="{{ page.memo|default:'촬영 노트' }}" loading="lazy"><div class="note-page-meta"><strong class="d-block text-truncate">{{ page.memo|default:'제목 없는 노트' }}</strong><small class="text-secondary">{{ page.created_at|date:'Y. m. d. H:i' }}</small></div></article>{% endfor %}</div>
+    {% else %}<div class="empty-pages"><i class="bi bi-journal-arrow-up fs-1"></i><h5 class="fw-bold mt-2">아직 올린 노트가 없습니다.</h5><p class="mb-0">위 촬영 버튼으로 첫 번째 수업 노트를 저장해 보세요.</p></div>{% endif %}
+  </section>
+</div></div>
+<script>
+  document.getElementById('noteImage').addEventListener('change', function () {
+    const file = this.files && this.files[0];
+    const preview = document.getElementById('notePreview');
+    if (!file) { preview.style.display = 'none'; preview.removeAttribute('src'); return; }
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+  });
+</script>
+{% endblock %}

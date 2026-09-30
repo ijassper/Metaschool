@@ -758,6 +758,35 @@ class CourseNotebook(models.Model):
     def __str__(self):
         return f'{self.academic_year} {self.get_semester_display()} · {self.subject} · {self.title}'
 
+
+class CourseNotebookPage(models.Model):
+    """학생이 촬영해 올린 교과 수업 노트 한 페이지."""
+
+    notebook = models.ForeignKey(
+        CourseNotebook, on_delete=models.CASCADE,
+        related_name='pages', verbose_name='교과 수업 노트',
+    )
+    student = models.ForeignKey(
+        Student, on_delete=models.CASCADE,
+        related_name='course_notebook_pages', verbose_name='학생',
+    )
+    image = models.FileField(
+        upload_to='course_notebooks/%Y/%m/%d/', verbose_name='노트 이미지'
+    )
+    memo = models.CharField(max_length=200, blank=True, verbose_name='한 줄 메모')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['notebook', 'student', '-created_at'], name='course_page_lookup_idx'),
+        ]
+        verbose_name = '교과 수업 노트 페이지'
+        verbose_name_plural = '교과 수업 노트 페이지 목록'
+
+    def __str__(self):
+        return f'{self.notebook.title} · {self.student.name} · {self.created_at:%Y-%m-%d}'
+
 # AI 분석 결과 모델 (다중 결과 지원)
 class AnalysisResult(models.Model):
     answer = models.ForeignKey('Answer', on_delete=models.CASCADE, related_name='analysis_results')

@@ -5,6 +5,7 @@ from .models import (
     ActivityAnalysisContext,
     ActivityFile,
     CourseNotebook,
+    CourseNotebookPage,
     Answer,
     FeedbackResult,
     FeedbackSession,
@@ -92,6 +93,14 @@ class CourseNotebookAdmin(admin.ModelAdmin):
     list_filter = ['academic_year', 'semester', 'subject', 'is_archived']
     search_fields = ['title', 'subject', 'teacher__username']
     filter_horizontal = ['target_students']
+
+
+@admin.register(CourseNotebookPage)
+class CourseNotebookPageAdmin(admin.ModelAdmin):
+    list_display = ['notebook', 'student', 'memo', 'created_at']
+    list_filter = ['notebook', 'created_at']
+    search_fields = ['notebook__title', 'student__name', 'memo']
+    readonly_fields = ['created_at']
 
 
 @admin.register(FeedbackResult)

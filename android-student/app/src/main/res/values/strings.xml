@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="note_photo_chooser_title">노트 사진 촬영 또는 선택</string>
     <string name="app_name">인그리드 학생</string>
     <string name="brand_name">Ingrid</string>
     <string name="student_app">학생용 평가 앱</string>

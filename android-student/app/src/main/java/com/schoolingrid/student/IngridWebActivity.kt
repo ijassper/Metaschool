@@ -16,6 +16,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.provider.MediaStore
 import android.webkit.JavascriptInterface
 import android.view.View
 import android.view.WindowManager
@@ -23,6 +24,7 @@ import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
+import android.webkit.ValueCallback
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -31,8 +33,10 @@ import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.FileProvider
 import org.json.JSONArray
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.time.Instant
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -58,6 +62,8 @@ class IngridWebActivity : Activity() {
     private val frameEncoding = AtomicBoolean(false)
     private var secureModeAttempt = 0
     private var pinningGuideShownForPage = false
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private var pendingCameraUri: Uri? = null
     private val captureRunnable = object : Runnable {
         override fun run() {
             if (!captureActive) return
@@ -211,6 +217,42 @@ class IngridWebActivity : Activity() {
                 progressBar.progress = newProgress
                 progressBar.visibility = if (newProgress >= 100) View.GONE else View.VISIBLE
             }
+
+            override fun onShowFileChooser(
+                webView: WebView,
+                filePathCallback: ValueCallback<Array<Uri>>,
+                fileChooserParams: FileChooserParams,
+            ): Boolean {
+                fileChooserCallback?.onReceiveValue(null)
+                fileChooserCallback = filePathCallback
+
+                val photoFile = File.createTempFile("ingrid-note-", ".jpg", cacheDir)
+                pendingCameraUri = FileProvider.getUriForFile(
+                    this@IngridWebActivity,
+                    "${packageName}.fileprovider",
+                    photoFile,
+                )
+                val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+                    putExtra(MediaStore.EXTRA_OUTPUT, pendingCameraUri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                }
+                val galleryIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "image/*"
+                }
+                val chooser = Intent.createChooser(galleryIntent, getString(R.string.note_photo_chooser_title)).apply {
+                    putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(cameraIntent))
+                }
+                return try {
+                    startActivityForResult(chooser, NOTE_FILE_CHOOSER_REQUEST)
+                    true
+                } catch (_: Exception) {
+                    fileChooserCallback?.onReceiveValue(null)
+                    fileChooserCallback = null
+                    pendingCameraUri = null
+                    false
+                }
+            }
         }
 
         if (savedInstanceState == null) {
@@ -227,6 +269,24 @@ class IngridWebActivity : Activity() {
             updateCaptureContext(false)
             ProctorEventReporter.send(eventUrl, eventCsrfToken, eventCookie, "APP_FOREGROUND")
         }
+    }
+
+    @Deprecated("Deprecated in Android")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == NOTE_FILE_CHOOSER_REQUEST) {
+            val result = if (resultCode != RESULT_OK) {
+                null
+            } else if (data?.data != null) {
+                arrayOf(data.data!!)
+            } else {
+                pendingCameraUri?.let { arrayOf(it) }
+            }
+            fileChooserCallback?.onReceiveValue(result)
+            fileChooserCallback = null
+            pendingCameraUri = null
+            return
+        }
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     override fun onStop() {
@@ -697,6 +757,7 @@ class IngridWebActivity : Activity() {
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
         private const val CAPTURE_SCOPE_SECURE_APP = "SECURE_APP"
         private const val CAPTURE_INTERVAL_MS = 3_000L
+        private const val NOTE_FILE_CHOOSER_REQUEST = 4107
         private const val SECURE_MODE_CHECK_INTERVAL_MS = 500L
         private const val SECURITY_CHECK_INTERVAL_MS = 1_000L
         private const val SECURE_MODE_CHECK_LIMIT = 30

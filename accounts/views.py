@@ -35,7 +35,8 @@ from .models import Student, CustomUser, School, Persona # 학교 모델 가져�
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate # AI 생성기 관련 모델 가져오기
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import (  # 평가관리, 학생, 답안 모델 가져오기
-    Activity, Student, Answer, ActivityStudentScore, ProctorSession, ProctorSnapshot,
+    Activity, Student, Answer, ActivityStudentScore, CourseNotebook,
+    ProctorSession, ProctorSnapshot,
 )
 from activities.views.main_views import get_accessible_students, get_student_tree
 from activities.proctor_retention import get_cleanup_status, schedule_cleanup_after_admin_login
@@ -396,6 +397,10 @@ def dashboard(request):
 
             context.update({
                 'student': student_profile,
+                'student_course_notebooks': CourseNotebook.objects.filter(
+                    target_students=student_profile,
+                    is_archived=False,
+                ).distinct(),
                 'category_blocks': category_blocks,
                 'activities': activities_list,
                 'completed_count': completed_count,

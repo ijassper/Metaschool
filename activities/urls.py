@@ -10,11 +10,12 @@ from .views.ai_views import *
 from .views.export_views import *
 from .views.typing_views import *
 from .views.proctor_replay_views import proctor_replay, proctor_recording, proctor_download, proctor_delete_recording, proctor_save_review, proctor_review_csv
-from .views.course_notebook_views import course_notebook_create, course_notebook_list
+from .views.course_notebook_views import course_notebook_create, course_notebook_list, student_course_notebook
 
 urlpatterns = [
     path('course-notebooks/', course_notebook_list, name='course_notebook_list'),
     path('course-notebooks/create/', course_notebook_create, name='course_notebook_create'),
+    path('course-notebooks/<int:notebook_id>/student/', student_course_notebook, name='student_course_notebook'),
     path('result/<int:activity_id>/proctor/replay/', proctor_replay, name='proctor_replay'),
     path('result/<int:activity_id>/proctor/recording/<int:student_id>/', proctor_recording, name='proctor_recording'),
     path('result/<int:activity_id>/proctor/download/<int:student_id>/', proctor_download, name='proctor_download'),

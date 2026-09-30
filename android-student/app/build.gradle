@@ -16,8 +16,8 @@ android {
         applicationId "com.schoolingrid.student"
         minSdk 26
         targetSdk 37
-        versionCode 17
-        versionName "0.2.6"
+        versionCode 18
+        versionName "0.2.7"
     }
 
     compileOptions {
@@ -45,6 +45,10 @@ android {
             }
         }
     }
+}
+
+dependencies {
+    implementation "androidx.core:core:1.15.0"
 }
 
 tasks.register("stageReleaseApk", Copy) {

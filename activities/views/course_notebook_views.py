@@ -1,12 +1,14 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.shortcuts import redirect, render
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from accounts.decorators import teacher_required
-from ..models import CourseNotebook
+from accounts.models import Student
+from ..models import CourseNotebook, CourseNotebookPage
 from .main_views import get_accessible_student_ids, get_student_tree
 
 
@@ -71,4 +73,54 @@ def course_notebook_create(request):
         'semester_choices': CourseNotebook.Semester.choices,
         'cover_choices': CourseNotebook.COVER_COLOR_CHOICES,
         'selected_students': {str(value) for value in request.POST.getlist('target_students')},
+    })
+
+
+def _student_profile_for(user):
+    student = Student.objects.filter(email=user.email).first()
+    return student or getattr(user, 'student', None)
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def student_course_notebook(request, notebook_id):
+    if getattr(request.user, 'role', None) != 'STUDENT':
+        raise Http404
+    student = _student_profile_for(request.user)
+    if not student:
+        messages.error(request, '학생 정보가 연결되어 있지 않습니다.')
+        return redirect('dashboard')
+
+    notebook = get_object_or_404(
+        CourseNotebook.objects.select_related('teacher'),
+        id=notebook_id,
+        target_students=student,
+        is_archived=False,
+    )
+    if request.method == 'POST':
+        uploaded = request.FILES.get('image')
+        memo = request.POST.get('memo', '').strip()
+        if not uploaded:
+            messages.error(request, '촬영한 노트 사진을 선택해 주세요.')
+        elif not (getattr(uploaded, 'content_type', '') or '').startswith('image/'):
+            messages.error(request, '이미지 파일만 업로드할 수 있습니다.')
+        elif uploaded.size > 12 * 1024 * 1024:
+            messages.error(request, '사진 한 장의 크기는 12MB 이하여야 합니다.')
+        elif len(memo) > 200:
+            messages.error(request, '메모는 200자 이내로 입력해 주세요.')
+        else:
+            CourseNotebookPage.objects.create(
+                notebook=notebook,
+                student=student,
+                image=uploaded,
+                memo=memo,
+            )
+            messages.success(request, '노트 사진을 저장했습니다.')
+            return redirect('student_course_notebook', notebook_id=notebook.id)
+
+    pages = notebook.pages.filter(student=student)
+    return render(request, 'activities/student_course_notebook.html', {
+        'notebook': notebook,
+        'student': student,
+        'pages': pages,
     })
