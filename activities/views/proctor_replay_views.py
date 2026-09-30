@@ -20,7 +20,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from accounts.decorators import teacher_required
 from accounts.models import Student
-from ..models import Activity, ProctorSnapshot
+from ..models import Activity, ProctorEvent, ProctorSnapshot
 from ..proctor_retention import delete_snapshot_files
 
 
@@ -30,6 +30,26 @@ def recording_day_bounds(day):
     start = timezone.make_aware(datetime.combine(day, time.min), zone)
     end = timezone.make_aware(datetime.combine(day + timedelta(days=1), time.min), zone)
     return start.astimezone(datetime_timezone.utc), end.astimezone(datetime_timezone.utc)
+
+
+REVIEW_EVENT_LABELS = {
+    ProctorEvent.EventType.APP_BACKGROUND: ('앱 이탈', 'danger'),
+    ProctorEvent.EventType.APP_FOREGROUND: ('앱 복귀', 'success'),
+    ProctorEvent.EventType.PINNING_RELEASED: ('화면 고정 해제', 'danger'),
+    ProctorEvent.EventType.SECURITY_ACTIVE: ('보안 정상', 'success'),
+    ProctorEvent.EventType.CAPTURE_STOPPED: ('녹화 중단', 'danger'),
+    ProctorEvent.EventType.ERROR: ('녹화 오류', 'danger'),
+}
+
+
+def review_events(activity, student_id, start, end):
+    return ProctorEvent.objects.filter(
+        session__activity=activity,
+        session__student_id=student_id,
+        created_at__gte=start,
+        created_at__lt=end,
+        event_type__in=REVIEW_EVENT_LABELS,
+    ).order_by('created_at', 'id')
 
 
 def selected_recording(request, activity_id, student_id):
@@ -91,13 +111,31 @@ def proctor_replay(request, activity_id):
     )
     counts = recordings.order_by().values('student_id').annotate(total=Count('id'))
     # Preserve previously recorded students even after target roster changes.
-    students = Student.objects.filter(
+    students = list(Student.objects.filter(
         Q(pk__in=activity.target_students.values('pk')) |
         Q(pk__in=activity.proctor_snapshots.order_by().values('student_id'))
     ).annotate(
         thumbnail_id=Subquery(recordings.order_by('created_at', 'id').values('id')[:1]),
         snapshot_count=Subquery(counts.values('total')[:1]),
-    ).order_by('grade', 'class_no', 'number', 'name', 'id')
+    ).order_by('grade', 'class_no', 'number', 'name', 'id'))
+    event_totals = {}
+    if students:
+        event_totals = {
+            row['session__student_id']: row
+            for row in ProctorEvent.objects.filter(
+                session__activity=activity,
+                session__student_id__in=[student.id for student in students],
+                created_at__gte=start,
+                created_at__lt=end,
+            ).values('session__student_id').annotate(
+                away_count=Count('id', filter=Q(event_type=ProctorEvent.EventType.APP_BACKGROUND)),
+                pinning_count=Count('id', filter=Q(event_type=ProctorEvent.EventType.PINNING_RELEASED)),
+            )
+        }
+    for student in students:
+        totals = event_totals.get(student.id, {})
+        student.away_count = totals.get('away_count', 0)
+        student.pinning_count = totals.get('pinning_count', 0)
     response = render(request, 'activities/proctor_replay.html', {
         'activity': activity, 'students': students, 'selected_date': selected_date.isoformat(),
     })
@@ -110,12 +148,25 @@ def proctor_replay(request, activity_id):
 @require_GET
 def proctor_recording(request, activity_id, student_id):
     try:
-        _, frames = selected_recording(request, activity_id, student_id)
+        activity, frames = selected_recording(request, activity_id, student_id)
     except ValueError as error:
         return JsonResponse({'message': str(error)}, status=400)
+    day = request.GET.get('date', '')
+    parsed = parse_date(day) if day else timezone.localdate()
+    start, end = recording_day_bounds(parsed)
+    events = review_events(activity, student_id, start, end)
     response = JsonResponse({'frames': [
         {'time': frame.created_at.isoformat(), 'url': reverse('proctor_snapshot_image', args=[frame.id])}
         for frame in frames
+    ], 'events': [
+        {
+            'time': (event.client_occurred_at or event.created_at).isoformat(),
+            'type': event.event_type,
+            'label': REVIEW_EVENT_LABELS[event.event_type][0],
+            'severity': REVIEW_EVENT_LABELS[event.event_type][1],
+            'message': event.message,
+        }
+        for event in events
     ], 'download_url': reverse('proctor_download', args=[activity_id, student_id])})
     response['Cache-Control'] = 'private, no-store'
     return response

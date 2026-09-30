@@ -10,6 +10,7 @@ from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.utils import timezone
 
 from .views import proctor_replay_views as views
+from .models import ProctorEvent
 
 
 class ReplayTests(SimpleTestCase):
@@ -79,6 +80,26 @@ class ReplayTests(SimpleTestCase):
         source = get_template('activities/proctor_replay.html').template.source
         self.assertIn('MP4 다운로드', source)
         self.assertIn('기록 삭제', source)
+        self.assertIn('보안 이벤트', source)
+        self.assertIn('seekToEvent', source)
+
+    def test_recording_response_includes_review_events(self):
+        now = timezone.now()
+        activity = SimpleNamespace(id=3)
+        event = SimpleNamespace(
+            event_type=ProctorEvent.EventType.PINNING_RELEASED,
+            client_occurred_at=now,
+            created_at=now,
+            message='화면 고정이 해제되었습니다.',
+        )
+        self.request.GET = {'date': now.date().isoformat()}
+        with patch.object(views, 'selected_recording', return_value=(activity, [])), \
+                patch.object(views, 'review_events', return_value=[event]):
+            response = views.proctor_recording(self.request, 3, 7)
+        data = json.loads(response.content)
+        self.assertEqual(data['events'][0]['type'], 'PINNING_RELEASED')
+        self.assertEqual(data['events'][0]['label'], '화면 고정 해제')
+        self.assertEqual(data['events'][0]['severity'], 'danger')
 
     def test_snapshot_deletion_removes_files_and_rows(self):
         frames = [MagicMock(), MagicMock()]
