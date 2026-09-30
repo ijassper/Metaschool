@@ -1758,6 +1758,7 @@
     const charMaxLength = Number.isFinite(parsedCharMaxLength) ? parsedCharMaxLength : 99999;
     const deadlineValue = "{{ activity.deadline|localtime|date:'c' }}";
     const deadlineAt = deadlineValue ? new Date(deadlineValue) : null;
+    let deadlineSecurityReleased = false;
     let answerId = "{{ answer_id }}"; 
     const csrfToken = '{{ csrf_token }}';
     const PROCTOR_MODE = {{ activity.proctor_mode|yesno:"true,false" }};
@@ -3403,6 +3404,11 @@
         if (diff <= 0) {
             remainingTimeElement.innerHTML = '<i class="bi bi-exclamation-circle"></i> 마감됨';
             remainingTimeElement.classList.add('text-danger');
+            if (!deadlineSecurityReleased && testStarted && IS_INGRID_ANDROID_APP &&
+                typeof window.IngridAndroid.stopScreenCapture === 'function') {
+                deadlineSecurityReleased = true;
+                window.IngridAndroid.stopScreenCapture();
+            }
             return;
         }
 
@@ -3683,6 +3689,10 @@
         const startButton = document.getElementById('start-btn');
         if (startButton) {
             startButton.addEventListener('click', startTest);
+            if (IS_INGRID_ANDROID_APP && EXAM_MODE.startsWith('CLOSED_') &&
+                typeof window.IngridAndroid.showAppPinningGuide === 'function') {
+                window.IngridAndroid.showAppPinningGuide();
+            }
             const consent = document.getElementById('proctorPrivacyConsent');
             if (consent) {
                 startButton.disabled = !consent.checked;

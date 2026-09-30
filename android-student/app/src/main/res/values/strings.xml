@@ -27,6 +27,10 @@
     <string name="capture_permission_required">화면 공유를 승인해야 시험을 시작할 수 있습니다.</string>
     <string name="secure_mode_required">화면 고정을 승인해야 시험을 시작할 수 있습니다. 기기 설정에서 화면 고정 기능을 켠 뒤 다시 시도해 주세요.</string>
     <string name="secure_mode_external_blocked">시험 중에는 외부 페이지를 열 수 없습니다.</string>
+    <string name="pinning_guide_title">시험 전 필수 보안 설정</string>
+    <string name="pinning_guide_message">이 폐쇄형 평가는 Android의 앱 고정 기능을 사용합니다.\n\n설정 → 보안 및 개인정보 보호 → 기타 보안 설정 → 앱 고정을 켜주세요. 가능하면 고정 해제 시 잠금화면 사용도 함께 켜주세요.\n\n이미 설정했다면 아래의 ‘설정 완료’를 누르세요.</string>
+    <string name="pinning_guide_open_settings">보안 설정 열기</string>
+    <string name="pinning_guide_already_enabled">설정 완료</string>
     <string name="invalid_capture_url">유효하지 않은 감독 서버 주소입니다.</string>
     <string name="update_available_title">새 버전이 준비되었습니다</string>
     <string name="update_available_body">인그리드 학생 앱 %1$s 버전을 설치할 수 있습니다. 감독 기능을 안정적으로 사용하려면 업데이트해 주세요.</string>

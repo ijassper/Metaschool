@@ -81,6 +81,8 @@ class AndroidExamSecurityContractTests(SimpleTestCase):
 
         self.assertIn('requestExamScreenCapture', source)
         self.assertIn('requestExamSecurity', source)
+        self.assertIn('showAppPinningGuide', source)
+        self.assertIn('deadlineSecurityReleased', source)
         self.assertIn('PROCTOR_CAPTURE_SCOPE,', source)
         self.assertIn('EXAM_MODE,', source)
 

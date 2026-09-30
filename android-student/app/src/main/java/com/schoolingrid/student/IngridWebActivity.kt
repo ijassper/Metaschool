@@ -3,6 +3,7 @@ package com.schoolingrid.student
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityManager
+import android.app.AlertDialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -14,6 +15,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.webkit.JavascriptInterface
 import android.view.View
 import android.view.WindowManager
@@ -51,6 +53,7 @@ class IngridWebActivity : Activity() {
     private val captureExecutor = Executors.newSingleThreadExecutor()
     private val frameEncoding = AtomicBoolean(false)
     private var secureModeAttempt = 0
+    private var pinningGuideShownForPage = false
     private val captureRunnable = object : Runnable {
         override fun run() {
             if (!captureActive) return
@@ -104,6 +107,7 @@ class IngridWebActivity : Activity() {
             if (kioskModeActive || awaitingCapturePermission) {
                 Toast.makeText(this, R.string.secure_mode_external_blocked, Toast.LENGTH_SHORT).show()
             } else {
+                stopExamSession()
                 finish()
             }
         }
@@ -132,6 +136,8 @@ class IngridWebActivity : Activity() {
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                 progressBar.visibility = View.VISIBLE
+                pinningGuideShownForPage = false
+                if (hasActiveExamSession() && !isExamPageUrl(url)) stopExamSession()
             }
 
             override fun onPageFinished(view: WebView, url: String) {
@@ -207,6 +213,7 @@ class IngridWebActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (isFinishing) stopExamSession()
         captureHandler.removeCallbacksAndMessages(null)
         captureExecutor.shutdownNow()
         if (captureStateReceiverRegistered) {
@@ -362,6 +369,25 @@ class IngridWebActivity : Activity() {
             }
         }
 
+        @JavascriptInterface
+        fun showAppPinningGuide() {
+            runOnUiThread {
+                if (pinningGuideShownForPage || isFinishing) return@runOnUiThread
+                pinningGuideShownForPage = true
+                AlertDialog.Builder(this@IngridWebActivity)
+                    .setTitle(R.string.pinning_guide_title)
+                    .setMessage(R.string.pinning_guide_message)
+                    .setPositiveButton(R.string.pinning_guide_open_settings) { _, _ ->
+                        val intent = Intent(Settings.ACTION_SECURITY_SETTINGS)
+                        runCatching { startActivity(intent) }.onFailure {
+                            startActivity(Intent(Settings.ACTION_SETTINGS))
+                        }
+                    }
+                    .setNegativeButton(R.string.pinning_guide_already_enabled, null)
+                    .show()
+            }
+        }
+
         private fun beginScreenCapture(
             uploadUrl: String,
             eventUrl: String,
@@ -413,14 +439,29 @@ class IngridWebActivity : Activity() {
         @JavascriptInterface
         fun stopScreenCapture() {
             runOnUiThread {
-                startService(Intent(this@IngridWebActivity, ProctorCaptureService::class.java).apply {
-                    action = ProctorCaptureService.ACTION_STOP
-                })
-                captureActive = false
-                reportedBackground = false
-                leaveSecureMode()
+                stopExamSession()
             }
         }
+    }
+
+    private fun hasActiveExamSession(): Boolean {
+        return captureActive || kioskModeActive || screenshotProtectionActive || awaitingCapturePermission
+    }
+
+    private fun isExamPageUrl(url: String): Boolean {
+        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
+        return isIngridHost(uri.host) && uri.path.orEmpty().startsWith(EXAM_PATH_PREFIX)
+    }
+
+    private fun stopExamSession() {
+        if (captureActive) {
+            startService(Intent(this, ProctorCaptureService::class.java).apply {
+                action = ProctorCaptureService.ACTION_STOP
+            })
+        }
+        captureActive = false
+        reportedBackground = false
+        leaveSecureMode()
     }
 
     private fun waitForSecureMode(
@@ -590,6 +631,7 @@ class IngridWebActivity : Activity() {
     companion object {
         private const val INGRID_ORIGIN = "https://schoolingrid.com"
         private const val LOGIN_URL = "https://schoolingrid.com/accounts/login/"
+        private const val EXAM_PATH_PREFIX = "/activities/take/"
         private const val CAPTURE_SCOPE_FULL_DISPLAY = "FULL_DISPLAY"
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
         private const val CAPTURE_SCOPE_SECURE_APP = "SECURE_APP"
