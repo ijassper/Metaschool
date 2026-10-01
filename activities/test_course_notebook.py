@@ -1,8 +1,14 @@
 from django.template.loader import get_template
+from django.test import RequestFactory
 from django.test import SimpleTestCase
+from django.urls import reverse
+from django.utils import timezone
+from types import SimpleNamespace
+from unittest.mock import patch
+import json
 
 from .models import Activity, CourseNotebook, CourseNotebookPage
-from .views.main_views import get_form_config
+from .views.main_views import get_form_config, get_menu_items
 
 
 class CourseNotebookUiTests(SimpleTestCase):
@@ -30,3 +36,35 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('노트 사진 저장', student_source)
         self.assertEqual(CourseNotebook.Semester.FIRST, '1')
         self.assertEqual(CourseNotebookPage._meta.get_field('memo').max_length, 200)
+
+    def test_course_notebook_sidebar_uses_mega_menu_metadata(self):
+        source = get_template('base.html').template.source
+        self.assertIn('data-mega-category="COURSE_NOTEBOOK"', source)
+        self.assertIn('link.dataset.megaCategory', source)
+
+    def test_course_notebook_mega_menu_returns_teacher_notebooks(self):
+        request = RequestFactory().get('/activities/get-menu-items/', {
+            'category': 'COURSE_NOTEBOOK',
+            'sub': '교과 수업 노트',
+        })
+        request.user = SimpleNamespace(
+            is_authenticated=True,
+            is_approved=True,
+            role='TEACHER',
+        )
+        notebook = SimpleNamespace(
+            id=31,
+            title='우리 반 역사 노트',
+            subject='역사',
+            updated_at=timezone.now(),
+            target_students=SimpleNamespace(count=lambda: 25),
+        )
+        with patch('activities.views.main_views.CourseNotebook.objects') as manager:
+            manager.filter.return_value.prefetch_related.return_value.order_by.return_value = [notebook]
+            response = get_menu_items(request)
+
+        payload = json.loads(response.content)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload['items'][0]['activity_name'], '우리 반 역사 노트')
+        self.assertEqual(payload['items'][0]['detail_topic'], '역사 · 대상 학생 25명')
+        self.assertEqual(payload['items'][0]['url'], f"{reverse('course_notebook_list')}#course-notebook-31")

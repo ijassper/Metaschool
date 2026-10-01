@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from urllib.parse import urlencode
 from accounts.models import Student
-from ..models import Activity  # [중요] 한 단계 위 폴더의 models에서 가져옴
+from ..models import Activity, CourseNotebook  # [중요] 한 단계 위 폴더의 models에서 가져옴
 
 # [중요] 교사 권한 데코레이터 가져오기 (accounts 앱에서)
 from accounts.decorators import teacher_required
@@ -370,6 +370,30 @@ def get_menu_items(request):
     category = (request.GET.get('category') or '').strip()
     sub_category = (request.GET.get('sub') or '').strip()
     valid_categories = {code for code, _label in Activity.CATEGORY_CHOICES}
+
+    if category == 'COURSE_NOTEBOOK' and sub_category == '교과 수업 노트':
+        notebooks = (
+            CourseNotebook.objects.filter(teacher=request.user, is_archived=False)
+            .prefetch_related('target_students')
+            .order_by('-updated_at')
+        )
+        list_url = reverse('course_notebook_list')
+        return JsonResponse({
+            'status': 'success',
+            'category': category,
+            'sub': sub_category,
+            'list_url': list_url,
+            'items': [
+                {
+                    'id': notebook.id,
+                    'activity_name': notebook.title,
+                    'detail_topic': f'{notebook.subject} · 대상 학생 {notebook.target_students.count()}명',
+                    'created_date': timezone.localtime(notebook.updated_at).strftime('%Y-%m-%d'),
+                    'url': f'{list_url}#course-notebook-{notebook.id}',
+                }
+                for notebook in notebooks
+            ],
+        })
 
     if category not in valid_categories or not sub_category:
         return JsonResponse(

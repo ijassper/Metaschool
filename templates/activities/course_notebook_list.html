@@ -9,7 +9,7 @@
   <a href="{% url 'course_notebook_create' %}" class="btn btn-primary rounded-pill px-4 fw-bold"><i class="bi bi-plus-lg me-1"></i>새 교과 수업 노트</a>
  </header>
  {% if notebooks %}<div class="course-note-grid">
- {% for notebook in notebooks %}<article class="course-note-card">
+ {% for notebook in notebooks %}<article id="course-notebook-{{ notebook.id }}" class="course-note-card">
   <div class="course-note-cover {{ notebook.cover_color }}"><small>{{ notebook.academic_year }}학년도 · {{ notebook.get_semester_display }}</small><h3>{{ notebook.subject }} · {{ notebook.title }}</h3></div>
   <div class="course-note-body"><p class="text-secondary small mb-3">{{ notebook.description|default:'노트 사용 안내가 아직 없습니다.'|truncatechars:90 }}</p><div class="course-note-meta"><span><i class="bi bi-people me-1"></i>{{ notebook.target_students.count }}명</span><span>{{ notebook.updated_at|date:'Y.m.d' }}</span></div></div>
  </article>{% endfor %}

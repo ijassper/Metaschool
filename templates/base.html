@@ -557,7 +557,7 @@
                                 <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=실기활동 보고서" 
                                 class="sub-menu-item {% if request.GET.sub == '실기활동 보고서' %}active{% endif %}">실기활동 보고서</a>
 
-                                <a href="{% url 'course_notebook_list' %}"
+                                <a href="{% url 'course_notebook_list' %}" data-mega-category="COURSE_NOTEBOOK" data-mega-sub="교과 수업 노트"
                                 class="sub-menu-item {% if request.resolver_match.url_name == 'course_notebook_list' or request.resolver_match.url_name == 'course_notebook_create' %}active{% endif %}">교과 수업 노트</a>
 
                                 <a href="{% url 'unified_list' %}?category=SUBJECT_ACTIVITY&sub=다목적 연습장"
@@ -861,9 +861,10 @@
             function menuInfo(link) {
                 try {
                     const url = new URL(link.href, window.location.origin);
-                    const category = url.searchParams.get('category');
-                    const sub = url.searchParams.get('sub');
-                    if (url.pathname !== '{% url "unified_list" %}' || !category || !sub) return null;
+                    const category = link.dataset.megaCategory || url.searchParams.get('category');
+                    const sub = link.dataset.megaSub || url.searchParams.get('sub');
+                    const isDirectMegaMenu = Boolean(link.dataset.megaCategory && link.dataset.megaSub);
+                    if ((!isDirectMegaMenu && url.pathname !== '{% url "unified_list" %}') || !category || !sub) return null;
                     return {category: category, sub: sub, listUrl: url.pathname + url.search};
                 } catch (error) {
                     return null;
