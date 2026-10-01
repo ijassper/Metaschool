@@ -68,3 +68,9 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertEqual(payload['items'][0]['activity_name'], '우리 반 역사 노트')
         self.assertEqual(payload['items'][0]['detail_topic'], '역사 · 대상 학생 25명')
         self.assertEqual(payload['items'][0]['url'], f"{reverse('course_notebook_list')}#course-notebook-31")
+
+    def test_student_dashboard_compacts_welcome_card_on_tablets(self):
+        source = get_template('activities/student_dashboard.html').template.source
+        self.assertIn('(min-width: 769px) and (max-width: 1366px) and (pointer: coarse)', source)
+        self.assertIn('student-dashboard-shell', source)
+        self.assertIn('padding: 14px 24px', source)

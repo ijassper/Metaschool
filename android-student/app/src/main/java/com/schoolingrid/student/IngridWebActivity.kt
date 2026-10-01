@@ -29,7 +29,6 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -147,15 +146,6 @@ class IngridWebActivity : Activity() {
                 OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                 OnBackInvokedCallback { handleBackNavigation() },
             )
-        }
-
-        findViewById<ImageButton>(R.id.closeWebButton).setOnClickListener {
-            if (kioskModeActive || awaitingCapturePermission) {
-                Toast.makeText(this, R.string.secure_mode_external_blocked, Toast.LENGTH_SHORT).show()
-            } else {
-                stopExamSession()
-                finish()
-            }
         }
 
         CookieManager.getInstance().apply {

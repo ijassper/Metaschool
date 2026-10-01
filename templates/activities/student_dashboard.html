@@ -426,9 +426,62 @@
       grid-template-columns: minmax(0, 1fr) auto auto;
     }
   }
+
+  /* 태블릿 가로 화면: 환영 카드의 세로 점유를 줄여 활동 카드를 위로 끌어올립니다. */
+  @media (min-width: 769px) and (max-width: 1366px) and (pointer: coarse) {
+    .student-dashboard-shell {
+      padding-top: 12px !important;
+      padding-bottom: 16px !important;
+    }
+
+    .student-hero {
+      padding: 14px 24px;
+      margin-bottom: 16px;
+      border-radius: 20px;
+      box-shadow: 0 9px 24px rgba(142, 68, 173, 0.16);
+    }
+
+    .profile-info h2 {
+      font-size: 1.45rem;
+      margin-bottom: 2px;
+    }
+
+    .profile-info p {
+      margin-bottom: 0;
+      font-size: 0.9rem;
+    }
+
+    .profile-info .mt-4 {
+      margin-top: 0.55rem !important;
+    }
+
+    .profile-info .btn {
+      padding-top: 3px;
+      padding-bottom: 3px;
+      font-size: 0.76rem;
+    }
+
+    .quick-stats {
+      gap: 8px;
+    }
+
+    .stat-box {
+      width: 76px;
+      padding: 9px 8px;
+      border-radius: 14px;
+    }
+
+    .stat-box .num {
+      font-size: 1.35rem;
+    }
+
+    .stat-box .lab {
+      font-size: 0.68rem;
+    }
+  }
 </style>
 
-<div class="container-fluid px-4 py-4">
+<div class="container-fluid px-4 py-4 student-dashboard-shell">
   <!-- 1. 상단 히어로 배너 -->
   <div class="student-hero">
     <div class="profile-info">
