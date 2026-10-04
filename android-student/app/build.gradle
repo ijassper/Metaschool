@@ -16,8 +16,8 @@ android {
         applicationId "com.schoolingrid.student"
         minSdk 26
         targetSdk 37
-        versionCode 20
-        versionName "0.2.9"
+        versionCode 21
+        versionName "0.3.0"
     }
 
     compileOptions {
@@ -49,6 +49,7 @@ android {
 
 dependencies {
     implementation "androidx.core:core:1.15.0"
+    implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
 }
 
 tasks.register("stageReleaseApk", Copy) {

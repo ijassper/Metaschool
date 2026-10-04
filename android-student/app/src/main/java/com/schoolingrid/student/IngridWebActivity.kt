@@ -33,6 +33,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.FileProvider
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import org.json.JSONArray
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -45,6 +46,7 @@ class IngridWebActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var captureStatusText: TextView
+    private lateinit var dashboardSwipeRefresh: SwipeRefreshLayout
     private var captureActive = false
     private var awaitingCapturePermission = false
     private var kioskModeActive = false
@@ -58,12 +60,23 @@ class IngridWebActivity : Activity() {
     private var eventCookie = ""
     private var captureStateReceiverRegistered = false
     private val captureHandler = Handler(Looper.getMainLooper())
+    private val dashboardRefreshHandler = Handler(Looper.getMainLooper())
     private val captureExecutor = Executors.newSingleThreadExecutor()
     private val frameEncoding = AtomicBoolean(false)
     private var secureModeAttempt = 0
     private var pinningGuideShownForPage = false
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var pendingCameraUri: Uri? = null
+    private var pageLoading = false
+    private var returningFromBackground = false
+    private val dashboardRefreshRunnable = object : Runnable {
+        override fun run() {
+            if (isDashboardPage() && !pageLoading && !hasActiveExamSession()) {
+                webView.reload()
+            }
+            dashboardRefreshHandler.postDelayed(this, DASHBOARD_REFRESH_INTERVAL_MS)
+        }
+    }
     private val captureRunnable = object : Runnable {
         override fun run() {
             if (!captureActive) return
@@ -141,6 +154,18 @@ class IngridWebActivity : Activity() {
         webView = findViewById(R.id.ingridWebView)
         progressBar = findViewById(R.id.webProgress)
         captureStatusText = findViewById(R.id.captureStatusText)
+        dashboardSwipeRefresh = findViewById(R.id.dashboardSwipeRefresh)
+        dashboardSwipeRefresh.setColorSchemeResources(R.color.ingrid_purple)
+        dashboardSwipeRefresh.setOnChildScrollUpCallback { _, _ ->
+            webView.canScrollVertically(-1)
+        }
+        dashboardSwipeRefresh.setOnRefreshListener {
+            if (isDashboardPage() && !pageLoading && !hasActiveExamSession()) {
+                webView.reload()
+            } else {
+                dashboardSwipeRefresh.isRefreshing = false
+            }
+        }
         registerCaptureStateReceiver()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             onBackInvokedDispatcher.registerOnBackInvokedCallback(
@@ -172,6 +197,8 @@ class IngridWebActivity : Activity() {
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                pageLoading = true
+                dashboardSwipeRefresh.isEnabled = isDashboardPage(url)
                 progressBar.visibility = View.VISIBLE
                 pinningGuideShownForPage = false
                 updateAuthenticatedScreenshotProtection(url)
@@ -179,6 +206,9 @@ class IngridWebActivity : Activity() {
             }
 
             override fun onPageFinished(view: WebView, url: String) {
+                pageLoading = false
+                dashboardSwipeRefresh.isRefreshing = false
+                dashboardSwipeRefresh.isEnabled = isDashboardPage(url)
                 CookieManager.getInstance().flush()
                 updateAuthenticatedScreenshotProtection(url)
             }
@@ -257,6 +287,15 @@ class IngridWebActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        dashboardRefreshHandler.removeCallbacks(dashboardRefreshRunnable)
+        if (returningFromBackground && isDashboardPage() && !pageLoading && !hasActiveExamSession()) {
+            webView.reload()
+        }
+        returningFromBackground = false
+        dashboardRefreshHandler.postDelayed(
+            dashboardRefreshRunnable,
+            DASHBOARD_REFRESH_INTERVAL_MS,
+        )
         if (captureActive && reportedBackground) {
             reportedBackground = false
             updateCaptureContext(false)
@@ -283,6 +322,8 @@ class IngridWebActivity : Activity() {
     }
 
     override fun onStop() {
+        returningFromBackground = true
+        dashboardRefreshHandler.removeCallbacks(dashboardRefreshRunnable)
         if (captureActive && !awaitingCapturePermission && !isChangingConfigurations) {
             reportedBackground = true
             updateCaptureContext(true)
@@ -313,6 +354,7 @@ class IngridWebActivity : Activity() {
     override fun onDestroy() {
         if (isFinishing) stopExamSession()
         captureHandler.removeCallbacksAndMessages(null)
+        dashboardRefreshHandler.removeCallbacksAndMessages(null)
         captureExecutor.shutdownNow()
         if (captureStateReceiverRegistered) {
             unregisterReceiver(captureStateReceiver)
@@ -544,6 +586,11 @@ class IngridWebActivity : Activity() {
         return isIngridHost(uri.host) && uri.path.orEmpty().startsWith(EXAM_PATH_PREFIX)
     }
 
+    private fun isDashboardPage(url: String? = webView.url): Boolean {
+        val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull() ?: return false
+        return isIngridHost(uri.host) && uri.path.orEmpty().trimEnd('/') == DASHBOARD_PATH
+    }
+
     private fun updateAuthenticatedScreenshotProtection(url: String) {
         val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return
         if (!isIngridHost(uri.host)) return
@@ -767,6 +814,7 @@ class IngridWebActivity : Activity() {
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"
         private const val CAPTURE_SCOPE_SECURE_APP = "SECURE_APP"
         private const val CAPTURE_INTERVAL_MS = 3_000L
+        private const val DASHBOARD_REFRESH_INTERVAL_MS = 30_000L
         private const val NOTE_FILE_CHOOSER_REQUEST = 4107
         private const val SECURE_MODE_CHECK_INTERVAL_MS = 500L
         private const val SECURITY_CHECK_INTERVAL_MS = 1_000L
