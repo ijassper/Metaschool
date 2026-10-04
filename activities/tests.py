@@ -96,6 +96,12 @@ class AndroidExamSecurityContractTests(SimpleTestCase):
         self.assertIn("sendLog('CLIPBOARD')", source)
         self.assertIn('blocked_composed_bulk_input', source)
 
+    def test_android_app_uses_native_compact_recording_status(self):
+        source = get_template('activities/take_test.html').template.source
+
+        self.assertIn('if (IS_INGRID_ANDROID_APP && !isError)', source)
+        self.assertIn("badge.classList.add('d-none')", source)
+
 
 class SidebarMegaMenuTests(SimpleTestCase):
     def setUp(self):

@@ -2174,6 +2174,11 @@
 
     function setProctorStatus(message, isError = false) {
         let badge = document.getElementById('proctorStatusBadge');
+        if (IS_INGRID_ANDROID_APP && !isError) {
+            if (badge) badge.classList.add('d-none');
+            stopProctorClock();
+            return;
+        }
         if (!badge) {
             badge = document.createElement('div');
             badge.id = 'proctorStatusBadge';

@@ -41,6 +41,8 @@ import org.json.JSONArray
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
@@ -76,6 +78,15 @@ class IngridWebActivity : Activity() {
     private var clipboardProtectionActive = false
     private var clipboardClearInProgress = false
     private var lastClipboardBlockedLogAt = 0L
+    private var currentCaptureUiState = CaptureUiState.STOPPED
+    private val captureStatusClockFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    private val captureStatusClockRunnable = object : Runnable {
+        override fun run() {
+            if (currentCaptureUiState != CaptureUiState.RECORDING) return
+            renderRecordingStatus()
+            captureHandler.postDelayed(this, CAPTURE_STATUS_CLOCK_INTERVAL_MS)
+        }
+    }
     private val clipboardChangedListener = ClipboardManager.OnPrimaryClipChangedListener {
         if (clipboardProtectionActive && !clipboardClearInProgress) {
             clearProtectedClipboard("CHANGED")
@@ -404,11 +415,17 @@ class IngridWebActivity : Activity() {
     }
 
     private fun showCaptureStatus(state: CaptureUiState, pendingCount: Int = 0) {
+        currentCaptureUiState = state
+        captureHandler.removeCallbacks(captureStatusClockRunnable)
         captureStatusText.visibility = View.VISIBLE
         when (state) {
             CaptureUiState.RECORDING -> {
-                captureStatusText.text = getString(R.string.capture_status_recording)
+                renderRecordingStatus()
                 captureStatusText.setTextColor(android.graphics.Color.rgb(217, 52, 71))
+                captureHandler.postDelayed(
+                    captureStatusClockRunnable,
+                    CAPTURE_STATUS_CLOCK_INTERVAL_MS,
+                )
             }
             CaptureUiState.BUFFERING -> {
                 captureStatusText.text = getString(
@@ -422,6 +439,13 @@ class IngridWebActivity : Activity() {
                 captureStatusText.setTextColor(android.graphics.Color.rgb(217, 52, 71))
             }
         }
+    }
+
+    private fun renderRecordingStatus() {
+        captureStatusText.text = getString(
+            R.string.capture_status_recording,
+            LocalDateTime.now().format(captureStatusClockFormatter),
+        )
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
@@ -876,6 +900,7 @@ class IngridWebActivity : Activity() {
         private const val CAPTURE_INTERVAL_MS = 3_000L
         private const val DASHBOARD_REFRESH_INTERVAL_MS = 30_000L
         private const val CLIPBOARD_LOG_INTERVAL_MS = 3_000L
+        private const val CAPTURE_STATUS_CLOCK_INTERVAL_MS = 1_000L
         private const val NOTE_FILE_CHOOSER_REQUEST = 4107
         private const val SECURE_MODE_CHECK_INTERVAL_MS = 500L
         private const val SECURITY_CHECK_INTERVAL_MS = 1_000L
