@@ -202,8 +202,8 @@
 
     <form method="post" enctype="multipart/form-data" id="unifiedForm">
         {% csrf_token %}
-        <input type="hidden" name="target_students_data" id="target_students_data">
-        <input type="hidden" name="selected_students_json" id="id_selected_students_json">
+        <input type="hidden" name="target_students_data" id="target_students_data" value="{{ form_data.target_students_data|default:'' }}">
+        <input type="hidden" name="selected_students_json" id="id_selected_students_json" value="{{ form_data.selected_students_json|default:'' }}">
 
         {% if config.show_typing and config.typing_fields %}
         <input type="hidden" name="section" value="{% if form_data.section %}{{ form_data.section }}{% elif activity.section %}{{ activity.section }}{% else %}{{ sub_menu }}{% endif %}">

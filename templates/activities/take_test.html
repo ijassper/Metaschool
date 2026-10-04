@@ -2239,6 +2239,18 @@
         });
     }
 
+    let androidExamSecurityPromise = null;
+    function ensureAndroidExamSecurity() {
+        if (!IS_INGRID_ANDROID_APP) return Promise.resolve();
+        if (!androidExamSecurityPromise) {
+            androidExamSecurityPromise = acquireAndroidExamSecurity().catch((error) => {
+                androidExamSecurityPromise = null;
+                throw error;
+            });
+        }
+        return androidExamSecurityPromise;
+    }
+
     async function acquireProctorScreen() {
         if (!PROCTOR_MODE) return;
         if (IS_INGRID_ANDROID_APP) {
@@ -2323,9 +2335,9 @@
         if (isStartingExam) return;
 
         isStartingExam = true;
-        if (IS_INGRID_ANDROID_APP && !PROCTOR_MODE) {
+        if (IS_INGRID_ANDROID_APP) {
             try {
-                await acquireAndroidExamSecurity();
+                await ensureAndroidExamSecurity();
             } catch (error) {
                 isStartingExam = false;
                 alert(error && error.message ? error.message : '응시 환경 보안 설정을 완료해야 시작할 수 있습니다.');
@@ -3689,9 +3701,12 @@
         const startButton = document.getElementById('start-btn');
         if (startButton) {
             startButton.addEventListener('click', startTest);
-            if (IS_INGRID_ANDROID_APP && EXAM_MODE.startsWith('CLOSED_') &&
-                typeof window.IngridAndroid.showAppPinningGuide === 'function') {
-                window.IngridAndroid.showAppPinningGuide();
+            if (IS_INGRID_ANDROID_APP && EXAM_MODE.startsWith('CLOSED_')) {
+                ensureAndroidExamSecurity().catch((error) => {
+                    alert(error && error.message
+                        ? error.message
+                        : '앱 고정 설정을 완료해야 폐쇄형 평가에 응시할 수 있습니다.');
+                });
             }
             const consent = document.getElementById('proctorPrivacyConsent');
             if (consent) {

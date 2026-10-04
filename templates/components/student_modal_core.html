@@ -175,6 +175,26 @@
         return Array.isArray(ids) ? ids.map(id => String(id)) : [];
     }
 
+    function readStoredStudentSelection() {
+        const jsonField = document.getElementById('id_selected_students_json');
+        if (jsonField && jsonField.value.trim()) {
+            try {
+                const parsed = JSON.parse(jsonField.value);
+                if (Array.isArray(parsed)) return normalizeStudentIds(parsed);
+            } catch (error) {
+                console.warn('[학생 선택] 저장된 JSON 값을 읽지 못했습니다.', error);
+            }
+        }
+        const hiddenField = document.getElementById('target_students_data');
+        if (hiddenField && hiddenField.value.trim()) {
+            return hiddenField.value.split(',').map(id => id.trim()).filter(Boolean);
+        }
+        return null;
+    }
+
+    let committedSelectedStudentIds = readStoredStudentSelection()
+        || normalizeStudentIds(initialTargetStudentIds);
+
     function getCheckedStudentIds() {
         return Array.from(document.querySelectorAll('input[name="target_students"]:checked')).map(cb => cb.value);
     }
@@ -192,14 +212,19 @@
         return normalizedIds;
     }
 
-    function applyInitialStudentSelection() {
-        const normalizedIds = normalizeStudentIds(initialTargetStudentIds);
-        if (normalizedIds.length === 0) return [];
-        normalizedIds.forEach(studentId => {
-            const checkbox = document.getElementById('s_' + studentId);
-            if (checkbox) checkbox.checked = true;
+    function restoreCommittedStudentSelection() {
+        const selectedSet = new Set(committedSelectedStudentIds);
+        document.querySelectorAll('input[name="target_students"]').forEach(checkbox => {
+            checkbox.checked = selectedSet.has(String(checkbox.value));
         });
-        return syncSelectedStudentFields(normalizedIds);
+        syncSelectedStudentFields(committedSelectedStudentIds);
+        updateParentCheckboxes();
+        updateSummary();
+    }
+
+    function applyInitialStudentSelection() {
+        restoreCommittedStudentSelection();
+        return committedSelectedStudentIds;
     }
     // 모든 학생 선택/해제
     function toggleAllStudents(select) {
@@ -207,7 +232,6 @@
         checkboxes.forEach(cb => {
             cb.checked = select;
         });
-        syncSelectedStudentFields();
         updateSummary();
         updateParentCheckboxes();
     }
@@ -218,7 +242,6 @@
         children.forEach(child => {
             child.checked = parentCheckbox.checked;
         });
-        syncSelectedStudentFields();
         updateSummary();
         updateParentCheckboxes();
     }
@@ -246,7 +269,6 @@
     function updateSummary() {
         const checkedBoxes = document.querySelectorAll('input[name="target_students"]:checked');
         const count = checkedBoxes.length;
-        syncSelectedStudentFields(Array.from(checkedBoxes).map(cb => cb.value));
         
         // 1. 상단 {{ selector_label|default:"평가 대상" }} 선택 버튼 업데이트
         const summaryElement = document.getElementById('targetSummary');
@@ -271,18 +293,19 @@
     // 선택 완료 시 hidden 필드에 값 설정 (물리적 데이터 전송 브릿지)
     function completeStudentSelection() {
         const selectedIds = getCheckedStudentIds();
-        syncSelectedStudentFields(selectedIds);
+        committedSelectedStudentIds = normalizeStudentIds(selectedIds);
+        syncSelectedStudentFields(committedSelectedStudentIds);
         
         // 1) 기존 target_students_data 필드에 콤마로 구분하여 설정
         const hiddenField = document.getElementById('target_students_data');
         if (hiddenField) {
-            hiddenField.value = selectedIds.join(',');
+            hiddenField.value = committedSelectedStudentIds.join(',');
         }
         
         // 2) [핵심] JSON 형태로 폼에 강제 주입 (물리적 데이터 전송 브릿지)
         const jsonField = document.getElementById('id_selected_students_json');
         if (jsonField) {
-            jsonField.value = JSON.stringify(selectedIds);
+            jsonField.value = JSON.stringify(committedSelectedStudentIds);
             console.log('[브릿지] JSON 필드에 주입된 데이터:', jsonField.value);
         }
         
@@ -291,7 +314,7 @@
         console.log('JSON 필드 값:', JSON.stringify(selectedIds));
 
         // 3) [추가] 선택 완료 시 커스텀 이벤트 전송 (학생 명렬표 페이지 등에서 활용)
-        const event = new CustomEvent('studentSelectionCompleted', { detail: { selectedIds: selectedIds } });
+        const event = new CustomEvent('studentSelectionCompleted', { detail: { selectedIds: committedSelectedStudentIds } });
         document.dispatchEvent(event);
     }
 
@@ -308,7 +331,8 @@
                 console.log('[데이터 브릿지] 폼 제출 이벤트 감지됨');
                 
                 // 폼 제출 직전에 모달 데이터를 다시 동기화
-                const selectedIds = syncSelectedStudentFields();
+                restoreCommittedStudentSelection();
+                const selectedIds = syncSelectedStudentFields(committedSelectedStudentIds);
                 
                 console.log('[데이터 브릿지] 선택된 학생 수:', selectedIds.length);
                 console.log('[데이터 브릿지] 선택된 학생 IDs:', selectedIds);
@@ -330,24 +354,16 @@
         const studentSelectModal = document.getElementById('studentSelectModal');
         if (studentSelectModal) {
             studentSelectModal.addEventListener('show.bs.modal', function () {
-                // 1️⃣ Reset all checkboxes
-                document.querySelectorAll('#studentSelectModal input[type="checkbox"]').forEach(cb => cb.checked = false);
-                // 2️⃣ Clear search input & show all items
+                // 마지막으로 '선택 완료'한 임시 선택값을 복원합니다.
+                restoreCommittedStudentSelection();
+                // 검색 상태는 새로 시작합니다.
                 const searchInput = document.getElementById('modalStudentSearch');
                 if (searchInput) { searchInput.value = ''; }
                 document.querySelectorAll('#studentSelectModal .student-item').forEach(item => item.style.display = 'flex');
-                // 3️⃣ Restore previously selected students if any
-                {% if current_targets %}
-                    const currentTargets = {{ current_targets|safe }};
-                    if (Array.isArray(currentTargets)) {
-                        currentTargets.forEach(studentId => {
-                            const checkbox = document.getElementById('s_' + studentId);
-                            if (checkbox) { checkbox.checked = true; }
-                        });
-                    }
-                {% endif %}
-                // 4️⃣ Update summary UI
-                updateSummary();
+            });
+            studentSelectModal.addEventListener('hidden.bs.modal', function () {
+                // 선택 완료 없이 닫았다면 편집 중 체크 상태를 확정값으로 되돌립니다.
+                restoreCommittedStudentSelection();
             });
         }
     });

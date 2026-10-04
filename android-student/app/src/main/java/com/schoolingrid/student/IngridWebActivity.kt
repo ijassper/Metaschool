@@ -50,7 +50,8 @@ class IngridWebActivity : Activity() {
     private var kioskModeActive = false
     private var kioskExpected = false
     private var pinningLossReported = false
-    private var screenshotProtectionActive = false
+    private var authenticatedScreenshotProtectionActive = false
+    private var examScreenshotProtectionActive = false
     private var reportedBackground = false
     private var eventUrl = ""
     private var eventCsrfToken = ""
@@ -173,11 +174,13 @@ class IngridWebActivity : Activity() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                 progressBar.visibility = View.VISIBLE
                 pinningGuideShownForPage = false
+                updateAuthenticatedScreenshotProtection(url)
                 if (hasActiveExamSession() && !isExamPageUrl(url)) stopExamSession()
             }
 
             override fun onPageFinished(view: WebView, url: String) {
                 CookieManager.getInstance().flush()
+                updateAuthenticatedScreenshotProtection(url)
             }
 
             override fun shouldOverrideUrlLoading(
@@ -444,12 +447,8 @@ class IngridWebActivity : Activity() {
                 val normalizedExamMode = normalizeExamMode(examMode)
                 val requiresKiosk = normalizedExamMode.startsWith("CLOSED_")
                 val requiresScreenshotProtection = requiresKiosk || normalizedExamMode.endsWith("_LOCK")
-                screenshotProtectionActive = requiresScreenshotProtection
-                if (requiresScreenshotProtection) {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                } else {
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                }
+                examScreenshotProtectionActive = requiresScreenshotProtection
+                applyScreenshotProtection()
                 if (!requiresKiosk) {
                     kioskModeActive = false
                     notifyExamSecurityResult(true, "")
@@ -508,12 +507,8 @@ class IngridWebActivity : Activity() {
                 val normalizedExamMode = normalizeExamMode(examMode)
                 val requiresKiosk = normalizedExamMode.startsWith("CLOSED_")
                 val requiresScreenshotProtection = requiresKiosk || normalizedExamMode.endsWith("_LOCK")
-                screenshotProtectionActive = requiresScreenshotProtection
-                if (requiresScreenshotProtection) {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                } else {
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                }
+                examScreenshotProtectionActive = requiresScreenshotProtection
+                applyScreenshotProtection()
 
                 if (!requiresKiosk) {
                     awaitingCapturePermission = false
@@ -541,12 +536,33 @@ class IngridWebActivity : Activity() {
     }
 
     private fun hasActiveExamSession(): Boolean {
-        return captureActive || kioskModeActive || screenshotProtectionActive || awaitingCapturePermission
+        return captureActive || kioskModeActive || examScreenshotProtectionActive || awaitingCapturePermission
     }
 
     private fun isExamPageUrl(url: String): Boolean {
         val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
         return isIngridHost(uri.host) && uri.path.orEmpty().startsWith(EXAM_PATH_PREFIX)
+    }
+
+    private fun updateAuthenticatedScreenshotProtection(url: String) {
+        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return
+        if (!isIngridHost(uri.host)) return
+        val path = uri.path.orEmpty().trimEnd('/')
+        when {
+            path == LOGIN_PATH -> authenticatedScreenshotProtectionActive = false
+            path == DASHBOARD_PATH -> authenticatedScreenshotProtectionActive = true
+            path.startsWith(ACTIVITIES_PATH_PREFIX) -> authenticatedScreenshotProtectionActive = true
+            path == PROFILE_SETTINGS_PATH -> authenticatedScreenshotProtectionActive = true
+        }
+        applyScreenshotProtection()
+    }
+
+    private fun applyScreenshotProtection() {
+        if (authenticatedScreenshotProtectionActive || examScreenshotProtectionActive) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
     }
 
     private fun stopExamSession() {
@@ -667,12 +683,12 @@ class IngridWebActivity : Activity() {
         captureHandler.removeCallbacks(captureRunnable)
         captureHandler.removeCallbacks(securityMonitorRunnable)
         if (kioskModeActive || awaitingCapturePermission) runCatching { stopLockTask() }
-        if (screenshotProtectionActive) window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         kioskModeActive = false
         kioskExpected = false
         pinningLossReported = false
-        screenshotProtectionActive = false
+        examScreenshotProtectionActive = false
         awaitingCapturePermission = false
+        applyScreenshotProtection()
     }
 
     private fun normalizeExamMode(examMode: String): String {
@@ -742,6 +758,10 @@ class IngridWebActivity : Activity() {
     companion object {
         private const val INGRID_ORIGIN = "https://schoolingrid.com"
         private const val LOGIN_URL = "https://schoolingrid.com/accounts/login/"
+        private const val LOGIN_PATH = "/accounts/login"
+        private const val DASHBOARD_PATH = "/accounts/dashboard"
+        private const val PROFILE_SETTINGS_PATH = "/accounts/profile-settings"
+        private const val ACTIVITIES_PATH_PREFIX = "/activities/"
         private const val EXAM_PATH_PREFIX = "/activities/take/"
         private const val CAPTURE_SCOPE_FULL_DISPLAY = "FULL_DISPLAY"
         private const val CAPTURE_SCOPE_APP_ONLY = "APP_ONLY"

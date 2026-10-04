@@ -74,3 +74,11 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('(min-width: 769px) and (max-width: 1366px) and (pointer: coarse)', source)
         self.assertIn('student-dashboard-shell', source)
         self.assertIn('padding: 14px 24px', source)
+
+    def test_student_selector_restores_last_completed_selection(self):
+        modal_source = get_template('components/student_modal_core.html').template.source
+        form_source = get_template('activities/unified_form.html').template.source
+        self.assertIn('committedSelectedStudentIds', modal_source)
+        self.assertIn('restoreCommittedStudentSelection()', modal_source)
+        self.assertNotIn('const currentTargets = {{ current_targets|safe }}', modal_source)
+        self.assertIn("form_data.selected_students_json|default:''", form_source)
