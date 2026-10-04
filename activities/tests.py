@@ -87,6 +87,15 @@ class AndroidExamSecurityContractTests(SimpleTestCase):
         self.assertIn('PROCTOR_CAPTURE_SCOPE,', source)
         self.assertIn('EXAM_MODE,', source)
 
+    def test_closed_lock_blocks_native_clipboard_and_bulk_webview_input(self):
+        source = get_template('activities/take_test.html').template.source
+
+        self.assertIn('onIngridNativeClipboardBlocked', source)
+        self.assertIn("EXAM_MODE !== 'CLOSED_LOCK'", source)
+        self.assertIn('handleBeforeAnswerInput', source)
+        self.assertIn("sendLog('CLIPBOARD')", source)
+        self.assertIn('blocked_composed_bulk_input', source)
+
 
 class SidebarMegaMenuTests(SimpleTestCase):
     def setUp(self):

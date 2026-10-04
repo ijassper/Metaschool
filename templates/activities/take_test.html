@@ -1816,7 +1816,7 @@
     
     // 보안 모드 변수
     let securityLogs = [];
-    const ABNORMAL_INPUT_THRESHOLD = 100;
+    const ABNORMAL_INPUT_THRESHOLD = 8;
     const INPUT_GRACE_MS = 1000;
     const ANSWER_BACKUP_PREFIX = `ingrid-answer-backup-{{ activity.id }}-${answerId || 'new'}-`;
     const RIGHT_CLICK_LOG_INTERVAL_MS = 60000;
@@ -1833,6 +1833,13 @@
         logSecurityEvent(`blocked_${type.toLowerCase()}`, 1);
     };
 
+    window.onIngridNativeClipboardBlocked = function(reason) {
+        if (EXAM_MODE !== 'CLOSED_LOCK' || isSubmitting) return;
+        sendLog('CLIPBOARD');
+        logSecurityEvent(`native_clipboard_${String(reason || 'blocked').toLowerCase()}`, 1);
+        showSecurityWarning('외부 클립보드 내용이 삭제되었습니다. 답안은 직접 입력해주세요.');
+    };
+
     /* 1.5. 복사 제어 기능 (_LOCK 계열 전용) */
     function initSecurityMode() {
         if (!IS_COPY_PROTECTED) return;
@@ -1843,6 +1850,9 @@
             initializeInputGuard(textarea);
             textarea.addEventListener('drop', handleDropBlock);
             textarea.addEventListener('focus', handleInputFocusGrace);
+            textarea.addEventListener('compositionstart', handleCompositionStart);
+            textarea.addEventListener('compositionend', handleCompositionEnd);
+            textarea.addEventListener('beforeinput', handleBeforeAnswerInput);
             
             // 비정상 입력 감지
             textarea.addEventListener('input', handleAbnormalInput);
@@ -1872,7 +1882,57 @@
         textarea.dataset.securityReadyAt = String(now + INPUT_GRACE_MS);
         textarea.dataset.focusGraceUntil = String(now + INPUT_GRACE_MS);
         textarea.dataset.focusInitialized = 'false';
+        textarea.dataset.compositionActive = 'false';
+        textarea.dataset.blockNextInput = 'false';
         backupNormalAnswer(textarea, currentValue);
+    }
+
+    function handleCompositionStart(e) {
+        const textarea = e.target;
+        textarea.dataset.compositionActive = 'true';
+        textarea.dataset.blockNextInput = 'false';
+        textarea.dataset.compositionStartValue = textarea.dataset.previousValue || textarea.value || '';
+        textarea.dataset.compositionStartedAt = String(Date.now());
+    }
+
+    function handleCompositionEnd(e) {
+        const textarea = e.target;
+        const currentValue = textarea.value || '';
+        const startValue = textarea.dataset.compositionStartValue || '';
+        const startedAt = parseInt(textarea.dataset.compositionStartedAt || '0', 10);
+        const insertedLength = currentValue.length - startValue.length;
+        textarea.dataset.compositionActive = 'false';
+        textarea.dataset.compositionStartValue = '';
+        textarea.dataset.compositionStartedAt = '0';
+
+        if (insertedLength >= ABNORMAL_INPUT_THRESHOLD && Date.now() - startedAt < INPUT_GRACE_MS) {
+            textarea.value = startValue;
+            textarea.dataset.previousValue = startValue;
+            textarea.dataset.lastLength = String(startValue.length);
+            textarea.dataset.lastInputAt = String(Date.now());
+            backupNormalAnswer(textarea, startValue);
+            sendLog('CLIPBOARD');
+            logSecurityEvent('blocked_composed_bulk_input', insertedLength);
+            showSecurityWarning('외부 클립보드 입력이 차단되었습니다. 답안은 직접 입력해주세요.');
+            updateCharCount();
+            return;
+        }
+
+        textarea.dataset.previousValue = currentValue;
+        textarea.dataset.lastLength = String(currentValue.length);
+        textarea.dataset.lastInputAt = String(Date.now());
+        backupNormalAnswer(textarea, currentValue);
+    }
+
+    function handleBeforeAnswerInput(e) {
+        if (isSubmitting || !IS_COPY_PROTECTED || e.isComposing) return;
+        const textarea = e.target;
+        const inputType = e.inputType || '';
+        const insertedLength = typeof e.data === 'string' ? e.data.length : 0;
+        const isDirectPaste = inputType === 'insertFromPaste' || inputType === 'insertFromDrop';
+        const isBulkKeyboardCommit = inputType === 'insertText' && insertedLength >= ABNORMAL_INPUT_THRESHOLD;
+        textarea.dataset.blockNextInput = (isDirectPaste || isBulkKeyboardCommit) ? 'true' : 'false';
+        textarea.dataset.blockedInputLength = String(insertedLength);
     }
 
     function handleInputFocusGrace(e) {
@@ -1923,8 +1983,13 @@
         const lastInputAt = parseInt(textarea.dataset.lastInputAt || String(now), 10);
         const delta = currentValue.length - previousValue.length;
         const elapsed = now - lastInputAt;
+        const compositionActive = e.isComposing || textarea.dataset.compositionActive === 'true';
+        const blockNextInput = textarea.dataset.blockNextInput === 'true';
+        const blockedInputLength = parseInt(textarea.dataset.blockedInputLength || '0', 10) || 0;
+        textarea.dataset.blockNextInput = 'false';
+        textarea.dataset.blockedInputLength = '0';
         
-        if (e.isTrusted === false || now < securityReadyAt || now < focusGraceUntil) {
+        if (compositionActive || e.isTrusted === false) {
             textarea.dataset.previousValue = currentValue;
             textarea.dataset.lastLength = String(currentValue.length);
             textarea.dataset.lastInputAt = String(now);
@@ -1933,20 +1998,21 @@
         }
         
         // 단시간에 대량의 텍스트가 주입된 경우 감지
-        if (delta >= ABNORMAL_INPUT_THRESHOLD && elapsed < INPUT_GRACE_MS) {
+        if (blockNextInput || (delta >= ABNORMAL_INPUT_THRESHOLD && elapsed < INPUT_GRACE_MS)) {
             e.preventDefault();
             backupNormalAnswer(textarea, previousValue);
             textarea.value = previousValue; // 이전 값으로 복원
             textarea.dataset.previousValue = previousValue;
             textarea.dataset.lastLength = String(previousValue.length);
             textarea.dataset.lastInputAt = String(now);
-            logSecurityEvent('abnormal_input', delta);
+            sendLog('CLIPBOARD');
+            logSecurityEvent('blocked_bulk_input', Math.max(delta, blockedInputLength));
             window.ingridLastAnswerRestore = {
                 restoreKey: getTextareaBackupKey(textarea),
                 textarea: textarea,
                 createdAt: Date.now()
             };
-            showSecurityWarning('비정상적인 입력이 감지되었습니다. 직접 입력해주세요.');
+            showSecurityWarning('외부 클립보드 입력이 차단되었습니다. 답안은 직접 입력해주세요.');
             updateCharCount();
             return;
         }
@@ -4572,6 +4638,7 @@
             'EXIT': '나가기 버튼을 누르고 답안지 페이지 이탈',
             'COPY': '복사 시도',
             'PASTE': '붙여넣기 시도',
+             'CLIPBOARD': '외부 클립보드 내용 차단',
             'RIGHT_CLICK': '우클릭 시도'
         };
 

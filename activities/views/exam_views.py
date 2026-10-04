@@ -33,6 +33,7 @@ LOG_MESSAGES = {
     'EXIT': '나가기 버튼을 누르고 답안지 페이지 이탈',
     'COPY': '복사 시도',
     'PASTE': '붙여넣기 시도',
+    'CLIPBOARD': '외부 클립보드 내용 차단',
     'RIGHT_CLICK': '우클릭 시도',
     'BACK_BUTTON': '브라우저 뒤로가기 버튼 클릭 시도',
 }
@@ -877,7 +878,9 @@ def log_activity(request):
             answer_id = data.get('answer_id')
             action_type = data.get('type') # 'OUT'(이탈) 또는 'IN'(복귀)
             log_type = data.get('type') # 'OUT'(?댄깉) ?먮뒗 'IN'(蹂듦?)
-            allowed_log_types = {'OUT', 'EXIT', 'COPY', 'PASTE', 'RIGHT_CLICK', 'BACK_BUTTON'}
+            allowed_log_types = {
+                'OUT', 'EXIT', 'COPY', 'PASTE', 'CLIPBOARD', 'RIGHT_CLICK', 'BACK_BUTTON'
+            }
             if log_type not in allowed_log_types:
                 return JsonResponse({'status': 'ignored'})
             

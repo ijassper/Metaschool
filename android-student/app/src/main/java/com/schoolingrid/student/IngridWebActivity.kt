@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -15,6 +17,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.provider.MediaStore
 import android.webkit.JavascriptInterface
@@ -69,6 +72,15 @@ class IngridWebActivity : Activity() {
     private var pendingCameraUri: Uri? = null
     private var pageLoading = false
     private var returningFromBackground = false
+    private val clipboardManager by lazy { getSystemService(ClipboardManager::class.java) }
+    private var clipboardProtectionActive = false
+    private var clipboardClearInProgress = false
+    private var lastClipboardBlockedLogAt = 0L
+    private val clipboardChangedListener = ClipboardManager.OnPrimaryClipChangedListener {
+        if (clipboardProtectionActive && !clipboardClearInProgress) {
+            clearProtectedClipboard("CHANGED")
+        }
+    }
     private val dashboardRefreshRunnable = object : Runnable {
         override fun run() {
             if (isDashboardPage() && !pageLoading && !hasActiveExamSession()) {
@@ -353,6 +365,7 @@ class IngridWebActivity : Activity() {
 
     override fun onDestroy() {
         if (isFinishing) stopExamSession()
+        disableClipboardProtection()
         captureHandler.removeCallbacksAndMessages(null)
         dashboardRefreshHandler.removeCallbacksAndMessages(null)
         captureExecutor.shutdownNow()
@@ -487,6 +500,7 @@ class IngridWebActivity : Activity() {
         fun requestExamSecurity(examMode: String) {
             runOnUiThread {
                 val normalizedExamMode = normalizeExamMode(examMode)
+                updateClipboardProtection(normalizedExamMode)
                 val requiresKiosk = normalizedExamMode.startsWith("CLOSED_")
                 val requiresScreenshotProtection = requiresKiosk || normalizedExamMode.endsWith("_LOCK")
                 examScreenshotProtectionActive = requiresScreenshotProtection
@@ -547,6 +561,7 @@ class IngridWebActivity : Activity() {
                     return@runOnUiThread
                 }
                 val normalizedExamMode = normalizeExamMode(examMode)
+                updateClipboardProtection(normalizedExamMode)
                 val requiresKiosk = normalizedExamMode.startsWith("CLOSED_")
                 val requiresScreenshotProtection = requiresKiosk || normalizedExamMode.endsWith("_LOCK")
                 examScreenshotProtectionActive = requiresScreenshotProtection
@@ -622,7 +637,52 @@ class IngridWebActivity : Activity() {
         reportedBackground = false
         kioskExpected = false
         pinningLossReported = false
+        disableClipboardProtection()
         leaveSecureMode()
+    }
+
+    private fun updateClipboardProtection(examMode: String) {
+        if (examMode == EXAM_MODE_CLOSED_LOCK) {
+            if (!clipboardProtectionActive) {
+                clipboardProtectionActive = true
+                clipboardManager.addPrimaryClipChangedListener(clipboardChangedListener)
+            }
+            clearProtectedClipboard("INITIAL")
+        } else {
+            disableClipboardProtection()
+        }
+    }
+
+    private fun clearProtectedClipboard(reason: String) {
+        if (!clipboardProtectionActive || clipboardClearInProgress) return
+        if (!clipboardManager.hasPrimaryClip()) return
+
+        clipboardClearInProgress = true
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                clipboardManager.clearPrimaryClip()
+            } else {
+                clipboardManager.setPrimaryClip(ClipData.newPlainText("", ""))
+            }
+        } finally {
+            clipboardClearInProgress = false
+        }
+
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastClipboardBlockedLogAt < CLIPBOARD_LOG_INTERVAL_MS) return
+        lastClipboardBlockedLogAt = now
+        webView.post {
+            webView.evaluateJavascript(
+                "window.onIngridNativeClipboardBlocked && window.onIngridNativeClipboardBlocked('$reason');",
+                null,
+            )
+        }
+    }
+
+    private fun disableClipboardProtection() {
+        if (!clipboardProtectionActive) return
+        clipboardProtectionActive = false
+        clipboardManager.removePrimaryClipChangedListener(clipboardChangedListener)
     }
 
     private fun waitForSecureMode(
@@ -815,6 +875,7 @@ class IngridWebActivity : Activity() {
         private const val CAPTURE_SCOPE_SECURE_APP = "SECURE_APP"
         private const val CAPTURE_INTERVAL_MS = 3_000L
         private const val DASHBOARD_REFRESH_INTERVAL_MS = 30_000L
+        private const val CLIPBOARD_LOG_INTERVAL_MS = 3_000L
         private const val NOTE_FILE_CHOOSER_REQUEST = 4107
         private const val SECURE_MODE_CHECK_INTERVAL_MS = 500L
         private const val SECURITY_CHECK_INTERVAL_MS = 1_000L
