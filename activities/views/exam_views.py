@@ -36,6 +36,7 @@ LOG_MESSAGES = {
     'CLIPBOARD': '외부 클립보드 내용 차단',
     'RIGHT_CLICK': '우클릭 시도',
     'BACK_BUTTON': '브라우저 뒤로가기 버튼 클릭 시도',
+    'AUTO_RECOVERY': '비정상 종료 전 브라우저 임시 답안 자동복구',
 }
 
 MAX_NOTEBOOK_PAGES = 100
@@ -130,6 +131,33 @@ def answer_character_count(value):
 def snapshot_fingerprint(snapshot):
     payload = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
     return hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
+
+def answer_server_version(answer):
+    """클라이언트 시계와 무관한 서버 발급 답안 버전 토큰을 반환합니다."""
+    return answer.updated_at.isoformat() if answer and answer.updated_at else ''
+
+
+def store_draft_revision_snapshot(answer, snapshot, reason):
+    """복구 전후 또는 충돌 답안을 중복 없이 서버 이력에 보존합니다."""
+    fingerprint = snapshot_fingerprint(snapshot)
+    latest = answer.draft_revisions.order_by('-created_at', '-id').first()
+    if latest and latest.fingerprint == fingerprint:
+        return latest
+    revision = AnswerDraftRevision.objects.create(
+        answer=answer,
+        content_snapshot=snapshot,
+        char_count=snapshot_char_count(snapshot),
+        fingerprint=fingerprint,
+        save_reason=reason,
+    )
+    stale_ids = list(
+        answer.draft_revisions.order_by('-created_at', '-id')
+        .values_list('id', flat=True)[MAX_DRAFT_REVISIONS:]
+    )
+    if stale_ids:
+        AnswerDraftRevision.objects.filter(id__in=stale_ids).delete()
+    return revision
 
 
 def preserve_answer_revision(answer, new_snapshot, requested_reason='PERIODIC'):
@@ -391,6 +419,7 @@ def build_exam_context(request, activity, question, answer=None, exam_started=Fa
         'student': student or (answer.student if answer else None),
         'notebook_pages': notebook_pages,
         'answer_id': answer.id if answer else '',
+        'answer_server_version': answer_server_version(answer),
         'exam_started': exam_started,
         'entry_action_url': 're_enter_exam' if answer and answer.submitted_at else 'start_exam',
         'exam_mode': exam_mode,
@@ -742,11 +771,10 @@ def save_answer_draft(request, activity_id):
         return JsonResponse({'status': 'error', 'message': '현재 임시 저장할 수 없습니다.'}, status=403)
 
     question = ensure_exam_question(activity)
-    answer, _ = Answer.objects.get_or_create(student=student_info, question=question)
-    if answer.submitted_at and (
-        not activity.allow_edit_after_submission or answer.has_followup_on_latest_submission()
-    ):
-        return JsonResponse({'status': 'error', 'message': '제출이 완료되어 수정할 수 없습니다.'}, status=403)
+    requested_reason = request.POST.get(
+        'draft_save_reason', AnswerDraftRevision.SaveReason.PERIODIC
+    )
+    base_server_version = request.POST.get('base_server_version', '')
 
     new_notebook_pages = (
         normalize_notebook_pages(
@@ -760,20 +788,69 @@ def save_answer_draft(request, activity_id):
         'ans_q3': '' if new_notebook_pages else request.POST.get('ans_q3', '').strip(),
         'notebook_pages': new_notebook_pages,
     }
-    preserve_answer_revision(
-        answer,
-        new_snapshot,
-        request.POST.get('draft_save_reason', AnswerDraftRevision.SaveReason.PERIODIC),
-    )
-    save_answer_content(answer, activity, request.POST)
-    answer.updated_at = timezone.now()
-    answer.save(update_fields=['ans_q1', 'ans_q2', 'ans_q3', 'notebook_pages', 'content', 'updated_at'])
 
-    return JsonResponse({
-        'status': 'success',
-        'message': '임시저장이 완료되었습니다.',
-        'answer_id': answer.id,
-    })
+    with transaction.atomic():
+        answer = (
+            Answer.objects.select_for_update()
+            .filter(student=student_info, question=question)
+            .first()
+        )
+        created = answer is None
+        if created:
+            answer = Answer.objects.create(student=student_info, question=question)
+
+        if answer.submitted_at and (
+            not activity.allow_edit_after_submission or answer.has_followup_on_latest_submission()
+        ):
+            return JsonResponse({'status': 'error', 'message': '제출이 완료되어 수정할 수 없습니다.'}, status=403)
+
+        current_server_version = '' if created else answer_server_version(answer)
+        if base_server_version != current_server_version:
+            if snapshot_fingerprint(new_snapshot) != snapshot_fingerprint(build_answer_snapshot(answer)):
+                store_draft_revision_snapshot(
+                    answer,
+                    new_snapshot,
+                    AnswerDraftRevision.SaveReason.CONFLICT_BACKUP,
+                )
+            return JsonResponse({
+                'status': 'conflict',
+                'message': '다른 저장본이 확인되어 서버 답안을 유지했습니다.',
+                'server_version': answer_server_version(answer),
+                'server_snapshot': build_answer_snapshot(answer),
+            }, status=409)
+
+        is_auto_recovery = requested_reason == AnswerDraftRevision.SaveReason.AUTO_RECOVERY
+        if is_auto_recovery:
+            store_draft_revision_snapshot(
+                answer,
+                build_answer_snapshot(answer),
+                AnswerDraftRevision.SaveReason.AUTO_RECOVERY,
+            )
+        else:
+            preserve_answer_revision(answer, new_snapshot, requested_reason)
+
+        save_answer_content(answer, activity, request.POST)
+        if is_auto_recovery:
+            append_activity_log(answer, 'AUTO_RECOVERY')
+        answer.updated_at = timezone.now()
+        update_fields = ['ans_q1', 'ans_q2', 'ans_q3', 'notebook_pages', 'content', 'updated_at']
+        if is_auto_recovery:
+            update_fields.append('activity_log')
+        answer.save(update_fields=update_fields)
+
+        if is_auto_recovery:
+            store_draft_revision_snapshot(
+                answer,
+                build_answer_snapshot(answer),
+                AnswerDraftRevision.SaveReason.AUTO_RECOVERY,
+            )
+
+        return JsonResponse({
+            'status': 'success',
+            'message': '임시저장이 완료되었습니다.',
+            'answer_id': answer.id,
+            'server_version': answer_server_version(answer),
+        })
 
 
 @require_GET

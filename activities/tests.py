@@ -19,6 +19,7 @@ from .views.exam_views import (
     pdf_viewer,
     snapshot_char_count,
     snapshot_fingerprint,
+    answer_server_version,
     submission_revision_action,
     submitted_answer_char_count,
 )
@@ -40,7 +41,8 @@ from .attachment_context import (
 )
 from .templatetags.answer_extras import non_whitespace_length
 from .models import (
-    Activity, Question, Answer, AnswerSubmissionRevision, FeedbackResult, FeedbackSession,
+    Activity, Question, Answer, AnswerDraftRevision, AnswerSubmissionRevision,
+    FeedbackResult, FeedbackSession,
 )
 
 
@@ -112,6 +114,29 @@ class AndroidExamSecurityContractTests(SimpleTestCase):
         self.assertIn('id="saveDraftButton"', source)
         self.assertIn('updateExamHeader(ANDROID_EXAM_IDENTITY)', source)
         self.assertNotIn('id="floatingSubmitBar"', source)
+
+    def test_local_draft_recovery_is_automatic_and_uses_server_version(self):
+        source = get_template('activities/take_test.html').template.source
+
+        self.assertIn('INITIAL_SERVER_ANSWER_VERSION', source)
+        self.assertIn('serverVersion: currentServerAnswerVersion', source)
+        self.assertIn("formData.set('base_server_version', currentServerAnswerVersion)", source)
+        self.assertIn("reason: 'AUTO_RECOVERY'", source)
+        self.assertIn('비정상 종료 전에 작성하던 답안을 자동으로 복구했습니다.', source)
+        self.assertNotIn('서버에 저장된 답안보다 새로운 브라우저 임시 백업이 있습니다.', source)
+        self.assertNotIn('draft-recovery-toggle', source)
+        self.assertNotIn('자동저장 답안 복구', source)
+
+    def test_auto_recovery_is_a_dedicated_revision_reason(self):
+        self.assertEqual(AnswerDraftRevision.SaveReason.AUTO_RECOVERY, 'AUTO_RECOVERY')
+
+    def test_answer_server_version_is_issued_from_server_timestamp(self):
+        updated_at = timezone.now()
+        self.assertEqual(
+            answer_server_version(SimpleNamespace(updated_at=updated_at)),
+            updated_at.isoformat(),
+        )
+        self.assertEqual(answer_server_version(None), '')
 
 
 class SidebarMegaMenuTests(SimpleTestCase):

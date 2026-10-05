@@ -466,6 +466,8 @@ class AnswerDraftRevision(models.Model):
         DESTRUCTIVE_EDIT = 'DESTRUCTIVE_EDIT', '대량 삭제 직전'
         MANUAL = 'MANUAL', '수동 임시저장'
         PAGE_EXIT = 'PAGE_EXIT', '페이지 이동 전'
+        AUTO_RECOVERY = 'AUTO_RECOVERY', '비정상 종료 자동복구'
+        CONFLICT_BACKUP = 'CONFLICT_BACKUP', '저장 충돌 후보 보관'
 
     answer = models.ForeignKey(
         Answer,

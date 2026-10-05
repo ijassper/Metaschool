@@ -192,6 +192,7 @@
         font-weight: 700;
     }
     .exam-question-panel {
+        height: 100% !important;
         padding: 0.75rem !important;
         background: #f4eff9 !important;
         border-right: 3px solid rgba(142, 68, 173, 0.18) !important;
@@ -618,7 +619,7 @@
         white-space: nowrap;
     }
     .exam-toolbar .submit-action-button {
-        margin-left: 0.5rem;
+        margin-left: 1.5rem;
     }
     .exam-student-identity {
         font-size: clamp(1.35rem, 2.4vw, 1.875rem);
@@ -1313,14 +1314,6 @@
                     <div class="notebook-student-identity flex-grow-1 text-truncate">{{ student.school.name|default:'학교 정보 없음' }} · {{ student.grade }}학년 {{ student.class_no }}반 {{ student.number }}번 · {{ student.name }}</div>
                     <span id="notebookSaveStatus" class="exam-status-pill"><i class="bi bi-cloud-check"></i> 저장됨</span>
                     <span id="charCount" class="exam-status-pill">0자</span>
-                    <div class="dropdown">
-                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 draft-recovery-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-clock-history me-1"></i>자동저장 답안 복구
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end shadow draft-recovery-menu">
-                            <li><span class="dropdown-item-text text-muted small">복구 답안을 불러오는 중입니다.</span></li>
-                        </ul>
-                    </div>
                     <button type="button" id="printNotebook" class="btn btn-outline-primary btn-sm rounded-pill px-3"><i class="bi bi-printer me-1"></i>인쇄/PDF</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#exitConfirmModal">나가기</button>
                     <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">노트 제출</button>
@@ -1414,20 +1407,12 @@
                 <!-- 상단 헤더 고정 -->
                 <div class="exam-sticky-header exam-toolbar d-flex align-items-center">
                     <h5 class="exam-header-title mb-0 fw-bold text-primary">
-                        <i class="bi bi-pencil-square me-1"></i>답안 작성
+                        <i class="bi bi-pencil-square me-1"></i>학생 답안지
                     </h5>
                     <div class="exam-toolbar-actions d-flex align-items-center gap-2 ms-auto">
                         <span id="remainingTime" class="d-none">남은 시간 확인 중</span>
                         <span id="charCount" class="exam-status-pill">0자 / {{ activity.character_limit_label }}</span>
                         <span id="draftAutoSaveStatus" class="small text-muted" aria-live="polite">자동 저장 준비</span>
-                        <div class="dropdown">
-                            <button type="button" class="btn btn-outline-secondary rounded-pill fw-bold draft-recovery-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-clock-history me-1"></i>답안 복구
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow draft-recovery-menu">
-                                <li><span class="dropdown-item-text text-muted small">복구 답안을 불러오는 중입니다.</span></li>
-                            </ul>
-                        </div>
                         <button type="button" id="saveDraftButton" class="btn draft-action-button rounded-pill fw-bold" onclick="saveAnswer(event)">
                             <i class="bi bi-cloud-check me-1"></i>임시 저장
                         </button>
@@ -1736,10 +1721,8 @@
     const TYPING_SHOW_KEYBOARD = {{ activity.show_keyboard|yesno:"true,false" }};
     const TYPING_DATA_URL = "{% static 'data/typing_data.json' %}";
     const DRAFT_SAVE_URL = "{% url 'save_answer_draft' activity.id %}";
-    const DRAFT_REVISION_LIST_URL = "{% url 'draft_revision_list' activity.id %}";
-    const DRAFT_REVISION_DETAIL_URL_TEMPLATE = "{% url 'draft_revision_detail' activity.id 0 %}";
     const DRAFT_STORAGE_KEY = "ingrid-draft-{{ activity.id }}-{{ student.id|default:user.id }}";
-    const SERVER_ANSWER_UPDATED_AT = "{{ answer.updated_at|date:'c' }}";
+    const INITIAL_SERVER_ANSWER_VERSION = "{{ answer_server_version|escapejs }}";
     const AUTO_SAVE_INTERVAL_MS = 30000;
     const AUTO_SAVE_DEBOUNCE_MS = 5000;
     const AUTO_SAVE_JITTER_MS = 10000;
@@ -1748,6 +1731,7 @@
     let draftSaveInFlight = false;
     let draftDebounceTimer = null;
     let lastSavedFingerprint = '';
+    let currentServerAnswerVersion = INITIAL_SERVER_ANSWER_VERSION;
 
     let isSubmitting = false; // 제출/나가기 시 보안 감시 일시 중단 플래그
     let testStarted = false;  // 응시 시작 버튼 클릭 여부
@@ -3515,7 +3499,7 @@
         if (!snapshot) return;
         try {
             localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
-                savedAt: Date.now(),
+                serverVersion: currentServerAnswerVersion,
                 snapshot: snapshot,
             }));
         } catch (error) {
@@ -3544,19 +3528,42 @@
         updateCharCount();
     }
 
-    function restoreNewerLocalDraft() {
+    function showDraftRecoveryNotice(message, tone = 'success') {
+        const existing = document.getElementById('draftRecoveryNotice');
+        if (existing) existing.remove();
+        const notice = document.createElement('div');
+        notice.id = 'draftRecoveryNotice';
+        notice.className = `alert alert-${tone} position-fixed top-0 start-50 translate-middle-x mt-3 shadow border-0 fw-bold`;
+        notice.style.zIndex = '2200';
+        notice.setAttribute('role', 'status');
+        notice.setAttribute('aria-live', 'polite');
+        notice.textContent = message;
+        document.body.appendChild(notice);
+        window.setTimeout(() => notice.remove(), 4500);
+    }
+
+    async function restoreEligibleLocalDraft() {
         const backup = readLocalDraft();
         if (!backup) return false;
-        const serverUpdatedAt = SERVER_ANSWER_UPDATED_AT ? Date.parse(SERVER_ANSWER_UPDATED_AT) : 0;
         const currentSnapshot = collectDraftSnapshot();
-        if (
-            backup.savedAt > serverUpdatedAt
-            && draftFingerprint(backup.snapshot) !== draftFingerprint(currentSnapshot)
-            && window.confirm('서버에 저장된 답안보다 새로운 브라우저 임시 백업이 있습니다. 복구하시겠습니까?')
-        ) {
-            applyDraftSnapshot(backup.snapshot);
-            draftDirty = true;
-            updateDraftSaveStatus('dirty', '복구됨 · 저장 대기');
+        if (draftFingerprint(backup.snapshot) === draftFingerprint(currentSnapshot)) {
+            saveDraftToLocal(currentSnapshot);
+            return false;
+        }
+
+        // 이 브라우저 백업이 현재 서버 버전에서 이어진 경우에만 자동복구합니다.
+        // 예전 형식 또는 다른 기기/세션에서 만들어진 백업은 서버 답안을 우선합니다.
+        if (!backup.serverVersion || backup.serverVersion !== currentServerAnswerVersion) {
+            saveDraftToLocal(currentSnapshot);
+            return false;
+        }
+
+        applyDraftSnapshot(backup.snapshot);
+        draftDirty = true;
+        updateDraftSaveStatus('saving', '비정상 종료 답안 복구 중');
+        const restored = await persistDraft({force: true, reason: 'AUTO_RECOVERY'});
+        if (restored) {
+            showDraftRecoveryNotice('비정상 종료 전에 작성하던 답안을 자동으로 복구했습니다.');
             return true;
         }
         return false;
@@ -3587,6 +3594,7 @@
         if (!form) return false;
         const formData = new FormData(form);
         formData.set('draft_save_reason', options.reason || 'PERIODIC');
+        formData.set('base_server_version', currentServerAnswerVersion);
         draftSaveInFlight = true;
         updateDraftSaveStatus('saving', '저장 중');
         try {
@@ -3600,10 +3608,25 @@
                 }
             });
             const result = await response.json();
+            if (response.status === 409 && result.status === 'conflict') {
+                currentServerAnswerVersion = result.server_version || currentServerAnswerVersion;
+                if (result.server_snapshot) applyDraftSnapshot(result.server_snapshot);
+                const serverSnapshot = collectDraftSnapshot();
+                lastSavedFingerprint = draftFingerprint(serverSnapshot);
+                draftDirty = false;
+                saveDraftToLocal(serverSnapshot);
+                updateDraftSaveStatus('saved', '서버 저장 답안 유지');
+                showDraftRecoveryNotice(
+                    result.message || '다른 저장본이 확인되어 서버 답안을 유지했습니다.',
+                    'info'
+                );
+                return false;
+            }
             if (!response.ok || result.status !== 'success') {
                 throw new Error(result.message || '임시 저장에 실패했습니다.');
             }
             answerId = result.answer_id || answerId;
+            currentServerAnswerVersion = result.server_version || currentServerAnswerVersion;
             lastSavedFingerprint = fingerprint;
             const latestSnapshot = collectDraftSnapshot();
             draftDirty = draftFingerprint(latestSnapshot) !== fingerprint;
@@ -3619,80 +3642,7 @@
         }
     }
 
-    function formatRevisionAge(createdAt) {
-        const elapsedSeconds = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000));
-        if (elapsedSeconds < 60) return `${elapsedSeconds}초 전 답안`;
-        const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-        if (elapsedMinutes < 60) return `${elapsedMinutes}분 전 답안`;
-        const elapsedHours = Math.floor(elapsedMinutes / 60);
-        if (elapsedHours < 24) return `${elapsedHours}시간 전 답안`;
-        return `${Math.floor(elapsedHours / 24)}일 전 답안`;
-    }
-
-    function revisionDetailUrl(revisionId) {
-        return DRAFT_REVISION_DETAIL_URL_TEMPLATE.replace(/0\/$/, `${revisionId}/`);
-    }
-
-    async function restoreDraftRevision(revisionId, label) {
-        if (!window.confirm(`${label}을 현재 작성 화면으로 복구하시겠습니까?\n현재 내용은 자동저장 이력에서 다시 선택할 수 있습니다.`)) return;
-        updateDraftSaveStatus('saving', '복구 답안 불러오는 중');
-        try {
-            const response = await fetch(revisionDetailUrl(revisionId), {
-                headers: {'X-Requested-With': 'XMLHttpRequest'}
-            });
-            const data = await response.json();
-            if (!response.ok || data.status !== 'success') throw new Error('복구 답안을 불러오지 못했습니다.');
-            // 복구 대상부터 확보한 뒤 아직 서버에 도착하지 않은 현재 편집본을 보존합니다.
-            const currentSaved = await persistDraft({force: true, reason: 'MANUAL'});
-            if (!currentSaved) throw new Error('현재 답안을 보존하지 못해 복구를 중단했습니다.');
-            applyDraftSnapshot(data.revision.snapshot);
-            markDraftDirty();
-            const restoredSaved = await persistDraft({force: true, reason: 'MANUAL'});
-            if (!restoredSaved) throw new Error('복구한 답안을 서버에 저장하지 못했습니다.');
-            updateDraftSaveStatus('saved', `${label} 복구 및 저장됨`);
-        } catch (error) {
-            updateDraftSaveStatus('failed', '답안 복구 실패');
-            window.alert(error.message || '답안 복구 중 오류가 발생했습니다.');
-        }
-    }
-
-    async function loadDraftRevisionMenus() {
-        const menus = document.querySelectorAll('.draft-recovery-menu');
-        menus.forEach(menu => {
-            menu.innerHTML = '<li><span class="dropdown-item-text text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>불러오는 중</span></li>';
-        });
-        try {
-            const response = await fetch(DRAFT_REVISION_LIST_URL, {
-                headers: {'X-Requested-With': 'XMLHttpRequest'}
-            });
-            const data = await response.json();
-            if (!response.ok || data.status !== 'success') throw new Error('복구 목록을 불러오지 못했습니다.');
-            menus.forEach(menu => {
-                menu.replaceChildren();
-                if (!data.revisions.length) {
-                    menu.innerHTML = '<li><span class="dropdown-item-text text-muted small">복구할 이전 답안이 없습니다.</span></li>';
-                    return;
-                }
-                data.revisions.forEach(revision => {
-                    const item = document.createElement('li');
-                    const button = document.createElement('button');
-                    const label = formatRevisionAge(revision.created_at);
-                    button.type = 'button';
-                    button.className = 'dropdown-item d-flex justify-content-between align-items-center gap-3';
-                    button.innerHTML = `<span>${label}</span><small class="text-muted">${revision.char_count}자</small>`;
-                    button.addEventListener('click', () => restoreDraftRevision(revision.id, label));
-                    item.appendChild(button);
-                    menu.appendChild(item);
-                });
-            });
-        } catch (error) {
-            menus.forEach(menu => {
-                menu.innerHTML = '<li><span class="dropdown-item-text text-danger small">복구 목록을 불러오지 못했습니다.</span></li>';
-            });
-        }
-    }
-
-    function initializeUnifiedAutoSave() {
+    async function initializeUnifiedAutoSave() {
         if (IS_TYPING_ACTIVITY) return;
         document.querySelectorAll('textarea.answer-input').forEach(function(textarea) {
             if (textarea.classList.contains('notebook-editor')) return;
@@ -3705,11 +3655,7 @@
             }
         });
         lastSavedFingerprint = draftFingerprint(collectDraftSnapshot());
-        restoreNewerLocalDraft();
-
-        document.querySelectorAll('.draft-recovery-toggle').forEach(function(button) {
-            button.addEventListener('click', loadDraftRevisionMenus);
-        });
+        await restoreEligibleLocalDraft();
 
         window.setTimeout(function() {
             persistDraft();
