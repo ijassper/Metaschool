@@ -51,6 +51,8 @@ class IngridWebActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var captureStatusText: TextView
+    private lateinit var appPageTitleText: TextView
+    private lateinit var studentIdentityText: TextView
     private lateinit var dashboardSwipeRefresh: SwipeRefreshLayout
     private var captureActive = false
     private var awaitingCapturePermission = false
@@ -177,6 +179,8 @@ class IngridWebActivity : Activity() {
         webView = findViewById(R.id.ingridWebView)
         progressBar = findViewById(R.id.webProgress)
         captureStatusText = findViewById(R.id.captureStatusText)
+        appPageTitleText = findViewById(R.id.appPageTitleText)
+        studentIdentityText = findViewById(R.id.studentIdentityText)
         dashboardSwipeRefresh = findViewById(R.id.dashboardSwipeRefresh)
         dashboardSwipeRefresh.setColorSchemeResources(R.color.ingrid_purple)
         dashboardSwipeRefresh.setOnChildScrollUpCallback { _, _ ->
@@ -220,6 +224,7 @@ class IngridWebActivity : Activity() {
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                if (!isExamPageUrl(url)) resetNativeExamHeader()
                 pageLoading = true
                 dashboardSwipeRefresh.isEnabled = isDashboardPage(url)
                 progressBar.visibility = View.VISIBLE
@@ -462,6 +467,15 @@ class IngridWebActivity : Activity() {
 
     private inner class AndroidExamBridge {
         @JavascriptInterface
+        fun updateExamHeader(identity: String) {
+            runOnUiThread {
+                appPageTitleText.text = getString(R.string.answer_page_title)
+                studentIdentityText.text = identity.trim().take(100)
+                studentIdentityText.visibility = if (identity.isBlank()) View.GONE else View.VISIBLE
+            }
+        }
+
+        @JavascriptInterface
         fun requestScreenCapture(uploadUrl: String, eventUrl: String, csrfToken: String) {
             runOnUiThread {
                 webView.evaluateJavascript(
@@ -628,6 +642,12 @@ class IngridWebActivity : Activity() {
     private fun isDashboardPage(url: String? = webView.url): Boolean {
         val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull() ?: return false
         return isIngridHost(uri.host) && uri.path.orEmpty().trimEnd('/') == DASHBOARD_PATH
+    }
+
+    private fun resetNativeExamHeader() {
+        appPageTitleText.text = getString(R.string.web_title)
+        studentIdentityText.text = ""
+        studentIdentityText.visibility = View.GONE
     }
 
     private fun updateAuthenticatedScreenshotProtection(url: String) {

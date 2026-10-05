@@ -104,6 +104,15 @@ class AndroidExamSecurityContractTests(SimpleTestCase):
         self.assertNotIn('class="security-notice"', source)
         self.assertNotIn('화면 이탈 감지와 복사/붙여넣기 차단이 활성화되어 있습니다', source)
 
+    def test_compact_answer_toolbar_replaces_bottom_action_bar(self):
+        source = get_template('activities/take_test.html').template.source
+
+        self.assertIn('class="exam-sticky-header exam-toolbar', source)
+        self.assertIn('id="draftAutoSaveStatus"', source)
+        self.assertIn('id="saveDraftButton"', source)
+        self.assertIn('updateExamHeader(ANDROID_EXAM_IDENTITY)', source)
+        self.assertNotIn('id="floatingSubmitBar"', source)
+
 
 class SidebarMegaMenuTests(SimpleTestCase):
     def setUp(self):

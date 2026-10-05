@@ -24,6 +24,7 @@
     <string name="device_notification_required">! 화면 전송 중임을 표시하는 알림을 허용해 주세요</string>
     <string name="device_notification_allow">녹화 알림 허용</string>
     <string name="web_title">Ingrid 학생 평가</string>
+    <string name="answer_page_title">Ingrid 학생 답안 페이지</string>
     <string name="capture_permission_required">화면 공유를 승인해야 시험을 시작할 수 있습니다.</string>
     <string name="secure_mode_required">화면 고정을 승인해야 시험을 시작할 수 있습니다. 기기 설정에서 화면 고정 기능을 켠 뒤 다시 시도해 주세요.</string>
     <string name="secure_mode_external_blocked">시험 중에는 외부 페이지를 열 수 없습니다.</string>

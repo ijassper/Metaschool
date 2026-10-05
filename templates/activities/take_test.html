@@ -25,6 +25,7 @@
     /* 2. 메인 컨테이너 설정 */
     #testContainer {
         height: 100dvh !important;
+        padding: 0 !important;
         overflow: hidden !important;
         display: flex !important;
         flex-direction: column !important;
@@ -49,13 +50,13 @@
         height: 600px !important; /* 높이를 더 키웝니다 */
         font-size: 1.25rem !important;
         line-height: 1.8 !important;
-        padding: 40px !important;
+        padding: 20px !important;
         border: 1px solid #dee2e6 !important;
-        border-radius: 20px !important;
+        border-radius: 14px !important;
         background-color: #ffffff !important;
         box-shadow: 0 10px 30px rgba(0,0,0,0.03) !important;
         resize: none !important;
-        margin-bottom: 40px;
+        margin-bottom: 16px;
         box-sizing: border-box !important; /* 패딩이 넓이에 영향을 주지 않도록 설정 */
     }
 
@@ -141,8 +142,9 @@
         position: sticky;
         top: 0;
         z-index: 1040;
-        min-height: 68px;
-        background: rgba(255, 255, 255, 0.92);
+        min-height: 52px;
+        padding: 0.45rem 0.75rem !important;
+        background: rgba(255, 250, 253, 0.96);
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
         border-bottom: 1px solid rgba(142, 68, 173, 0.16);
@@ -159,6 +161,46 @@
         color: #8E44AD;
         font-weight: 800;
         white-space: nowrap;
+    }
+    .exam-toolbar {
+        flex-wrap: nowrap !important;
+        gap: 0.5rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .exam-toolbar::-webkit-scrollbar { display: none; }
+    .exam-toolbar-actions {
+        flex-wrap: nowrap !important;
+        white-space: nowrap;
+    }
+    .exam-toolbar .btn {
+        flex: 0 0 auto;
+        padding: 0.35rem 0.7rem !important;
+        font-size: 0.78rem;
+    }
+    .exam-toolbar #draftAutoSaveStatus {
+        flex: 0 0 auto;
+        padding: 0.3rem 0.55rem;
+        border-radius: 999px;
+        background: #f3f0ff;
+        color: #7950a0 !important;
+        font-weight: 700;
+    }
+    .exam-question-panel {
+        padding: 0.75rem !important;
+        background: #f4eff9 !important;
+        border-right: 3px solid rgba(142, 68, 173, 0.18) !important;
+    }
+    .exam-question-panel > h4 { margin-bottom: 0.65rem !important; }
+    .exam-question-panel .glass-card {
+        margin-bottom: 0.65rem !important;
+        padding: 0.75rem !important;
+        border: 1px solid rgba(142, 68, 173, 0.1);
+    }
+    .exam-answer-panel { background: #fffafd !important; }
+    .exam-answer-scroll {
+        padding: 0.65rem 0.9rem 1rem !important;
+        background: #fffafd !important;
     }
     .proctor-recording-status {
         display: flex;
@@ -577,22 +619,6 @@
         word-break: keep-all;
         overflow-wrap: anywhere;
     }
-    .floating-submit-bar {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        z-index: 1035;
-        background: rgba(255, 255, 255, 0.92);
-        backdrop-filter: blur(18px);
-        -webkit-backdrop-filter: blur(18px);
-        border-top: 1px solid rgba(142, 68, 173, 0.18);
-        box-shadow: none;
-        padding: 0.75rem max(1rem, env(safe-area-inset-left)) calc(0.75rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-right));
-    }
-    .floating-submit-bar .btn {
-        min-height: 44px;
-    }
     .exam-action-group {
         padding-left: 0.75rem;
         border-left: 1px solid rgba(108, 117, 125, 0.28);
@@ -616,9 +642,6 @@
     .submit-action-button:focus {
         background: #a51111;
         border-color: #a51111;
-    }
-    .exam-answer-scroll {
-        padding-bottom: 120px !important;
     }
     .answer-character-count { display:flex; justify-content:flex-end; margin-top:-1.5rem; padding:.75rem 1rem; border-radius:12px; background:#f1f3f5; color:#868e96; font-weight:800; transition:.2s ease; }
     .answer-character-count.is-valid { background:#e7f5ff; color:#1971c2; }
@@ -849,17 +872,13 @@
         }
         .exam-answer-scroll {
             overflow-y: visible !important;
-            padding: 0.75rem 0.75rem 118px !important;
+            padding: 0.65rem 0.75rem 1rem !important;
         }
         .exam-sticky-header {
             align-items: center !important;
             gap: 0.5rem;
             min-height: 0;
             padding: 0.65rem 0.75rem !important;
-        }
-        .exam-header-left,
-        .exam-sticky-header > .d-flex {
-            width: 100%;
         }
         .exam-header-title {
             font-size: 1rem;
@@ -921,21 +940,6 @@
             margin-left: 0.35rem;
             padding: 0.32rem 0.65rem;
             font-size: 0.75rem;
-        }
-        .floating-submit-bar .container-fluid {
-            height: auto !important;
-            padding: 0 !important;
-        }
-        .floating-submit-bar {
-            padding: 0.5rem 0.65rem calc(0.5rem + env(safe-area-inset-bottom));
-        }
-        .floating-submit-bar .d-flex {
-            gap: 0.4rem !important;
-        }
-        .floating-submit-bar .btn {
-            min-height: 38px;
-            padding: 0.35rem 0.65rem !important;
-            font-size: 0.76rem;
         }
         .exam-action-group {
             padding-left: 0;
@@ -1400,22 +1404,29 @@
                 <!-- 시험 시작하기 및 재진입 로그 기록 -->
                 <input type="hidden" name="is_submit" id="isSubmitField" value="false">
                 <!-- 상단 헤더 고정 -->
-                <div class="exam-sticky-header p-3 d-flex align-items-center flex-wrap">
-                    <div class="exam-header-left d-flex align-items-center flex-wrap gap-2">
-                        <h5 class="exam-header-title mb-0 fw-bold text-primary">
-                            <i class="bi bi-pencil-square me-2"></i> 답안 작성
-                        </h5>
-                        <div class="exam-student-identity fw-bold ms-md-4">
-                            {{ user.name }}{% if user.school %} · {{ user.school.name }}{% endif %}
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end ms-auto">
-                        <span id="remainingTime" class="exam-status-pill">
-                            <i class="bi bi-clock-history"></i> 남은 시간 확인 중
-                        </span>
+                <div class="exam-sticky-header exam-toolbar d-flex align-items-center">
+                    <h5 class="exam-header-title mb-0 fw-bold text-primary">
+                        <i class="bi bi-pencil-square me-1"></i>답안 작성
+                    </h5>
+                    <div class="exam-toolbar-actions d-flex align-items-center gap-2 ms-auto">
+                        <span id="remainingTime" class="d-none">남은 시간 확인 중</span>
                         <span id="charCount" class="exam-status-pill">0자 / {{ activity.character_limit_label }}</span>
-                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#exitConfirmModal">나가기</button>
-                        <button type="button" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#submitModal">답안 제출</button>
+                        <span id="draftAutoSaveStatus" class="small text-muted" aria-live="polite">자동 저장 준비</span>
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-outline-secondary rounded-pill fw-bold draft-recovery-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-clock-history me-1"></i>답안 복구
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow draft-recovery-menu">
+                                <li><span class="dropdown-item-text text-muted small">복구 답안을 불러오는 중입니다.</span></li>
+                            </ul>
+                        </div>
+                        <button type="button" id="saveDraftButton" class="btn draft-action-button rounded-pill fw-bold" onclick="saveAnswer(event)">
+                            <i class="bi bi-cloud-check me-1"></i>임시 저장
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#exitConfirmModal">나가기</button>
+                        <button type="button" class="btn submit-action-button rounded-pill fw-bold text-white" data-bs-toggle="modal" data-bs-target="#submitModal">
+                            <i class="bi bi-send-check-fill me-1"></i>답안 제출
+                        </button>
                     </div>
                 </div>
                 {% if activity.proctor_mode %}
@@ -1459,33 +1470,6 @@
         {% endif %}
     </div>
 </div>
-
-{% if not activity.typing_type and not activity.is_notebook %}
-<div id="floatingSubmitBar" class="floating-submit-bar">
-    <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-        <span id="floatingCharCount" class="exam-status-pill">
-            <i class="bi bi-type"></i> 0자 / {{ activity.character_limit_label }}
-        </span>
-        <div class="exam-action-group d-flex align-items-center gap-2 ms-auto">
-            <span id="draftAutoSaveStatus" class="small text-muted" aria-live="polite">자동 저장 준비</span>
-            <div class="dropdown">
-                <button type="button" class="btn btn-outline-secondary rounded-pill px-3 fw-bold draft-recovery-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-clock-history me-1"></i>자동저장 답안 복구
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow draft-recovery-menu">
-                    <li><span class="dropdown-item-text text-muted small">복구 답안을 불러오는 중입니다.</span></li>
-                </ul>
-            </div>
-            <button type="button" id="saveDraftButton" class="btn draft-action-button px-4 fw-bold" onclick="saveAnswer(event)">
-                <i class="bi bi-cloud-check me-1"></i> 임시 저장
-            </button>
-            <button type="button" class="btn submit-action-button px-4 fw-bold text-white" data-bs-toggle="modal" data-bs-target="#submitModal">
-                <i class="bi bi-send-check-fill me-1"></i> 답안 제출
-            </button>
-        </div>
-    </div>
-</div>
-{% endif %}
 
 {% include 'components/save_status_modal.html' %}
 
@@ -1734,6 +1718,7 @@
     const IS_INGRID_ANDROID_APP = Boolean(
         window.IngridAndroid && typeof window.IngridAndroid.requestScreenCapture === 'function'
     );
+    const ANDROID_EXAM_IDENTITY = "{{ user.school.name|default:'학교 정보 없음'|escapejs }} · {{ student.grade|default:'' }}학년 {{ student.class_no|default:'' }}반 {{ student.number|default:'' }}번 {{ user.name|default:'학생'|escapejs }}";
     const entryLogUrl = '{% url entry_action_url activity.id %}';
     let entryLogged = false;
     const IS_TYPING_ACTIVITY = {{ activity.typing_type|yesno:"true,false" }};
@@ -3420,7 +3405,7 @@
         
         const charCountElement = document.getElementById('charCount');
         if (charCountElement) {
-            charCountElement.textContent = label;
+            charCountElement.textContent = `글자수 ${label}`;
             applyCharacterCountState(charCountElement, totalLength);
         }
 
@@ -3734,6 +3719,9 @@
 
     // 보안 모드 초기화 호출
     document.addEventListener('DOMContentLoaded', function() {
+        if (IS_INGRID_ANDROID_APP && typeof window.IngridAndroid.updateExamHeader === 'function') {
+            window.IngridAndroid.updateExamHeader(ANDROID_EXAM_IDENTITY);
+        }
         const startButton = document.getElementById('start-btn');
         if (startButton) {
             startButton.addEventListener('click', startTest);

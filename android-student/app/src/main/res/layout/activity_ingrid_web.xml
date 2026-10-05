@@ -23,13 +23,29 @@
         android:paddingEnd="10dp">
 
         <TextView
+            android:id="@+id/appPageTitleText"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_weight="0.72"
             android:text="@string/web_title"
             android:textColor="@color/ingrid_purple"
-            android:textSize="20sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/studentIdentityText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1.28"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textColor="#4A3A50"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/captureStatusText"
@@ -42,7 +58,7 @@
             android:paddingStart="14dp"
             android:paddingEnd="14dp"
             android:textColor="#D93447"
-            android:textSize="13sp"
+            android:textSize="12sp"
             android:textStyle="bold"
             android:visibility="gone" />
 
