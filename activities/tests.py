@@ -101,6 +101,8 @@ class AndroidExamSecurityContractTests(SimpleTestCase):
 
         self.assertIn('if (IS_INGRID_ANDROID_APP && !isError)', source)
         self.assertIn("badge.classList.add('d-none')", source)
+        self.assertNotIn('class="security-notice"', source)
+        self.assertNotIn('화면 이탈 감지와 복사/붙여넣기 차단이 활성화되어 있습니다', source)
 
 
 class SidebarMegaMenuTests(SimpleTestCase):

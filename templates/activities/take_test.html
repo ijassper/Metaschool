@@ -134,23 +134,6 @@
         .notebook-print-footer { position: absolute; left: 20mm; right: 20mm; bottom: 8mm; text-align: center; font-size: 9pt; color: #665b6a; }
     }
 
-    /* 보안 모드 안내 스타일 - 직관적인 경고용 레드로 변경 */
-    .security-notice {
-        color: #dc3545; /* 강렬한 레드 */
-        background-color: #fff5f5; /* 아주 옅은 붉은 배경 */
-        padding: 12px 20px;
-        border-radius: 12px;
-        font-size: 0.95rem;
-        font-weight: 700;
-        text-align: center;
-        margin-bottom: 24px;
-        border: 1px solid #ffc9c9;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-    }
-
     .text-2xl {
         font-size: 1.5rem !important;
     }
@@ -939,11 +922,6 @@
             padding: 0.32rem 0.65rem;
             font-size: 0.75rem;
         }
-        .security-notice {
-            margin-bottom: 0.75rem;
-            padding: 0.65rem 0.75rem;
-            font-size: 0.78rem;
-        }
         .floating-submit-bar .container-fluid {
             height: auto !important;
             padding: 0 !important;
@@ -1447,19 +1425,6 @@
                 <!-- 답안 영역만 별도 스크롤 -->
                 <div class="flex-grow-1 scroll-panel p-5 bg-light-subtle exam-answer-scroll{% if activity.proctor_mode %} has-proctor-status{% endif %}">
                     <div class="w-100">
-                        <!-- 보안 모드 안내 -->
-                        {% if enable_exit_detection or enable_copy_protection %}
-                        <div class="security-notice">
-                            <i class="bi bi-shield-fill me-2"></i>
-                            {% if enable_exit_detection and enable_copy_protection %}
-                                화면 이탈 감지와 복사/붙여넣기 차단이 활성화되어 있습니다
-                            {% elif enable_exit_detection %}
-                                화면 이탈 감지가 활성화되어 있습니다
-                            {% elif enable_copy_protection %}
-                                복사/붙여넣기 차단이 활성화되어 있습니다
-                            {% endif %}
-                        </div>
-                        {% endif %}
                         <!-- 항목 1 답변창 -->
                         {% if activity.q1_title %}
                         <div class="mb-5">
