@@ -10,6 +10,11 @@
     /* 전체 컨테이너 여백 제거 및 높이 확보 */
     body { padding-top: 0 !important; background-color: #f8f9fa; }
     .container-fluid { margin-top: 0 !important; padding: 10px; height: 100dvh; }
+
+    /* 답안 페이지는 공통 학생 화면 래퍼의 바깥 여백 없이 패널 경계를 이어서 표시한다. */
+    .no-sidebar .main-content-shell {
+        padding: 0 !important;
+    }
     
     /* 카드 높이 꽉 채우기 */
     .full-height-card { height: 95vh; }
@@ -608,9 +613,12 @@
         min-width: 0;
     }
     .exam-header-title {
-        font-size: 1.25rem;
+        font-size: 1.5rem;
         line-height: 1.2;
         white-space: nowrap;
+    }
+    .exam-toolbar .submit-action-button {
+        margin-left: 0.5rem;
     }
     .exam-student-identity {
         font-size: clamp(1.35rem, 2.4vw, 1.875rem);
@@ -881,7 +889,7 @@
             padding: 0.65rem 0.75rem !important;
         }
         .exam-header-title {
-            font-size: 1rem;
+            font-size: 1.05rem;
         }
         .exam-student-identity {
             max-width: 100%;
