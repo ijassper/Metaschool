@@ -96,7 +96,8 @@ class StudentAppDistributionTests(SimpleTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('dashboard'))
 
-    def test_download_serves_apk_with_fixed_filename(self):
+    @override_settings(ANDROID_STUDENT_APP_VERSION='0.3.5')
+    def test_download_serves_apk_with_versioned_filename(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             apk_path = Path(temp_dir) / 'student.apk'
             apk_path.write_bytes(b'ingrid-apk')
@@ -105,7 +106,7 @@ class StudentAppDistributionTests(SimpleTestCase):
 
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response['Content-Type'], 'application/vnd.android.package-archive')
-            self.assertIn('ingrid-student.apk', response['Content-Disposition'])
+            self.assertIn('ingrid-student-0.3.5.apk', response['Content-Disposition'])
             response.close()
 
     def test_qr_endpoint_returns_svg_for_download_url(self):

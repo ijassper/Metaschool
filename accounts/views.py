@@ -120,7 +120,7 @@ def student_app_download(request):
     return FileResponse(
         apk_path.open('rb'),
         as_attachment=True,
-        filename='ingrid-student.apk',
+        filename=f'ingrid-student-{settings.ANDROID_STUDENT_APP_VERSION}.apk',
         content_type='application/vnd.android.package-archive',
     )
 

@@ -4,23 +4,31 @@ import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import android.view.View
+import androidx.core.content.FileProvider
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 class MainActivity : Activity() {
     private lateinit var networkStatusText: TextView
     private lateinit var notificationStatusText: TextView
     private lateinit var notificationPermissionButton: Button
+    private var pendingUpdateFile: File? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +53,10 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         refreshDeviceChecks()
+        pendingUpdateFile?.takeIf { it.isFile && canInstallPackages() }?.let {
+            pendingUpdateFile = null
+            launchPackageInstaller(it)
+        }
     }
 
     private fun refreshDeviceChecks() {
@@ -135,10 +147,133 @@ class MainActivity : Activity() {
             .setMessage(getString(R.string.update_available_body, updateInfo.versionName))
             .setNegativeButton(R.string.update_later, null)
             .setPositiveButton(R.string.update_now) { _, _ ->
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo.downloadUrl)))
+                downloadAndInstallUpdate(updateInfo)
             }
             .show()
     }
+
+    private fun downloadAndInstallUpdate(updateInfo: UpdateInfo) {
+        val progressDialog = AlertDialog.Builder(this)
+            .setTitle(R.string.update_downloading_title)
+            .setMessage(getString(R.string.update_downloading_body, updateInfo.versionName))
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
+
+        Thread {
+            val apkFile = runCatching { downloadUpdate(updateInfo) }.getOrNull()
+            runOnUiThread {
+                if (!isFinishing && !isDestroyed) progressDialog.dismiss()
+                if (apkFile == null) {
+                    Toast.makeText(this, R.string.update_download_failed, Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                }
+                if (!isTrustedUpdate(apkFile, updateInfo.versionCode)) {
+                    apkFile.delete()
+                    Toast.makeText(this, R.string.update_invalid_apk, Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                }
+                requestInstallOrLaunch(apkFile)
+            }
+        }.start()
+    }
+
+    private fun downloadUpdate(updateInfo: UpdateInfo): File {
+        val safeVersion = updateInfo.versionName.replace(Regex("[^0-9A-Za-z._-]"), "_")
+            .ifBlank { updateInfo.versionCode.toString() }
+        val updateDir = File(filesDir, "updates").apply { mkdirs() }
+        updateDir.listFiles()?.forEach { oldFile ->
+            if (oldFile.name.startsWith("ingrid-student-") && oldFile.extension in setOf("apk", "part")) {
+                oldFile.delete()
+            }
+        }
+        val finalFile = File(updateDir, "ingrid-student-$safeVersion.apk")
+        val partialFile = File(updateDir, "ingrid-student-$safeVersion.apk.part")
+        val connection = (URL(updateInfo.downloadUrl).openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 15_000
+            readTimeout = 60_000
+            instanceFollowRedirects = false
+            useCaches = false
+            setRequestProperty("User-Agent", "IngridStudentAndroid/${currentVersionName()}")
+        }
+        try {
+            if (connection.responseCode !in 200..299) error("HTTP ${connection.responseCode}")
+            connection.inputStream.use { input ->
+                FileOutputStream(partialFile).use { output -> input.copyTo(output) }
+            }
+            if (partialFile.length() <= 0L || !partialFile.renameTo(finalFile)) {
+                error("APK file could not be finalized")
+            }
+            return finalFile
+        } finally {
+            connection.disconnect()
+            if (!finalFile.isFile) partialFile.delete()
+        }
+    }
+
+    private fun requestInstallOrLaunch(apkFile: File) {
+        if (canInstallPackages()) {
+            launchPackageInstaller(apkFile)
+            return
+        }
+        pendingUpdateFile = apkFile
+        Toast.makeText(this, R.string.update_install_permission, Toast.LENGTH_LONG).show()
+        startActivity(
+            Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.parse("package:$packageName"),
+            ),
+        )
+    }
+
+    private fun canInstallPackages(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()
+
+    private fun launchPackageInstaller(apkFile: File) {
+        val apkUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apkFile)
+        startActivity(
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, APK_MIME_TYPE)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            },
+        )
+    }
+
+    private fun isTrustedUpdate(apkFile: File, expectedVersionCode: Long): Boolean {
+        val candidate = packageArchiveInfo(apkFile) ?: return false
+        if (candidate.packageName != packageName || versionCode(candidate) != expectedVersionCode) return false
+        val installed = packageManager.getPackageInfo(packageName, signingInfoFlag())
+        return certificateDigests(candidate) == certificateDigests(installed) && certificateDigests(candidate).isNotEmpty()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun packageArchiveInfo(apkFile: File): PackageInfo? =
+        packageManager.getPackageArchiveInfo(apkFile.absolutePath, signingInfoFlag())
+
+    @Suppress("DEPRECATION")
+    private fun signingInfoFlag(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES
+        else PackageManager.GET_SIGNATURES
+
+    @Suppress("DEPRECATION")
+    private fun certificateDigests(info: PackageInfo): Set<String> {
+        val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val signingInfo = info.signingInfo ?: return emptySet()
+            if (signingInfo.hasMultipleSigners()) signingInfo.apkContentsSigners
+            else signingInfo.signingCertificateHistory
+        } else {
+            info.signatures
+        }
+        return signatures.orEmpty().map { signature ->
+            MessageDigest.getInstance("SHA-256").digest(signature.toByteArray())
+                .joinToString("") { byte -> "%02x".format(byte) }
+        }.toSet()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun versionCode(info: PackageInfo): Long =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else info.versionCode.toLong()
 
     @Suppress("DEPRECATION")
     private fun currentVersionCode(): Long {
@@ -163,6 +298,7 @@ class MainActivity : Activity() {
 
     companion object {
         private const val VERSION_URL = "https://schoolingrid.com/accounts/student-app/version/"
+        private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
         private const val NOTIFICATION_PERMISSION_REQUEST = 4101
     }
 }

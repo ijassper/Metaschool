@@ -37,6 +37,11 @@
     <string name="update_available_body">인그리드 학생 앱 %1$s 버전을 설치할 수 있습니다. 감독 기능을 안정적으로 사용하려면 업데이트해 주세요.</string>
     <string name="update_now">지금 업데이트</string>
     <string name="update_later">나중에</string>
+    <string name="update_downloading_title">업데이트 다운로드 중</string>
+    <string name="update_downloading_body">인그리드 학생 앱 %1$s 버전을 앱 전용 저장공간에 내려받고 있습니다.</string>
+    <string name="update_download_failed">업데이트 파일을 내려받지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.</string>
+    <string name="update_invalid_apk">다운로드한 업데이트 파일을 확인할 수 없어 설치를 중단했습니다.</string>
+    <string name="update_install_permission">인그리드 앱의 업데이트 설치를 한 번만 허용해 주세요. 허용 후 설치 화면이 자동으로 열립니다.</string>
     <string name="capture_notification_title">인그리드 화면 녹화중</string>
     <string name="capture_notification_body">감독 선생님에게 시험 화면을 전송하고 있습니다.</string>
     <string name="capture_notification_retrying">네트워크 연결을 확인하며 화면 전송을 다시 시도하고 있습니다.</string>
