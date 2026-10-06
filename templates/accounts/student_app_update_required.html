@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ingrid 학생 앱 필수 업데이트</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f8f4fb; color: #332b37; font-family: "Noto Sans KR", "Malgun Gothic", sans-serif; }
+        main { width: min(680px, 100%); padding: 38px; border: 1px solid #eadff0; border-radius: 24px; background: #fff; box-shadow: 0 18px 48px rgba(83, 44, 98, .12); text-align: center; }
+        .brand { color: #8e44ad; font-size: 18px; font-weight: 900; letter-spacing: .08em; }
+        h1 { margin: 14px 0 12px; font-size: clamp(28px, 5vw, 40px); }
+        p { margin: 0 auto; color: #6f6574; font-size: 17px; line-height: 1.7; }
+        .versions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 28px 0; }
+        .version { padding: 14px 8px; border-radius: 14px; background: #faf7fc; }
+        .version small { display: block; margin-bottom: 5px; color: #8b7e90; }
+        .version strong { font-size: 18px; }
+        a { display: block; width: 100%; padding: 16px; border-radius: 14px; background: linear-gradient(135deg, #ed6cae, #8e44ad); color: #fff; font-size: 18px; font-weight: 900; text-decoration: none; }
+        .retry { margin-top: 15px; color: #7b6d80; font-size: 14px; }
+        @media (max-width: 560px) { main { padding: 28px 20px; } .versions { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<main>
+    <div class="brand">INGRID ANDROID</div>
+    <h1>필수 업데이트가 필요합니다</h1>
+    <p>현재 앱에서는 최신 감독 기능을 사용할 수 없습니다.<br>업데이트를 설치한 후 Ingrid 학생 앱을 다시 실행해 주세요.</p>
+    <div class="versions">
+        <div class="version"><small>현재 버전</small><strong>{{ current_version }}</strong></div>
+        <div class="version"><small>최소 지원 버전</small><strong>{{ minimum_version }}</strong></div>
+        <div class="version"><small>최신 버전</small><strong>{{ latest_version }}</strong></div>
+    </div>
+    {% if apk_available %}
+    <a href="{% url 'student_app_download' %}">최신 앱 다운로드</a>
+    {% else %}
+    <p>설치 파일을 준비하고 있습니다. 잠시 후 다시 확인해 주세요.</p>
+    {% endif %}
+    <div class="retry">설치가 끝나면 이 화면을 닫고 Ingrid 학생 앱을 다시 실행하세요.</div>
+</main>
+</body>
+</html>

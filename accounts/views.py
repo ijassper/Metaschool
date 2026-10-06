@@ -144,7 +144,18 @@ def student_app_version(request):
     return JsonResponse({
         'version_code': settings.ANDROID_STUDENT_APP_VERSION_CODE,
         'version_name': settings.ANDROID_STUDENT_APP_VERSION,
+        'minimum_version_code': settings.ANDROID_STUDENT_MIN_VERSION_CODE,
+        'minimum_version_name': settings.ANDROID_STUDENT_MIN_VERSION,
         'download_url': request.build_absolute_uri(reverse('student_app_download')),
+        'apk_available': _android_student_apk_path() is not None,
+    })
+
+
+def student_app_update_required(request):
+    return render(request, 'accounts/student_app_update_required.html', {
+        'current_version': getattr(request, 'ingrid_android_version', '확인 불가'),
+        'minimum_version': settings.ANDROID_STUDENT_MIN_VERSION,
+        'latest_version': settings.ANDROID_STUDENT_APP_VERSION,
         'apk_available': _android_student_apk_path() is not None,
     })
 

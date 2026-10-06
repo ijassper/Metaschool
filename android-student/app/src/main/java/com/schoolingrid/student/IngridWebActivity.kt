@@ -218,7 +218,7 @@ class IngridWebActivity : Activity() {
             allowFileAccess = false
             allowContentAccess = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            userAgentString = "$userAgentString IngridStudentAndroid/0.1"
+            userAgentString = "$userAgentString IngridStudentAndroid/${currentVersionName()}"
         }
         webView.addJavascriptInterface(AndroidExamBridge(), "IngridAndroid")
 
@@ -905,6 +905,9 @@ class IngridWebActivity : Activity() {
     private fun isIngridHost(host: String?): Boolean {
         return host == "schoolingrid.com" || host?.endsWith(".schoolingrid.com") == true
     }
+
+    private fun currentVersionName(): String =
+        packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
 
     companion object {
         private const val INGRID_ORIGIN = "https://schoolingrid.com"

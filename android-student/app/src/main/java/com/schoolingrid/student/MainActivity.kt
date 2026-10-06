@@ -28,7 +28,10 @@ class MainActivity : Activity() {
     private lateinit var networkStatusText: TextView
     private lateinit var notificationStatusText: TextView
     private lateinit var notificationPermissionButton: Button
+    private lateinit var loginButton: Button
     private var pendingUpdateFile: File? = null
+    private var minimumRequiredUpdate: UpdateInfo? = null
+    private var versionCheckPassed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,8 +46,15 @@ class MainActivity : Activity() {
         notificationPermissionButton = findViewById(R.id.notificationPermissionButton)
         notificationPermissionButton.setOnClickListener { requestNotificationPermission() }
 
-        findViewById<Button>(R.id.loginButton).setOnClickListener {
-            startActivity(Intent(this, IngridWebActivity::class.java))
+        loginButton = findViewById(R.id.loginButton)
+        loginButton.isEnabled = false
+        loginButton.setText(R.string.login_version_checking)
+        loginButton.setOnClickListener {
+            when {
+                versionCheckPassed -> startActivity(Intent(this, IngridWebActivity::class.java))
+                minimumRequiredUpdate != null -> showRequiredUpdateDialog(minimumRequiredUpdate!!)
+                else -> checkForAppUpdate()
+            }
         }
 
         checkForAppUpdate()
@@ -105,6 +115,10 @@ class MainActivity : Activity() {
     }
 
     private fun checkForAppUpdate() {
+        versionCheckPassed = false
+        minimumRequiredUpdate = null
+        loginButton.isEnabled = false
+        loginButton.setText(R.string.login_version_checking)
         Thread {
             val updateInfo = runCatching {
                 val connection = (URL(VERSION_URL).openConnection() as HttpURLConnection).apply {
@@ -122,22 +136,77 @@ class MainActivity : Activity() {
                     UpdateInfo(
                         versionCode = json.optLong("version_code", 0L),
                         versionName = json.optString("version_name", ""),
+                        minimumVersionCode = json.optLong("minimum_version_code", 0L),
+                        minimumVersionName = json.optString("minimum_version_name", ""),
                         downloadUrl = json.optString("download_url", ""),
                         apkAvailable = json.optBoolean("apk_available", false),
                     )
                 } finally {
                     connection.disconnect()
                 }
-            }.getOrNull() ?: return@Thread
+            }.getOrNull()
+
+            if (updateInfo == null) {
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    loginButton.isEnabled = true
+                    loginButton.setText(R.string.login_version_retry)
+                    Toast.makeText(this, R.string.update_check_failed, Toast.LENGTH_LONG).show()
+                }
+                return@Thread
+            }
+
+            val trustedDownload = updateInfo.apkAvailable &&
+                updateInfo.downloadUrl.startsWith("https://schoolingrid.com/")
+            if (currentVersionCode() < updateInfo.minimumVersionCode) {
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    minimumRequiredUpdate = updateInfo
+                    loginButton.isEnabled = true
+                    loginButton.setText(R.string.login_update_required)
+                    showRequiredUpdateDialog(updateInfo)
+                }
+                return@Thread
+            }
+
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                versionCheckPassed = true
+                loginButton.isEnabled = true
+                loginButton.setText(R.string.login_button)
+            }
 
             if (
                 updateInfo.versionCode > currentVersionCode() &&
-                updateInfo.apkAvailable &&
-                updateInfo.downloadUrl.startsWith("https://schoolingrid.com/")
+                trustedDownload
             ) {
                 runOnUiThread { showUpdateDialog(updateInfo) }
             }
         }.start()
+    }
+
+    private fun showRequiredUpdateDialog(updateInfo: UpdateInfo) {
+        if (isFinishing || isDestroyed) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.update_required_title)
+            .setMessage(
+                getString(
+                    R.string.update_required_body,
+                    updateInfo.minimumVersionName.ifBlank { updateInfo.versionName },
+                ),
+            )
+            .setCancelable(false)
+            .setPositiveButton(R.string.update_now) { _, _ ->
+                if (
+                    updateInfo.apkAvailable &&
+                    updateInfo.downloadUrl.startsWith("https://schoolingrid.com/")
+                ) {
+                    downloadAndInstallUpdate(updateInfo)
+                } else {
+                    Toast.makeText(this, R.string.update_download_failed, Toast.LENGTH_LONG).show()
+                }
+            }
+            .show()
     }
 
     private fun showUpdateDialog(updateInfo: UpdateInfo) {
@@ -292,6 +361,8 @@ class MainActivity : Activity() {
     private data class UpdateInfo(
         val versionCode: Long,
         val versionName: String,
+        val minimumVersionCode: Long,
+        val minimumVersionName: String,
         val downloadUrl: String,
         val apkAvailable: Boolean,
     )

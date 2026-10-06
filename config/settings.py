@@ -52,6 +52,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'accounts.middleware.AndroidStudentMinimumVersionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'accounts.middleware.StudentSessionValidationMiddleware',
@@ -214,8 +215,10 @@ ANDROID_STUDENT_APK_PATH = os.environ.get(
     'ANDROID_STUDENT_APK_PATH',
     str(BASE_DIR / 'releases' / 'ingrid-student.apk'),
 )
-ANDROID_STUDENT_APP_VERSION = os.environ.get('ANDROID_STUDENT_APP_VERSION', '0.3.5')
-ANDROID_STUDENT_APP_VERSION_CODE = int(os.environ.get('ANDROID_STUDENT_APP_VERSION_CODE', '26'))
+ANDROID_STUDENT_APP_VERSION = os.environ.get('ANDROID_STUDENT_APP_VERSION', '0.3.6')
+ANDROID_STUDENT_APP_VERSION_CODE = int(os.environ.get('ANDROID_STUDENT_APP_VERSION_CODE', '27'))
+ANDROID_STUDENT_MIN_VERSION = os.environ.get('ANDROID_STUDENT_MIN_VERSION', '0.3.6')
+ANDROID_STUDENT_MIN_VERSION_CODE = int(os.environ.get('ANDROID_STUDENT_MIN_VERSION_CODE', '27'))
 PROCTOR_RETENTION_DAYS = max(1, int(os.environ.get('PROCTOR_RETENTION_DAYS', '30')))
 PROCTOR_AUTO_CLEANUP_ENABLED = os.environ.get('PROCTOR_AUTO_CLEANUP_ENABLED', '1') == '1'
 

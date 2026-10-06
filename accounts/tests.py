@@ -13,7 +13,7 @@ from django.test import Client, RequestFactory, SimpleTestCase, override_setting
 from django.urls import resolve, reverse
 from django.template.loader import get_template
 
-from .middleware import StudentSessionValidationMiddleware
+from .middleware import AndroidStudentMinimumVersionMiddleware, StudentSessionValidationMiddleware
 from .views import (
     _notify_admin_storage_risk,
     _should_trigger_proctor_cleanup,
@@ -121,6 +121,8 @@ class StudentAppDistributionTests(SimpleTestCase):
     @override_settings(
         ANDROID_STUDENT_APP_VERSION='0.2.0',
         ANDROID_STUDENT_APP_VERSION_CODE=11,
+        ANDROID_STUDENT_MIN_VERSION='0.1.8',
+        ANDROID_STUDENT_MIN_VERSION_CODE=9,
     )
     def test_version_endpoint_exposes_current_release(self):
         with patch('accounts.views._android_student_apk_path', return_value=Path('release.apk')):
@@ -129,8 +131,46 @@ class StudentAppDistributionTests(SimpleTestCase):
         payload = json.loads(response.content)
         self.assertEqual(payload['version_code'], 11)
         self.assertEqual(payload['version_name'], '0.2.0')
+        self.assertEqual(payload['minimum_version_code'], 9)
+        self.assertEqual(payload['minimum_version_name'], '0.1.8')
         self.assertTrue(payload['apk_available'])
         self.assertTrue(payload['download_url'].endswith(reverse('student_app_download')))
+
+
+class AndroidStudentMinimumVersionMiddlewareTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.next_response = HttpResponse('allowed')
+        self.middleware = AndroidStudentMinimumVersionMiddleware(lambda request: self.next_response)
+
+    @override_settings(ANDROID_STUDENT_MIN_VERSION='0.3.6')
+    def test_legacy_android_app_is_redirected_to_required_update(self):
+        request = self.factory.get('/accounts/login/', HTTP_USER_AGENT='Chrome IngridStudentAndroid/0.1')
+        response = self.middleware(request)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('student_app_update_required'))
+
+    @override_settings(ANDROID_STUDENT_MIN_VERSION='0.3.6')
+    def test_supported_android_app_can_continue(self):
+        request = self.factory.get('/accounts/login/', HTTP_USER_AGENT='Chrome IngridStudentAndroid/0.3.6')
+        response = self.middleware(request)
+        self.assertIs(response, self.next_response)
+
+    @override_settings(ANDROID_STUDENT_MIN_VERSION='0.3.6')
+    def test_browser_is_not_affected(self):
+        request = self.factory.get('/accounts/login/', HTTP_USER_AGENT='Chrome/140.0')
+        response = self.middleware(request)
+        self.assertIs(response, self.next_response)
+
+    @override_settings(ANDROID_STUDENT_MIN_VERSION='0.3.6')
+    def test_update_endpoints_remain_available_to_legacy_app(self):
+        for path in (
+            reverse('student_app_version'),
+            reverse('student_app_download'),
+            reverse('student_app_update_required'),
+        ):
+            request = self.factory.get(path, HTTP_USER_AGENT='Chrome IngridStudentAndroid/0.1')
+            self.assertIs(self.middleware(request), self.next_response)
 
 
 class AdminSystemSettingsPersonaTests(SimpleTestCase):
