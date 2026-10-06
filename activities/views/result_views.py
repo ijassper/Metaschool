@@ -44,8 +44,10 @@ def get_proctor_activity_for_user(user, activity_id):
     return get_object_or_404(activities, id=activity_id)
 
 
-def get_proctor_connection_state(status, latest_snapshot_at, now=None):
+def get_proctor_connection_state(status, latest_snapshot_at, now=None, submitted_at=None):
     """Return a teacher-facing state based on explicit events and recent server receipts."""
+    if submitted_at:
+        return 'SUBMITTED'
     explicit_states = {
         ProctorSession.Status.AWAY: 'AWAY',
         ProctorSession.Status.DISCONNECTED: 'STOPPED',
@@ -199,6 +201,11 @@ def proctor_feed(request, activity_id):
         activity=activity, student_id=OuterRef('pk')
     ).order_by('-created_at', '-id')
     session = ProctorSession.objects.filter(activity=activity, student_id=OuterRef('pk'))
+    submitted_answer = Answer.objects.filter(
+        question__activity=activity,
+        student_id=OuterRef('pk'),
+        submitted_at__isnull=False,
+    ).order_by('-submitted_at', '-id')
     students = activity.target_students.annotate(
         latest_snapshot_id=Subquery(latest.values('id')[:1]),
         latest_snapshot_at=Subquery(latest.values('created_at')[:1]),
@@ -211,6 +218,7 @@ def proctor_feed(request, activity_id):
         proctor_capture_scope=Subquery(session.values('capture_scope')[:1]),
         proctor_security_status=Subquery(session.values('security_status')[:1]),
         proctor_security_updated_at=Subquery(session.values('security_updated_at')[:1]),
+        answer_submitted_at=Subquery(submitted_answer.values('submitted_at')[:1]),
     ).order_by('grade', 'class_no', 'number', 'name')
     with proctor_storage_status() as storage:
         storage_status = storage
@@ -236,7 +244,9 @@ def proctor_feed(request, activity_id):
                     student.proctor_status,
                     student.latest_snapshot_at,
                     now,
+                    student.answer_submitted_at,
                 ),
+                'answer_submitted_at': student.answer_submitted_at.isoformat() if student.answer_submitted_at else None,
                 'security_status': student.proctor_security_status or ProctorSession.SecurityStatus.UNKNOWN,
                 'security_updated_at': student.proctor_security_updated_at.isoformat() if student.proctor_security_updated_at else None,
                 'diagnostics': {

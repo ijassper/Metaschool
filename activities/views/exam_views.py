@@ -279,7 +279,7 @@ def upload_proctor_snapshot(request, activity_id):
         session.last_seen_at = timezone.now()
         if not session.started_at:
             session.started_at = session.last_seen_at
-        if session.status != ProctorSession.Status.AWAY:
+        if session.status not in {ProctorSession.Status.AWAY, ProctorSession.Status.ENDED}:
             session.status = ProctorSession.Status.RECORDING
         session.save(update_fields=['last_seen_at', 'started_at', 'status', 'updated_at'])
     return JsonResponse({'status': 'success', 'snapshot_id': snapshot.id})
@@ -297,6 +297,32 @@ def get_proctor_diagnostics(payload):
         field: str(payload.get(field, '')).strip()[:limit]
         for field, limit in limits.items()
     }
+
+
+def finish_proctor_session_for_answer(answer, ended_at=None):
+    """최종 제출된 답안의 감독 세션을 정상 종료 상태로 확정합니다."""
+    activity = answer.question.activity
+    if not activity.proctor_mode:
+        return
+    ended_at = ended_at or timezone.now()
+    session, _ = ProctorSession.objects.get_or_create(
+        activity=activity,
+        student=answer.student,
+    )
+    session.status = ProctorSession.Status.ENDED
+    session.ended_at = ended_at
+    session.last_seen_at = ended_at
+    session.last_message = ''
+    session.save(update_fields=[
+        'status', 'ended_at', 'last_seen_at', 'last_message', 'updated_at',
+    ])
+    if not session.events.filter(event_type=ProctorEvent.EventType.EXAM_ENDED).exists():
+        ProctorEvent.objects.create(
+            session=session,
+            event_type=ProctorEvent.EventType.EXAM_ENDED,
+            client_occurred_at=ended_at,
+            message='답안 제출 완료',
+        )
 
 
 @login_required
@@ -345,6 +371,16 @@ def report_proctor_event(request, activity_id):
             activity=activity,
             student=student,
         )
+        if (
+            session.status == ProctorSession.Status.ENDED
+            and event_type in {
+                ProctorEvent.EventType.CAPTURE_STARTED,
+                ProctorEvent.EventType.APP_BACKGROUND,
+                ProctorEvent.EventType.APP_FOREGROUND,
+                ProctorEvent.EventType.CAPTURE_STOPPED,
+            }
+        ):
+            return JsonResponse({'status': 'success', 'session_status': session.status})
         if event_type in status_map:
             session.status = status_map[event_type]
         session.last_seen_at = now
@@ -582,6 +618,7 @@ def take_test(request, activity_id):
 
         if is_final_submit:
             record_answer_submission(answer)
+            finish_proctor_session_for_answer(answer, answer.submitted_at)
             messages.success(request, "답안이 제출되었습니다")
             return redirect('dashboard')
         return JsonResponse({'status': 'success', 'message': '임시 저장 완료'})
@@ -973,6 +1010,8 @@ def log_activity(request):
             if log_type in ['OUT', 'EXIT', 'BACK_BUTTON'] and not answer.submitted_at:
                 answer.submitted_at = now
                 answer.save(update_fields=['activity_log', 'submitted_at'])
+                record_answer_submission(answer)
+                finish_proctor_session_for_answer(answer, now)
             else:
                 answer.save(update_fields=['activity_log'])
             

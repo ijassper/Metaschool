@@ -39,6 +39,17 @@ class ProctorConnectionStateTests(SimpleTestCase):
         self.assertEqual(self.state(ProctorSession.Status.ENDED), 'ENDED')
         self.assertEqual(self.state(ProctorSession.Status.DISCONNECTED), 'STOPPED')
 
+    def test_submitted_answer_takes_priority_over_stopped_capture(self):
+        self.assertEqual(
+            get_proctor_connection_state(
+                ProctorSession.Status.DISCONNECTED,
+                self.now - timedelta(minutes=30),
+                self.now,
+                self.now - timedelta(minutes=31),
+            ),
+            'SUBMITTED',
+        )
+
     def test_student_without_snapshot_has_no_record(self):
         self.assertEqual(
             get_proctor_connection_state(ProctorSession.Status.RECORDING, None, self.now),
@@ -57,6 +68,8 @@ class ProctorConnectionStateTests(SimpleTestCase):
         self.assertIn('connection_state', source)
         self.assertIn('security_status', source)
         self.assertIn('화면 고정 해제', source)
+        self.assertIn("SUBMITTED: ['state-submitted', '제출 완료']", source)
+        self.assertIn("!['ENDED', 'SUBMITTED'].includes(student.connection_state)", source)
 
     def test_device_diagnostics_are_allowlisted_and_bounded(self):
         diagnostics = get_proctor_diagnostics({
