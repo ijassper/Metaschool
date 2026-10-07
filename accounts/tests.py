@@ -24,6 +24,7 @@ from .views import (
     student_app_install,
     student_app_qr,
     student_app_version,
+    student_app_update_required,
 )
 
 
@@ -171,6 +172,19 @@ class AndroidStudentMinimumVersionMiddlewareTests(SimpleTestCase):
         ):
             request = self.factory.get(path, HTTP_USER_AGENT='Chrome IngridStudentAndroid/0.1')
             self.assertIs(self.middleware(request), self.next_response)
+
+    @override_settings(
+        ANDROID_STUDENT_MIN_VERSION='0.3.6',
+        ANDROID_STUDENT_APP_VERSION='0.3.6',
+        ANDROID_STUDENT_EXTERNAL_DOWNLOAD_URL='https://download.example.test/ingrid.apk',
+    )
+    def test_required_update_page_uses_external_browser_download_url(self):
+        request = self.factory.get(reverse('student_app_update_required'))
+        request.ingrid_android_version = '0.1'
+        with patch('accounts.views._android_student_apk_path', return_value=Path('release.apk')):
+            response = student_app_update_required(request)
+        self.assertContains(response, 'https://download.example.test/ingrid.apk')
+        self.assertContains(response, 'Chrome에서 최신 앱 다운로드')
 
 
 class AdminSystemSettingsPersonaTests(SimpleTestCase):

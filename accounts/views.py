@@ -157,6 +157,7 @@ def student_app_update_required(request):
         'minimum_version': settings.ANDROID_STUDENT_MIN_VERSION,
         'latest_version': settings.ANDROID_STUDENT_APP_VERSION,
         'apk_available': _android_student_apk_path() is not None,
+        'external_download_url': settings.ANDROID_STUDENT_EXTERNAL_DOWNLOAD_URL,
     })
 
 

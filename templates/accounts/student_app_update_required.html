@@ -31,11 +31,11 @@
         <div class="version"><small>최신 버전</small><strong>{{ latest_version }}</strong></div>
     </div>
     {% if apk_available %}
-    <a href="{% url 'student_app_download' %}">최신 앱 다운로드</a>
+    <a href="{{ external_download_url }}">Chrome에서 최신 앱 다운로드</a>
     {% else %}
     <p>설치 파일을 준비하고 있습니다. 잠시 후 다시 확인해 주세요.</p>
     {% endif %}
-    <div class="retry">설치가 끝나면 이 화면을 닫고 Ingrid 학생 앱을 다시 실행하세요.</div>
+    <div class="retry">버튼을 누르면 Chrome으로 이동합니다. 다운로드한 APK를 설치한 뒤 Ingrid 학생 앱을 다시 실행하세요.</div>
 </main>
 </body>
 </html>
