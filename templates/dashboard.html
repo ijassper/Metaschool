@@ -117,7 +117,7 @@
     .pastel-orange { background-color: #FFE8CC !important; border: 1px solid #FFCCBC !important; }
     .pastel-red    { background-color: #FFE3E3 !important; border: 1px solid #FFCDD2 !important; }
     .pastel-pink   { background-color: #FFDEEB !important; border: 1px solid #F8BBD0 !important; }
-    .pastel-teal   { background-color: #DDF4F2 !important; border: 1px solid #A8DDD8 !important; }
+    .pastel-lime   { background-color: #D7EC8A !important; border: 1px solid #BDD45F !important; }
 
     /* 각 파스텔 블록별 호버 테두리 컬러 지정 */
     .pastel-purple .eval-item-card:hover { border-color: #B292FF !important; }
@@ -127,7 +127,7 @@
     .pastel-orange .eval-item-card:hover { border-color: #FF922B !important; }
     .pastel-red .eval-item-card:hover    { border-color: #FF8787 !important; }
     .pastel-pink .eval-item-card:hover   { border-color: #FAA2C1 !important; }
-    .pastel-teal .eval-item-card:hover   { border-color: #46B8B0 !important; }
+    .pastel-lime .eval-item-card:hover   { border-color: #94B62D !important; }
 
     .block-header {
         display: flex;
@@ -349,7 +349,7 @@
 
         {% for block in category_blocks %}
             <!-- 파스텔 색상을 순서대로 적용 (Django cycle 태그 활용) -->
-            <div class="category-block shadow-sm {% cycle 'pastel-purple' 'pastel-blue' 'pastel-green' 'pastel-yellow' 'pastel-orange' 'pastel-red' 'pastel-pink' 'pastel-teal' %}">
+            <div class="category-block shadow-sm {% cycle 'pastel-purple' 'pastel-blue' 'pastel-green' 'pastel-yellow' 'pastel-orange' 'pastel-red' 'pastel-pink' 'pastel-lime' %}">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <span class="fw-bold" style="font-size: 1rem; color:#495057;">{{ block.name }}</span>
                     <span class="badge bg-white text-dark shadow-sm">{{ block.items|length }}</span>
