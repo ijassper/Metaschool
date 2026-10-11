@@ -57,6 +57,12 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertEqual(CourseNotebook.Semester.FIRST, '1')
         self.assertEqual(CourseNotebook.Semester.YEAR.label, '전학기')
         self.assertEqual(CourseNotebook._meta.get_field('semester').default, CourseNotebook.Semester.YEAR)
+        self.assertEqual(
+            [value for value, _ in CourseNotebook.COVER_COLOR_CHOICES],
+            ['PURPLE', 'BLUE', 'GREEN', 'YELLOW', 'ORANGE', 'RED', 'PINK', 'TEAL'],
+        )
+        for color in ['YELLOW', 'RED', 'TEAL']:
+            self.assertIn(f'.cover-option .{color}', form_source)
         self.assertEqual(CourseNotebookPage._meta.get_field('memo').max_length, 200)
         self.assertEqual(CourseNotebookSection._meta.get_field('title').max_length, 100)
         self.assertEqual(CourseNotebookMaterial._meta.get_field('original_name').max_length, 255)
@@ -88,6 +94,15 @@ class CourseNotebookUiTests(SimpleTestCase):
         source = get_template('base.html').template.source
         self.assertIn('data-mega-category="COURSE_NOTEBOOK"', source)
         self.assertIn('link.dataset.megaCategory', source)
+
+    def test_dashboard_uses_eight_unique_pastel_colors(self):
+        teacher_source = get_template('dashboard.html').template.source
+        student_source = get_template('activities/student_dashboard.html').template.source
+        expected_cycle = "'pastel-purple' 'pastel-blue' 'pastel-green' 'pastel-yellow' 'pastel-orange' 'pastel-red' 'pastel-pink' 'pastel-teal'"
+        self.assertIn(expected_cycle, teacher_source)
+        self.assertIn(expected_cycle, student_source)
+        self.assertIn('.pastel-teal', teacher_source)
+        self.assertIn('.pastel-teal', student_source)
 
     def test_course_notebook_mega_menu_returns_teacher_notebooks(self):
         request = RequestFactory().get('/activities/get-menu-items/', {

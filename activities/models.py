@@ -728,8 +728,8 @@ class CourseNotebook(models.Model):
         YEAR = 'YEAR', '전학기'
 
     COVER_COLOR_CHOICES = [
-        ('PURPLE', '보라'), ('BLUE', '파랑'), ('GREEN', '초록'),
-        ('ORANGE', '주황'), ('PINK', '분홍'), ('GRAY', '회색'),
+        ('PURPLE', '보라'), ('BLUE', '파랑'), ('GREEN', '초록'), ('YELLOW', '노랑'),
+        ('ORANGE', '주황'), ('RED', '빨강'), ('PINK', '분홍'), ('TEAL', '청록'),
     ]
 
     teacher = models.ForeignKey(
