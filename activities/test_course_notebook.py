@@ -35,7 +35,10 @@ class CourseNotebookUiTests(SimpleTestCase):
         student_source = get_template('activities/student_course_notebook.html').template.source
         self.assertIn('새 교과 수업 노트', list_source)
         self.assertIn('대상 학생', form_source)
-        self.assertLess(form_source.index('과목명'), form_source.index('노트 제목'))
+        first_row_labels = [form_source.index(label) for label in ['학년도', '학기', '과목명', '노트 제목']]
+        self.assertEqual(first_row_labels, sorted(first_row_labels))
+        self.assertIn('name="title" maxlength="30"', form_source)
+        self.assertIn("value == 'YEAR'", form_source)
         self.assertIn('노트 소개', form_source)
         self.assertNotIn('>학생 안내<', form_source)
         self.assertIn('courseNotebookStudentModal', form_source)
@@ -44,17 +47,22 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('grid-auto-flow:column', form_source)
         self.assertIn('data-student-search=', form_source)
         self.assertIn("tokens.every", form_source)
-        self.assertIn('단원 구조를 미리 구성합니다', form_source)
+        self.assertIn('>단원 구조<', form_source)
+        self.assertNotIn('name="enable_outline"', form_source)
         self.assertIn('name="materials"', form_source)
         self.assertNotIn('대단원과 소단원은 다음 화면에서 구성합니다', form_source)
         self.assertIn('capture="environment"', student_source)
         self.assertIn('노트 사진 저장', student_source)
         self.assertIn('포스트잇 편집', student_source)
         self.assertEqual(CourseNotebook.Semester.FIRST, '1')
+        self.assertEqual(CourseNotebook.Semester.YEAR.label, '전학기')
+        self.assertEqual(CourseNotebook._meta.get_field('semester').default, CourseNotebook.Semester.YEAR)
         self.assertEqual(CourseNotebookPage._meta.get_field('memo').max_length, 200)
         self.assertEqual(CourseNotebookSection._meta.get_field('title').max_length, 100)
         self.assertEqual(CourseNotebookMaterial._meta.get_field('original_name').max_length, 255)
         self.assertEqual(CourseNotebookStickyNote._meta.get_field('content').max_length, 1000)
+        for heading in ['학년도', '학기', '과목명', '노트 제목', '상태', '학생 현황']:
+            self.assertIn(f'<th>{heading}</th>', list_source)
 
     def test_section_outline_supports_markdown_and_indentation(self):
         outline = '# 1. 고조선\n  - 청동기 시대\n    고조선의 건국\n# 2. 삼국 시대'

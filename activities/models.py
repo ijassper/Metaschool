@@ -725,7 +725,7 @@ class CourseNotebook(models.Model):
     class Semester(models.TextChoices):
         FIRST = '1', '1학기'
         SECOND = '2', '2학기'
-        YEAR = 'YEAR', '연간'
+        YEAR = 'YEAR', '전학기'
 
     COVER_COLOR_CHOICES = [
         ('PURPLE', '보라'), ('BLUE', '파랑'), ('GREEN', '초록'),
@@ -739,7 +739,7 @@ class CourseNotebook(models.Model):
     title = models.CharField(max_length=120, verbose_name='노트 이름')
     subject = models.CharField(max_length=60, verbose_name='과목명')
     academic_year = models.PositiveSmallIntegerField(verbose_name='학년도')
-    semester = models.CharField(max_length=8, choices=Semester.choices, default=Semester.FIRST)
+    semester = models.CharField(max_length=8, choices=Semester.choices, default=Semester.YEAR)
     description = models.TextField(blank=True, max_length=1000, verbose_name='사용 안내')
     cover_color = models.CharField(
         max_length=12, choices=COVER_COLOR_CHOICES, default='PURPLE', verbose_name='표지 색상'

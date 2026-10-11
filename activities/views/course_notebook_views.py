@@ -82,7 +82,7 @@ def validate_material(uploaded):
 @teacher_required
 def course_notebook_list(request):
     notebooks = CourseNotebook.objects.filter(
-        teacher=request.user, is_archived=False
+        teacher=request.user
     ).prefetch_related('target_students')
     return render(request, 'activities/course_notebook_list.html', {'notebooks': notebooks})
 
@@ -98,8 +98,7 @@ def course_notebook_create(request):
         description = request.POST.get('description', '').strip()
         semester = request.POST.get('semester', '')
         cover_color = request.POST.get('cover_color', '')
-        outline_enabled = request.POST.get('enable_outline') == 'on'
-        outline_text = request.POST.get('section_outline', '') if outline_enabled else ''
+        outline_text = request.POST.get('section_outline', '')
         materials = request.FILES.getlist('materials')
         try:
             academic_year = int(request.POST.get('academic_year', current_year))
@@ -116,15 +115,15 @@ def course_notebook_create(request):
             errors.append('학기를 선택해 주세요.')
         if cover_color not in {value for value, _ in CourseNotebook.COVER_COLOR_CHOICES}:
             errors.append('표지 색상을 선택해 주세요.')
-        if len(title) > 120 or len(subject) > 60 or len(description) > 1000:
+        if len(title) > 30:
+            errors.append('노트 제목은 30자 이내로 입력해 주세요.')
+        if len(subject) > 60 or len(description) > 1000:
             errors.append('입력 가능한 글자 수를 확인해 주세요.')
         try:
             parsed_sections = parse_section_outline(outline_text)
         except ValueError as error:
             parsed_sections = []
             errors.append(str(error))
-        if outline_enabled and not parsed_sections:
-            errors.append('단원 구조를 한 줄 이상 입력해 주세요.')
         for uploaded in materials:
             material_error = validate_material(uploaded)
             if material_error:
