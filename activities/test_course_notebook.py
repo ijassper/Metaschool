@@ -7,7 +7,11 @@ from types import SimpleNamespace
 from unittest.mock import patch
 import json
 
-from .models import Activity, CourseNotebook, CourseNotebookPage
+from .models import (
+    Activity, CourseNotebook, CourseNotebookMaterial, CourseNotebookPage,
+    CourseNotebookSection, CourseNotebookStickyNote,
+)
+from .views.course_notebook_views import parse_section_outline
 from .views.main_views import get_form_config, get_menu_items
 
 
@@ -31,11 +35,30 @@ class CourseNotebookUiTests(SimpleTestCase):
         student_source = get_template('activities/student_course_notebook.html').template.source
         self.assertIn('새 교과 수업 노트', list_source)
         self.assertIn('대상 학생', form_source)
+        self.assertIn('courseNotebookStudentModal', form_source)
+        self.assertIn('단원 구조를 미리 구성합니다', form_source)
+        self.assertIn('name="materials"', form_source)
         self.assertNotIn('대단원과 소단원은 다음 화면에서 구성합니다', form_source)
         self.assertIn('capture="environment"', student_source)
         self.assertIn('노트 사진 저장', student_source)
+        self.assertIn('포스트잇 편집', student_source)
         self.assertEqual(CourseNotebook.Semester.FIRST, '1')
         self.assertEqual(CourseNotebookPage._meta.get_field('memo').max_length, 200)
+        self.assertEqual(CourseNotebookSection._meta.get_field('title').max_length, 100)
+        self.assertEqual(CourseNotebookMaterial._meta.get_field('original_name').max_length, 255)
+        self.assertEqual(CourseNotebookStickyNote._meta.get_field('content').max_length, 1000)
+
+    def test_section_outline_supports_markdown_and_indentation(self):
+        outline = '# 1. 고조선\n  - 청동기 시대\n    고조선의 건국\n# 2. 삼국 시대'
+        self.assertEqual(parse_section_outline(outline), [
+            {'title': '1. 고조선', 'depth': 0},
+            {'title': '청동기 시대', 'depth': 1},
+            {'title': '고조선의 건국', 'depth': 2},
+            {'title': '2. 삼국 시대', 'depth': 0},
+        ])
+
+    def test_section_outline_limits_depth_jumps(self):
+        self.assertEqual(parse_section_outline('첫 단원\n          끊어진 하위 단원')[1]['depth'], 1)
 
     def test_course_notebook_sidebar_uses_mega_menu_metadata(self):
         source = get_template('base.html').template.source

@@ -1,15 +1,81 @@
+import json
+import re
+from pathlib import Path
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 
 from accounts.decorators import teacher_required
 from accounts.models import Student
-from ..models import CourseNotebook, CourseNotebookPage
+from ..models import (
+    CourseNotebook, CourseNotebookMaterial, CourseNotebookPage,
+    CourseNotebookSection, CourseNotebookStickyNote,
+)
 from .main_views import get_accessible_student_ids, get_student_tree
+
+
+MATERIAL_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'}
+MATERIAL_MAX_SIZE = 25 * 1024 * 1024
+
+
+def parse_section_outline(raw_outline):
+    """Turn headings, bullets, or two-space indentation into a bounded section tree."""
+    parsed = []
+    previous_depth = 0
+    for line_number, raw_line in enumerate((raw_outline or '').splitlines(), start=1):
+        if not raw_line.strip():
+            continue
+        leading_spaces = len(raw_line.expandtabs(2)) - len(raw_line.expandtabs(2).lstrip(' '))
+        stripped = raw_line.strip()
+        heading = re.match(r'^(#{1,6})\s+(.+)$', stripped)
+        if heading:
+            requested_depth = len(heading.group(1)) - 1
+            title = heading.group(2).strip()
+        else:
+            title = re.sub(r'^(?:[-*+]\s+|\d+[.)]\s+)', '', stripped).strip()
+            requested_depth = leading_spaces // 2
+        if not title:
+            continue
+        if len(title) > 100:
+            raise ValueError(f'{line_number}번째 단원명은 100자 이내로 입력해 주세요.')
+        depth = min(requested_depth, previous_depth + 1) if parsed else 0
+        depth = min(depth, 5)
+        parsed.append({'title': title, 'depth': depth})
+        previous_depth = depth
+        if len(parsed) > 100:
+            raise ValueError('단원은 최대 100개까지 만들 수 있습니다.')
+    return parsed
+
+
+def create_sections(notebook, parsed_sections):
+    parents = {}
+    for position, item in enumerate(parsed_sections):
+        depth = item['depth']
+        section = CourseNotebookSection.objects.create(
+            notebook=notebook,
+            parent=parents.get(depth - 1) if depth else None,
+            title=item['title'],
+            depth=depth,
+            position=position,
+        )
+        parents[depth] = section
+        for stale_depth in [value for value in parents if value > depth]:
+            del parents[stale_depth]
+
+
+def validate_material(uploaded):
+    extension = Path(uploaded.name).suffix.lower()
+    if extension not in MATERIAL_EXTENSIONS:
+        return f'{uploaded.name}: PDF, JPG, PNG, DOC, DOCX 파일만 첨부할 수 있습니다.'
+    if uploaded.size > MATERIAL_MAX_SIZE:
+        return f'{uploaded.name}: 파일 크기는 25MB 이하여야 합니다.'
+    return None
 
 
 @login_required
@@ -32,6 +98,9 @@ def course_notebook_create(request):
         description = request.POST.get('description', '').strip()
         semester = request.POST.get('semester', '')
         cover_color = request.POST.get('cover_color', '')
+        outline_enabled = request.POST.get('enable_outline') == 'on'
+        outline_text = request.POST.get('section_outline', '') if outline_enabled else ''
+        materials = request.FILES.getlist('materials')
         try:
             academic_year = int(request.POST.get('academic_year', current_year))
         except (TypeError, ValueError):
@@ -49,6 +118,17 @@ def course_notebook_create(request):
             errors.append('표지 색상을 선택해 주세요.')
         if len(title) > 120 or len(subject) > 60 or len(description) > 1000:
             errors.append('입력 가능한 글자 수를 확인해 주세요.')
+        try:
+            parsed_sections = parse_section_outline(outline_text)
+        except ValueError as error:
+            parsed_sections = []
+            errors.append(str(error))
+        if outline_enabled and not parsed_sections:
+            errors.append('단원 구조를 한 줄 이상 입력해 주세요.')
+        for uploaded in materials:
+            material_error = validate_material(uploaded)
+            if material_error:
+                errors.append(material_error)
         if not errors:
             target_ids = get_accessible_student_ids(request.user, request.POST.getlist('target_students'))
             with transaction.atomic():
@@ -62,6 +142,15 @@ def course_notebook_create(request):
                     cover_color=cover_color,
                 )
                 notebook.target_students.set(target_ids)
+                create_sections(notebook, parsed_sections)
+                for uploaded in materials:
+                    CourseNotebookMaterial.objects.create(
+                        notebook=notebook,
+                        file=uploaded,
+                        original_name=uploaded.name[:255],
+                        content_type=(getattr(uploaded, 'content_type', '') or '')[:120],
+                        size=uploaded.size,
+                    )
             messages.success(request, '교과 수업 노트를 만들었습니다.')
             return redirect('course_notebook_list')
         for error in errors:
@@ -100,6 +189,8 @@ def student_course_notebook(request, notebook_id):
     if request.method == 'POST':
         uploaded = request.FILES.get('image')
         memo = request.POST.get('memo', '').strip()
+        section_id = request.POST.get('section', '').strip()
+        section = notebook.sections.filter(id=section_id).first() if section_id else None
         if not uploaded:
             messages.error(request, '촬영한 노트 사진을 선택해 주세요.')
         elif not (getattr(uploaded, 'content_type', '') or '').startswith('image/'):
@@ -108,19 +199,113 @@ def student_course_notebook(request, notebook_id):
             messages.error(request, '사진 한 장의 크기는 12MB 이하여야 합니다.')
         elif len(memo) > 200:
             messages.error(request, '메모는 200자 이내로 입력해 주세요.')
+        elif section_id and not section:
+            messages.error(request, '선택한 단원을 확인할 수 없습니다.')
         else:
             CourseNotebookPage.objects.create(
                 notebook=notebook,
                 student=student,
+                section=section,
                 image=uploaded,
                 memo=memo,
             )
             messages.success(request, '노트 사진을 저장했습니다.')
             return redirect('student_course_notebook', notebook_id=notebook.id)
 
-    pages = notebook.pages.filter(student=student)
+    pages = notebook.pages.filter(student=student).select_related('section').prefetch_related('sticky_notes')
     return render(request, 'activities/student_course_notebook.html', {
         'notebook': notebook,
         'student': student,
         'pages': pages,
+        'sections': notebook.sections.all(),
+        'materials': notebook.materials.all(),
+        'sticky_colors': CourseNotebookStickyNote.COLOR_CHOICES,
     })
+
+
+def _student_notebook_page(user, page_id):
+    if getattr(user, 'role', None) != 'STUDENT':
+        raise Http404
+    student = _student_profile_for(user)
+    if not student:
+        raise Http404
+    return get_object_or_404(
+        CourseNotebookPage.objects.select_related('notebook'),
+        id=page_id,
+        student=student,
+        notebook__target_students=student,
+        notebook__is_archived=False,
+    )
+
+
+def _bounded_decimal(value, minimum, maximum):
+    number = float(value)
+    return round(max(minimum, min(maximum, number)), 2)
+
+
+def _sticky_geometry(payload, defaults):
+    width = _bounded_decimal(payload.get('width', defaults['width']), 12, 80)
+    height = _bounded_decimal(payload.get('height', defaults['height']), 10, 80)
+    return {
+        'x': _bounded_decimal(payload.get('x', defaults['x']), 0, 100 - width),
+        'y': _bounded_decimal(payload.get('y', defaults['y']), 0, 100 - height),
+        'width': width,
+        'height': height,
+    }
+
+
+@login_required
+@require_POST
+def course_notebook_sticky_create(request, page_id):
+    page = _student_notebook_page(request.user, page_id)
+    try:
+        payload = json.loads(request.body or '{}')
+        geometry = _sticky_geometry(payload, {'x': 8, 'y': 8, 'width': 32, 'height': 24})
+        note = CourseNotebookStickyNote.objects.create(
+            page=page,
+            content=str(payload.get('content', ''))[:1000],
+            **geometry,
+            color=payload.get('color') if payload.get('color') in dict(CourseNotebookStickyNote.COLOR_CHOICES) else 'YELLOW',
+        )
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': '메모 정보가 올바르지 않습니다.'}, status=400)
+    return JsonResponse({
+        'status': 'success',
+        'note': {'id': note.id, 'update_url': reverse('course_notebook_sticky_update', args=[note.id])},
+    })
+
+
+@login_required
+@require_POST
+def course_notebook_sticky_update(request, note_id):
+    if getattr(request.user, 'role', None) != 'STUDENT':
+        raise Http404
+    student = _student_profile_for(request.user)
+    if not student:
+        raise Http404
+    note = get_object_or_404(
+        CourseNotebookStickyNote.objects.select_related('page'),
+        id=note_id,
+        page__student=student,
+        page__notebook__target_students=student,
+        page__notebook__is_archived=False,
+    )
+    try:
+        payload = json.loads(request.body or '{}')
+        if payload.get('delete'):
+            note.delete()
+            return JsonResponse({'status': 'success', 'deleted': True})
+        note.content = str(payload.get('content', note.content))[:1000]
+        geometry = _sticky_geometry(payload, {
+            'x': note.x, 'y': note.y, 'width': note.width, 'height': note.height,
+        })
+        note.x = geometry['x']
+        note.y = geometry['y']
+        note.width = geometry['width']
+        note.height = geometry['height']
+        if payload.get('color') in dict(CourseNotebookStickyNote.COLOR_CHOICES):
+            note.color = payload['color']
+        note.save(update_fields=['content', 'x', 'y', 'width', 'height', 'color', 'updated_at'])
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': '메모 정보가 올바르지 않습니다.'}, status=400)
+    return JsonResponse({'status': 'success'})

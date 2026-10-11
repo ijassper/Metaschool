@@ -761,6 +761,55 @@ class CourseNotebook(models.Model):
         return f'{self.academic_year} {self.get_semester_display()} · {self.subject} · {self.title}'
 
 
+class CourseNotebookSection(models.Model):
+    """교사가 미리 구성한 단원 트리의 한 항목."""
+
+    notebook = models.ForeignKey(
+        CourseNotebook, on_delete=models.CASCADE,
+        related_name='sections', verbose_name='교과 수업 노트',
+    )
+    parent = models.ForeignKey(
+        'self', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='children', verbose_name='상위 단원',
+    )
+    title = models.CharField(max_length=100, verbose_name='단원명')
+    depth = models.PositiveSmallIntegerField(default=0, verbose_name='깊이')
+    position = models.PositiveIntegerField(default=0, verbose_name='표시 순서')
+
+    class Meta:
+        ordering = ['position', 'id']
+        indexes = [models.Index(fields=['notebook', 'position'], name='course_section_order_idx')]
+        verbose_name = '수업 노트 단원'
+        verbose_name_plural = '수업 노트 단원 목록'
+
+    def __str__(self):
+        return f'{self.notebook.title} · {self.title}'
+
+
+class CourseNotebookMaterial(models.Model):
+    """교사가 노트에 공유하는 교재 파일."""
+
+    notebook = models.ForeignKey(
+        CourseNotebook, on_delete=models.CASCADE,
+        related_name='materials', verbose_name='교과 수업 노트',
+    )
+    file = models.FileField(
+        upload_to='course_notebook_materials/%Y/%m/%d/', verbose_name='교재 파일'
+    )
+    original_name = models.CharField(max_length=255, verbose_name='원본 파일명')
+    content_type = models.CharField(max_length=120, blank=True, verbose_name='MIME 유형')
+    size = models.PositiveBigIntegerField(default=0, verbose_name='파일 크기')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        verbose_name = '수업 노트 교재'
+        verbose_name_plural = '수업 노트 교재 목록'
+
+    def __str__(self):
+        return f'{self.notebook.title} · {self.original_name}'
+
+
 class CourseNotebookPage(models.Model):
     """학생이 촬영해 올린 교과 수업 노트 한 페이지."""
 
@@ -771,6 +820,10 @@ class CourseNotebookPage(models.Model):
     student = models.ForeignKey(
         Student, on_delete=models.CASCADE,
         related_name='course_notebook_pages', verbose_name='학생',
+    )
+    section = models.ForeignKey(
+        CourseNotebookSection, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='pages', verbose_name='단원',
     )
     image = models.FileField(
         upload_to='course_notebooks/%Y/%m/%d/', verbose_name='노트 이미지'
@@ -788,6 +841,34 @@ class CourseNotebookPage(models.Model):
 
     def __str__(self):
         return f'{self.notebook.title} · {self.student.name} · {self.created_at:%Y-%m-%d}'
+
+
+class CourseNotebookStickyNote(models.Model):
+    """학생의 촬영 노트 이미지 위에 올리는 포스트잇 메모."""
+
+    COLOR_CHOICES = [
+        ('YELLOW', '노랑'), ('PINK', '분홍'), ('BLUE', '파랑'), ('GREEN', '초록'),
+    ]
+    page = models.ForeignKey(
+        CourseNotebookPage, on_delete=models.CASCADE,
+        related_name='sticky_notes', verbose_name='노트 페이지',
+    )
+    content = models.TextField(blank=True, max_length=1000, verbose_name='메모')
+    x = models.DecimalField(max_digits=5, decimal_places=2, default=8, verbose_name='X 위치(%)')
+    y = models.DecimalField(max_digits=5, decimal_places=2, default=8, verbose_name='Y 위치(%)')
+    width = models.DecimalField(max_digits=5, decimal_places=2, default=32, verbose_name='너비(%)')
+    height = models.DecimalField(max_digits=5, decimal_places=2, default=24, verbose_name='높이(%)')
+    color = models.CharField(max_length=10, choices=COLOR_CHOICES, default='YELLOW')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        verbose_name = '수업 노트 포스트잇'
+        verbose_name_plural = '수업 노트 포스트잇 목록'
+
+    def __str__(self):
+        return f'{self.page} · {self.content[:30]}'
 
 # AI 분석 결과 모델 (다중 결과 지원)
 class AnalysisResult(models.Model):
