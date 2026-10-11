@@ -33,7 +33,7 @@ def parse_section_outline(raw_outline):
             continue
         leading_spaces = len(raw_line.expandtabs(2)) - len(raw_line.expandtabs(2).lstrip(' '))
         stripped = raw_line.strip()
-        heading = re.match(r'^(#{1,6})\s+(.+)$', stripped)
+        heading = re.match(r'^(#{1,7})\s+(.+)$', stripped)
         if heading:
             requested_depth = len(heading.group(1)) - 1
             title = heading.group(2).strip()
@@ -45,7 +45,7 @@ def parse_section_outline(raw_outline):
         if len(title) > 100:
             raise ValueError(f'{line_number}번째 단원명은 100자 이내로 입력해 주세요.')
         depth = min(requested_depth, previous_depth + 1) if parsed else 0
-        depth = min(depth, 5)
+        depth = min(depth, 6)
         parsed.append({'title': title, 'depth': depth})
         previous_depth = depth
         if len(parsed) > 100:

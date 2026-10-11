@@ -35,6 +35,9 @@ class CourseNotebookUiTests(SimpleTestCase):
         student_source = get_template('activities/student_course_notebook.html').template.source
         self.assertIn('새 교과 수업 노트', list_source)
         self.assertIn('대상 학생', form_source)
+        self.assertLess(form_source.index('과목명'), form_source.index('노트 제목'))
+        self.assertIn('노트 소개', form_source)
+        self.assertNotIn('>학생 안내<', form_source)
         self.assertIn('courseNotebookStudentModal', form_source)
         self.assertIn('단원 구조를 미리 구성합니다', form_source)
         self.assertIn('name="materials"', form_source)
@@ -59,6 +62,14 @@ class CourseNotebookUiTests(SimpleTestCase):
 
     def test_section_outline_limits_depth_jumps(self):
         self.assertEqual(parse_section_outline('첫 단원\n          끊어진 하위 단원')[1]['depth'], 1)
+
+    def test_section_outline_supports_seven_heading_levels(self):
+        outline = '\n'.join('#' * depth + f' {depth}단계' for depth in range(1, 8))
+        parsed = parse_section_outline(outline)
+        self.assertEqual([item['depth'] for item in parsed], list(range(7)))
+        form_source = get_template('activities/course_notebook_form.html').template.source
+        self.assertIn('####### 소소소소소단원', form_source)
+        self.assertIn('최대 7단계', form_source)
 
     def test_course_notebook_sidebar_uses_mega_menu_metadata(self):
         source = get_template('base.html').template.source
