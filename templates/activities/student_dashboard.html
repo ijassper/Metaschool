@@ -62,9 +62,26 @@
     align-items: start;
   }
 
-  .student-note-section{margin-bottom:26px}.student-note-heading{display:flex;align-items-end;justify-content:space-between;gap:15px;margin-bottom:12px}.student-note-heading h3{font-size:1.25rem;font-weight:850;margin:0}.student-note-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:14px}.student-note-link{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid #eadfed;border-radius:18px;background:#fff;color:#34303a;text-decoration:none;box-shadow:0 5px 16px rgba(69,45,78,.05);transition:.18s}.student-note-link:hover{color:#34303a;transform:translateY(-2px);box-shadow:0 9px 22px rgba(69,45,78,.1)}.student-note-cover{display:grid;place-items:center;width:48px;height:58px;flex:0 0 48px;border:1px solid #d1c4e9;border-radius:7px 12px 12px 7px;background:#e9e2ff;color:#7657a8;font-size:1.4rem}.student-note-cover.BLUE{background:#ddebff;border-color:#bbdefb;color:#3977ad}.student-note-cover.GREEN{background:#d3f9e8;border-color:#b2ebf2;color:#2e8b69}.student-note-cover.YELLOW{background:#fff3bf;border-color:#ffe082;color:#a87b00}.student-note-cover.ORANGE{background:#ffe8cc;border-color:#ffccbc;color:#b66526}.student-note-cover.RED{background:#ffe3e3;border-color:#ffcdd2;color:#c0525a}.student-note-cover.PINK{background:#ffdeeb;border-color:#f8bbd0;color:#b85078}.student-note-cover.TEAL{background:#ddf4f2;border-color:#a8ddd8;color:#278b85}.student-note-copy{min-width:0}.student-note-copy strong,.student-note-copy span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.student-note-copy span{font-size:.82rem;color:#7b7280;margin-top:3px}
-
-  .student-note-cover.LIME{background:#d7ec8a;border-color:#bdd45f;color:#61751f}
+  /* 교과 수업활동 안에 표시되는 교과 수업 노트 카드 */
+  .course-notebook-slot{margin-bottom:7px}
+  .student-note-link{display:block;margin-bottom:7px;padding:10px;border:2px solid transparent;border-radius:18px;background:rgba(255,255,255,.86);color:#34303a;text-decoration:none;transition:.2s ease}
+  .student-note-link:hover{color:#34303a;transform:translateY(-3px);border-color:#74c0fc;background:#fff;box-shadow:0 6px 15px rgba(0,0,0,.05)}
+  .student-note-link:focus-visible{outline:3px solid rgba(145,72,170,.28);outline-offset:2px}
+  .student-note-top{display:flex;align-items:center;justify-content:space-between;gap:7px;margin-bottom:7px}
+  .student-note-subject{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#85409d;font-size:.72rem;font-weight:850}
+  .student-note-status{flex:0 0 auto;padding:3px 7px;border-radius:999px;background:#f5f1f7;color:#746878;font-size:.66rem;font-weight:750}
+  .student-note-status.has-pages{background:#e6f7ee;color:#267653}
+  .student-note-main{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:10px}
+  .student-note-cover{display:grid;place-items:center;width:42px;height:52px;border:1px solid #d1c4e9;border-radius:6px 10px 10px 6px;background:#e9e2ff;color:#7657a8;box-shadow:inset 4px 0 rgba(255,255,255,.35);font-size:1.15rem}
+  .student-note-cover.BLUE{background:#ddebff;border-color:#bbdefb;color:#3977ad}.student-note-cover.GREEN{background:#d3f9e8;border-color:#b2ebf2;color:#2e8b69}.student-note-cover.YELLOW{background:#fff3bf;border-color:#ffe082;color:#a87b00}.student-note-cover.ORANGE{background:#ffe8cc;border-color:#ffccbc;color:#b66526}.student-note-cover.RED{background:#ffe3e3;border-color:#ffcdd2;color:#c0525a}.student-note-cover.PINK{background:#ffdeeb;border-color:#f8bbd0;color:#b85078}.student-note-cover.LIME{background:#d7ec8a;border-color:#bdd45f;color:#61751f}
+  .student-note-copy{min-width:0}
+  .student-note-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:1rem;font-weight:850}
+  .student-note-description{display:-webkit-box;min-height:30px;margin-top:3px;overflow:hidden;color:#756b79;font-size:.72rem;line-height:1.3;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+  .student-note-meta{display:block;margin-top:7px;overflow:hidden;color:#8a818e;font-size:.68rem;text-overflow:ellipsis;white-space:nowrap}
+  .student-note-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px;padding-top:7px;border-top:1.5px dashed rgba(92,72,103,.25)}
+  .student-note-stats{display:flex;min-width:0;gap:8px;color:#6f6473;font-size:.68rem}
+  .student-note-stats span{white-space:nowrap}
+  .student-note-open{flex:0 0 auto;color:#8b479f;font-size:.69rem;font-weight:800;white-space:nowrap}
 
   /* 5. 카테고리 블록 디자인 (높이 고정) */
   .category-block {
@@ -433,6 +450,7 @@
     .card-row-bottom {
       grid-template-columns: minmax(0, 1fr) auto auto;
     }
+
   }
 
   /* 태블릿 가로 화면: 환영 카드의 세로 점유를 줄여 활동 카드를 위로 끌어올립니다. */
@@ -532,13 +550,6 @@
     </div>
   </div>
 
-  {% if student_course_notebooks %}
-  <section class="student-note-section">
-    <div class="student-note-heading"><div><h3><i class="bi bi-journals me-2 text-primary"></i>교과 수업 노트</h3><span class="text-secondary small">종이 노트를 촬영해 과목별로 보관하세요.</span></div></div>
-    <div class="student-note-list">{% for notebook in student_course_notebooks %}<a class="student-note-link" href="{% url 'student_course_notebook' notebook.id %}"><span class="student-note-cover {{ notebook.cover_color }}"><i class="bi bi-journal-text"></i></span><span class="student-note-copy"><strong>{{ notebook.title }}</strong><span>{{ notebook.subject }} · {{ notebook.academic_year }}학년도 {{ notebook.get_semester_display }}</span></span><i class="bi bi-chevron-right ms-auto text-secondary"></i></a>{% endfor %}</div>
-  </section>
-  {% endif %}
-
   <!-- 2. 4열 카테고리 그리드 -->
   <div class="dashboard-grid" id="student-activities">
     {% for block in category_blocks %}
@@ -553,6 +564,24 @@
             {% include 'activities/components/student_activity_card.html' with act=act is_priority_duplicate=True %}
           {% endfor %}
         </div>
+        {% if block.course_notebooks %}
+          <div class="course-notebook-slot">
+            {% for notebook in block.course_notebooks %}
+              <a class="student-note-link" href="{% url 'student_course_notebook' notebook.id %}" aria-label="{{ notebook.subject }} {{ notebook.title }} 노트 열기">
+                <span class="student-note-top">
+                  <span class="student-note-subject"><i class="bi bi-journal-text me-1"></i>교과 수업 노트 · {{ notebook.subject }}</span>
+                  <span class="student-note-status{% if notebook.my_page_count %} has-pages{% endif %}">{% if notebook.my_page_count %}내 노트 {{ notebook.my_page_count }}장{% else %}노트 시작{% endif %}</span>
+                </span>
+                <span class="student-note-main">
+                  <span class="student-note-cover {{ notebook.cover_color }}"><i class="bi bi-journal-text"></i></span>
+                  <span class="student-note-copy"><strong class="student-note-title">{{ notebook.title }}</strong><span class="student-note-description">{{ notebook.description|default:'수업 중 작성한 손글씨 노트를 촬영해 보관하세요.' }}</span></span>
+                </span>
+                <span class="student-note-meta">{{ notebook.academic_year }}학년도 · {{ notebook.get_semester_display }} · {{ notebook.teacher.name }} 선생님</span>
+                <span class="student-note-bottom"><span class="student-note-stats"><span><i class="bi bi-diagram-3 me-1"></i>단원 {{ notebook.section_count }}</span><span><i class="bi bi-paperclip me-1"></i>교재 {{ notebook.material_count }}</span></span><span class="student-note-open">노트 열기 <i class="bi bi-chevron-right"></i></span></span>
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
         {% for act in block.items %}
           {% include 'activities/components/student_activity_card.html' with act=act %}
         {% endfor %}

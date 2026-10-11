@@ -1,4 +1,4 @@
-from django.db.models import Q  # 다중 필터 기능
+from django.db.models import Count, Q  # 다중 필터 기능 및 대시보드 집계
 from datetime import datetime, time, timedelta
 from django.urls import reverse, reverse_lazy
 from django.http import FileResponse, Http404, JsonResponse, HttpResponse  # 검색 기능을 위해 필요, API 응답을 위해 필요
@@ -387,6 +387,20 @@ def dashboard(request):
                     completed_count += 1
 
             priority_rank = {'rewrite': 0, 'feedback': 1, 'new': 2}
+            student_course_notebooks = list(
+                CourseNotebook.objects.filter(
+                    target_students=student_profile,
+                    is_archived=False,
+                ).select_related('teacher').annotate(
+                    my_page_count=Count(
+                        'pages',
+                        filter=Q(pages__student=student_profile),
+                        distinct=True,
+                    ),
+                    section_count=Count('sections', distinct=True),
+                    material_count=Count('materials', distinct=True),
+                ).distinct()
+            )
             
             # 3. [개편] 표준 카테고리 기준 블록 생성
             category_blocks = []
@@ -395,8 +409,11 @@ def dashboard(request):
             for cat_code, cat_name in Activity.CATEGORY_CHOICES:
                 # 이미 매칭이 완료된 activities_list에서 필터링하여 속성을 유지함
                 items = [a for a in activities_list if cat_code.strip().lower() in a.category.strip().lower()]
+                course_notebooks = (
+                    student_course_notebooks if cat_code == 'SUBJECT_ACTIVITY' else []
+                )
                 
-                if items:
+                if items or course_notebooks:
                     priority_items = sorted(
                         (activity for activity in items if activity.priority_status),
                         key=lambda activity: priority_rank[activity.priority_status],
@@ -405,14 +422,12 @@ def dashboard(request):
                         'name': cat_name,
                         'items': items,
                         'priority_items': priority_items,
+                        'course_notebooks': course_notebooks,
                     })
 
             context.update({
                 'student': student_profile,
-                'student_course_notebooks': CourseNotebook.objects.filter(
-                    target_students=student_profile,
-                    is_archived=False,
-                ).distinct(),
+                'student_course_notebooks': student_course_notebooks,
                 'category_blocks': category_blocks,
                 'activities': activities_list,
                 'completed_count': completed_count,

@@ -143,6 +143,17 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('student-dashboard-shell', source)
         self.assertIn('padding: 14px 24px', source)
 
+    def test_student_dashboard_course_notebook_cards_show_learning_status(self):
+        source = get_template('activities/student_dashboard.html').template.source
+        self.assertIn('student-note-status', source)
+        self.assertIn('내 노트 {{ notebook.my_page_count }}장', source)
+        self.assertIn('단원 {{ notebook.section_count }}', source)
+        self.assertIn('교재 {{ notebook.material_count }}', source)
+        self.assertIn('{{ notebook.teacher.name }} 선생님', source)
+        self.assertIn("{% url 'student_course_notebook' notebook.id %}", source)
+        self.assertIn('{% if block.course_notebooks %}', source)
+        self.assertNotIn('class="student-note-section"', source)
+
     def test_student_selector_restores_last_completed_selection(self):
         modal_source = get_template('components/student_modal_core.html').template.source
         form_source = get_template('activities/unified_form.html').template.source
