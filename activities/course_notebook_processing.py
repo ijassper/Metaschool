@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import io
+import math
 
 import requests
 from django.core.files.base import ContentFile
@@ -18,8 +19,9 @@ from .attachment_context import (
 from .models import CourseNotebookPage
 
 
-PROCESSING_VERSION = 1
+PROCESSING_VERSION = 2
 MAX_IMAGE_EDGE = 2400
+A4_PAGE_SIZE = (1240, 1754)
 
 
 def _read_original(page):
@@ -30,11 +32,82 @@ def _read_original(page):
         page.image.close()
 
 
+def _order_quad(points):
+    """OpenCV 문서 모서리를 좌상단부터 시계 방향으로 정렬한다."""
+    import numpy as np
+
+    points = np.asarray(points, dtype='float32').reshape(4, 2)
+    sums = points.sum(axis=1)
+    differences = np.diff(points, axis=1).reshape(-1)
+    return np.asarray([
+        points[sums.argmin()], points[differences.argmin()],
+        points[sums.argmax()], points[differences.argmax()],
+    ], dtype='float32')
+
+
+def _deskew_document(image):
+    """배경에서 가장 큰 종이 경계를 찾아 A4 세로 규격으로 원근 보정한다."""
+    try:
+        import cv2
+        import numpy as np
+    except ImportError:
+        return None
+
+    rgb = np.asarray(image)
+    height, width = rgb.shape[:2]
+    scale = min(1.0, 1400 / max(width, height))
+    work = cv2.resize(rgb, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    gray = cv2.cvtColor(work, cv2.COLOR_RGB2GRAY)
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(gray, 45, 135)
+    edges = cv2.morphologyEx(
+        edges, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)),
+        iterations=2,
+    )
+    contours = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
+    image_area = work.shape[0] * work.shape[1]
+    quad = None
+    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:15]:
+        if cv2.contourArea(contour) < image_area * .12:
+            break
+        perimeter = cv2.arcLength(contour, True)
+        candidate = cv2.approxPolyDP(contour, .02 * perimeter, True)
+        if len(candidate) == 4 and cv2.isContourConvex(candidate):
+            quad = candidate.reshape(4, 2) / scale
+            break
+    if quad is None:
+        return None
+
+    source = _order_quad(quad)
+    top = math.dist(source[0], source[1])
+    bottom = math.dist(source[3], source[2])
+    left = math.dist(source[0], source[3])
+    right = math.dist(source[1], source[2])
+    if max(top, bottom) > max(left, right):
+        source = source[[1, 2, 3, 0]]
+    target_width, target_height = A4_PAGE_SIZE
+    destination = np.asarray([
+        [0, 0], [target_width - 1, 0],
+        [target_width - 1, target_height - 1], [0, target_height - 1],
+    ], dtype='float32')
+    matrix = cv2.getPerspectiveTransform(source, destination)
+    warped = cv2.warpPerspective(
+        rgb, matrix, A4_PAGE_SIZE, flags=cv2.INTER_CUBIC,
+        borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255),
+    )
+    return Image.fromarray(warped, 'RGB')
+
+
 def correct_notebook_image(data):
-    """색 펜과 형광펜을 유지하면서 불균일한 조명과 그림자를 완화한다."""
+    """종이 원근을 A4로 펴고 색 펜을 유지하면서 그림자를 완화한다."""
     with Image.open(io.BytesIO(data)) as source:
         image = ImageOps.exif_transpose(source).convert('RGB')
-    image.thumbnail((MAX_IMAGE_EDGE, MAX_IMAGE_EDGE), Image.Resampling.LANCZOS)
+    document = _deskew_document(image)
+    if document is not None:
+        image = document
+    else:
+        image.thumbnail((MAX_IMAGE_EDGE, MAX_IMAGE_EDGE), Image.Resampling.LANCZOS)
+        image = ImageOps.pad(image, A4_PAGE_SIZE, method=Image.Resampling.LANCZOS, color='white')
 
     hue, saturation, value = image.convert('HSV').split()
     radius = max(24, min(image.size) // 18)
@@ -49,8 +122,31 @@ def correct_notebook_image(data):
     corrected = corrected.filter(ImageFilter.UnsharpMask(radius=1.2, percent=115, threshold=3))
 
     output = io.BytesIO()
-    corrected.save(output, format='JPEG', quality=88, optimize=True, progressive=True)
+    corrected.save(output, format='JPEG', quality=88, optimize=True, progressive=True, dpi=(150, 150))
     return output.getvalue()
+
+
+def ensure_archive_image(page):
+    """PDF/책장 UI용 A4 보정 이미지를 만들고 원본과 별도로 보존한다."""
+    original = _read_original(page)
+    source_hash = hashlib.sha256(original).hexdigest()
+    if (
+        page.processed_image
+        and page.source_hash == source_hash
+        and page.processing_version == PROCESSING_VERSION
+    ):
+        return page
+    corrected = correct_notebook_image(original)
+    if page.processed_image:
+        page.processed_image.delete(save=False)
+    page.processed_image.save(
+        f'notebook-page-{page.id}-a4-v{PROCESSING_VERSION}.jpg',
+        ContentFile(corrected), save=False,
+    )
+    page.source_hash = source_hash
+    page.processing_version = PROCESSING_VERSION
+    page.save(update_fields=['processed_image', 'source_hash', 'processing_version'])
+    return page
 
 
 def _config_value(key):
@@ -128,13 +224,12 @@ def process_course_notebook_page(page):
     page.ocr_processed_at = timezone.now()
     page.save(update_fields=['ocr_status', 'ocr_error', 'ocr_processed_at'])
     try:
-        corrected = correct_notebook_image(original)
-        if page.processed_image:
-            page.processed_image.delete(save=False)
-        page.processed_image.save(
-            f'notebook-page-{page.id}-v{PROCESSING_VERSION}.jpg',
-            ContentFile(corrected), save=False,
-        )
+        page = ensure_archive_image(page)
+        page.processed_image.open('rb')
+        try:
+            corrected = page.processed_image.read()
+        finally:
+            page.processed_image.close()
 
         vision_key = _config_value('GOOGLE_VISION_API_KEY')
         openai_keys = [key.strip() for key in _config_value('OPENAI_API_KEY').split(',') if key.strip()]

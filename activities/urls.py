@@ -13,7 +13,8 @@ from .views.proctor_replay_views import proctor_replay, proctor_recording, proct
 from .views.course_notebook_views import (
     course_notebook_create, course_notebook_list, student_course_notebook,
     student_course_notebook_page, course_notebook_page_process,
-    course_notebook_page_text_update,
+    course_notebook_page_text_update, course_notebook_archive_pdf,
+    course_notebook_page_archive_process,
     course_notebook_sticky_create, course_notebook_sticky_update,
 )
 
@@ -24,6 +25,8 @@ urlpatterns = [
     path('course-notebook-pages/<int:page_id>/', student_course_notebook_page, name='student_course_notebook_page'),
     path('course-notebook-pages/<int:page_id>/process/', course_notebook_page_process, name='course_notebook_page_process'),
     path('course-notebook-pages/<int:page_id>/text/', course_notebook_page_text_update, name='course_notebook_page_text_update'),
+    path('course-notebook-pages/<int:page_id>/archive-process/', course_notebook_page_archive_process, name='course_notebook_page_archive_process'),
+    path('course-notebooks/<int:notebook_id>/archive.pdf', course_notebook_archive_pdf, name='course_notebook_archive_pdf'),
     path('course-notebook-pages/<int:page_id>/sticky-notes/', course_notebook_sticky_create, name='course_notebook_sticky_create'),
     path('course-notebook-sticky-notes/<int:note_id>/', course_notebook_sticky_update, name='course_notebook_sticky_update'),
     path('result/<int:activity_id>/proctor/replay/', proctor_replay, name='proctor_replay'),

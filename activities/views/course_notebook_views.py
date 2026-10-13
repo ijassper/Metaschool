@@ -1,4 +1,5 @@
 import json
+import io
 import re
 from datetime import timedelta
 from pathlib import Path
@@ -6,7 +7,7 @@ from pathlib import Path
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import Http404, JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -18,7 +19,7 @@ from ..models import (
     CourseNotebook, CourseNotebookMaterial, CourseNotebookPage,
     CourseNotebookSection, CourseNotebookStickyNote,
 )
-from ..course_notebook_processing import process_course_notebook_page
+from ..course_notebook_processing import ensure_archive_image, process_course_notebook_page
 from .main_views import get_accessible_student_ids, get_student_tree
 
 
@@ -188,30 +189,30 @@ def student_course_notebook(request, notebook_id):
         is_archived=False,
     )
     if request.method == 'POST':
-        uploaded = request.FILES.get('image')
+        uploads = request.FILES.getlist('image')
         memo = request.POST.get('memo', '').strip()
         section_id = request.POST.get('section', '').strip()
         section = notebook.sections.filter(id=section_id).first() if section_id else None
-        if not uploaded:
+        if not uploads:
             messages.error(request, '촬영한 노트 사진을 선택해 주세요.')
-        elif not (getattr(uploaded, 'content_type', '') or '').startswith('image/'):
-            messages.error(request, '이미지 파일만 업로드할 수 있습니다.')
-        elif uploaded.size > 12 * 1024 * 1024:
+        elif len(uploads) > 30:
+            messages.error(request, '한 번에 최대 30장까지 올릴 수 있습니다.')
+        elif any(not (getattr(uploaded, 'content_type', '') or '').startswith('image/') for uploaded in uploads):
+            messages.error(request, '모든 파일이 이미지인지 확인해 주세요.')
+        elif any(uploaded.size > 12 * 1024 * 1024 for uploaded in uploads):
             messages.error(request, '사진 한 장의 크기는 12MB 이하여야 합니다.')
         elif len(memo) > 200:
             messages.error(request, '메모는 200자 이내로 입력해 주세요.')
         elif section_id and not section:
             messages.error(request, '선택한 단원을 확인할 수 없습니다.')
         else:
-            page = CourseNotebookPage.objects.create(
-                notebook=notebook,
-                student=student,
-                section=section,
-                image=uploaded,
-                memo=memo,
-            )
-            messages.success(request, '노트 사진을 저장했습니다. 이미지 보정과 텍스트 변환을 시작합니다.')
-            return redirect('student_course_notebook_page', page_id=page.id)
+            with transaction.atomic():
+                created_pages = [CourseNotebookPage.objects.create(
+                    notebook=notebook, student=student, section=section,
+                    image=uploaded, memo=memo,
+                ) for uploaded in uploads]
+            messages.success(request, f'노트 사진 {len(created_pages)}장을 저장했습니다. A4 문서로 정리합니다.')
+            return redirect('student_course_notebook_page', page_id=created_pages[0].id)
 
     pages = notebook.pages.filter(student=student).select_related('section').prefetch_related('sticky_notes')
     return render(request, 'activities/student_course_notebook.html', {
@@ -242,15 +243,70 @@ def _student_notebook_page(user, page_id):
 @login_required
 @require_http_methods(['GET'])
 def student_course_notebook_page(request, page_id):
-    """사진과 구조화 텍스트를 나란히 확인·편집하는 학생 전용 페이지."""
+    """학생의 여러 촬영 페이지를 A4 책장 형태로 보여준다."""
     page = _student_notebook_page(request.user, page_id)
     page = CourseNotebookPage.objects.select_related(
         'notebook', 'section', 'student'
     ).prefetch_related('sticky_notes').get(id=page.id)
+    archive_pages = list(CourseNotebookPage.objects.filter(
+        notebook=page.notebook, student=page.student,
+    ).select_related('section').order_by('created_at', 'id'))
+    current_index = next(index for index, item in enumerate(archive_pages) if item.id == page.id)
     return render(request, 'activities/student_course_notebook_page.html', {
         'page': page,
         'notebook': page.notebook,
-        'sticky_colors': CourseNotebookStickyNote.COLOR_CHOICES,
+        'archive_pages': archive_pages,
+        'current_number': current_index + 1,
+        'page_count': len(archive_pages),
+        'previous_page': archive_pages[current_index - 1] if current_index else None,
+        'next_page': archive_pages[current_index + 1] if current_index + 1 < len(archive_pages) else None,
+    })
+
+
+@login_required
+@require_http_methods(['GET'])
+def course_notebook_archive_pdf(request, notebook_id):
+    """학생 본인의 노트 이미지를 시간순 A4 PDF 한 파일로 묶는다."""
+    if getattr(request.user, 'role', None) != 'STUDENT':
+        raise Http404
+    student = _student_profile_for(request.user)
+    notebook = get_object_or_404(
+        CourseNotebook, id=notebook_id, target_students=student, is_archived=False,
+    )
+    pages = list(CourseNotebookPage.objects.filter(
+        notebook=notebook, student=student,
+    ).order_by('created_at', 'id'))
+    if not pages:
+        raise Http404
+    from PIL import Image
+    pdf_images = []
+    for page in pages:
+        page = ensure_archive_image(page)
+        page.processed_image.open('rb')
+        try:
+            with Image.open(page.processed_image) as image:
+                pdf_images.append(image.convert('RGB').copy())
+        finally:
+            page.processed_image.close()
+    output = io.BytesIO()
+    pdf_images[0].save(
+        output, format='PDF', save_all=True, append_images=pdf_images[1:],
+        resolution=150.0, title=notebook.title,
+    )
+    output.seek(0)
+    response = FileResponse(output, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="course-notebook-{notebook.id}.pdf"'
+    return response
+
+
+@login_required
+@require_POST
+def course_notebook_page_archive_process(request, page_id):
+    """OCR 비용 없이 현재 사진만 A4 문서 이미지로 보정한다."""
+    page = ensure_archive_image(_student_notebook_page(request.user, page_id))
+    return JsonResponse({
+        'message': 'A4 문서 보정이 완료되었습니다.',
+        'processed_image_url': page.processed_image.url,
     })
 
 
