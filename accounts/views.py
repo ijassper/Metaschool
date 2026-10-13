@@ -1532,6 +1532,7 @@ def _persona_form_values(request):
 def _system_settings_context(active_tab='basic', proctor_filter='', **extra):
     model_cfg, _ = SystemConfig.objects.get_or_create(key_name='SELECTED_AI_MODEL')
     google_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='GOOGLE_API_KEY')
+    google_vision_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='GOOGLE_VISION_API_KEY')
     openai_key_cfg, _ = SystemConfig.objects.get_or_create(key_name='OPENAI_API_KEY')
     personas = Persona.objects.select_related('creator').all()
     cleanup_status = get_cleanup_status()
@@ -1608,6 +1609,7 @@ def _system_settings_context(active_tab='basic', proctor_filter='', **extra):
         'active_tab': active_tab,
         'current_model': model_cfg.value,
         'google_api_key': google_key_cfg.value,
+        'google_vision_api_key': google_vision_key_cfg.value,
         'openai_api_key': openai_key_cfg.value,
         'system_personas': personas.filter(creator__isnull=True),
         'personal_personas': personas.filter(creator__isnull=False),
@@ -1644,6 +1646,7 @@ def admin_system_settings(request):
             values = {
                 'SELECTED_AI_MODEL': request.POST.get('ai_model', '').strip(),
                 'GOOGLE_API_KEY': request.POST.get('google_api_key', '').strip(),
+                'GOOGLE_VISION_API_KEY': request.POST.get('google_vision_api_key', '').strip(),
                 'OPENAI_API_KEY': request.POST.get('openai_api_key', '').strip(),
             }
             for key_name, value in values.items():

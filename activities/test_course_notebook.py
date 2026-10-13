@@ -6,12 +6,16 @@ from django.utils import timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 import json
+import io
+
+from PIL import Image
 
 from .models import (
     Activity, CourseNotebook, CourseNotebookMaterial, CourseNotebookPage,
     CourseNotebookSection, CourseNotebookStickyNote,
 )
 from .views.course_notebook_views import parse_section_outline
+from .course_notebook_processing import correct_notebook_image
 from .views.main_views import get_form_config, get_menu_items
 
 
@@ -66,6 +70,8 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('노트 텍스트', page_source)
         self.assertIn('note-text-editor', page_source)
         self.assertIn("'course_notebook_page_text_update' page.id", page_source)
+        self.assertIn("'course_notebook_page_process' page.id", page_source)
+        self.assertIn("dataset.status==='UPLOADED'", page_source)
         self.assertIn('repeating-linear-gradient', page_source)
         self.assertEqual(CourseNotebook.Semester.FIRST, '1')
         self.assertEqual(CourseNotebook.Semester.YEAR.label, '전학기')
@@ -79,6 +85,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertEqual(CourseNotebookPage._meta.get_field('memo').max_length, 200)
         self.assertEqual(CourseNotebookPage._meta.get_field('ocr_status').default, 'UPLOADED')
         self.assertEqual(CourseNotebookPage._meta.get_field('ocr_layout').default, dict)
+        self.assertEqual(CourseNotebookPage._meta.get_field('ocr_usage').default, dict)
         page = CourseNotebookPage(ocr_raw_text='자동 인식', ocr_corrected_text='학생 확인')
         self.assertEqual(page.analysis_text, '학생 확인')
         self.assertEqual(CourseNotebookSection._meta.get_field('title').max_length, 100)
@@ -86,6 +93,15 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertEqual(CourseNotebookStickyNote._meta.get_field('content').max_length, 1000)
         for heading in ['학년도', '학기', '과목명', '노트 제목', '상태', '학생 현황']:
             self.assertIn(f'<th>{heading}</th>', list_source)
+
+    def test_notebook_image_correction_keeps_color_and_limits_size(self):
+        source = Image.new('RGB', (3000, 1800), (245, 235, 180))
+        buffer = io.BytesIO()
+        source.save(buffer, format='JPEG')
+        corrected = Image.open(io.BytesIO(correct_notebook_image(buffer.getvalue())))
+        self.assertEqual(corrected.mode, 'RGB')
+        self.assertLessEqual(max(corrected.size), 2400)
+        self.assertEqual(corrected.format, 'JPEG')
 
     def test_section_outline_supports_markdown_and_indentation(self):
         outline = '# 1. 고조선\n  - 청동기 시대\n    고조선의 건국\n# 2. 삼국 시대'

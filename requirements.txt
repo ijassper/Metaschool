@@ -12,3 +12,4 @@ openpyxl
 pandas
 openai
 qrcode>=7.4,<9
+Pillow>=10,<11

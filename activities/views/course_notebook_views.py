@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import timedelta
 from pathlib import Path
 
 from django.contrib import messages
@@ -17,6 +18,7 @@ from ..models import (
     CourseNotebook, CourseNotebookMaterial, CourseNotebookPage,
     CourseNotebookSection, CourseNotebookStickyNote,
 )
+from ..course_notebook_processing import process_course_notebook_page
 from .main_views import get_accessible_student_ids, get_student_tree
 
 
@@ -201,15 +203,15 @@ def student_course_notebook(request, notebook_id):
         elif section_id and not section:
             messages.error(request, '선택한 단원을 확인할 수 없습니다.')
         else:
-            CourseNotebookPage.objects.create(
+            page = CourseNotebookPage.objects.create(
                 notebook=notebook,
                 student=student,
                 section=section,
                 image=uploaded,
                 memo=memo,
             )
-            messages.success(request, '노트 사진을 저장했습니다.')
-            return redirect('student_course_notebook', notebook_id=notebook.id)
+            messages.success(request, '노트 사진을 저장했습니다. 이미지 보정과 텍스트 변환을 시작합니다.')
+            return redirect('student_course_notebook_page', page_id=page.id)
 
     pages = notebook.pages.filter(student=student).select_related('section').prefetch_related('sticky_notes')
     return render(request, 'activities/student_course_notebook.html', {
@@ -250,6 +252,33 @@ def student_course_notebook_page(request, page_id):
         'notebook': page.notebook,
         'sticky_colors': CourseNotebookStickyNote.COLOR_CHOICES,
     })
+
+
+@login_required
+@require_POST
+def course_notebook_page_process(request, page_id):
+    """원본을 보정하고 설정된 OCR 제공자로 텍스트를 한 번 추출한다."""
+    page = _student_notebook_page(request.user, page_id)
+    if (
+        page.ocr_status == CourseNotebookPage.OcrStatus.PROCESSING
+        and page.ocr_processed_at
+        and page.ocr_processed_at > timezone.now() - timedelta(minutes=5)
+    ):
+        return JsonResponse({'message': '이미 변환 중입니다.'}, status=409)
+    page = process_course_notebook_page(page)
+    payload = {
+        'status': page.ocr_status,
+        'status_label': page.get_ocr_status_display(),
+        'text': page.ocr_corrected_text or page.ocr_raw_text,
+        'error': page.ocr_error,
+        'processed_image_url': page.processed_image.url if page.processed_image else '',
+        'provider': page.ocr_provider,
+    }
+    if page.ocr_status == CourseNotebookPage.OcrStatus.FAILED:
+        payload['message'] = page.ocr_error or '이미지 처리에 실패했습니다.'
+        return JsonResponse(payload, status=422)
+    payload['message'] = '이미지 보정과 텍스트 변환이 완료되었습니다.'
+    return JsonResponse(payload)
 
 
 @login_required

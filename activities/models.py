@@ -852,7 +852,9 @@ class CourseNotebookPage(models.Model):
     ocr_model_version = models.CharField(max_length=80, blank=True, verbose_name='OCR 모델 버전')
     ocr_confidence = models.FloatField(null=True, blank=True, verbose_name='OCR 신뢰도')
     ocr_error = models.CharField(max_length=500, blank=True, verbose_name='OCR 오류')
+    ocr_usage = models.JSONField(default=dict, blank=True, verbose_name='OCR 사용량과 비용')
     ocr_processed_at = models.DateTimeField(null=True, blank=True, verbose_name='OCR 처리 시각')
+    source_hash = models.CharField(max_length=64, blank=True, db_index=True, verbose_name='원본 이미지 해시')
     processing_version = models.PositiveSmallIntegerField(default=1, verbose_name='처리 버전')
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -101,10 +101,10 @@ def _extract_responses_output_text(response_data):
     return '\n'.join(parts).strip()
 
 
-def extract_text_with_openai_ocr(*, filename, data, api_key, model='gpt-4o-mini'):
+def extract_text_with_openai_ocr(*, filename, data, api_key, model='gpt-4o-mini', detail='low', instruction=''):
     suffix = Path(filename or '').suffix.lower()
     encoded = base64.b64encode(data).decode('ascii')
-    instruction = (
+    instruction = instruction or (
         '이 자료에서 학생 답안 분석에 필요한 모든 읽을 수 있는 텍스트를 정확히 추출하세요. '
         '표는 행과 열 관계가 드러나게 텍스트로 변환하고, 제목·문항 번호·작성 조건을 보존하세요. '
         '이미지에 없는 내용을 추측하거나 설명하지 말고 추출된 텍스트만 반환하세요.'
@@ -118,7 +118,7 @@ def extract_text_with_openai_ocr(*, filename, data, api_key, model='gpt-4o-mini'
         mime_type = mimetypes.guess_type(filename)[0] or 'image/png'
         content = [
             {'type': 'input_text', 'text': instruction},
-            {'type': 'input_image', 'image_url': f'data:{mime_type};base64,{encoded}', 'detail': 'low'},
+            {'type': 'input_image', 'image_url': f'data:{mime_type};base64,{encoded}', 'detail': detail},
         ]
     else:
         raise ValueError('OCR을 지원하지 않는 파일 형식입니다.')

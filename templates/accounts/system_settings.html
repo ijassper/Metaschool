@@ -58,6 +58,7 @@
     </div>
     <div class="secret-grid">
       <div><label for="googleKey">Google Gemini API Key</label><div class="secret-input"><i class="bi bi-key"></i><input type="password" id="googleKey" name="google_api_key" value="{{ google_api_key }}"><button type="button" data-key-toggle="googleKey"><i class="bi bi-eye"></i></button></div></div>
+      <div><label for="googleVisionKey">Google Vision OCR API Key <small>(노트 텍스트 변환 우선 사용)</small></label><div class="secret-input"><i class="bi bi-key"></i><input type="password" id="googleVisionKey" name="google_vision_api_key" value="{{ google_vision_api_key }}"><button type="button" data-key-toggle="googleVisionKey"><i class="bi bi-eye"></i></button></div></div>
       <div><label for="openaiKey">OpenAI API Key</label><div class="secret-input"><i class="bi bi-key"></i><input type="password" id="openaiKey" name="openai_api_key" value="{{ openai_api_key }}"><button type="button" data-key-toggle="openaiKey"><i class="bi bi-eye"></i></button></div></div>
     </div>
     <div class="panel-actions"><button type="submit">AI 설정 저장</button></div>
