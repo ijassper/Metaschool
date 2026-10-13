@@ -813,6 +813,14 @@ class CourseNotebookMaterial(models.Model):
 class CourseNotebookPage(models.Model):
     """학생이 촬영해 올린 교과 수업 노트 한 페이지."""
 
+    class OcrStatus(models.TextChoices):
+        UPLOADED = 'UPLOADED', '변환 대기'
+        PROCESSING = 'PROCESSING', '텍스트 변환 중'
+        COMPLETED = 'COMPLETED', '변환 완료'
+        NEEDS_REVIEW = 'NEEDS_REVIEW', '확인 필요'
+        REVIEWED = 'REVIEWED', '학생 확인 완료'
+        FAILED = 'FAILED', '변환 실패'
+
     notebook = models.ForeignKey(
         CourseNotebook, on_delete=models.CASCADE,
         related_name='pages', verbose_name='교과 수업 노트',
@@ -828,7 +836,24 @@ class CourseNotebookPage(models.Model):
     image = models.FileField(
         upload_to='course_notebooks/%Y/%m/%d/', verbose_name='노트 이미지'
     )
+    processed_image = models.FileField(
+        upload_to='course_notebooks/processed/%Y/%m/%d/', blank=True,
+        verbose_name='보정된 노트 이미지',
+    )
     memo = models.CharField(max_length=200, blank=True, verbose_name='한 줄 메모')
+    ocr_status = models.CharField(
+        max_length=20, choices=OcrStatus.choices, default=OcrStatus.UPLOADED,
+        verbose_name='텍스트 변환 상태',
+    )
+    ocr_raw_text = models.TextField(blank=True, verbose_name='OCR 원문')
+    ocr_corrected_text = models.TextField(blank=True, verbose_name='확인된 텍스트')
+    ocr_layout = models.JSONField(default=dict, blank=True, verbose_name='문서 구조와 좌표')
+    ocr_provider = models.CharField(max_length=40, blank=True, verbose_name='OCR 제공자')
+    ocr_model_version = models.CharField(max_length=80, blank=True, verbose_name='OCR 모델 버전')
+    ocr_confidence = models.FloatField(null=True, blank=True, verbose_name='OCR 신뢰도')
+    ocr_error = models.CharField(max_length=500, blank=True, verbose_name='OCR 오류')
+    ocr_processed_at = models.DateTimeField(null=True, blank=True, verbose_name='OCR 처리 시각')
+    processing_version = models.PositiveSmallIntegerField(default=1, verbose_name='처리 버전')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -841,6 +866,11 @@ class CourseNotebookPage(models.Model):
 
     def __str__(self):
         return f'{self.notebook.title} · {self.student.name} · {self.created_at:%Y-%m-%d}'
+
+    @property
+    def analysis_text(self):
+        """학생이 확인한 텍스트를 우선 사용하는 AI 분석용 본문."""
+        return self.ocr_corrected_text or self.ocr_raw_text
 
 
 class CourseNotebookStickyNote(models.Model):

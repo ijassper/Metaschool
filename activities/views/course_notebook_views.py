@@ -237,6 +237,35 @@ def _student_notebook_page(user, page_id):
     )
 
 
+@login_required
+@require_POST
+def course_notebook_page_text_update(request, page_id):
+    """학생이 OCR 결과를 확인하거나 직접 보완한 텍스트를 저장한다."""
+    page = _student_notebook_page(request.user, page_id)
+    try:
+        payload = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'message': '요청 내용을 확인할 수 없습니다.'}, status=400)
+
+    corrected_text = str(payload.get('text', '')).strip()
+    if len(corrected_text) > 100_000:
+        return JsonResponse({'message': '노트 텍스트는 100,000자 이내로 저장해 주세요.'}, status=400)
+
+    page.ocr_corrected_text = corrected_text
+    if corrected_text:
+        page.ocr_status = CourseNotebookPage.OcrStatus.REVIEWED
+    elif page.ocr_raw_text:
+        page.ocr_status = CourseNotebookPage.OcrStatus.COMPLETED
+    else:
+        page.ocr_status = CourseNotebookPage.OcrStatus.UPLOADED
+    page.save(update_fields=['ocr_corrected_text', 'ocr_status'])
+    return JsonResponse({
+        'message': '노트 텍스트를 저장했습니다.',
+        'status': page.ocr_status,
+        'status_label': page.get_ocr_status_display(),
+    })
+
+
 def _bounded_decimal(value, minimum, maximum):
     number = float(value)
     return round(max(minimum, min(maximum, number)), 2)

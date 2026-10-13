@@ -118,10 +118,10 @@ class CourseNotebookStickyNoteInline(admin.TabularInline):
 
 @admin.register(CourseNotebookPage)
 class CourseNotebookPageAdmin(admin.ModelAdmin):
-    list_display = ['notebook', 'student', 'section', 'memo', 'created_at']
-    list_filter = ['notebook', 'section', 'created_at']
-    search_fields = ['notebook__title', 'student__name', 'memo']
-    readonly_fields = ['created_at']
+    list_display = ['notebook', 'student', 'section', 'memo', 'ocr_status', 'created_at']
+    list_filter = ['notebook', 'section', 'ocr_status', 'created_at']
+    search_fields = ['notebook__title', 'student__name', 'memo', 'ocr_raw_text', 'ocr_corrected_text']
+    readonly_fields = ['ocr_processed_at', 'created_at']
     inlines = [CourseNotebookStickyNoteInline]
 
 
