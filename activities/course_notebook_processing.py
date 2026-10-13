@@ -149,6 +149,21 @@ def ensure_archive_image(page):
     return page
 
 
+def accept_native_document_scan(page):
+    """ML Kit에서 보정한 JPEG를 추가 서버 필터 없이 아카이브 원본으로 채택한다."""
+    scanned = _read_original(page)
+    source_hash = hashlib.sha256(scanned).hexdigest()
+    if page.processed_image:
+        page.processed_image.delete(save=False)
+    page.processed_image.save(
+        f'notebook-page-{page.id}-native.jpg', ContentFile(scanned), save=False,
+    )
+    page.source_hash = source_hash
+    page.processing_version = PROCESSING_VERSION
+    page.save(update_fields=['processed_image', 'source_hash', 'processing_version'])
+    return page
+
+
 def _config_value(key):
     return (SystemConfig.objects.filter(key_name=key).values_list('value', flat=True).first() or '').strip()
 

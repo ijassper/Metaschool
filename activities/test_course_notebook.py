@@ -63,6 +63,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('name="materials"', form_source)
         self.assertNotIn('대단원과 소단원은 다음 화면에서 구성합니다', form_source)
         self.assertIn('capture="environment"', student_source)
+        self.assertIn('id="nativeDocumentScan"', student_source)
         self.assertIn('노트 사진 아카이브에 추가', student_source)
         self.assertIn('multiple required', student_source)
         self.assertIn('아카이브 열기', student_source)

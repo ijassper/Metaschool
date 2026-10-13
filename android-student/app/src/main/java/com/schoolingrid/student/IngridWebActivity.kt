@@ -37,6 +37,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import org.json.JSONArray
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -276,32 +279,12 @@ class IngridWebActivity : Activity() {
             ): Boolean {
                 fileChooserCallback?.onReceiveValue(null)
                 fileChooserCallback = filePathCallback
-
-                val photoFile = File.createTempFile("ingrid-note-", ".jpg", cacheDir)
-                pendingCameraUri = FileProvider.getUriForFile(
-                    this@IngridWebActivity,
-                    "${packageName}.fileprovider",
-                    photoFile,
-                )
-                val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-                    putExtra(MediaStore.EXTRA_OUTPUT, pendingCameraUri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                }
-                val galleryIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "image/*"
-                }
-                val chooser = Intent.createChooser(galleryIntent, getString(R.string.note_photo_chooser_title)).apply {
-                    putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(cameraIntent))
-                }
-                return try {
-                    startActivityForResult(chooser, NOTE_FILE_CHOOSER_REQUEST)
+                return if (isCourseNotebookUploadPage(webView.url) && acceptsImages(fileChooserParams)) {
+                    clearNativeDocumentScanMarker()
+                    launchDocumentScanner()
                     true
-                } catch (_: Exception) {
-                    fileChooserCallback?.onReceiveValue(null)
-                    fileChooserCallback = null
-                    pendingCameraUri = null
-                    false
+                } else {
+                    launchLegacyImageChooser(fileChooserParams.mode == FileChooserParams.MODE_OPEN_MULTIPLE)
                 }
             }
         }
@@ -333,20 +316,118 @@ class IngridWebActivity : Activity() {
 
     @Deprecated("Deprecated in Android")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == DOCUMENT_SCANNER_REQUEST) {
+            val pages = if (resultCode == RESULT_OK) {
+                GmsDocumentScanningResult.fromActivityResultIntent(data)?.pages.orEmpty()
+            } else {
+                emptyList()
+            }
+            val result = pages.map { it.imageUri }.take(MAX_DOCUMENT_SCAN_PAGES).toTypedArray()
+            if (result.isNotEmpty()) notifyNativeDocumentScanReady(result.size)
+            completeFileChooser(result.ifEmpty { null })
+            return
+        }
         if (requestCode == NOTE_FILE_CHOOSER_REQUEST) {
             val result = if (resultCode != RESULT_OK) {
                 null
-            } else if (data?.data != null) {
-                arrayOf(data.data!!)
             } else {
-                pendingCameraUri?.let { arrayOf(it) }
+                data?.clipData?.let { clip ->
+                    Array(clip.itemCount.coerceAtMost(MAX_DOCUMENT_SCAN_PAGES)) { index ->
+                        clip.getItemAt(index).uri
+                    }
+                } ?: data?.data?.let { arrayOf(it) }
+                    ?: pendingCameraUri?.let { arrayOf(it) }
             }
-            fileChooserCallback?.onReceiveValue(result)
-            fileChooserCallback = null
-            pendingCameraUri = null
+            completeFileChooser(result)
             return
         }
         super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    private fun acceptsImages(params: WebChromeClient.FileChooserParams): Boolean =
+        params.acceptTypes.filter { it.isNotBlank() }.let { types ->
+            types.isEmpty() || types.any { it == "image/*" || it.startsWith("image/") }
+        }
+
+    private fun isCourseNotebookUploadPage(url: String?): Boolean {
+        val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull() ?: return false
+        if (uri.scheme != "https" || !isIngridHost(uri.host)) return false
+        return COURSE_NOTEBOOK_UPLOAD_PATH.matches(uri.path.orEmpty())
+    }
+
+    private fun launchDocumentScanner() {
+        val options = GmsDocumentScannerOptions.Builder()
+            .setGalleryImportAllowed(true)
+            .setPageLimit(MAX_DOCUMENT_SCAN_PAGES)
+            .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
+            .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+            .build()
+        GmsDocumentScanning.getClient(options).getStartScanIntent(this)
+            .addOnSuccessListener { sender ->
+                if (isFinishing || isDestroyed || fileChooserCallback == null) return@addOnSuccessListener
+                try {
+                    startIntentSenderForResult(
+                        sender, DOCUMENT_SCANNER_REQUEST, null, 0, 0, 0,
+                    )
+                } catch (_: Exception) {
+                    showScannerFallback()
+                }
+            }
+            .addOnFailureListener { showScannerFallback() }
+    }
+
+    private fun showScannerFallback() {
+        if (isFinishing || isDestroyed || fileChooserCallback == null) return
+        Toast.makeText(this, R.string.document_scanner_fallback, Toast.LENGTH_LONG).show()
+        if (!launchLegacyImageChooser(true)) completeFileChooser(null)
+    }
+
+    private fun launchLegacyImageChooser(allowMultiple: Boolean): Boolean {
+        val photoFile = File.createTempFile("ingrid-note-", ".jpg", cacheDir)
+        pendingCameraUri = FileProvider.getUriForFile(
+            this, "${packageName}.fileprovider", photoFile,
+        )
+        val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+            putExtra(MediaStore.EXTRA_OUTPUT, pendingCameraUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
+        val galleryIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "image/*"
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, allowMultiple)
+        }
+        val chooser = Intent.createChooser(
+            galleryIntent, getString(R.string.note_photo_chooser_title),
+        ).apply { putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(cameraIntent)) }
+        return try {
+            startActivityForResult(chooser, NOTE_FILE_CHOOSER_REQUEST)
+            true
+        } catch (_: Exception) {
+            completeFileChooser(null)
+            false
+        }
+    }
+
+    private fun notifyNativeDocumentScanReady(pageCount: Int) {
+        webView.evaluateJavascript(
+            "(function(){var input=document.getElementById('nativeDocumentScan');" +
+                "if(input){input.value='1';input.dataset.pageCount='$pageCount';}})();",
+            null,
+        )
+    }
+
+    private fun clearNativeDocumentScanMarker() {
+        webView.evaluateJavascript(
+            "(function(){var input=document.getElementById('nativeDocumentScan');" +
+                "if(input){input.value='';delete input.dataset.pageCount;}})();",
+            null,
+        )
+    }
+
+    private fun completeFileChooser(result: Array<Uri>?) {
+        fileChooserCallback?.onReceiveValue(result)
+        fileChooserCallback = null
+        pendingCameraUri = null
     }
 
     override fun onStop() {
@@ -925,6 +1006,10 @@ class IngridWebActivity : Activity() {
         private const val CLIPBOARD_LOG_INTERVAL_MS = 3_000L
         private const val CAPTURE_STATUS_CLOCK_INTERVAL_MS = 1_000L
         private const val NOTE_FILE_CHOOSER_REQUEST = 4107
+        private const val DOCUMENT_SCANNER_REQUEST = 4108
+        private const val MAX_DOCUMENT_SCAN_PAGES = 30
+        private val COURSE_NOTEBOOK_UPLOAD_PATH =
+            Regex("^/activities/course-notebooks/\\d+/student/?$")
         private const val SECURE_MODE_CHECK_INTERVAL_MS = 500L
         private const val SECURITY_CHECK_INTERVAL_MS = 1_000L
         private const val SECURE_MODE_CHECK_LIMIT = 30

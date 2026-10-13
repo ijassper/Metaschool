@@ -19,7 +19,9 @@ from ..models import (
     CourseNotebook, CourseNotebookMaterial, CourseNotebookPage,
     CourseNotebookSection, CourseNotebookStickyNote,
 )
-from ..course_notebook_processing import ensure_archive_image, process_course_notebook_page
+from ..course_notebook_processing import (
+    accept_native_document_scan, ensure_archive_image, process_course_notebook_page,
+)
 from .main_views import get_accessible_student_ids, get_student_tree
 
 
@@ -190,6 +192,10 @@ def student_course_notebook(request, notebook_id):
     )
     if request.method == 'POST':
         uploads = request.FILES.getlist('image')
+        native_document_scan = (
+            request.POST.get('native_document_scan') == '1'
+            and 'IngridStudentAndroid/' in request.META.get('HTTP_USER_AGENT', '')
+        )
         memo = request.POST.get('memo', '').strip()
         section_id = request.POST.get('section', '').strip()
         section = notebook.sections.filter(id=section_id).first() if section_id else None
@@ -211,6 +217,9 @@ def student_course_notebook(request, notebook_id):
                     notebook=notebook, student=student, section=section,
                     image=uploaded, memo=memo,
                 ) for uploaded in uploads]
+                if native_document_scan:
+                    for page in created_pages:
+                        accept_native_document_scan(page)
             messages.success(request, f'노트 사진 {len(created_pages)}장을 저장했습니다. A4 문서로 정리합니다.')
             return redirect('student_course_notebook_page', page_id=created_pages[0].id)
 
