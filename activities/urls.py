@@ -12,14 +12,15 @@ from .views.typing_views import *
 from .views.proctor_replay_views import proctor_replay, proctor_recording, proctor_download, proctor_delete_recording, proctor_save_review, proctor_review_csv
 from .views.course_notebook_views import (
     course_notebook_create, course_notebook_list, student_course_notebook,
-    course_notebook_page_text_update, course_notebook_sticky_create,
-    course_notebook_sticky_update,
+    student_course_notebook_page, course_notebook_page_text_update,
+    course_notebook_sticky_create, course_notebook_sticky_update,
 )
 
 urlpatterns = [
     path('course-notebooks/', course_notebook_list, name='course_notebook_list'),
     path('course-notebooks/create/', course_notebook_create, name='course_notebook_create'),
     path('course-notebooks/<int:notebook_id>/student/', student_course_notebook, name='student_course_notebook'),
+    path('course-notebook-pages/<int:page_id>/', student_course_notebook_page, name='student_course_notebook_page'),
     path('course-notebook-pages/<int:page_id>/text/', course_notebook_page_text_update, name='course_notebook_page_text_update'),
     path('course-notebook-pages/<int:page_id>/sticky-notes/', course_notebook_sticky_create, name='course_notebook_sticky_create'),
     path('course-notebook-sticky-notes/<int:note_id>/', course_notebook_sticky_update, name='course_notebook_sticky_update'),

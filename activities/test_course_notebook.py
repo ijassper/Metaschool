@@ -33,6 +33,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         list_source = get_template('activities/course_notebook_list.html').template.source
         form_source = get_template('activities/course_notebook_form.html').template.source
         student_source = get_template('activities/student_course_notebook.html').template.source
+        page_source = get_template('activities/student_course_notebook_page.html').template.source
         self.assertIn('새 교과 수업 노트', list_source)
         self.assertIn('대상 학생', form_source)
         first_row_labels = [form_source.index(label) for label in ['학년도', '학기', '과목명', '노트 제목']]
@@ -60,9 +61,12 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('capture="environment"', student_source)
         self.assertIn('노트 사진 저장', student_source)
         self.assertIn('노트 보기·텍스트', student_source)
-        self.assertIn('노트 텍스트', student_source)
-        self.assertIn('ocr-textarea', student_source)
-        self.assertIn("'course_notebook_page_text_update' page.id", student_source)
+        self.assertIn("'student_course_notebook_page' page.id", student_source)
+        self.assertNotIn('pageEditorModal', student_source)
+        self.assertIn('노트 텍스트', page_source)
+        self.assertIn('note-text-editor', page_source)
+        self.assertIn("'course_notebook_page_text_update' page.id", page_source)
+        self.assertIn('repeating-linear-gradient', page_source)
         self.assertEqual(CourseNotebook.Semester.FIRST, '1')
         self.assertEqual(CourseNotebook.Semester.YEAR.label, '전학기')
         self.assertEqual(CourseNotebook._meta.get_field('semester').default, CourseNotebook.Semester.YEAR)

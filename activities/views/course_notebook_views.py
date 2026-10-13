@@ -238,6 +238,21 @@ def _student_notebook_page(user, page_id):
 
 
 @login_required
+@require_http_methods(['GET'])
+def student_course_notebook_page(request, page_id):
+    """사진과 구조화 텍스트를 나란히 확인·편집하는 학생 전용 페이지."""
+    page = _student_notebook_page(request.user, page_id)
+    page = CourseNotebookPage.objects.select_related(
+        'notebook', 'section', 'student'
+    ).prefetch_related('sticky_notes').get(id=page.id)
+    return render(request, 'activities/student_course_notebook_page.html', {
+        'page': page,
+        'notebook': page.notebook,
+        'sticky_colors': CourseNotebookStickyNote.COLOR_CHOICES,
+    })
+
+
+@login_required
 @require_POST
 def course_notebook_page_text_update(request, page_id):
     """학생이 OCR 결과를 확인하거나 직접 보완한 텍스트를 저장한다."""
