@@ -74,6 +74,44 @@ def create_sections(notebook, parsed_sections):
             del parents[stale_depth]
 
 
+def sync_sections(notebook, parsed_sections):
+    """Update the outline in place so existing page-to-section links survive when possible."""
+    existing = list(notebook.sections.order_by('position', 'id'))
+    active_sections = []
+    parents = {}
+    for position, item in enumerate(parsed_sections):
+        depth = item['depth']
+        parent = parents.get(depth - 1) if depth else None
+        if position < len(existing):
+            section = existing[position]
+            section.title = item['title']
+            section.depth = depth
+            section.position = position
+            section.parent = parent
+            section.save(update_fields=['title', 'depth', 'position', 'parent'])
+        else:
+            section = CourseNotebookSection.objects.create(
+                notebook=notebook,
+                parent=parent,
+                title=item['title'],
+                depth=depth,
+                position=position,
+            )
+        active_sections.append(section)
+        parents[depth] = section
+        for stale_depth in [value for value in parents if value > depth]:
+            del parents[stale_depth]
+    if len(existing) > len(active_sections):
+        notebook.sections.filter(id__in=[section.id for section in existing[len(active_sections):]]).delete()
+
+
+def serialize_section_outline(notebook):
+    return '\n'.join(
+        f"{'#' * (min(section.depth, 6) + 1)} {section.title}"
+        for section in notebook.sections.order_by('position', 'id')
+    )
+
+
 def validate_material(uploaded):
     extension = Path(uploaded.name).suffix.lower()
     if extension not in MATERIAL_EXTENSIONS:
@@ -81,6 +119,87 @@ def validate_material(uploaded):
     if uploaded.size > MATERIAL_MAX_SIZE:
         return f'{uploaded.name}: 파일 크기는 25MB 이하여야 합니다.'
     return None
+
+
+def read_notebook_submission(request, current_year):
+    values = {
+        'title': request.POST.get('title', '').strip(),
+        'subject': request.POST.get('subject', '').strip(),
+        'description': request.POST.get('description', '').strip(),
+        'semester': request.POST.get('semester', ''),
+        'cover_color': request.POST.get('cover_color', ''),
+        'section_outline': request.POST.get('section_outline', ''),
+    }
+    materials = request.FILES.getlist('materials')
+    try:
+        values['academic_year'] = int(request.POST.get('academic_year', current_year))
+    except (TypeError, ValueError):
+        values['academic_year'] = 0
+    errors = []
+    if not values['title']:
+        errors.append('노트 제목을 입력해 주세요.')
+    if not values['subject']:
+        errors.append('과목명을 입력해 주세요.')
+    if not 2020 <= values['academic_year'] <= current_year + 1:
+        errors.append('학년도를 올바르게 입력해 주세요.')
+    if values['semester'] not in {value for value, _ in CourseNotebook.Semester.choices}:
+        errors.append('학기를 선택해 주세요.')
+    if values['cover_color'] not in {value for value, _ in CourseNotebook.COVER_COLOR_CHOICES}:
+        errors.append('표지 색상을 선택해 주세요.')
+    if len(values['title']) > 30:
+        errors.append('노트 제목은 30자 이내로 입력해 주세요.')
+    if len(values['subject']) > 60 or len(values['description']) > 1000:
+        errors.append('입력 가능한 글자 수를 확인해 주세요.')
+    try:
+        parsed_sections = parse_section_outline(values['section_outline'])
+    except ValueError as error:
+        parsed_sections = []
+        errors.append(str(error))
+    for uploaded in materials:
+        material_error = validate_material(uploaded)
+        if material_error:
+            errors.append(material_error)
+    return values, parsed_sections, materials, errors
+
+
+def notebook_form_context(request, current_year, *, notebook=None, form_values=None):
+    if form_values is None:
+        if notebook:
+            form_values = {
+                'academic_year': notebook.academic_year,
+                'semester': notebook.semester,
+                'subject': notebook.subject,
+                'title': notebook.title,
+                'description': notebook.description,
+                'cover_color': notebook.cover_color,
+                'section_outline': serialize_section_outline(notebook),
+            }
+        else:
+            form_values = {
+                'academic_year': current_year,
+                'semester': CourseNotebook.Semester.YEAR,
+                'subject': '',
+                'title': '',
+                'description': '',
+                'cover_color': 'PURPLE',
+                'section_outline': '',
+            }
+    selected_ids = (
+        request.POST.getlist('target_students')
+        if request.method == 'POST'
+        else list(notebook.target_students.values_list('id', flat=True)) if notebook else []
+    )
+    return {
+        'current_year': current_year,
+        'student_tree': get_student_tree(request.user),
+        'semester_choices': CourseNotebook.Semester.choices,
+        'cover_choices': CourseNotebook.COVER_COLOR_CHOICES,
+        'selected_students': {str(value) for value in selected_ids},
+        'form_values': form_values,
+        'notebook': notebook,
+        'is_edit': notebook is not None,
+        'existing_materials': notebook.materials.all() if notebook else [],
+    }
 
 
 @login_required
@@ -98,52 +217,18 @@ def course_notebook_list(request):
 def course_notebook_create(request):
     current_year = timezone.localdate().year
     if request.method == 'POST':
-        title = request.POST.get('title', '').strip()
-        subject = request.POST.get('subject', '').strip()
-        description = request.POST.get('description', '').strip()
-        semester = request.POST.get('semester', '')
-        cover_color = request.POST.get('cover_color', '')
-        outline_text = request.POST.get('section_outline', '')
-        materials = request.FILES.getlist('materials')
-        try:
-            academic_year = int(request.POST.get('academic_year', current_year))
-        except (TypeError, ValueError):
-            academic_year = 0
-        errors = []
-        if not title:
-            errors.append('노트 이름을 입력해 주세요.')
-        if not subject:
-            errors.append('과목명을 입력해 주세요.')
-        if not 2020 <= academic_year <= current_year + 1:
-            errors.append('학년도를 올바르게 입력해 주세요.')
-        if semester not in {value for value, _ in CourseNotebook.Semester.choices}:
-            errors.append('학기를 선택해 주세요.')
-        if cover_color not in {value for value, _ in CourseNotebook.COVER_COLOR_CHOICES}:
-            errors.append('표지 색상을 선택해 주세요.')
-        if len(title) > 30:
-            errors.append('노트 제목은 30자 이내로 입력해 주세요.')
-        if len(subject) > 60 or len(description) > 1000:
-            errors.append('입력 가능한 글자 수를 확인해 주세요.')
-        try:
-            parsed_sections = parse_section_outline(outline_text)
-        except ValueError as error:
-            parsed_sections = []
-            errors.append(str(error))
-        for uploaded in materials:
-            material_error = validate_material(uploaded)
-            if material_error:
-                errors.append(material_error)
+        form_values, parsed_sections, materials, errors = read_notebook_submission(request, current_year)
         if not errors:
             target_ids = get_accessible_student_ids(request.user, request.POST.getlist('target_students'))
             with transaction.atomic():
                 notebook = CourseNotebook.objects.create(
                     teacher=request.user,
-                    title=title,
-                    subject=subject,
-                    academic_year=academic_year,
-                    semester=semester,
-                    description=description,
-                    cover_color=cover_color,
+                    title=form_values['title'],
+                    subject=form_values['subject'],
+                    academic_year=form_values['academic_year'],
+                    semester=form_values['semester'],
+                    description=form_values['description'],
+                    cover_color=form_values['cover_color'],
                 )
                 notebook.target_students.set(target_ids)
                 create_sections(notebook, parsed_sections)
@@ -159,14 +244,72 @@ def course_notebook_create(request):
             return redirect('course_notebook_list')
         for error in errors:
             messages.error(request, error)
+    else:
+        form_values = None
 
-    return render(request, 'activities/course_notebook_form.html', {
-        'current_year': current_year,
-        'student_tree': get_student_tree(request.user),
-        'semester_choices': CourseNotebook.Semester.choices,
-        'cover_choices': CourseNotebook.COVER_COLOR_CHOICES,
-        'selected_students': {str(value) for value in request.POST.getlist('target_students')},
-    })
+    return render(
+        request,
+        'activities/course_notebook_form.html',
+        notebook_form_context(request, current_year, form_values=form_values),
+    )
+
+
+@login_required
+@teacher_required
+@require_http_methods(['GET', 'POST'])
+def course_notebook_update(request, notebook_id):
+    notebook = get_object_or_404(
+        CourseNotebook.objects.prefetch_related('target_students', 'sections', 'materials'),
+        id=notebook_id,
+        teacher=request.user,
+    )
+    current_year = timezone.localdate().year
+    if request.method == 'POST':
+        form_values, parsed_sections, materials, errors = read_notebook_submission(request, current_year)
+        delete_material_ids = {
+            int(value) for value in request.POST.getlist('delete_materials') if value.isdigit()
+        }
+        if not errors:
+            target_ids = get_accessible_student_ids(request.user, request.POST.getlist('target_students'))
+            with transaction.atomic():
+                notebook.title = form_values['title']
+                notebook.subject = form_values['subject']
+                notebook.academic_year = form_values['academic_year']
+                notebook.semester = form_values['semester']
+                notebook.description = form_values['description']
+                notebook.cover_color = form_values['cover_color']
+                notebook.save(update_fields=[
+                    'title', 'subject', 'academic_year', 'semester',
+                    'description', 'cover_color', 'updated_at',
+                ])
+                notebook.target_students.set(target_ids)
+                sync_sections(notebook, parsed_sections)
+                materials_to_delete = list(notebook.materials.filter(id__in=delete_material_ids))
+                for material in materials_to_delete:
+                    material.delete()
+                    transaction.on_commit(lambda item=material: item.file.delete(save=False))
+                for uploaded in materials:
+                    CourseNotebookMaterial.objects.create(
+                        notebook=notebook,
+                        file=uploaded,
+                        original_name=uploaded.name[:255],
+                        content_type=(getattr(uploaded, 'content_type', '') or '')[:120],
+                        size=uploaded.size,
+                    )
+            messages.success(request, '교과 수업 노트를 수정했습니다.')
+            return redirect(f"{reverse('course_notebook_list')}#course-notebook-{notebook.id}")
+        for error in errors:
+            messages.error(request, error)
+    else:
+        form_values = None
+
+    return render(
+        request,
+        'activities/course_notebook_form.html',
+        notebook_form_context(
+            request, current_year, notebook=notebook, form_values=form_values,
+        ),
+    )
 
 
 def _student_profile_for(user):

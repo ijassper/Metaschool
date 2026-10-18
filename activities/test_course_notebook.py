@@ -1,6 +1,6 @@
 from django.template.loader import get_template
 from django.test import RequestFactory
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 from types import SimpleNamespace
@@ -9,6 +9,8 @@ import json
 import io
 
 from PIL import Image
+
+from accounts.models import CustomUser, Student
 
 from .models import (
     Activity, CourseNotebook, CourseNotebookMaterial, CourseNotebookPage,
@@ -43,7 +45,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         first_row_labels = [form_source.index(label) for label in ['학년도', '학기', '과목명', '노트 제목']]
         self.assertEqual(first_row_labels, sorted(first_row_labels))
         self.assertIn('name="title" maxlength="30"', form_source)
-        self.assertIn("value == 'YEAR'", form_source)
+        self.assertIn('form_values.semester == value', form_source)
         self.assertIn('노트 소개', form_source)
         self.assertNotIn('>학생 안내<', form_source)
         self.assertIn('courseNotebookStudentModal', form_source)
@@ -94,6 +96,10 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertEqual(CourseNotebookStickyNote._meta.get_field('content').max_length, 1000)
         for heading in ['학년도', '학기', '과목명', '노트 제목', '상태', '학생 현황']:
             self.assertIn(f'<th>{heading}</th>', list_source)
+        self.assertIn("{% url 'course_notebook_update' notebook.id %}", list_source)
+        self.assertIn('교과 수업 노트 수정', form_source)
+        self.assertIn('수정 완료', form_source)
+        self.assertIn('name="delete_materials"', form_source)
 
     def test_notebook_image_correction_keeps_color_and_limits_size(self):
         source = Image.new('RGB', (3000, 1800), (245, 235, 180))
@@ -189,3 +195,75 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('restoreCommittedStudentSelection()', modal_source)
         self.assertNotIn('const currentTargets = {{ current_targets|safe }}', modal_source)
         self.assertIn("form_data.selected_students_json|default:''", form_source)
+
+
+class CourseNotebookUpdateTests(TestCase):
+    def setUp(self):
+        self.teacher = CustomUser.objects.create_user(
+            username='teacher@example.com', email='teacher@example.com', password='test-password',
+            name='담당 교사', role=CustomUser.Role.TEACHER, is_approved=True,
+        )
+        self.other_teacher = CustomUser.objects.create_user(
+            username='other@example.com', email='other@example.com', password='test-password',
+            name='다른 교사', role=CustomUser.Role.TEACHER, is_approved=True,
+        )
+        self.student = Student.objects.create(
+            teacher=self.teacher, grade=2, class_no=6, number=1, name='김학생',
+        )
+        self.notebook = CourseNotebook.objects.create(
+            teacher=self.teacher, title='기존 노트', subject='국어', academic_year=2026,
+            semester=CourseNotebook.Semester.YEAR, description='기존 소개', cover_color='PURPLE',
+        )
+        self.notebook.target_students.add(self.student)
+        self.first_section = CourseNotebookSection.objects.create(
+            notebook=self.notebook, title='기존 대단원', depth=0, position=0,
+        )
+        CourseNotebookSection.objects.create(
+            notebook=self.notebook, parent=self.first_section, title='기존 소단원', depth=1, position=1,
+        )
+        self.client.force_login(self.teacher)
+
+    def test_update_page_prepopulates_notebook(self):
+        response = self.client.get(reverse('course_notebook_update', args=[self.notebook.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '교과 수업 노트 수정')
+        self.assertContains(response, 'value="기존 노트"')
+        self.assertContains(response, '# 기존 대단원')
+        self.assertContains(response, '## 기존 소단원')
+        self.assertContains(response, f'value="{self.student.id}" checked')
+
+    def test_owner_can_update_notebook_and_outline(self):
+        response = self.client.post(reverse('course_notebook_update', args=[self.notebook.id]), {
+            'academic_year': '2026',
+            'semester': CourseNotebook.Semester.FIRST,
+            'subject': '역사',
+            'title': '수정된 노트',
+            'description': '수정된 소개',
+            'cover_color': 'LIME',
+            'target_students': [str(self.student.id)],
+            'section_outline': '# 새 대단원\n## 새 소단원\n### 새 세부단원',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f"{reverse('course_notebook_list')}#course-notebook-{self.notebook.id}",
+        )
+        self.notebook.refresh_from_db()
+        self.assertEqual(self.notebook.title, '수정된 노트')
+        self.assertEqual(self.notebook.subject, '역사')
+        self.assertEqual(self.notebook.semester, CourseNotebook.Semester.FIRST)
+        self.assertEqual(self.notebook.cover_color, 'LIME')
+        sections = list(self.notebook.sections.order_by('position'))
+        self.assertEqual([section.title for section in sections], ['새 대단원', '새 소단원', '새 세부단원'])
+        self.assertEqual(sections[0].id, self.first_section.id)
+        self.assertEqual(sections[1].parent_id, sections[0].id)
+        self.assertEqual(sections[2].parent_id, sections[1].id)
+
+    def test_teacher_cannot_edit_another_teachers_notebook(self):
+        self.client.force_login(self.other_teacher)
+
+        response = self.client.get(reverse('course_notebook_update', args=[self.notebook.id]))
+
+        self.assertEqual(response.status_code, 404)
