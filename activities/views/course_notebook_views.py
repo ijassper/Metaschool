@@ -333,8 +333,22 @@ def student_course_notebook(request, notebook_id):
         target_students=student,
         is_archived=False,
     )
-    sections = notebook.sections.all()
-    selected_section = None
+    sections = list(notebook.sections.all())
+    requested_section_id = (
+        request.GET.get('section', '').strip()
+        or request.POST.get('section', '').strip()
+    )
+    active_section = None
+    if requested_section_id and requested_section_id != 'general':
+        try:
+            requested_section_pk = int(requested_section_id)
+        except (TypeError, ValueError):
+            raise Http404
+        active_section = next(
+            (section for section in sections if section.id == requested_section_pk), None
+        )
+        if not active_section:
+            raise Http404
     if request.method == 'POST':
         uploads = request.FILES.getlist('image')
         native_document_scan = (
@@ -342,8 +356,6 @@ def student_course_notebook(request, notebook_id):
             and 'IngridStudentAndroid/' in request.META.get('HTTP_USER_AGENT', '')
         )
         memo = request.POST.get('memo', '').strip()
-        section_id = request.POST.get('section', '').strip()
-        selected_section = sections.filter(id=section_id).first() if section_id else None
         if not uploads:
             messages.error(request, '촬영한 노트 사진을 선택해 주세요.')
         elif len(uploads) > 30:
@@ -354,14 +366,12 @@ def student_course_notebook(request, notebook_id):
             messages.error(request, '사진 한 장의 크기는 12MB 이하여야 합니다.')
         elif len(memo) > 200:
             messages.error(request, '메모는 200자 이내로 입력해 주세요.')
-        elif sections.exists() and not section_id:
-            messages.error(request, '노트를 저장할 단원을 선택해 주세요.')
-        elif section_id and not selected_section:
-            messages.error(request, '선택한 단원을 확인할 수 없습니다.')
+        elif sections and not active_section:
+            messages.error(request, '목차에서 노트를 저장할 단원을 선택해 주세요.')
         else:
             with transaction.atomic():
                 created_pages = [CourseNotebookPage.objects.create(
-                    notebook=notebook, student=student, section=selected_section,
+                    notebook=notebook, student=student, section=active_section,
                     image=uploaded, memo=memo,
                 ) for uploaded in uploads]
                 if native_document_scan:
@@ -371,15 +381,39 @@ def student_course_notebook(request, notebook_id):
             page_url = reverse('student_course_notebook_page', args=[created_pages[0].id])
             return redirect(f'{page_url}?uploaded={len(created_pages)}')
 
-    pages = notebook.pages.filter(student=student).select_related('section').prefetch_related('sticky_notes')
-    return render(request, 'activities/student_course_notebook.html', {
+    all_pages = list(notebook.pages.filter(student=student).select_related('section'))
+    common_context = {
         'notebook': notebook,
         'student': student,
-        'pages': pages,
         'sections': sections,
-        'selected_section': selected_section,
         'materials': notebook.materials.all(),
         'sticky_colors': CourseNotebookStickyNote.COLOR_CHOICES,
+    }
+    if active_section or (not sections and requested_section_id == 'general'):
+        section_pages = [page for page in all_pages if page.section_id == getattr(active_section, 'id', None)]
+        return render(request, 'activities/student_course_notebook_section.html', {
+            **common_context,
+            'active_section': active_section,
+            'pages': section_pages,
+            'section_query_value': active_section.id if active_section else 'general',
+        })
+
+    pages_by_section = {}
+    unassigned_pages = []
+    for page in all_pages:
+        if page.section_id:
+            pages_by_section.setdefault(page.section_id, []).append(page)
+        else:
+            unassigned_pages.append(page)
+    section_items = [
+        {'section': section, 'pages': pages_by_section.get(section.id, [])}
+        for section in sections
+    ]
+    return render(request, 'activities/student_course_notebook.html', {
+        **common_context,
+        'section_items': section_items,
+        'unassigned_pages': unassigned_pages,
+        'total_page_count': len(all_pages),
     })
 
 
