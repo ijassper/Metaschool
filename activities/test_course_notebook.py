@@ -41,6 +41,8 @@ class CourseNotebookUiTests(SimpleTestCase):
         student_source = get_template('activities/student_course_notebook.html').template.source
         page_source = get_template('activities/student_course_notebook_page.html').template.source
         self.assertIn('새 교과 수업 노트', list_source)
+        self.assertIn('btn btn-course-note-primary rounded-pill px-4 fw-bold', list_source)
+        self.assertIn('background:var(--ingrid-gradient', list_source)
         self.assertIn('대상 학생', form_source)
         first_row_labels = [form_source.index(label) for label in ['학년도', '학기', '과목명', '노트 제목']]
         self.assertEqual(first_row_labels, sorted(first_row_labels))
