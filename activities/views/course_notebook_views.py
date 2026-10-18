@@ -368,7 +368,8 @@ def student_course_notebook(request, notebook_id):
                     for page in created_pages:
                         accept_native_document_scan(page)
             messages.success(request, f'노트 사진 {len(created_pages)}장을 저장했습니다. A4 문서로 정리합니다.')
-            return redirect('student_course_notebook_page', page_id=created_pages[0].id)
+            page_url = reverse('student_course_notebook_page', args=[created_pages[0].id])
+            return redirect(f'{page_url}?uploaded={len(created_pages)}')
 
     pages = notebook.pages.filter(student=student).select_related('section').prefetch_related('sticky_notes')
     return render(request, 'activities/student_course_notebook.html', {
@@ -409,6 +410,12 @@ def student_course_notebook_page(request, page_id):
         notebook=page.notebook, student=page.student,
     ).select_related('section').order_by('created_at', 'id'))
     current_index = next(index for index, item in enumerate(archive_pages) if item.id == page.id)
+    try:
+        uploaded_count = int(request.GET.get('uploaded', '0'))
+    except (TypeError, ValueError):
+        uploaded_count = 0
+    if not 1 <= uploaded_count <= 30:
+        uploaded_count = 0
     return render(request, 'activities/student_course_notebook_page.html', {
         'page': page,
         'notebook': page.notebook,
@@ -417,6 +424,7 @@ def student_course_notebook_page(request, page_id):
         'page_count': len(archive_pages),
         'previous_page': archive_pages[current_index - 1] if current_index else None,
         'next_page': archive_pages[current_index + 1] if current_index + 1 < len(archive_pages) else None,
+        'uploaded_count': uploaded_count,
     })
 
 
