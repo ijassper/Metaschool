@@ -333,6 +333,8 @@ def student_course_notebook(request, notebook_id):
         target_students=student,
         is_archived=False,
     )
+    sections = notebook.sections.all()
+    selected_section = None
     if request.method == 'POST':
         uploads = request.FILES.getlist('image')
         native_document_scan = (
@@ -341,7 +343,7 @@ def student_course_notebook(request, notebook_id):
         )
         memo = request.POST.get('memo', '').strip()
         section_id = request.POST.get('section', '').strip()
-        section = notebook.sections.filter(id=section_id).first() if section_id else None
+        selected_section = sections.filter(id=section_id).first() if section_id else None
         if not uploads:
             messages.error(request, '촬영한 노트 사진을 선택해 주세요.')
         elif len(uploads) > 30:
@@ -352,12 +354,14 @@ def student_course_notebook(request, notebook_id):
             messages.error(request, '사진 한 장의 크기는 12MB 이하여야 합니다.')
         elif len(memo) > 200:
             messages.error(request, '메모는 200자 이내로 입력해 주세요.')
-        elif section_id and not section:
+        elif sections.exists() and not section_id:
+            messages.error(request, '노트를 저장할 단원을 선택해 주세요.')
+        elif section_id and not selected_section:
             messages.error(request, '선택한 단원을 확인할 수 없습니다.')
         else:
             with transaction.atomic():
                 created_pages = [CourseNotebookPage.objects.create(
-                    notebook=notebook, student=student, section=section,
+                    notebook=notebook, student=student, section=selected_section,
                     image=uploaded, memo=memo,
                 ) for uploaded in uploads]
                 if native_document_scan:
@@ -371,7 +375,8 @@ def student_course_notebook(request, notebook_id):
         'notebook': notebook,
         'student': student,
         'pages': pages,
-        'sections': notebook.sections.all(),
+        'sections': sections,
+        'selected_section': selected_section,
         'materials': notebook.materials.all(),
         'sticky_colors': CourseNotebookStickyNote.COLOR_CHOICES,
     })

@@ -1,6 +1,7 @@
 from django.template.loader import get_template
 from django.test import RequestFactory
 from django.test import SimpleTestCase, TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 from types import SimpleNamespace
@@ -70,6 +71,8 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('id="nativeDocumentScan"', student_source)
         self.assertIn('노트 사진 아카이브에 추가', student_source)
         self.assertIn('multiple required', student_source)
+        self.assertIn('name="section" class="form-select" required', student_source)
+        self.assertIn('단원을 선택해 주세요', student_source)
         self.assertIn('아카이브 열기', student_source)
         self.assertIn("'student_course_notebook_page' page.id", student_source)
         self.assertNotIn('pageEditorModal', student_source)
@@ -272,3 +275,42 @@ class CourseNotebookUpdateTests(TestCase):
         response = self.client.get(reverse('course_notebook_update', args=[self.notebook.id]))
 
         self.assertEqual(response.status_code, 404)
+
+
+class CourseNotebookStudentUploadTests(TestCase):
+    def setUp(self):
+        self.teacher = CustomUser.objects.create_user(
+            username='upload-teacher@example.com', email='upload-teacher@example.com',
+            password='test-password', name='담당 교사', role=CustomUser.Role.TEACHER,
+            is_approved=True,
+        )
+        self.student_user = CustomUser.objects.create_user(
+            username='student-upload', email='student-upload@example.com',
+            password='test-password', name='김학생', role=CustomUser.Role.STUDENT,
+            is_approved=True,
+        )
+        self.student = Student.objects.create(
+            teacher=self.teacher, grade=2, class_no=6, number=1,
+            name='김학생', email=self.student_user.email,
+        )
+        self.notebook = CourseNotebook.objects.create(
+            teacher=self.teacher, title='한국사 노트', subject='한국사', academic_year=2026,
+            semester=CourseNotebook.Semester.YEAR, description='수업 노트', cover_color='PURPLE',
+        )
+        self.notebook.target_students.add(self.student)
+        self.section = CourseNotebookSection.objects.create(
+            notebook=self.notebook, title='고조선', depth=0, position=0,
+        )
+        self.client.force_login(self.student_user)
+
+    def test_upload_requires_section_when_notebook_has_sections(self):
+        upload = SimpleUploadedFile('note.jpg', b'not-an-image', content_type='image/jpeg')
+
+        response = self.client.post(
+            reverse('student_course_notebook', args=[self.notebook.id]),
+            {'image': upload, 'memo': '첫 페이지'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '노트를 저장할 단원을 선택해 주세요.')
+        self.assertEqual(CourseNotebookPage.objects.count(), 0)
