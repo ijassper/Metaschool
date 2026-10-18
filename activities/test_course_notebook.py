@@ -100,6 +100,9 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('교과 수업 노트 수정', form_source)
         self.assertIn('수정 완료', form_source)
         self.assertIn('name="delete_materials"', form_source)
+        self.assertIn('bi-arrow-left me-1"></i>목록으로', form_source)
+        self.assertIn('btn btn-ingrid-primary rounded-pill px-4 fw-bold', form_source)
+        self.assertIn('background:var(--ingrid-gradient', form_source)
 
     def test_notebook_image_correction_keeps_color_and_limits_size(self):
         source = Image.new('RGB', (3000, 1800), (245, 235, 180))
