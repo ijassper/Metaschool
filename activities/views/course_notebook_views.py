@@ -7,6 +7,7 @@ from pathlib import Path
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Count, Max, Q
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -205,10 +206,173 @@ def notebook_form_context(request, current_year, *, notebook=None, form_values=N
 @login_required
 @teacher_required
 def course_notebook_list(request):
-    notebooks = CourseNotebook.objects.filter(
+    notebooks = list(CourseNotebook.objects.filter(
         teacher=request.user
-    ).prefetch_related('target_students')
+    ).prefetch_related('target_students'))
+    target_ids_by_notebook = {
+        notebook.id: {student.id for student in notebook.target_students.all()}
+        for notebook in notebooks
+    }
+    submitted_ids_by_notebook = {notebook.id: set() for notebook in notebooks}
+    submission_pairs = CourseNotebookPage.objects.filter(
+        notebook_id__in=target_ids_by_notebook,
+    ).values_list('notebook_id', 'student_id').distinct()
+    for notebook_id, student_id in submission_pairs:
+        if student_id in target_ids_by_notebook.get(notebook_id, set()):
+            submitted_ids_by_notebook[notebook_id].add(student_id)
+    for notebook in notebooks:
+        notebook.submitted_student_count = len(submitted_ids_by_notebook[notebook.id])
     return render(request, 'activities/course_notebook_list.html', {'notebooks': notebooks})
+
+
+@login_required
+@teacher_required
+@require_http_methods(['GET'])
+def course_notebook_submission_status(request, notebook_id):
+    """교사가 대상 학생의 노트 작성 현황을 한 화면에서 확인한다."""
+    notebook = get_object_or_404(
+        CourseNotebook.objects.prefetch_related('sections'),
+        id=notebook_id,
+        teacher=request.user,
+    )
+    sections = list(notebook.sections.all())
+    all_students = notebook.target_students.order_by('grade', 'class_no', 'number', 'name', 'id')
+    grade_options = list(
+        all_students.order_by('grade').values_list('grade', flat=True).distinct()
+    )
+    class_options = list(
+        all_students.order_by('class_no').values_list('class_no', flat=True).distinct()
+    )
+
+    grade_filter = request.GET.get('grade', '').strip()
+    class_filter = request.GET.get('class_no', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    search_query = request.GET.get('q', '').strip()
+
+    students = all_students.annotate(
+        notebook_page_count=Count(
+            'course_notebook_pages',
+            filter=Q(course_notebook_pages__notebook_id=notebook.id),
+            distinct=True,
+        ),
+        notebook_last_created_at=Max(
+            'course_notebook_pages__created_at',
+            filter=Q(course_notebook_pages__notebook_id=notebook.id),
+        ),
+    )
+    if grade_filter.isdigit():
+        students = students.filter(grade=int(grade_filter))
+    else:
+        grade_filter = ''
+    if class_filter.isdigit():
+        students = students.filter(class_no=int(class_filter))
+    else:
+        class_filter = ''
+    for token in search_query.split():
+        token_filter = Q(name__icontains=token)
+        if token.isdigit():
+            token_filter |= Q(number=int(token))
+        students = students.filter(token_filter)
+    if status_filter == 'submitted':
+        students = students.filter(notebook_page_count__gt=0)
+    elif status_filter == 'not_submitted':
+        students = students.filter(notebook_page_count=0)
+    else:
+        status_filter = ''
+
+    student_list = list(students)
+    student_ids = [student.id for student in student_list]
+    section_count_map = {
+        (item['student_id'], item['section_id']): item['page_count']
+        for item in CourseNotebookPage.objects.filter(
+            notebook=notebook,
+            student_id__in=student_ids,
+            section_id__isnull=False,
+        ).values('student_id', 'section_id').annotate(page_count=Count('id'))
+    }
+    student_rows = []
+    for student in student_list:
+        section_statuses = [
+            {
+                'section': section,
+                'page_count': section_count_map.get((student.id, section.id), 0),
+            }
+            for section in sections
+        ]
+        student_rows.append({
+            'student': student,
+            'page_count': student.notebook_page_count,
+            'last_created_at': student.notebook_last_created_at,
+            'written_section_count': sum(item['page_count'] > 0 for item in section_statuses),
+            'section_statuses': section_statuses,
+        })
+
+    page_summary = CourseNotebookPage.objects.filter(
+        notebook=notebook,
+        student__in=all_students,
+    ).aggregate(
+        page_count=Count('id'),
+        submitted_student_count=Count('student_id', distinct=True),
+    )
+    total_students = all_students.count()
+    submitted_students = page_summary['submitted_student_count'] or 0
+    return render(request, 'activities/course_notebook_submission_status.html', {
+        'notebook': notebook,
+        'sections': sections,
+        'student_rows': student_rows,
+        'grade_options': grade_options,
+        'class_options': class_options,
+        'filters': {
+            'grade': grade_filter,
+            'class_no': class_filter,
+            'status': status_filter,
+            'q': search_query,
+        },
+        'summary': {
+            'total_students': total_students,
+            'submitted_students': submitted_students,
+            'not_submitted_students': max(total_students - submitted_students, 0),
+            'page_count': page_summary['page_count'] or 0,
+        },
+    })
+
+
+@login_required
+@teacher_required
+@require_http_methods(['GET'])
+def course_notebook_student_status(request, notebook_id, student_id):
+    """교사가 대상 학생 한 명의 단원별 노트 페이지를 열람한다."""
+    notebook = get_object_or_404(
+        CourseNotebook.objects.prefetch_related('sections'),
+        id=notebook_id,
+        teacher=request.user,
+    )
+    student = get_object_or_404(notebook.target_students, id=student_id)
+    sections = list(notebook.sections.all())
+    pages = list(CourseNotebookPage.objects.filter(
+        notebook=notebook,
+        student=student,
+    ).select_related('section').order_by('-created_at', '-id'))
+    pages_by_section = {}
+    unassigned_pages = []
+    for page in pages:
+        if page.section_id:
+            pages_by_section.setdefault(page.section_id, []).append(page)
+        else:
+            unassigned_pages.append(page)
+    section_items = [
+        {'section': section, 'pages': pages_by_section.get(section.id, [])}
+        for section in sections
+    ]
+    return render(request, 'activities/course_notebook_student_status.html', {
+        'notebook': notebook,
+        'student': student,
+        'section_items': section_items,
+        'unassigned_pages': unassigned_pages,
+        'total_page_count': len(pages),
+        'written_section_count': sum(bool(item['pages']) for item in section_items),
+        'last_created_at': pages[0].created_at if pages else None,
+    })
 
 
 @login_required

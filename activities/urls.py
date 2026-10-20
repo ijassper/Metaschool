@@ -12,6 +12,7 @@ from .views.typing_views import *
 from .views.proctor_replay_views import proctor_replay, proctor_recording, proctor_download, proctor_delete_recording, proctor_save_review, proctor_review_csv
 from .views.course_notebook_views import (
     course_notebook_create, course_notebook_list, course_notebook_update, student_course_notebook,
+    course_notebook_submission_status, course_notebook_student_status,
     student_course_notebook_page, course_notebook_page_process,
     course_notebook_page_text_update, course_notebook_archive_pdf,
     course_notebook_page_archive_process,
@@ -22,6 +23,8 @@ urlpatterns = [
     path('course-notebooks/', course_notebook_list, name='course_notebook_list'),
     path('course-notebooks/create/', course_notebook_create, name='course_notebook_create'),
     path('course-notebooks/<int:notebook_id>/edit/', course_notebook_update, name='course_notebook_update'),
+    path('course-notebooks/<int:notebook_id>/submissions/', course_notebook_submission_status, name='course_notebook_submission_status'),
+    path('course-notebooks/<int:notebook_id>/submissions/<int:student_id>/', course_notebook_student_status, name='course_notebook_student_status'),
     path('course-notebooks/<int:notebook_id>/student/', student_course_notebook, name='student_course_notebook'),
     path('course-notebook-pages/<int:page_id>/', student_course_notebook_page, name='student_course_notebook_page'),
     path('course-notebook-pages/<int:page_id>/process/', course_notebook_page_process, name='course_notebook_page_process'),

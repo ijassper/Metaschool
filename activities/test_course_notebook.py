@@ -42,6 +42,8 @@ class CourseNotebookUiTests(SimpleTestCase):
         student_source = get_template('activities/student_course_notebook.html').template.source
         section_source = get_template('activities/student_course_notebook_section.html').template.source
         page_source = get_template('activities/student_course_notebook_page.html').template.source
+        submission_source = get_template('activities/course_notebook_submission_status.html').template.source
+        student_status_source = get_template('activities/course_notebook_student_status.html').template.source
         self.assertIn('새 교과 수업 노트', list_source)
         self.assertIn('btn btn-course-note-primary rounded-pill px-4 fw-bold', list_source)
         self.assertIn('background:var(--ingrid-gradient', list_source)
@@ -116,8 +118,19 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertEqual(CourseNotebookSection._meta.get_field('title').max_length, 100)
         self.assertEqual(CourseNotebookMaterial._meta.get_field('original_name').max_length, 255)
         self.assertEqual(CourseNotebookStickyNote._meta.get_field('content').max_length, 1000)
-        for heading in ['학년도', '학기', '과목명', '노트 제목', '상태', '학생 현황']:
+        for heading in ['학년도', '학기', '과목명', '노트 제목', '상태', '학생 현황', '관리 도구']:
             self.assertIn(f'<th>{heading}</th>', list_source)
+        self.assertIn("{% url 'course_notebook_submission_status' notebook.id %}", list_source)
+        self.assertIn('제출 현황', list_source)
+        for label in ['대상 학생', '작성 학생', '미작성 학생', '전체 노트']:
+            self.assertIn(label, submission_source)
+        self.assertIn('name="grade"', submission_source)
+        self.assertIn('name="class_no"', submission_source)
+        self.assertIn('name="status"', submission_source)
+        self.assertIn('name="q"', submission_source)
+        self.assertIn("{% url 'course_notebook_student_status' notebook.id row.student.id %}", submission_source)
+        self.assertIn('data-preview-url=', student_status_source)
+        self.assertIn('제출 현황으로', student_status_source)
         self.assertIn("{% url 'course_notebook_update' notebook.id %}", list_source)
         self.assertIn('교과 수업 노트 수정', form_source)
         self.assertIn('수정 완료', form_source)
@@ -290,6 +303,70 @@ class CourseNotebookUpdateTests(TestCase):
         self.client.force_login(self.other_teacher)
 
         response = self.client.get(reverse('course_notebook_update', args=[self.notebook.id]))
+
+        self.assertEqual(response.status_code, 404)
+
+
+class CourseNotebookSubmissionStatusTests(TestCase):
+    def setUp(self):
+        self.teacher = CustomUser.objects.create_user(
+            username='status-teacher@example.com', email='status-teacher@example.com',
+            password='test-password', name='담당 교사', role=CustomUser.Role.TEACHER,
+            is_approved=True,
+        )
+        self.other_teacher = CustomUser.objects.create_user(
+            username='status-other@example.com', email='status-other@example.com',
+            password='test-password', name='다른 교사', role=CustomUser.Role.TEACHER,
+            is_approved=True,
+        )
+        self.submitted_student = Student.objects.create(
+            teacher=self.teacher, grade=2, class_no=6, number=1, name='김작성',
+        )
+        self.empty_student = Student.objects.create(
+            teacher=self.teacher, grade=2, class_no=7, number=2, name='이미작성',
+        )
+        self.notebook = CourseNotebook.objects.create(
+            teacher=self.teacher, title='국어 필기노트', subject='국어', academic_year=2026,
+            semester=CourseNotebook.Semester.FIRST, cover_color='PURPLE',
+        )
+        self.notebook.target_students.add(self.submitted_student, self.empty_student)
+        self.section = CourseNotebookSection.objects.create(
+            notebook=self.notebook, title='문학과 나의 삶', depth=0, position=0,
+        )
+        CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.submitted_student, section=self.section,
+            image=SimpleUploadedFile('note.jpg', b'note-image', content_type='image/jpeg'),
+        )
+        self.client.force_login(self.teacher)
+
+    def test_submission_status_summarizes_and_filters_students(self):
+        response = self.client.get(
+            reverse('course_notebook_submission_status', args=[self.notebook.id]),
+            {'status': 'not_submitted', 'class_no': '7'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['summary']['total_students'], 2)
+        self.assertEqual(response.context['summary']['submitted_students'], 1)
+        self.assertEqual(len(response.context['student_rows']), 1)
+        self.assertEqual(response.context['student_rows'][0]['student'], self.empty_student)
+
+    def test_teacher_can_open_target_students_note_view(self):
+        response = self.client.get(reverse(
+            'course_notebook_student_status',
+            args=[self.notebook.id, self.submitted_student.id],
+        ))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['total_page_count'], 1)
+        self.assertContains(response, '김작성 학생의 수업 노트')
+
+    def test_other_teacher_cannot_open_submission_status(self):
+        self.client.force_login(self.other_teacher)
+
+        response = self.client.get(reverse(
+            'course_notebook_submission_status', args=[self.notebook.id],
+        ))
 
         self.assertEqual(response.status_code, 404)
 
