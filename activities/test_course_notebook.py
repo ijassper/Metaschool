@@ -182,6 +182,12 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn("{% url 'course_notebook_teacher_page' notebook.id student.id page.id %}", student_status_source)
         self.assertIn("{% url 'course_notebook_teacher_pdf' notebook.id student.id %}", student_status_source)
         self.assertIn('reader-stage', teacher_page_source)
+        self.assertLess(student_status_source.index('class="summary-pills"'), student_status_source.index('class="all-pdf"'))
+        self.assertIn('class="student-note-head-actions"', student_status_source)
+        self.assertLess(teacher_page_source.index('class="reader-strip"'), teacher_page_source.index('class="reader-stage"'))
+        self.assertLess(teacher_page_source.index('class="reader-stage"'), teacher_page_source.index('class="reader-footer"'))
+        self.assertNotIn('class="reader-side', teacher_page_source)
+        self.assertNotIn('<span>{{ current_number }} / {{ pages|length }}</span>', teacher_page_source)
         for heading in ['학년', '반', '번호', '이름', '상태', '최근 작성일', '전체 장수', '단원별 장수']:
             self.assertIn(f'<th>{heading}</th>', submission_source)
         self.assertIn('border-bottom:1px solid #f0ebf2;vertical-align:top', submission_source)
