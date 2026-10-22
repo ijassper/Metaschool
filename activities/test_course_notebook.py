@@ -74,12 +74,27 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('section_items', student_source)
         self.assertIn('?section={{ item.section.id }}', student_source)
         self.assertIn('toc-page-strip', student_source)
+        self.assertIn('단원 펼쳐보기', student_source)
+        self.assertIn('노트 추가하기', student_source)
+        self.assertIn('#sectionNotes', student_source)
+        self.assertIn('#noteCaptureCard', student_source)
+        self.assertIn('aspect-ratio:210/297', student_source)
+        self.assertLess(
+            student_source.index('<span class="toc-page-title">'),
+            student_source.index('<span class="toc-page-image">'),
+        )
         self.assertIn('이전에 올린 미분류 노트', student_source)
         self.assertNotIn('name="section"', section_source)
         self.assertIn('노트 페이지 제목', section_source)
         self.assertIn('노트 촬영', section_source)
         self.assertIn('노트 업로드', section_source)
         self.assertIn('capture="environment"', section_source)
+        self.assertIn('id="sectionNotes"', section_source)
+        self.assertIn('aspect-ratio:210/297', section_source)
+        self.assertLess(
+            section_source.index('<span class="section-page-title">'),
+            section_source.index('<span class="section-page-image">'),
+        )
         self.assertIn('id="nativeDocumentScan"', section_source)
         self.assertIn('id="photoReview"', section_source)
         self.assertIn('id="photoThumbnails"', section_source)
