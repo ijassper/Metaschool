@@ -69,9 +69,19 @@ if [[ -n "$(app_masters)" ]]; then
     echo '기존 서버가 아직 종료 중입니다. 요청 완료 후 다시 실행하세요. 강제 종료하지 않습니다.'
     exit 1
 fi
-if ss -ltn | awk '{print $4}' | grep -qE ':8080$'; then
+if ! "$python_bin" - <<'PY'
+import socket
+import sys
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+    try:
+        probe.bind(('0.0.0.0', 8080))
+    except OSError as error:
+        print('8080 포트를 사용할 수 없습니다: {}'.format(error), file=sys.stderr)
+        sys.exit(1)
+PY
+then
     echo '8080 포트가 다른 프로세스에 의해 사용 중입니다. 새 서버를 실행하지 않습니다.'
-    ss -ltnp | grep ':8080' || true
     exit 1
 fi
 

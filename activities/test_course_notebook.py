@@ -374,6 +374,19 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         self.assertEqual(len(response.context['student_rows']), 1)
         self.assertEqual(response.context['student_rows'][0]['student'], self.empty_student)
 
+    def test_section_tree_expands_inside_the_student_row_cell(self):
+        response = self.client.get(reverse(
+            'course_notebook_submission_status', args=[self.notebook.id],
+        ))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        section_cell = html.split('<td class="section-cell">', 1)[1].split('</td>', 1)[0]
+        self.assertIn('장수 보기', section_cell)
+        self.assertIn('class="section-tree"', section_cell)
+        self.assertIn('문학과 나의 삶', section_cell)
+        self.assertNotIn('class="section-breakdown"', html)
+
     def test_teacher_can_open_target_students_note_view(self):
         response = self.client.get(reverse(
             'course_notebook_student_status',
