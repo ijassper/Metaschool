@@ -153,6 +153,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('reader-stage', teacher_page_source)
         for heading in ['학년', '반', '번호', '이름', '상태', '최근 작성일', '전체 장수', '단원별 장수']:
             self.assertIn(f'<th>{heading}</th>', submission_source)
+        self.assertIn('border-bottom:1px solid #f0ebf2;vertical-align:top', submission_source)
         self.assertIn('제출 현황으로', student_status_source)
         self.assertIn("{% url 'course_notebook_update' notebook.id %}", list_source)
         self.assertIn('교과 수업 노트 수정', form_source)
