@@ -165,6 +165,15 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('제출 현황', list_source)
         for label in ['대상 학생', '작성 학생', '미작성 학생', '전체 노트']:
             self.assertIn(label, submission_source)
+        self.assertLess(
+            submission_source.index('<h2>{{ notebook.title }} 제출 현황</h2>'),
+            submission_source.index('<section class="summary-grid"'),
+        )
+        self.assertLess(
+            submission_source.index('<section class="summary-grid"'),
+            submission_source.index('</header>'),
+        )
+        self.assertIn('grid-template-columns:repeat(4,minmax(0,1fr))', submission_source)
         self.assertIn('name="grade"', submission_source)
         self.assertIn('name="class_no"', submission_source)
         self.assertIn('name="status"', submission_source)
