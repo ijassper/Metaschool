@@ -44,6 +44,8 @@ class CourseNotebookUiTests(SimpleTestCase):
         page_source = get_template('activities/student_course_notebook_page.html').template.source
         submission_source = get_template('activities/course_notebook_submission_status.html').template.source
         student_status_source = get_template('activities/course_notebook_student_status.html').template.source
+        teacher_page_source = get_template('activities/course_notebook_teacher_page.html').template.source
+        get_template('activities/course_notebook_section_tree_nodes.html')
         self.assertIn('새 교과 수업 노트', list_source)
         self.assertIn('btn btn-course-note-primary rounded-pill px-4 fw-bold', list_source)
         self.assertIn('background:var(--ingrid-gradient', list_source)
@@ -111,7 +113,9 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('id="continueUploadModal"', page_source)
         self.assertIn('다음 페이지도 계속 제출할까요?', page_source)
         self.assertIn('다음 페이지 계속 촬영', page_source)
-        self.assertIn('data-bs-dismiss="modal"', page_source)
+        self.assertIn('upload-choice-actions', page_source)
+        self.assertIn('제출 완료', page_source)
+        self.assertIn('id="zoomReset"', page_source)
         self.assertIn("searchParams.delete('uploaded')", page_source)
         self.assertIn('id="noteCaptureCard"', section_source)
         self.assertIn("'course_notebook_page_archive_process' page.id", page_source)
@@ -144,7 +148,11 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('name="status"', submission_source)
         self.assertIn('name="q"', submission_source)
         self.assertIn("{% url 'course_notebook_student_status' notebook.id row.student.id %}", submission_source)
-        self.assertIn('data-preview-url=', student_status_source)
+        self.assertIn("{% url 'course_notebook_teacher_page' notebook.id student.id page.id %}", student_status_source)
+        self.assertIn("{% url 'course_notebook_teacher_pdf' notebook.id student.id %}", student_status_source)
+        self.assertIn('reader-stage', teacher_page_source)
+        for heading in ['학년', '반', '번호', '이름', '상태', '최근 작성일', '전체 장수', '단원별 장수']:
+            self.assertIn(f'<th>{heading}</th>', submission_source)
         self.assertIn('제출 현황으로', student_status_source)
         self.assertIn("{% url 'course_notebook_update' notebook.id %}", list_source)
         self.assertIn('교과 수업 노트 수정', form_source)
@@ -385,6 +393,65 @@ class CourseNotebookSubmissionStatusTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_teacher_reader_stays_within_the_current_section(self):
+        other_section = CourseNotebookSection.objects.create(
+            notebook=self.notebook, title='생각을 나누는 대화', depth=0, position=1,
+        )
+        current_page = CourseNotebookPage.objects.get(student=self.submitted_student)
+        CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.submitted_student,
+            section=other_section, image='course_notebooks/other.jpg',
+        )
+
+        response = self.client.get(reverse('course_notebook_teacher_page', args=[
+            self.notebook.id, self.submitted_student.id, current_page.id,
+        ]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['pages']), 1)
+        self.assertIsNone(response.context['next_page'])
+
+    def test_teacher_pdf_includes_descendant_pages_and_checks_ownership(self):
+        child = CourseNotebookSection.objects.create(
+            notebook=self.notebook, parent=self.section,
+            title='시의 표현과 감상', depth=1, position=1,
+        )
+        CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.submitted_student,
+            section=child, image='course_notebooks/child.jpg',
+        )
+        from django.http import HttpResponse
+        url = reverse('course_notebook_teacher_pdf', args=[
+            self.notebook.id, self.submitted_student.id,
+        ])
+        with patch('activities.views.course_notebook_views._course_notebook_pdf_response',
+                   return_value=HttpResponse('pdf')) as pdf_response:
+            response = self.client.get(url, {'section': self.section.id})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(pdf_response.call_args.args[0]), 2)
+
+        self.client.force_login(self.other_teacher)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_submission_tree_rolls_child_pages_into_parent_count(self):
+        child = CourseNotebookSection.objects.create(
+            notebook=self.notebook, parent=self.section,
+            title='시의 표현과 감상', depth=1, position=1,
+        )
+        CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.submitted_student,
+            section=child, image='course_notebooks/child.jpg',
+        )
+
+        response = self.client.get(reverse(
+            'course_notebook_submission_status', args=[self.notebook.id],
+        ))
+
+        tree = response.context['student_rows'][0]['section_tree']
+        self.assertEqual(tree[0]['total_count'], 2)
+        self.assertEqual(tree[0]['children'][0]['total_count'], 1)
+        self.assertContains(response, '시의 표현과 감상')
+
 
 class CourseNotebookStudentUploadTests(TestCase):
     def setUp(self):
@@ -423,3 +490,24 @@ class CourseNotebookStudentUploadTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '목차에서 노트를 저장할 단원을 선택해 주세요.')
         self.assertEqual(CourseNotebookPage.objects.count(), 0)
+
+    def test_student_reader_navigation_is_limited_to_one_section(self):
+        other_section = CourseNotebookSection.objects.create(
+            notebook=self.notebook, title='다른 단원', depth=0, position=1,
+        )
+        first = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.student, section=self.section,
+            image='course_notebooks/first.jpg',
+        )
+        second = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.student, section=other_section,
+            image='course_notebooks/second.jpg',
+        )
+
+        response = self.client.get(reverse('student_course_notebook_page', args=[first.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([page.id for page in response.context['archive_pages']], [first.id])
+        self.assertEqual(response.context['page_count'], 1)
+        self.assertIsNone(response.context['next_page'])
+        self.assertNotContains(response, reverse('student_course_notebook_page', args=[second.id]))

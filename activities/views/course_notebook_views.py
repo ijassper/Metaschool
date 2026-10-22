@@ -225,6 +225,47 @@ def course_notebook_list(request):
     return render(request, 'activities/course_notebook_list.html', {'notebooks': notebooks})
 
 
+def _section_status_tree(sections, page_counts):
+    """Keep the teacher's outline order while summing pages into parent units."""
+    nodes = {}
+    roots = []
+    for section in sections:
+        nodes[section.id] = {
+            'section': section, 'own_count': page_counts.get(section.id, 0),
+            'total_count': 0, 'children': [], 'all_leaf_children': False,
+        }
+    for section in sections:
+        node = nodes[section.id]
+        parent = nodes.get(section.parent_id)
+        (parent['children'] if parent else roots).append(node)
+
+    def total(node):
+        node['total_count'] = node['own_count'] + sum(total(child) for child in node['children'])
+        node['all_leaf_children'] = bool(node['children']) and all(
+            not child['children'] for child in node['children']
+        )
+        return node['total_count']
+
+    for root in roots:
+        total(root)
+    return roots
+
+
+def _section_subtree_ids(sections, section_id):
+    children = {}
+    for section in sections:
+        children.setdefault(section.parent_id, []).append(section.id)
+    result = set()
+    pending = [section_id]
+    while pending:
+        current = pending.pop()
+        if current in result:
+            continue
+        result.add(current)
+        pending.extend(children.get(current, []))
+    return result
+
+
 @login_required
 @teacher_required
 @require_http_methods(['GET'])
@@ -305,6 +346,9 @@ def course_notebook_submission_status(request, notebook_id):
             'last_created_at': student.notebook_last_created_at,
             'written_section_count': sum(item['page_count'] > 0 for item in section_statuses),
             'section_statuses': section_statuses,
+            'section_tree': _section_status_tree(
+                sections, {item['section'].id: item['page_count'] for item in section_statuses},
+            ),
         })
 
     page_summary = CourseNotebookPage.objects.filter(
@@ -361,7 +405,14 @@ def course_notebook_student_status(request, notebook_id, student_id):
         else:
             unassigned_pages.append(page)
     section_items = [
-        {'section': section, 'pages': pages_by_section.get(section.id, [])}
+        {
+            'section': section,
+            'pages': pages_by_section.get(section.id, []),
+            'subtree_page_count': sum(
+                len(pages_by_section.get(section_id, []))
+                for section_id in _section_subtree_ids(sections, section.id)
+            ),
+        }
         for section in sections
     ]
     return render(request, 'activities/course_notebook_student_status.html', {
@@ -373,6 +424,75 @@ def course_notebook_student_status(request, notebook_id, student_id):
         'written_section_count': sum(bool(item['pages']) for item in section_items),
         'last_created_at': pages[0].created_at if pages else None,
     })
+
+
+@login_required
+@teacher_required
+@require_http_methods(['GET'])
+def course_notebook_teacher_page(request, notebook_id, student_id, page_id):
+    notebook = get_object_or_404(CourseNotebook, id=notebook_id, teacher=request.user)
+    student = get_object_or_404(notebook.target_students, id=student_id)
+    page = get_object_or_404(
+        CourseNotebookPage.objects.select_related('section'),
+        id=page_id, notebook=notebook, student=student,
+    )
+    pages = list(CourseNotebookPage.objects.filter(
+        notebook=notebook, student=student, section_id=page.section_id,
+    ).order_by('created_at', 'id'))
+    index = next(index for index, item in enumerate(pages) if item.id == page.id)
+    return render(request, 'activities/course_notebook_teacher_page.html', {
+        'notebook': notebook, 'student': student, 'page': page,
+        'pages': pages, 'current_number': index + 1,
+        'previous_page': pages[index - 1] if index else None,
+        'next_page': pages[index + 1] if index + 1 < len(pages) else None,
+    })
+
+
+def _course_notebook_pdf_response(pages, *, title, filename):
+    if not pages:
+        raise Http404
+    from PIL import Image
+    pdf_images = []
+    for page in pages:
+        page = ensure_archive_image(page)
+        page.processed_image.open('rb')
+        try:
+            with Image.open(page.processed_image) as image:
+                pdf_images.append(image.convert('RGB').copy())
+        finally:
+            page.processed_image.close()
+    output = io.BytesIO()
+    pdf_images[0].save(
+        output, format='PDF', save_all=True, append_images=pdf_images[1:],
+        resolution=150.0, title=title,
+    )
+    output.seek(0)
+    response = FileResponse(output, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@teacher_required
+@require_http_methods(['GET'])
+def course_notebook_teacher_pdf(request, notebook_id, student_id):
+    notebook = get_object_or_404(CourseNotebook, id=notebook_id, teacher=request.user)
+    student = get_object_or_404(notebook.target_students, id=student_id)
+    pages = CourseNotebookPage.objects.filter(notebook=notebook, student=student)
+    section_id = request.GET.get('section', '').strip()
+    if section_id:
+        if not section_id.isdigit():
+            raise Http404
+        get_object_or_404(notebook.sections, id=int(section_id))
+        pages = pages.filter(section_id__in=_section_subtree_ids(
+            list(notebook.sections.all()), int(section_id),
+        ))
+    return _course_notebook_pdf_response(
+        list(pages.order_by('created_at', 'id')),
+        title=f'{notebook.title} - {student.name}',
+        filename=f'course-notebook-{notebook.id}-student-{student.id}'
+                 f'{"-section-" + section_id if section_id else ""}.pdf',
+    )
 
 
 @login_required
@@ -605,7 +725,7 @@ def student_course_notebook_page(request, page_id):
         'notebook', 'section', 'student'
     ).prefetch_related('sticky_notes').get(id=page.id)
     archive_pages = list(CourseNotebookPage.objects.filter(
-        notebook=page.notebook, student=page.student,
+        notebook=page.notebook, student=page.student, section_id=page.section_id,
     ).select_related('section').order_by('created_at', 'id'))
     current_index = next(index for index, item in enumerate(archive_pages) if item.id == page.id)
     try:
@@ -639,27 +759,9 @@ def course_notebook_archive_pdf(request, notebook_id):
     pages = list(CourseNotebookPage.objects.filter(
         notebook=notebook, student=student,
     ).order_by('created_at', 'id'))
-    if not pages:
-        raise Http404
-    from PIL import Image
-    pdf_images = []
-    for page in pages:
-        page = ensure_archive_image(page)
-        page.processed_image.open('rb')
-        try:
-            with Image.open(page.processed_image) as image:
-                pdf_images.append(image.convert('RGB').copy())
-        finally:
-            page.processed_image.close()
-    output = io.BytesIO()
-    pdf_images[0].save(
-        output, format='PDF', save_all=True, append_images=pdf_images[1:],
-        resolution=150.0, title=notebook.title,
+    return _course_notebook_pdf_response(
+        pages, title=notebook.title, filename=f'course-notebook-{notebook.id}.pdf',
     )
-    output.seek(0)
-    response = FileResponse(output, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="course-notebook-{notebook.id}.pdf"'
-    return response
 
 
 @login_required

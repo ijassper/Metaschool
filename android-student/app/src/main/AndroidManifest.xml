@@ -32,8 +32,7 @@
             android:foregroundServiceType="dataSync|mediaProjection" />
         <activity
             android:name=".IngridWebActivity"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape" />
+            android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

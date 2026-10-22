@@ -10,6 +10,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.net.Uri
@@ -227,6 +228,7 @@ class IngridWebActivity : Activity() {
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                updatePageOrientation(url)
                 if (!isExamPageUrl(url)) resetNativeExamHeader()
                 pageLoading = true
                 dashboardSwipeRefresh.isEnabled = isDashboardPage(url)
@@ -353,6 +355,18 @@ class IngridWebActivity : Activity() {
         val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull() ?: return false
         if (uri.scheme != "https" || !isIngridHost(uri.host)) return false
         return COURSE_NOTEBOOK_UPLOAD_PATH.matches(uri.path.orEmpty())
+    }
+
+    private fun updatePageOrientation(url: String?) {
+        val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull()
+        val isNotebookReader = uri?.scheme == "https" && isIngridHost(uri.host) &&
+            COURSE_NOTEBOOK_READER_PATH.matches(uri.path.orEmpty())
+        val orientation = if (isNotebookReader) {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
+        if (requestedOrientation != orientation) requestedOrientation = orientation
     }
 
     private fun launchDocumentScanner() {
@@ -1010,6 +1024,8 @@ class IngridWebActivity : Activity() {
         private const val MAX_DOCUMENT_SCAN_PAGES = 30
         private val COURSE_NOTEBOOK_UPLOAD_PATH =
             Regex("^/activities/course-notebooks/\\d+/student/?$")
+        private val COURSE_NOTEBOOK_READER_PATH =
+            Regex("^/activities/course-notebook-pages/\\d+/?$")
         private const val SECURE_MODE_CHECK_INTERVAL_MS = 500L
         private const val SECURITY_CHECK_INTERVAL_MS = 1_000L
         private const val SECURE_MODE_CHECK_LIMIT = 30
