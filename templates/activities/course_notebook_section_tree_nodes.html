@@ -1,7 +1,7 @@
 {% for node in nodes %}
 <div class="tree-node{% if node.section.depth == 0 %} tree-root{% endif %}">
   <div class="tree-label"><span class="tree-title" title="{{ node.section.title }}">{{ node.section.title }}</span><span class="tree-count">{{ node.total_count }}장</span></div>
-  {% if node.children %}<div class="tree-children{% if node.all_leaf_children %} is-leaf-row{% endif %}">{% include 'activities/course_notebook_section_tree_nodes.html' with nodes=node.children %}</div>{% endif %}
+  {% if node.children %}<div class="tree-children{% if node.all_leaf_children and node.section.depth > 0 %} is-leaf-row{% endif %}">{% include 'activities/course_notebook_section_tree_nodes.html' with nodes=node.children %}</div>{% endif %}
   {% if node.children and node.own_count %}<div class="tree-own">이 단원에 직접 작성: {{ node.own_count }}장</div>{% endif %}
 </div>
 {% endfor %}

@@ -45,7 +45,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         submission_source = get_template('activities/course_notebook_submission_status.html').template.source
         student_status_source = get_template('activities/course_notebook_student_status.html').template.source
         teacher_page_source = get_template('activities/course_notebook_teacher_page.html').template.source
-        get_template('activities/course_notebook_section_tree_nodes.html')
+        tree_source = get_template('activities/course_notebook_section_tree_nodes.html').template.source
         self.assertIn('새 교과 수업 노트', list_source)
         self.assertIn('btn btn-course-note-primary rounded-pill px-4 fw-bold', list_source)
         self.assertIn('background:var(--ingrid-gradient', list_source)
@@ -154,6 +154,8 @@ class CourseNotebookUiTests(SimpleTestCase):
         for heading in ['학년', '반', '번호', '이름', '상태', '최근 작성일', '전체 장수', '단원별 장수']:
             self.assertIn(f'<th>{heading}</th>', submission_source)
         self.assertIn('border-bottom:1px solid #f0ebf2;vertical-align:top', submission_source)
+        self.assertIn('.tree-children.is-leaf-row{display:flex;flex-wrap:wrap', submission_source)
+        self.assertIn('node.all_leaf_children and node.section.depth > 0', tree_source)
         self.assertIn('제출 현황으로', student_status_source)
         self.assertIn("{% url 'course_notebook_update' notebook.id %}", list_source)
         self.assertIn('교과 수업 노트 수정', form_source)
