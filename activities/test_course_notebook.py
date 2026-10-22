@@ -23,6 +23,28 @@ from .views.main_views import get_form_config, get_menu_items
 
 
 class CourseNotebookUiTests(SimpleTestCase):
+    def test_last_level_sections_are_horizontal_even_directly_under_a_chapter(self):
+        leaf_nodes = [
+            {
+                'section': SimpleNamespace(depth=1, title=title),
+                'total_count': 0, 'own_count': 0, 'children': [],
+            }
+            for title in ['가. 시의 표현과 감상', '나. 소설의 인물과 사건 이해하기']
+        ]
+        chapter = {
+            'section': SimpleNamespace(depth=0, title='1. 문학과 나의 삶'),
+            'total_count': 0, 'own_count': 0, 'children': leaf_nodes,
+            'all_leaf_children': True,
+        }
+
+        html = get_template('activities/course_notebook_section_tree_nodes.html').render(
+            {'nodes': [chapter]},
+        )
+
+        self.assertIn('class="tree-children is-leaf-row"', html)
+        self.assertIn('가. 시의 표현과 감상', html)
+        self.assertIn('나. 소설의 인물과 사건 이해하기', html)
+
     def test_legacy_scratchpad_is_renamed_in_current_ui(self):
         self.assertTrue(Activity(sub_category='다목적 연습장').is_notebook)
         self.assertTrue(Activity(sub_category='수업 노트/연습장').is_notebook)
@@ -155,7 +177,8 @@ class CourseNotebookUiTests(SimpleTestCase):
             self.assertIn(f'<th>{heading}</th>', submission_source)
         self.assertIn('border-bottom:1px solid #f0ebf2;vertical-align:top', submission_source)
         self.assertIn('.tree-children.is-leaf-row{display:flex;flex-wrap:wrap', submission_source)
-        self.assertIn('node.all_leaf_children and node.section.depth > 0', tree_source)
+        self.assertIn('{% if node.all_leaf_children %} is-leaf-row{% endif %}', tree_source)
+        self.assertIn('min-width:30%;max-width:100%', submission_source)
         self.assertIn('제출 현황으로', student_status_source)
         self.assertIn("{% url 'course_notebook_update' notebook.id %}", list_source)
         self.assertIn('교과 수업 노트 수정', form_source)
