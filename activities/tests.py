@@ -1050,3 +1050,23 @@ class SchoolLifeSidebarMenuTests(SimpleTestCase):
         self.assertEqual('활동명', config['basic']['section'])
         self.assertEqual('내용', config['detail']['content'])
         self.assertEqual(['항목 1', '항목 2', '항목 3'], config['default_q'])
+
+    def test_attendance_menu_follows_life_education_with_mega_menu_link(self):
+        source = get_template('base.html').template.source
+        school_life_section = source[
+            source.index('<!-- 9. 기타 학교생활'):
+            source.index('<!-- 하단 프로필 영역 -->')
+        ]
+
+        life_education_position = school_life_section.index('>생활 교육</a>')
+        attendance_position = school_life_section.index('>출결관리</a>')
+        student_counseling_position = school_life_section.index('>학생 상담</a>')
+
+        self.assertLess(life_education_position, attendance_position)
+        self.assertLess(attendance_position, student_counseling_position)
+        self.assertIn(
+            "{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=출결관리",
+            school_life_section,
+        )
+        self.assertIn("request.GET.sub == '출결관리'", school_life_section)
+        self.assertIn('class="sub-menu-item', school_life_section)
