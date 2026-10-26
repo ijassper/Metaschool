@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.note-edit-shell{max-width:850px;margin:0 auto;padding:16px 12px 36px}.note-edit-back{color:#783a8d;text-decoration:none;font-weight:800}.note-edit-title{margin:12px 0 4px;font-weight:900}.note-edit-meta{color:#786e7b;font-size:.9rem}.note-edit-card{margin-top:16px;padding:20px;border:1px solid #e7dce9;border-radius:19px;background:#fff;box-shadow:0 8px 24px rgba(66,44,75,.06)}.note-edit-preview{display:block;max-width:100%;max-height:430px;margin:0 auto 16px;object-fit:contain;border-radius:9px;background:#f4eff6}.note-edit-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}.note-edit-save{border:0;background:linear-gradient(135deg,#9148aa,#d5669a);color:#fff;font-weight:800}.note-edit-save:hover{color:#fff;filter:brightness(.95)}.note-delete-zone{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:18px;padding:16px 20px;border:1px solid #eed7dc;border-radius:16px;background:#fff9fa}.note-delete-zone p{margin:0;color:#786e7b;font-size:.85rem}.note-delete-zone button{flex:0 0 auto}.note-delete-warning{color:#672f38}@media(max-width:600px){.note-edit-card{padding:14px}.note-delete-zone{align-items:flex-start;flex-direction:column}}
+</style>
+<main class="note-edit-shell">
+  <a class="note-edit-back" href="{% url 'student_course_notebook_page' page.id %}"><i class="bi bi-arrow-left me-1"></i>노트 페이지로</a>
+  <h1 class="h3 note-edit-title">노트 페이지 수정</h1>
+  <p class="note-edit-meta">{{ notebook.subject }} · {{ notebook.title }}{% if page.section %} · {{ page.section.title }}{% endif %}</p>
+  <section class="note-edit-card">
+    <img class="note-edit-preview" src="{% if page.processed_image %}{{ page.processed_image.url }}{% else %}{{ page.image.url }}{% endif %}" alt="현재 제출한 노트 이미지">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}<input type="hidden" name="action" value="save">
+      <div class="mb-3"><label class="form-label fw-bold" for="notePageMemo">노트 페이지 제목</label><input class="form-control" id="notePageMemo" name="memo" maxlength="200" value="{% if request.method == 'POST' %}{{ request.POST.memo }}{% else %}{{ page.memo }}{% endif %}" placeholder="예: 시의 표현 방법 정리"></div>
+      {% if sections %}<div class="mb-3"><label class="form-label fw-bold" for="notePageSection">단원</label><select class="form-select" id="notePageSection" name="section" required><option value="">단원을 선택해 주세요</option>{% for section in sections %}<option value="{{ section.id }}" {% if request.method == 'POST' and request.POST.section == section.id|stringformat:'s' or request.method != 'POST' and page.section_id == section.id %}selected{% endif %}>{{ section.title }}</option>{% endfor %}</select></div>{% endif %}
+      <div class="mb-2"><label class="form-label fw-bold" for="notePageImage">노트 사진 바꾸기 <span class="text-secondary fw-normal">(선택)</span></label><input class="form-control" id="notePageImage" name="image" type="file" accept="image/*"><div class="form-text">새 사진을 선택하지 않으면 기존 사진이 유지됩니다. 사진을 바꾸면 이전 이미지와 이미지 위 포스트잇은 삭제됩니다. 최대 12MB.</div></div>
+      <div class="note-edit-actions"><a class="btn btn-outline-secondary" href="{% url 'student_course_notebook_page' page.id %}">취소</a><button class="btn note-edit-save" type="submit">수정 완료</button></div>
+    </form>
+  </section>
+  <section class="note-delete-zone" aria-labelledby="noteDeleteTitle"><div><h2 class="h6 fw-bold mb-1" id="noteDeleteTitle">노트 페이지 삭제</h2><p>선택한 페이지의 이미지와 포스트잇이 삭제됩니다. 다른 페이지는 유지됩니다.</p></div><button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteNoteModal">삭제</button></section>
+</main>
+<div class="modal fade" id="deleteNoteModal" tabindex="-1" aria-labelledby="deleteNoteTitle" aria-describedby="deleteNoteDescription"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h2 class="modal-title h5" id="deleteNoteTitle">노트 페이지 삭제</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button></div><div class="modal-body"><p class="note-delete-warning mb-0" id="deleteNoteDescription">노트를 삭제하면 제출한 모든 노트 자료들도 영구 삭제됩니다. 그래도 삭제하시겠습니까?</p></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">취소</button><form method="post" class="m-0">{% csrf_token %}<input type="hidden" name="action" value="delete"><button type="submit" class="btn btn-danger">삭제하기</button></form></div></div></div></div>
+{% endblock %}

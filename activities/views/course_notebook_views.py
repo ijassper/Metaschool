@@ -747,6 +747,77 @@ def student_course_notebook_page(request, page_id):
 
 
 @login_required
+@require_http_methods(['GET', 'POST'])
+def student_course_notebook_page_edit(request, page_id):
+    """학생이 자신이 제출한 노트 한 페이지를 수정하거나 삭제한다."""
+    page = _student_notebook_page(request.user, page_id)
+    sections = list(page.notebook.sections.all())
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action not in ('save', 'delete'):
+            raise Http404
+        if action == 'delete':
+            notebook_id = page.notebook_id
+            section_id = page.section_id
+            files = [(field.storage, field.name) for field in (page.image, page.processed_image) if field.name]
+            with transaction.atomic():
+                page.delete()  # 연결된 포스트잇도 함께 삭제한다.
+                for storage, name in files:
+                    transaction.on_commit(lambda storage=storage, name=name: storage.delete(name))
+            messages.success(request, '선택한 노트 페이지를 삭제했습니다.')
+            section_value = section_id if section_id else 'general'
+            return redirect(f"{reverse('student_course_notebook', args=[notebook_id])}?section={section_value}#sectionNotes")
+
+        memo = request.POST.get('memo', '').strip()
+        uploaded = request.FILES.get('image')
+        requested_section = request.POST.get('section', '')
+        section = next((item for item in sections if str(item.id) == requested_section), None)
+        if len(memo) > 200:
+            messages.error(request, '노트 페이지 제목은 200자 이내로 입력해 주세요.')
+        elif sections and section is None:
+            messages.error(request, '노트를 저장할 단원을 선택해 주세요.')
+        elif uploaded and not (getattr(uploaded, 'content_type', '') or '').startswith('image/'):
+            messages.error(request, '이미지 파일을 선택해 주세요.')
+        elif uploaded and uploaded.size > 12 * 1024 * 1024:
+            messages.error(request, '사진 한 장의 크기는 12MB 이하여야 합니다.')
+        else:
+            old_files = []
+            if uploaded:
+                old_files = [(field.storage, field.name) for field in (page.image, page.processed_image) if field.name]
+                page.image = uploaded
+                page.processed_image = ''
+                page.source_hash = ''
+                page.processing_version = 1
+                page.ocr_status = CourseNotebookPage.OcrStatus.UPLOADED
+                page.ocr_raw_text = ''
+                page.ocr_corrected_text = ''
+                page.ocr_layout = {}
+                page.ocr_provider = ''
+                page.ocr_model_version = ''
+                page.ocr_confidence = None
+                page.ocr_error = ''
+                page.ocr_usage = {}
+                page.ocr_processed_at = None
+            page.memo = memo
+            if sections:
+                page.section = section
+            with transaction.atomic():
+                page.save()
+                if uploaded:
+                    page.sticky_notes.all().delete()
+                    for storage, name in old_files:
+                        transaction.on_commit(lambda storage=storage, name=name: storage.delete(name))
+            messages.success(request, '노트 페이지를 수정했습니다.')
+            return redirect('student_course_notebook_page', page_id=page.id)
+
+    return render(request, 'activities/student_course_notebook_page_edit.html', {
+        'page': page,
+        'notebook': page.notebook,
+        'sections': sections,
+    })
+
+
+@login_required
 @require_http_methods(['GET'])
 def course_notebook_archive_pdf(request, notebook_id):
     """학생 본인의 노트 이미지를 시간순 A4 PDF 한 파일로 묶는다."""

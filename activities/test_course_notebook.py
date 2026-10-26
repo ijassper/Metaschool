@@ -1,6 +1,6 @@
 from django.template.loader import get_template
 from django.test import RequestFactory
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
@@ -64,6 +64,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         student_source = get_template('activities/student_course_notebook.html').template.source
         section_source = get_template('activities/student_course_notebook_section.html').template.source
         page_source = get_template('activities/student_course_notebook_page.html').template.source
+        edit_source = get_template('activities/student_course_notebook_page_edit.html').template.source
         submission_source = get_template('activities/course_notebook_submission_status.html').template.source
         student_status_source = get_template('activities/course_notebook_student_status.html').template.source
         teacher_page_source = get_template('activities/course_notebook_teacher_page.html').template.source
@@ -182,6 +183,8 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn("{% url 'course_notebook_teacher_page' notebook.id student.id page.id %}", student_status_source)
         self.assertIn("{% url 'course_notebook_teacher_pdf' notebook.id student.id %}", student_status_source)
         self.assertIn('reader-stage', teacher_page_source)
+        self.assertIn("{% url 'student_course_notebook_page_edit' page.id %}", page_source)
+        self.assertIn('노트를 삭제하면 제출한 모든 노트 자료들도 영구 삭제됩니다. 그래도 삭제하시겠습니까?', edit_source)
         self.assertLess(student_status_source.index('class="summary-pills"'), student_status_source.index('class="all-pdf"'))
         self.assertIn('class="student-note-head-actions"', student_status_source)
         self.assertLess(teacher_page_source.index('class="reader-strip"'), teacher_page_source.index('class="reader-stage"'))
@@ -571,3 +574,114 @@ class CourseNotebookStudentUploadTests(TestCase):
         self.assertEqual(response.context['page_count'], 1)
         self.assertIsNone(response.context['next_page'])
         self.assertNotContains(response, reverse('student_course_notebook_page', args=[second.id]))
+
+    def test_student_can_edit_page_title_and_replace_photo(self):
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
+            page = CourseNotebookPage.objects.create(
+                notebook=self.notebook, student=self.student, section=self.section,
+                image=SimpleUploadedFile('old.jpg', b'old-photo', content_type='image/jpeg'),
+                memo='옛 제목', ocr_raw_text='옛 OCR',
+            )
+            old_name = page.image.name
+            page.processed_image = SimpleUploadedFile('processed.jpg', b'old-processed', content_type='image/jpeg')
+            page.save(update_fields=['processed_image'])
+            processed_name = page.processed_image.name
+            CourseNotebookStickyNote.objects.create(page=page, content='옛 포스트잇')
+            url = reverse('student_course_notebook_page_edit', args=[page.id])
+
+            self.assertContains(self.client.get(url), '옛 제목')
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(url, {
+                    'action': 'save', 'memo': '새 제목', 'section': str(self.section.id),
+                    'image': SimpleUploadedFile('new.jpg', b'new-photo', content_type='image/jpeg'),
+                })
+
+            self.assertRedirects(response, reverse('student_course_notebook_page', args=[page.id]))
+            page.refresh_from_db()
+            self.assertEqual(page.memo, '새 제목')
+            self.assertTrue(page.image.storage.exists(page.image.name))
+            self.assertFalse(page.image.storage.exists(old_name))
+            self.assertFalse(page.processed_image.storage.exists(processed_name))
+            self.assertFalse(page.processed_image)
+            self.assertEqual(page.ocr_raw_text, '')
+            self.assertEqual(page.sticky_notes.count(), 0)
+
+    def test_student_can_delete_only_their_selected_page(self):
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
+            page = CourseNotebookPage.objects.create(
+                notebook=self.notebook, student=self.student, section=self.section,
+                image=SimpleUploadedFile('delete.jpg', b'delete-photo', content_type='image/jpeg'),
+            )
+            filename = page.image.name
+            other_page = CourseNotebookPage.objects.create(
+                notebook=self.notebook, student=self.student, section=self.section,
+                image='course_notebooks/keep.jpg',
+            )
+            sticky = CourseNotebookStickyNote.objects.create(page=page, content='삭제할 포스트잇')
+            url = reverse('student_course_notebook_page_edit', args=[page.id])
+
+            self.assertEqual(self.client.get(url).status_code, 200)
+            self.assertTrue(page.image.storage.exists(filename))
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(url, {'action': 'delete'})
+
+            self.assertEqual(response.status_code, 302)
+            self.assertIn(f'?section={self.section.id}#sectionNotes', response.url)
+            self.assertFalse(CourseNotebookPage.objects.filter(id=page.id).exists())
+            self.assertFalse(CourseNotebookStickyNote.objects.filter(id=sticky.id).exists())
+            self.assertTrue(CourseNotebookPage.objects.filter(id=other_page.id).exists())
+            self.assertFalse(page.image.storage.exists(filename))
+
+    def test_student_page_edit_rejects_other_users_and_invalid_images(self):
+        page = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.student, section=self.section,
+            image='course_notebooks/original.jpg', memo='유지할 제목',
+        )
+        url = reverse('student_course_notebook_page_edit', args=[page.id])
+        response = self.client.post(url, {
+            'action': 'save', 'memo': '바꾼 제목', 'section': str(self.section.id),
+            'image': SimpleUploadedFile('bad.txt', b'not-an-image', content_type='text/plain'),
+        })
+        self.assertContains(response, '이미지 파일을 선택해 주세요.')
+        page.refresh_from_db()
+        self.assertEqual(page.memo, '유지할 제목')
+
+        other_user = CustomUser.objects.create_user(
+            username='other-student', password='test-password', name='다른 학생',
+            role=CustomUser.Role.STUDENT, is_approved=True,
+        )
+        Student.objects.create(
+            teacher=self.teacher, grade=2, class_no=6, number=2,
+            name='다른 학생', email=other_user.email,
+        )
+        self.client.force_login(other_user)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.post(url, {'action': 'delete'}).status_code, 404)
+        self.client.force_login(self.teacher)
+        self.assertEqual(self.client.post(url, {'action': 'delete'}).status_code, 404)
+        self.assertTrue(CourseNotebookPage.objects.filter(id=page.id).exists())
+
+    def test_student_can_change_page_title_and_section_without_replacing_photo(self):
+        other_section = CourseNotebookSection.objects.create(
+            notebook=self.notebook, title='삼국 시대', depth=0, position=1,
+        )
+        page = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.student, section=self.section,
+            image='course_notebooks/original.jpg', memo='처음 제목',
+        )
+        url = reverse('student_course_notebook_page_edit', args=[page.id])
+        response = self.client.post(url, {
+            'action': 'save', 'memo': '바뀐 제목', 'section': str(other_section.id),
+        })
+        self.assertRedirects(response, reverse('student_course_notebook_page', args=[page.id]))
+        page.refresh_from_db()
+        self.assertEqual(page.memo, '바뀐 제목')
+        self.assertEqual(page.section_id, other_section.id)
+        self.assertEqual(page.image.name, 'course_notebooks/original.jpg')
+
+        response = self.client.post(url, {
+            'action': 'save', 'memo': '무효', 'section': '999999',
+        })
+        self.assertContains(response, '노트를 저장할 단원을 선택해 주세요.')
+        page.refresh_from_db()
+        self.assertEqual(page.memo, '바뀐 제목')
