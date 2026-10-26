@@ -655,19 +655,19 @@
 </div>
 <!-- 9. 기타 학교생활 (확장형) -->
                     <div class="menu-group">
-                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category == 'SCHOOL_LIFE' or cat_code == 'SCHOOL_LIFE' or activity.category == 'SCHOOL_LIFE' %}active{% else %}collapsed{% endif %}" 
+                        <div class="menu-btn d-flex justify-content-between align-items-center {% if request.GET.category == 'SCHOOL_LIFE' or cat_code == 'SCHOOL_LIFE' or activity.category == 'SCHOOL_LIFE' or request.resolver_match.url_name == 'attendance_folder_list' or request.resolver_match.url_name == 'attendance_folder_create' or request.resolver_match.url_name == 'attendance_folder_detail' %}active{% else %}collapsed{% endif %}"
                             data-bs-toggle="collapse" href="#schoolLifeSubMenu" role="button"
-                            aria-expanded="{% if request.GET.category == 'SCHOOL_LIFE' or cat_code == 'SCHOOL_LIFE' or activity.category == 'SCHOOL_LIFE' %}true{% else %}false{% endif %}">
+                            aria-expanded="{% if request.GET.category == 'SCHOOL_LIFE' or cat_code == 'SCHOOL_LIFE' or activity.category == 'SCHOOL_LIFE' or request.resolver_match.url_name == 'attendance_folder_list' or request.resolver_match.url_name == 'attendance_folder_create' or request.resolver_match.url_name == 'attendance_folder_detail' %}true{% else %}false{% endif %}">
                             <span><i class="bi bi-house-gear me-2"></i> 기타 학교생활</span>
                             <i class="bi bi-chevron-down arrow-icon"></i>
                         </div>
-                        <div class="collapse {% if request.GET.category == 'SCHOOL_LIFE' or cat_code == 'SCHOOL_LIFE' or activity.category == 'SCHOOL_LIFE' %}show{% endif %}" id="schoolLifeSubMenu" data-bs-parent="#sidebarMenu">
+                        <div class="collapse {% if request.GET.category == 'SCHOOL_LIFE' or cat_code == 'SCHOOL_LIFE' or activity.category == 'SCHOOL_LIFE' or request.resolver_match.url_name == 'attendance_folder_list' or request.resolver_match.url_name == 'attendance_folder_create' or request.resolver_match.url_name == 'attendance_folder_detail' %}show{% endif %}" id="schoolLifeSubMenu" data-bs-parent="#sidebarMenu">
                             <div class="sub-menu-list">
                                 <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=아침 등교 생활" class="sub-menu-item {% if request.GET.sub == '아침 등교 생활' %}active{% endif %}">아침 등교 생활</a>
                                 <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=교복 생활" class="sub-menu-item {% if request.GET.sub == '교복 생활' %}active{% endif %}">교복 생활</a>
                                 <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=청소 생활" class="sub-menu-item {% if request.GET.sub == '청소 생활' %}active{% endif %}">청소 생활</a>
                                 <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=생활 교육" class="sub-menu-item {% if request.GET.sub == '생활 교육' %}active{% endif %}">생활 교육</a>
-                                <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=출결관리" class="sub-menu-item {% if request.GET.sub == '출결관리' %}active{% endif %}">출결관리</a>
+                                <a href="{% url 'attendance_folder_list' %}" data-mega-category="ATTENDANCE" data-mega-sub="출결 신고" class="sub-menu-item {% if request.resolver_match.url_name == 'attendance_folder_list' or request.resolver_match.url_name == 'attendance_folder_create' or request.resolver_match.url_name == 'attendance_folder_detail' %}active{% endif %}">출결 신고</a>
                                 <a href="{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=학생 상담" class="sub-menu-item {% if request.GET.sub == '학생 상담' %}active{% endif %}">학생 상담</a>
                             </div>
                         </div>

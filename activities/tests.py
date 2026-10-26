@@ -1059,14 +1059,20 @@ class SchoolLifeSidebarMenuTests(SimpleTestCase):
         ]
 
         life_education_position = school_life_section.index('>생활 교육</a>')
-        attendance_position = school_life_section.index('>출결관리</a>')
+        attendance_position = school_life_section.index('>출결 신고</a>')
         student_counseling_position = school_life_section.index('>학생 상담</a>')
 
         self.assertLess(life_education_position, attendance_position)
         self.assertLess(attendance_position, student_counseling_position)
         self.assertIn(
-            "{% url 'unified_list' %}?category=SCHOOL_LIFE&sub=출결관리",
+            "{% url 'attendance_folder_list' %}",
             school_life_section,
         )
-        self.assertIn("request.GET.sub == '출결관리'", school_life_section)
+        self.assertIn('data-mega-category="ATTENDANCE"', school_life_section)
+        self.assertIn('data-mega-sub="출결 신고"', school_life_section)
+        self.assertNotIn('>출결관리</a>', school_life_section)
         self.assertIn('class="sub-menu-item', school_life_section)
+
+    def test_attendance_list_uses_folder_creation_button_label(self):
+        source = get_template('activities/attendance_folder_list.html').template.source
+        self.assertIn('출결신고서 폴더 생성', source)

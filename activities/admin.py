@@ -4,6 +4,8 @@ from .models import (
     Activity,
     ActivityAnalysisContext,
     ActivityFile,
+    AttendanceReport,
+    AttendanceReportFolder,
     CourseNotebook,
     CourseNotebookMaterial,
     CourseNotebookPage,
@@ -18,6 +20,29 @@ from .models import (
     ProctorSnapshot,
     Question,
 )
+
+
+class AttendanceReportInline(admin.TabularInline):
+    model = AttendanceReport
+    extra = 0
+    readonly_fields = ['submitted_at', 'created_at', 'updated_at']
+
+
+@admin.register(AttendanceReportFolder)
+class AttendanceReportFolderAdmin(admin.ModelAdmin):
+    list_display = ['id', 'teacher', 'allow_edit_after_submission', 'is_active', 'created_at']
+    list_filter = ['allow_edit_after_submission', 'is_active', 'created_at']
+    search_fields = ['teacher__name', 'teacher__username']
+    filter_horizontal = ['target_students']
+    inlines = [AttendanceReportInline]
+
+
+@admin.register(AttendanceReport)
+class AttendanceReportAdmin(admin.ModelAdmin):
+    list_display = ['student', 'attendance_type', 'start_date', 'written_date', 'submitted_at']
+    list_filter = ['attendance_type', 'submitted_at', 'written_date']
+    search_fields = ['student__name', 'reason', 'student_signature', 'guardian_signature']
+    readonly_fields = ['submitted_at', 'created_at', 'updated_at']
 
 # 1. 문항(Question)을 평가(Activity) 수정 화면에서 바로 볼 수 있게 설정
 class QuestionInline(admin.StackedInline):

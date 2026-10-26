@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.attendance-wrap{max-width:1380px;margin:0 auto}.attendance-head{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:20px}.attendance-kicker{color:#9148aa;font-size:.75rem;font-weight:900;letter-spacing:.1em}.attendance-card{border:1px solid #eadfed;border-radius:20px;background:#fff;box-shadow:0 8px 24px rgba(73,45,82,.06);overflow:hidden}.attendance-table{min-width:820px}.attendance-table th{background:#fbf8fc;color:#716675;font-size:.82rem}.attendance-table td,.attendance-table th{padding:14px;vertical-align:middle}.btn-ingrid{border:0;background:var(--ingrid-gradient);color:#fff}.btn-ingrid:hover{color:#fff;filter:brightness(1.05)}
+</style>
+<div class="container-fluid px-4 py-4"><div class="attendance-wrap">
+ <header class="attendance-head"><div><div class="attendance-kicker">ATTENDANCE REPORT</div><h2 class="fw-bold mb-1">출결 신고 관리</h2><p class="text-secondary mb-0">학생에게 출결 확인 신고서를 배정하고 제출 현황을 확인합니다.</p></div><a class="btn btn-ingrid rounded-pill px-4 py-2 fw-bold" href="{% url 'attendance_folder_create' %}"><i class="bi bi-folder-plus me-1"></i>출결신고서 폴더 생성</a></header>
+ <div class="attendance-card table-responsive"><table class="table attendance-table mb-0"><thead><tr><th>생성일</th><th>출결명</th><th>수정 허용</th><th>대상 학생</th><th>제출 현황</th><th>관리</th></tr></thead><tbody>
+ {% for folder in folders %}<tr><td>{{ folder.created_at|date:'Y.m.d H:i' }}</td><td><span class="badge text-bg-light border">결석</span> <span class="badge text-bg-light border">지각</span> <span class="badge text-bg-light border">조퇴</span> <span class="badge text-bg-light border">결과</span></td><td>{% if folder.allow_edit_after_submission %}<span class="text-primary fw-bold">허용</span>{% else %}<span class="text-danger fw-bold">불가</span>{% endif %}</td><td>{{ folder.target_students.count }}명</td><td><strong class="text-primary">{{ folder.submitted_count }}</strong> / {{ folder.target_students.count }}명</td><td><a class="btn btn-sm btn-outline-primary rounded-pill px-3" href="{% url 'attendance_folder_detail' folder.id %}">제출 현황</a></td></tr>
+ {% empty %}<tr><td colspan="6" class="text-center text-secondary py-5"><i class="bi bi-folder-x fs-1 d-block mb-2 opacity-25"></i>아직 생성한 출결신고서 폴더가 없습니다.</td></tr>{% endfor %}
+ </tbody></table></div>
+</div></div>
+{% endblock %}

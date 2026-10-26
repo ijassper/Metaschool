@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from urllib.parse import urlencode
 from accounts.models import Student
-from ..models import Activity, CourseNotebook  # [중요] 한 단계 위 폴더의 models에서 가져옴
+from ..models import Activity, AttendanceReportFolder, CourseNotebook  # [중요] 한 단계 위 폴더의 models에서 가져옴
 
 # [중요] 교사 권한 데코레이터 가져오기 (accounts 앱에서)
 from accounts.decorators import teacher_required
@@ -370,6 +370,30 @@ def get_menu_items(request):
     category = (request.GET.get('category') or '').strip()
     sub_category = (request.GET.get('sub') or '').strip()
     valid_categories = {code for code, _label in Activity.CATEGORY_CHOICES}
+
+    if category == 'ATTENDANCE' and sub_category == '출결 신고':
+        folders = (
+            AttendanceReportFolder.objects.filter(teacher=request.user)
+            .prefetch_related('target_students', 'reports')
+            .order_by('-created_at')
+        )
+        list_url = reverse('attendance_folder_list')
+        return JsonResponse({
+            'status': 'success',
+            'category': category,
+            'sub': sub_category,
+            'list_url': list_url,
+            'items': [
+                {
+                    'id': folder.id,
+                    'activity_name': f"{timezone.localtime(folder.created_at).strftime('%Y.%m.%d')} 출결 신고",
+                    'detail_topic': f'대상 {folder.target_students.count()}명 · 제출 {folder.submitted_count}명',
+                    'created_date': timezone.localtime(folder.created_at).strftime('%Y-%m-%d'),
+                    'url': reverse('attendance_folder_detail', args=[folder.id]),
+                }
+                for folder in folders
+            ],
+        })
 
     if category == 'COURSE_NOTEBOOK' and sub_category == '교과 수업 노트':
         notebooks = (

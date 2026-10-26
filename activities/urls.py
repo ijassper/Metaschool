@@ -19,8 +19,17 @@ from .views.course_notebook_views import (
     course_notebook_page_archive_process,
     course_notebook_sticky_create, course_notebook_sticky_update,
 )
+from .views.attendance_views import (
+    attendance_folder_create, attendance_folder_detail, attendance_folder_list,
+    attendance_report_print, student_attendance_report,
+)
 
 urlpatterns = [
+    path('attendance/', attendance_folder_list, name='attendance_folder_list'),
+    path('attendance/create/', attendance_folder_create, name='attendance_folder_create'),
+    path('attendance/<int:folder_id>/', attendance_folder_detail, name='attendance_folder_detail'),
+    path('attendance/<int:folder_id>/student/', student_attendance_report, name='student_attendance_report'),
+    path('attendance/reports/<int:report_id>/print/', attendance_report_print, name='attendance_report_print'),
     path('course-notebooks/', course_notebook_list, name='course_notebook_list'),
     path('course-notebooks/create/', course_notebook_create, name='course_notebook_create'),
     path('course-notebooks/<int:notebook_id>/edit/', course_notebook_update, name='course_notebook_update'),

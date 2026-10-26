@@ -6,3 +6,4 @@ from .exam_views import *
 from .result_views import *
 from .ai_views import *
 from .export_views import *
+from .attendance_views import *

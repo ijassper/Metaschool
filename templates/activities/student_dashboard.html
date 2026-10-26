@@ -540,7 +540,7 @@
     </div>
     <div class="quick-stats">
       <div class="stat-box">
-        <span class="num">{{ activities|length }}</span>
+        <span class="num">{{ ongoing_count }}</span>
         <span class="lab">진행 중</span>
       </div>
       <div class="stat-box">
@@ -578,6 +578,24 @@
                 </span>
                 <span class="student-note-meta">{{ notebook.academic_year }}학년도 · {{ notebook.get_semester_display }} · {{ notebook.teacher.name }} 선생님</span>
                 <span class="student-note-bottom"><span class="student-note-stats"><span><i class="bi bi-diagram-3 me-1"></i>단원 {{ notebook.section_count }}</span><span><i class="bi bi-paperclip me-1"></i>교재 {{ notebook.material_count }}</span></span><span class="student-note-open">노트 열기 <i class="bi bi-chevron-right"></i></span></span>
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if block.attendance_folders %}
+          <div class="course-notebook-slot">
+            {% for folder in block.attendance_folders %}
+              <a class="student-note-link" href="{% url 'student_attendance_report' folder.id %}" aria-label="출결 확인 신고서 작성">
+                <span class="student-note-top">
+                  <span class="student-note-subject"><i class="bi bi-calendar2-check me-1"></i>출결 신고</span>
+                  <span class="student-note-status{% if folder.my_report and folder.my_report.submitted_at %} has-pages{% endif %}">{% if folder.my_report and folder.my_report.submitted_at %}제출 완료{% else %}작성 필요{% endif %}</span>
+                </span>
+                <span class="student-note-main">
+                  <span class="student-note-cover PINK"><i class="bi bi-file-earmark-check"></i></span>
+                  <span class="student-note-copy"><strong class="student-note-title">출결 확인 신고서</strong><span class="student-note-description">질병지각·질병결과·질병조퇴·질병결석 신고서를 작성합니다.</span></span>
+                </span>
+                <span class="student-note-meta">{{ folder.created_at|date:'Y.m.d' }} 배정 · {{ folder.teacher.name }} 선생님</span>
+                <span class="student-note-bottom"><span class="student-note-stats"><span><i class="bi bi-pencil-square me-1"></i>{% if folder.allow_edit_after_submission %}제출 후 수정 가능{% else %}제출 후 수정 불가{% endif %}</span></span><span class="student-note-open">{% if folder.my_report and folder.my_report.submitted_at %}신고서 보기{% else %}작성하기{% endif %} <i class="bi bi-chevron-right"></i></span></span>
               </a>
             {% endfor %}
           </div>

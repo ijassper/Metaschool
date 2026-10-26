@@ -35,7 +35,7 @@ from .models import Student, CustomUser, School, Persona # 학교 모델 가져�
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate # AI 생성기 관련 모델 가져오기
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
 from activities.models import (  # 평가관리, 학생, 답안 모델 가져오기
-    Activity, Student, Answer, ActivityStudentScore, CourseNotebook,
+    Activity, Student, Answer, ActivityStudentScore, AttendanceReport, AttendanceReportFolder, CourseNotebook,
     ProctorSession, ProctorSnapshot,
 )
 from activities.views.main_views import get_accessible_students, get_student_tree
@@ -401,6 +401,25 @@ def dashboard(request):
                     material_count=Count('materials', distinct=True),
                 ).distinct()
             )
+            student_attendance_folders = list(
+                AttendanceReportFolder.objects.filter(
+                    target_students=student_profile,
+                    is_active=True,
+                ).select_related('teacher').order_by('-created_at').distinct()
+            )
+            reports_by_folder = {
+                report.folder_id: report
+                for report in AttendanceReport.objects.filter(
+                    folder__in=student_attendance_folders,
+                    student=student_profile,
+                )
+            }
+            for folder in student_attendance_folders:
+                folder.my_report = reports_by_folder.get(folder.id)
+            attendance_completed_count = sum(
+                1 for folder in student_attendance_folders
+                if folder.my_report and folder.my_report.submitted_at
+            )
             
             # 3. [개편] 표준 카테고리 기준 블록 생성
             category_blocks = []
@@ -412,8 +431,11 @@ def dashboard(request):
                 course_notebooks = (
                     student_course_notebooks if cat_code == 'SUBJECT_ACTIVITY' else []
                 )
+                attendance_folders = (
+                    student_attendance_folders if cat_code == 'SCHOOL_LIFE' else []
+                )
                 
-                if items or course_notebooks:
+                if items or course_notebooks or attendance_folders:
                     priority_items = sorted(
                         (activity for activity in items if activity.priority_status),
                         key=lambda activity: priority_rank[activity.priority_status],
@@ -423,15 +445,20 @@ def dashboard(request):
                         'items': items,
                         'priority_items': priority_items,
                         'course_notebooks': course_notebooks,
+                        'attendance_folders': attendance_folders,
                     })
 
             context.update({
                 'student': student_profile,
                 'student_course_notebooks': student_course_notebooks,
+                'student_attendance_folders': student_attendance_folders,
                 'category_blocks': category_blocks,
                 'activities': activities_list,
-                'completed_count': completed_count,
-                'ongoing_count': len(activities_list) - completed_count,
+                'completed_count': completed_count + attendance_completed_count,
+                'ongoing_count': (
+                    len(activities_list) - completed_count
+                    + len(student_attendance_folders) - attendance_completed_count
+                ),
                 'now': now
             })
 
