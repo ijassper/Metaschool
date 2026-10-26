@@ -198,6 +198,8 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('.tree-label{gap:5px;font-size:.92rem;line-height:1.4}', submission_source)
         self.assertIn('.course-note-table{font-size:1rem}', list_source)
         self.assertIn('.course-note-table th{font-size:.95rem}', list_source)
+        self.assertIn('.submission-shell{max-width:none;margin:0;padding:1rem 1.5rem 2.5rem}', submission_source)
+        self.assertIn("'course_notebook_' in request.resolver_match.url_name", get_template('base.html').template.source)
         self.assertIn('제출 현황으로', student_status_source)
         self.assertIn("{% url 'course_notebook_update' notebook.id %}", list_source)
         self.assertIn('교과 수업 노트 수정', form_source)
