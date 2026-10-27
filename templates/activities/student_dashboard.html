@@ -71,7 +71,7 @@
   .student-note-subject{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#85409d;font-size:.72rem;font-weight:850}
   .student-note-status{flex:0 0 auto;padding:3px 7px;border-radius:999px;background:#f5f1f7;color:#746878;font-size:.66rem;font-weight:750}
   .student-note-status.has-pages{background:#e6f7ee;color:#267653}
-  .student-note-main{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:10px}
+  .student-note-main{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:center;gap:10px}.student-note-main.attendance-note-main{grid-template-columns:minmax(0,1fr)}
   .student-note-cover{display:grid;place-items:center;width:42px;height:52px;border:1px solid #d1c4e9;border-radius:6px 10px 10px 6px;background:#e9e2ff;color:#7657a8;box-shadow:inset 4px 0 rgba(255,255,255,.35);font-size:1.15rem}
   .student-note-cover.BLUE{background:#ddebff;border-color:#bbdefb;color:#3977ad}.student-note-cover.GREEN{background:#d3f9e8;border-color:#b2ebf2;color:#2e8b69}.student-note-cover.YELLOW{background:#fff3bf;border-color:#ffe082;color:#a87b00}.student-note-cover.ORANGE{background:#ffe8cc;border-color:#ffccbc;color:#b66526}.student-note-cover.RED{background:#ffe3e3;border-color:#ffcdd2;color:#c0525a}.student-note-cover.PINK{background:#ffdeeb;border-color:#f8bbd0;color:#b85078}.student-note-cover.LIME{background:#d7ec8a;border-color:#bdd45f;color:#61751f}
   .student-note-copy{min-width:0}
@@ -590,9 +590,8 @@
                   <span class="student-note-subject"><i class="bi bi-calendar2-check me-1"></i>출결 신고</span>
                   <span class="student-note-status{% if folder.my_report and folder.my_report.submitted_at %} has-pages{% endif %}">{% if folder.my_report and folder.my_report.submitted_at %}제출 완료{% else %}작성 필요{% endif %}</span>
                 </span>
-                <span class="student-note-main">
-                  <span class="student-note-cover PINK"><i class="bi bi-file-earmark-check"></i></span>
-                  <span class="student-note-copy"><strong class="student-note-title">{{ folder.display_name }}</strong><span class="student-note-description">질병지각·질병결과·질병조퇴·질병결석 신고서를 작성합니다.</span></span>
+                <span class="student-note-main attendance-note-main">
+                  <span class="student-note-copy"><strong class="student-note-title">{{ folder.display_name }}</strong><span class="student-note-description">결석·지각·조퇴·결과 신고서를 작성합니다.</span></span>
                 </span>
                 <span class="student-note-meta">{% if folder.operation_start_date and folder.operation_end_date %}{{ folder.operation_start_date|date:'Y.m.d' }} ~ {{ folder.operation_end_date|date:'Y.m.d' }} · {% endif %}{{ folder.teacher.name }} 선생님</span>
                 <span class="student-note-bottom"><span class="student-note-stats"><span><i class="bi bi-pencil-square me-1"></i>{% if folder.allow_edit_after_submission %}제출 후 수정 가능{% else %}제출 후 수정 불가{% endif %}</span></span><span class="student-note-open">{% if folder.my_report and folder.my_report.submitted_at %}신고서 보기{% else %}작성하기{% endif %} <i class="bi bi-chevron-right"></i></span></span>
