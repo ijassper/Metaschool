@@ -94,6 +94,34 @@ class AttendanceReportFlowTests(TestCase):
         self.assertEqual(folder.operation_end_date, date(2027, 2, 28))
         self.assertFalse(folder.allow_edit_after_submission)
 
+    def test_update_preserves_targets_when_student_fields_are_missing(self):
+        folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher,
+            name='기존 폴더',
+            operation_start_date=date(2026, 3, 1),
+            operation_end_date=date(2027, 2, 28),
+        )
+        folder.target_students.add(self.student)
+        self.client.force_login(self.teacher)
+
+        response = self.client.post(reverse('attendance_folder_update', args=[folder.id]), {
+            'name': '수정된 폴더',
+            'operation_start_date': '2026-03-01',
+            'operation_end_date': '2027-02-28',
+            'allow_edit_after_submission': 'True',
+        })
+
+        self.assertRedirects(response, reverse('attendance_folder_detail', args=[folder.id]))
+        self.assertEqual(list(folder.target_students.values_list('id', flat=True)), [self.student.id])
+
+    def test_attendance_form_serializes_modal_selection_into_hidden_fields(self):
+        self.client.force_login(self.teacher)
+        response = self.client.get(reverse('attendance_folder_create'))
+        self.assertContains(response, 'name="target_students_present"')
+        self.assertContains(response, 'id="selectedStudentInputs"')
+        self.assertContains(response, "input.name='target_students'", html=False)
+        self.assertContains(response, 'event.preventDefault();sync();', html=False)
+
     def test_teacher_cannot_set_end_date_before_start_date(self):
         self.client.force_login(self.teacher)
         response = self.client.post(reverse('attendance_folder_create'), {

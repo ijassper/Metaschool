@@ -80,6 +80,10 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('노트 소개', form_source)
         self.assertNotIn('>학생 안내<', form_source)
         self.assertIn('courseNotebookStudentModal', form_source)
+        self.assertIn('name="target_students_present"', form_source)
+        self.assertIn('id="selectedStudentInputs"', form_source)
+        self.assertIn("input.name='target_students'", form_source)
+        self.assertIn("event.preventDefault();syncStudents()", form_source)
         self.assertIn('grid-template-rows:repeat(5', form_source)
         self.assertIn('grid-template-columns:repeat(8', form_source)
         self.assertIn('grid-auto-flow:column', form_source)
@@ -371,6 +375,20 @@ class CourseNotebookUpdateTests(TestCase):
         self.assertEqual(sections[0].id, self.first_section.id)
         self.assertEqual(sections[1].parent_id, sections[0].id)
         self.assertEqual(sections[2].parent_id, sections[1].id)
+
+    def test_update_preserves_targets_when_student_fields_are_missing(self):
+        response = self.client.post(reverse('course_notebook_update', args=[self.notebook.id]), {
+            'academic_year': '2026',
+            'semester': CourseNotebook.Semester.YEAR,
+            'subject': '국어',
+            'title': '대상 유지 노트',
+            'description': '대상 필드 누락 재현',
+            'cover_color': 'PURPLE',
+            'section_outline': '# 기존 대단원',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(list(self.notebook.target_students.values_list('id', flat=True)), [self.student.id])
 
     def test_teacher_cannot_edit_another_teachers_notebook(self):
         self.client.force_login(self.other_teacher)

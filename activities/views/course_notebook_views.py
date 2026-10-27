@@ -554,7 +554,12 @@ def course_notebook_update(request, notebook_id):
             int(value) for value in request.POST.getlist('delete_materials') if value.isdigit()
         }
         if not errors:
-            target_ids = get_accessible_student_ids(request.user, request.POST.getlist('target_students'))
+            posted_target_ids = request.POST.getlist('target_students')
+            if not posted_target_ids and 'target_students_present' not in request.POST:
+                # 브라우저의 모달 폼 처리로 필드가 통째로 누락된 경우 기존 배정을 보존한다.
+                target_ids = list(notebook.target_students.values_list('id', flat=True))
+            else:
+                target_ids = get_accessible_student_ids(request.user, posted_target_ids)
             with transaction.atomic():
                 notebook.title = form_values['title']
                 notebook.subject = form_values['subject']

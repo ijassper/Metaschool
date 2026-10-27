@@ -51,11 +51,19 @@ def attendance_folder_update(request, folder_id):
 
 
 def _attendance_folder_form(request, folder=None):
-    selected_students = (
-        {str(value) for value in request.POST.getlist('target_students')}
-        if request.method == 'POST'
-        else {str(value) for value in folder.target_students.values_list('id', flat=True)} if folder else set()
+    existing_students = (
+        {str(value) for value in folder.target_students.values_list('id', flat=True)}
+        if folder else set()
     )
+    if request.method == 'POST':
+        posted_students = {str(value) for value in request.POST.getlist('target_students')}
+        selected_students = (
+            existing_students
+            if folder and not posted_students and 'target_students_present' not in request.POST
+            else posted_students
+        )
+    else:
+        selected_students = existing_students
     if request.method == 'POST':
         folder_name = request.POST.get('name', '').strip()
         operation_start_date = request.POST.get('operation_start_date', '')
