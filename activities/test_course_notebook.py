@@ -360,6 +360,9 @@ class CourseNotebookUpdateTests(TestCase):
         self.assertContains(response, f'value="{self.student.id}" checked')
         self.assertContains(response, reverse('course_notebook_delete', args=[self.notebook.id]))
         self.assertContains(response, '노트를 삭제하면 학생들이 제출한 모든 노트 자료들도 영구 삭제됩니다. 그래도 삭제하시겠습니까?')
+        html = response.content.decode()
+        self.assertLess(html.index('수정 완료</button>'), html.index('노트 삭제</button>'))
+        self.assertIn('form="deleteCourseNotebookForm"', html)
 
     def test_list_has_delete_button_next_to_submission_status(self):
         response = self.client.get(reverse('course_notebook_list'))
@@ -632,6 +635,66 @@ class CourseNotebookStudentUploadTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '목차에서 노트를 저장할 단원을 선택해 주세요.')
         self.assertEqual(CourseNotebookPage.objects.count(), 0)
+
+    def test_rotated_upload_is_saved_with_rotated_dimensions(self):
+        image = Image.new('RGB', (80, 40), 'white')
+        buffer = io.BytesIO()
+        image.save(buffer, format='JPEG')
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
+            response = self.client.post(
+                reverse('student_course_notebook', args=[self.notebook.id]) + f'?section={self.section.id}',
+                {
+                    'image': SimpleUploadedFile('wide.jpg', buffer.getvalue(), content_type='image/jpeg'),
+                    'photo_rotation': '90', 'memo': '회전한 사진',
+                },
+            )
+            self.assertEqual(response.status_code, 302)
+            page = CourseNotebookPage.objects.get(memo='회전한 사진')
+            with page.image.open('rb') as saved:
+                with Image.open(saved) as rotated:
+                    self.assertEqual(rotated.size, (40, 80))
+
+    def test_rotating_existing_page_updates_image_and_resets_processed_copy(self):
+        image = Image.new('RGB', (80, 40), 'white')
+        buffer = io.BytesIO()
+        image.save(buffer, format='JPEG')
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
+            page = CourseNotebookPage.objects.create(
+                notebook=self.notebook, student=self.student, section=self.section,
+                image=SimpleUploadedFile('wide.jpg', buffer.getvalue(), content_type='image/jpeg'),
+            )
+            old_name = page.image.name
+            page.processed_image = SimpleUploadedFile('processed.jpg', buffer.getvalue(), content_type='image/jpeg')
+            page.save(update_fields=['processed_image'])
+            processed_name = page.processed_image.name
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(reverse('student_course_notebook_page_edit', args=[page.id]), {
+                    'action': 'save', 'section': str(self.section.id), 'photo_rotation': '90',
+                })
+            self.assertEqual(response.status_code, 302)
+            page.refresh_from_db()
+            self.assertNotEqual(page.image.name, old_name)
+            self.assertFalse(page.processed_image)
+            self.assertFalse(page.image.storage.exists(old_name))
+            self.assertFalse(page.image.storage.exists(processed_name))
+            with page.image.open('rb') as saved:
+                with Image.open(saved) as rotated:
+                    self.assertEqual(rotated.size, (40, 80))
+
+    def test_deleted_notebook_redirects_open_student_pages(self):
+        page = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.student, section=self.section,
+            image='course_notebooks/page.jpg',
+        )
+        self.assertContains(self.client.get(reverse('student_course_notebook_page', args=[page.id])),
+                            reverse('student_course_notebook_availability', args=[self.notebook.id]))
+        notebook_id = self.notebook.id
+        self.notebook.delete()
+        self.assertRedirects(self.client.get(reverse('student_course_notebook_page', args=[page.id])),
+                             reverse('dashboard'))
+        response = self.client.get(reverse('student_course_notebook_availability', args=[notebook_id]))
+        self.assertEqual(response.status_code, 410)
+        self.assertEqual(response.json()['redirect_url'], reverse('dashboard'))
 
     def test_student_reader_navigation_is_limited_to_one_section(self):
         other_section = CourseNotebookSection.objects.create(

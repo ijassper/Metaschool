@@ -1,11 +1,14 @@
 import json
 import io
 import re
+from functools import wraps
 from datetime import timedelta
 from pathlib import Path
 
+from PIL import Image, ImageOps, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.http import FileResponse, Http404, JsonResponse
@@ -28,6 +31,37 @@ from .main_views import get_accessible_student_ids, get_student_tree
 
 MATERIAL_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'}
 MATERIAL_MAX_SIZE = 25 * 1024 * 1024
+PHOTO_ROTATIONS = {'0': 0, '90': 90, '180': 180, '270': 270}
+
+
+def _rotated_notebook_image(source, degrees):
+    """Save the selected direction in the image bytes, not just the browser preview."""
+    with Image.open(source) as opened:
+        image = ImageOps.exif_transpose(opened).convert('RGB')
+        image = image.rotate(-degrees, expand=True)
+        output = io.BytesIO()
+        image.save(output, format='JPEG', quality=90, optimize=True)
+    return ContentFile(output.getvalue(), name=f'{Path(source.name).stem}-rotated.jpg')
+
+
+def _redirect_missing_student_notebook(view):
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        try:
+            return view(request, *args, **kwargs)
+        except Http404:
+            if getattr(request.user, 'role', None) != 'STUDENT':
+                raise
+            # An existing resource owned by another student must still return 404.
+            if 'page_id' in kwargs and CourseNotebookPage.objects.filter(id=kwargs['page_id']).exists():
+                raise
+            if 'notebook_id' in kwargs and CourseNotebook.objects.filter(id=kwargs['notebook_id']).exists():
+                raise
+            if request.headers.get('Accept') == 'application/json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'message': '삭제되었거나 접근할 수 없는 노트입니다.', 'redirect_url': reverse('dashboard')}, status=410)
+            messages.info(request, '삭제되었거나 접근할 수 없는 노트입니다. 대시보드로 이동합니다.')
+            return redirect('dashboard')
+    return wrapped
 
 
 def parse_section_outline(raw_outline):
@@ -631,7 +665,22 @@ def _student_profile_for(user):
 
 
 @login_required
+@require_http_methods(['GET'])
+def student_course_notebook_availability(request, notebook_id):
+    if getattr(request.user, 'role', None) != 'STUDENT':
+        raise Http404
+    student = _student_profile_for(request.user)
+    available = bool(student and CourseNotebook.objects.filter(
+        id=notebook_id, target_students=student, is_archived=False,
+    ).exists())
+    if not available:
+        return JsonResponse({'available': False, 'redirect_url': reverse('dashboard')}, status=410)
+    return JsonResponse({'available': True})
+
+
+@login_required
 @require_http_methods(['GET', 'POST'])
+@_redirect_missing_student_notebook
 def student_course_notebook(request, notebook_id):
     if getattr(request.user, 'role', None) != 'STUDENT':
         raise Http404
@@ -664,6 +713,7 @@ def student_course_notebook(request, notebook_id):
             raise Http404
     if request.method == 'POST':
         uploads = request.FILES.getlist('image')
+        rotation_values = request.POST.getlist('photo_rotation')
         native_document_scan = (
             request.POST.get('native_document_scan') == '1'
             and 'IngridStudentAndroid/' in request.META.get('HTTP_USER_AGENT', '')
@@ -673,6 +723,8 @@ def student_course_notebook(request, notebook_id):
             messages.error(request, '촬영한 노트 사진을 선택해 주세요.')
         elif len(uploads) > 30:
             messages.error(request, '한 번에 최대 30장까지 올릴 수 있습니다.')
+        elif rotation_values and (len(rotation_values) != len(uploads) or any(value not in PHOTO_ROTATIONS for value in rotation_values)):
+            messages.error(request, '사진 회전 정보를 확인해 주세요.')
         elif any(not (getattr(uploaded, 'content_type', '') or '').startswith('image/') for uploaded in uploads):
             messages.error(request, '모든 파일이 이미지인지 확인해 주세요.')
         elif any(uploaded.size > 12 * 1024 * 1024 for uploaded in uploads):
@@ -682,17 +734,28 @@ def student_course_notebook(request, notebook_id):
         elif sections and not active_section:
             messages.error(request, '목차에서 노트를 저장할 단원을 선택해 주세요.')
         else:
-            with transaction.atomic():
-                created_pages = [CourseNotebookPage.objects.create(
-                    notebook=notebook, student=student, section=active_section,
-                    image=uploaded, memo=memo,
-                ) for uploaded in uploads]
-                if native_document_scan:
-                    for page in created_pages:
-                        accept_native_document_scan(page)
-            messages.success(request, f'노트 사진 {len(created_pages)}장을 저장했습니다. A4 문서로 정리합니다.')
-            page_url = reverse('student_course_notebook_page', args=[created_pages[0].id])
-            return redirect(f'{page_url}?uploaded={len(created_pages)}')
+            if not rotation_values:
+                rotation_values = ['0'] * len(uploads)
+            try:
+                prepared_uploads = [
+                    _rotated_notebook_image(uploaded, PHOTO_ROTATIONS[rotation]) if rotation != '0' else uploaded
+                    for uploaded, rotation in zip(uploads, rotation_values)
+                ]
+            except (UnidentifiedImageError, OSError, ValueError):
+                messages.error(request, '회전할 사진을 읽을 수 없습니다. 다른 이미지를 선택해 주세요.')
+                prepared_uploads = None
+            if prepared_uploads is not None:
+                with transaction.atomic():
+                    created_pages = [CourseNotebookPage.objects.create(
+                        notebook=notebook, student=student, section=active_section,
+                        image=uploaded, memo=memo,
+                    ) for uploaded in prepared_uploads]
+                    if native_document_scan:
+                        for page in created_pages:
+                            accept_native_document_scan(page)
+                messages.success(request, f'노트 사진 {len(created_pages)}장을 저장했습니다. A4 문서로 정리합니다.')
+                page_url = reverse('student_course_notebook_page', args=[created_pages[0].id])
+                return redirect(f'{page_url}?uploaded={len(created_pages)}')
 
     all_pages = list(notebook.pages.filter(student=student).select_related('section'))
     common_context = {
@@ -747,6 +810,7 @@ def _student_notebook_page(user, page_id):
 
 @login_required
 @require_http_methods(['GET'])
+@_redirect_missing_student_notebook
 def student_course_notebook_page(request, page_id):
     """학생의 여러 촬영 페이지를 A4 책장 형태로 보여준다."""
     page = _student_notebook_page(request.user, page_id)
@@ -777,6 +841,7 @@ def student_course_notebook_page(request, page_id):
 
 @login_required
 @require_http_methods(['GET', 'POST'])
+@_redirect_missing_student_notebook
 def student_course_notebook_page_edit(request, page_id):
     """학생이 자신이 제출한 노트 한 페이지를 수정하거나 삭제한다."""
     page = _student_notebook_page(request.user, page_id)
@@ -799,6 +864,7 @@ def student_course_notebook_page_edit(request, page_id):
 
         memo = request.POST.get('memo', '').strip()
         uploaded = request.FILES.get('image')
+        rotation_value = request.POST.get('photo_rotation', '0')
         requested_section = request.POST.get('section', '')
         section = next((item for item in sections if str(item.id) == requested_section), None)
         if len(memo) > 200:
@@ -809,7 +875,20 @@ def student_course_notebook_page_edit(request, page_id):
             messages.error(request, '이미지 파일을 선택해 주세요.')
         elif uploaded and uploaded.size > 12 * 1024 * 1024:
             messages.error(request, '사진 한 장의 크기는 12MB 이하여야 합니다.')
+        elif rotation_value not in PHOTO_ROTATIONS:
+            messages.error(request, '사진 회전 정보를 확인해 주세요.')
         else:
+            rotation = PHOTO_ROTATIONS[rotation_value]
+            if rotation:
+                try:
+                    source = uploaded or page.image
+                    source.open('rb')
+                    uploaded = _rotated_notebook_image(source, rotation)
+                except (UnidentifiedImageError, OSError, ValueError):
+                    messages.error(request, '회전할 사진을 읽을 수 없습니다. 다른 이미지를 선택해 주세요.')
+                    return render(request, 'activities/student_course_notebook_page_edit.html', {
+                        'page': page, 'notebook': page.notebook, 'sections': sections,
+                    })
             old_files = []
             if uploaded:
                 old_files = [(field.storage, field.name) for field in (page.image, page.processed_image) if field.name]
@@ -848,6 +927,7 @@ def student_course_notebook_page_edit(request, page_id):
 
 @login_required
 @require_http_methods(['GET'])
+@_redirect_missing_student_notebook
 def course_notebook_archive_pdf(request, notebook_id):
     """학생 본인의 노트 이미지를 시간순 A4 PDF 한 파일로 묶는다."""
     if getattr(request.user, 'role', None) != 'STUDENT':
@@ -866,6 +946,7 @@ def course_notebook_archive_pdf(request, notebook_id):
 
 @login_required
 @require_POST
+@_redirect_missing_student_notebook
 def course_notebook_page_archive_process(request, page_id):
     """OCR 비용 없이 현재 사진만 A4 문서 이미지로 보정한다."""
     page = ensure_archive_image(_student_notebook_page(request.user, page_id))
@@ -877,6 +958,7 @@ def course_notebook_page_archive_process(request, page_id):
 
 @login_required
 @require_POST
+@_redirect_missing_student_notebook
 def course_notebook_page_process(request, page_id):
     """원본을 보정하고 설정된 OCR 제공자로 텍스트를 한 번 추출한다."""
     page = _student_notebook_page(request.user, page_id)
@@ -904,6 +986,7 @@ def course_notebook_page_process(request, page_id):
 
 @login_required
 @require_POST
+@_redirect_missing_student_notebook
 def course_notebook_page_text_update(request, page_id):
     """학생이 OCR 결과를 확인하거나 직접 보완한 텍스트를 저장한다."""
     page = _student_notebook_page(request.user, page_id)
