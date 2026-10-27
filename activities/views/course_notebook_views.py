@@ -601,6 +601,30 @@ def course_notebook_update(request, notebook_id):
     )
 
 
+@login_required
+@teacher_required
+@require_POST
+def course_notebook_delete(request, notebook_id):
+    notebook = get_object_or_404(CourseNotebook, id=notebook_id, teacher=request.user)
+    files = [
+        (field.storage, field.name)
+        for page in notebook.pages.only('image', 'processed_image').iterator()
+        for field in (page.image, page.processed_image)
+        if field.name
+    ]
+    files.extend(
+        (material.file.storage, material.file.name)
+        for material in notebook.materials.only('file').iterator()
+        if material.file.name
+    )
+    with transaction.atomic():
+        notebook.delete()  # 학생 페이지와 포스트잇도 함께 삭제한다.
+        for storage, name in files:
+            transaction.on_commit(lambda storage=storage, name=name: storage.delete(name))
+    messages.success(request, '교과 수업 노트와 제출된 학생 자료를 삭제했습니다.')
+    return redirect('course_notebook_list')
+
+
 def _student_profile_for(user):
     student = Student.objects.filter(email=user.email).first()
     return student or getattr(user, 'student', None)

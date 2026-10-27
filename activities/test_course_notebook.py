@@ -358,6 +358,56 @@ class CourseNotebookUpdateTests(TestCase):
         self.assertContains(response, '# 기존 대단원')
         self.assertContains(response, '## 기존 소단원')
         self.assertContains(response, f'value="{self.student.id}" checked')
+        self.assertContains(response, reverse('course_notebook_delete', args=[self.notebook.id]))
+        self.assertContains(response, '노트를 삭제하면 학생들이 제출한 모든 노트 자료들도 영구 삭제됩니다. 그래도 삭제하시겠습니까?')
+
+    def test_list_has_delete_button_next_to_submission_status(self):
+        response = self.client.get(reverse('course_notebook_list'))
+
+        self.assertContains(response, reverse('course_notebook_delete', args=[self.notebook.id]))
+        self.assertContains(response, '노트를 삭제하면 학생들이 제출한 모든 노트 자료들도 영구 삭제됩니다. 그래도 삭제하시겠습니까?')
+        self.assertContains(response, 'aria-label="기존 노트 삭제"')
+
+    def test_delete_removes_submissions_and_stored_files(self):
+        page = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.student, section=self.first_section,
+            image='course_notebooks/original.jpg',
+            processed_image='course_notebooks/processed/clean.jpg',
+        )
+        CourseNotebookStickyNote.objects.create(page=page, content='학생 메모')
+        CourseNotebookMaterial.objects.create(
+            notebook=self.notebook, file='course_notebook_materials/lesson.pdf',
+            original_name='lesson.pdf',
+        )
+        other = CourseNotebook.objects.create(
+            teacher=self.teacher, title='남길 노트', subject='국어', academic_year=2026,
+        )
+        other_page = CourseNotebookPage.objects.create(
+            notebook=other, student=self.student, image='course_notebooks/keep.jpg',
+        )
+
+        with patch('django.core.files.storage.filesystem.FileSystemStorage.delete') as delete_file:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(reverse('course_notebook_delete', args=[self.notebook.id]))
+
+        self.assertRedirects(response, reverse('course_notebook_list'))
+        self.assertFalse(CourseNotebook.objects.filter(id=self.notebook.id).exists())
+        self.assertFalse(CourseNotebookPage.objects.filter(id=page.id).exists())
+        self.assertFalse(CourseNotebookStickyNote.objects.filter(page_id=page.id).exists())
+        self.assertFalse(CourseNotebookMaterial.objects.filter(notebook_id=self.notebook.id).exists())
+        self.assertTrue(CourseNotebookPage.objects.filter(id=other_page.id).exists())
+        self.assertCountEqual(
+            [call.args[0] for call in delete_file.call_args_list],
+            ['course_notebooks/original.jpg', 'course_notebooks/processed/clean.jpg',
+             'course_notebook_materials/lesson.pdf'],
+        )
+
+    def test_delete_rejects_get_and_other_teacher(self):
+        url = reverse('course_notebook_delete', args=[self.notebook.id])
+        self.assertEqual(self.client.get(url).status_code, 405)
+        self.client.force_login(self.other_teacher)
+        self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertTrue(CourseNotebook.objects.filter(id=self.notebook.id).exists())
 
     def test_owner_can_update_notebook_and_outline(self):
         response = self.client.post(reverse('course_notebook_update', args=[self.notebook.id]), {
