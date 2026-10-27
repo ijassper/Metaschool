@@ -165,6 +165,67 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(print_response, '출결 확인 신고서')
         self.assertContains(print_response, '3일간')
 
+    def test_student_form_has_optional_guardian_fields_and_native_notice_tables(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
+        folder.target_students.add(self.student)
+        self.client.force_login(self.student_user)
+
+        response = self.client.get(reverse('student_attendance_report', args=[folder.id]))
+
+        self.assertContains(response, 'name="guardian_name"')
+        self.assertContains(response, 'name="guardian_signature_data"')
+        self.assertContains(response, '학부모 성명')
+        self.assertContains(response, '학부모 서명')
+        self.assertNotContains(response, 'name="guardian_name" required')
+        self.assertContains(response, 'name="reason" rows="3"')
+        self.assertContains(response, '<table class="privacy-table">', count=2, html=False)
+        self.assertContains(response, '개인정보 수집·이용 사항 고지')
+        self.assertContains(response, '민감정보 수집·이용 사항 고지')
+        self.assertContains(response, '「개인정보 보호법」 제23조 제1항 제2호')
+
+    def test_home_guardian_signature_can_be_submitted_without_qr_and_must_be_redone_after_edit(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher, allow_edit_after_submission=True)
+        folder.target_students.add(self.student)
+        url = reverse('student_attendance_report', args=[folder.id])
+        self.client.force_login(self.student_user)
+        payload = {
+            'attendance_category': 'SICK', 'attendance_kind': 'ABSENCE',
+            'start_date': '2026-10-20', 'end_date': '2026-10-21',
+            'reason': '집에서 치료함', 'written_date': '2026-10-21',
+            'student_signature_data': self.signature_data,
+            'guardian_name': '김보호자', 'guardian_signature_data': self.signature_data,
+        }
+        self.assertEqual(self.client.post(url, payload).status_code, 302)
+        report = AttendanceReport.objects.get()
+        self.assertIsNotNone(report.guardian_signed_at)
+        self.assertIsNone(report.guardian_token)
+        self.assertContains(self.client.get(url), '보호자 서명 완료')
+        self.assertContains(self.client.get(reverse('attendance_report_print', args=[report.id])),
+                            'alt="보호자 서명"')
+
+        edit_page = self.client.get(url)
+        self.assertContains(edit_page, 'name="guardian_signature_data" value=""')
+        revised_payload = {**payload, 'reason': '수정한 사유', 'guardian_signature_data': ''}
+        self.client.post(url, revised_payload)
+        report.refresh_from_db()
+        self.assertIsNone(report.guardian_signed_at)
+        self.assertEqual(report.guardian_signature, '김보호자')
+        self.assertEqual(report.guardian_signature_data, '')
+
+        self.client.force_login(self.teacher)
+        self.client.post(reverse('attendance_report_confirm', args=[report.id]))
+        report.refresh_from_db()
+        self.assertIsNone(report.confirmed_at)
+
+        self.client.force_login(self.student_user)
+        self.client.post(url, payload)
+        report.refresh_from_db()
+        self.assertIsNotNone(report.guardian_signed_at)
+        self.client.force_login(self.teacher)
+        self.client.post(reverse('attendance_report_confirm', args=[report.id]))
+        report.refresh_from_db()
+        self.assertIsNotNone(report.confirmed_at)
+
     def test_locked_report_cannot_be_changed_after_submission(self):
         folder = AttendanceReportFolder.objects.create(
             teacher=self.teacher,

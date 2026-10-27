@@ -285,6 +285,8 @@ def student_attendance_report(request, folder_id):
         written_date = request.POST.get('written_date', '')
         student_signature = student.name
         student_signature_data = request.POST.get('student_signature_data', '').strip()
+        guardian_name = request.POST.get('guardian_name', '').strip()
+        guardian_signature_data = request.POST.get('guardian_signature_data', '').strip()
         errors = []
 
         valid_types = {value for value, _label in AttendanceReport.AttendanceType.choices}
@@ -322,6 +324,10 @@ def student_attendance_report(request, folder_id):
             errors.append('출결 사유를 입력해 주세요.')
         if not _valid_signature_data(student_signature_data):
             errors.append('학생 서명을 손가락이나 펜으로 작성해 주세요.')
+        if len(guardian_name) > 100:
+            errors.append('보호자 성명은 100자 이내로 입력해 주세요.')
+        if guardian_signature_data and not _valid_signature_data(guardian_signature_data):
+            errors.append('보호자 서명 이미지를 확인해 주세요.')
 
         if not errors:
             report = report or AttendanceReport(folder=folder, student=student)
@@ -334,10 +340,10 @@ def student_attendance_report(request, folder_id):
             report.written_date = parsed_written_date
             report.student_signature = student_signature
             report.student_signature_data = student_signature_data
-            # Editing a submitted report requires a fresh teacher review and guardian signature.
-            report.guardian_signature = ''
-            report.guardian_signature_data = ''
-            report.guardian_signed_at = None
+            # A revised report does not automatically carry forward the prior guardian signature or QR.
+            report.guardian_signature = guardian_name
+            report.guardian_signature_data = guardian_signature_data
+            report.guardian_signed_at = timezone.now() if guardian_name and guardian_signature_data else None
             report.guardian_token = None
             report.guardian_token_created_at = None
             report.submitted_at = timezone.now()
@@ -351,6 +357,13 @@ def student_attendance_report(request, folder_id):
     else:
         form_values = None
 
+    if form_values:
+        guardian_signature_data_for_form = form_values.get('guardian_signature_data', '')
+    elif report and (locked or not report.guardian_signed_at):
+        guardian_signature_data_for_form = report.guardian_signature_data
+    else:
+        guardian_signature_data_for_form = ''
+
     return render(request, 'activities/student_attendance_report.html', {
         'folder': folder,
         'student': student,
@@ -362,6 +375,7 @@ def student_attendance_report(request, folder_id):
         'selected_category': form_values.get('attendance_category', '') if form_values else report.attendance_category if report else '',
         'selected_kind': form_values.get('attendance_kind', '') if form_values else report.attendance_kind if report else '',
         'period_choices': AttendanceReport.Period.choices,
+        'guardian_signature_data_for_form': guardian_signature_data_for_form,
         'today': timezone.localdate(),
     })
 
