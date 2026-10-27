@@ -386,8 +386,11 @@ def get_menu_items(request):
             'items': [
                 {
                     'id': folder.id,
-                    'activity_name': f"{timezone.localtime(folder.created_at).strftime('%Y.%m.%d')} 출결 신고",
-                    'detail_topic': f'대상 {folder.target_students.count()}명 · 제출 {folder.submitted_count}명',
+                    'activity_name': folder.display_name,
+                    'detail_topic': (
+                        f'{folder.operation_start_date:%Y.%m.%d} ~ {folder.operation_end_date:%Y.%m.%d} · '
+                        if folder.operation_start_date and folder.operation_end_date else ''
+                    ) + f'대상 {folder.target_students.count()}명 · 제출 {folder.submitted_count}명',
                     'created_date': timezone.localtime(folder.created_at).strftime('%Y-%m-%d'),
                     'url': reverse('attendance_folder_detail', args=[folder.id]),
                 }

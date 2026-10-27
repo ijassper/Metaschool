@@ -39,25 +39,80 @@ def attendance_folder_list(request):
 @teacher_required
 @require_http_methods(['GET', 'POST'])
 def attendance_folder_create(request):
-    selected_students = {str(value) for value in request.POST.getlist('target_students')}
+    return _attendance_folder_form(request)
+
+
+@login_required
+@teacher_required
+@require_http_methods(['GET', 'POST'])
+def attendance_folder_update(request, folder_id):
+    folder = get_object_or_404(AttendanceReportFolder, id=folder_id, teacher=request.user)
+    return _attendance_folder_form(request, folder=folder)
+
+
+def _attendance_folder_form(request, folder=None):
+    selected_students = (
+        {str(value) for value in request.POST.getlist('target_students')}
+        if request.method == 'POST'
+        else {str(value) for value in folder.target_students.values_list('id', flat=True)} if folder else set()
+    )
     if request.method == 'POST':
+        folder_name = request.POST.get('name', '').strip()
+        operation_start_date = request.POST.get('operation_start_date', '')
+        operation_end_date = request.POST.get('operation_end_date', '')
         target_ids = get_accessible_student_ids(request.user, selected_students)
+        errors = []
+        if not folder_name:
+            errors.append('폴더명을 입력해 주세요.')
+        try:
+            parsed_start_date = date.fromisoformat(operation_start_date)
+        except ValueError:
+            parsed_start_date = None
+            errors.append('운영 시작일을 선택해 주세요.')
+        try:
+            parsed_end_date = date.fromisoformat(operation_end_date)
+        except ValueError:
+            parsed_end_date = None
+            errors.append('운영 종료일을 선택해 주세요.')
+        if parsed_start_date and parsed_end_date and parsed_end_date < parsed_start_date:
+            errors.append('운영 종료일은 시작일보다 빠를 수 없습니다.')
         if not target_ids:
-            messages.error(request, '대상 학생을 한 명 이상 선택해 주세요.')
-        else:
-            folder = AttendanceReportFolder.objects.create(
-                teacher=request.user,
-                allow_edit_after_submission=request.POST.get('allow_edit_after_submission') == 'True',
-            )
+            errors.append('대상 학생을 한 명 이상 선택해 주세요.')
+        if not errors:
+            creating = folder is None
+            folder = folder or AttendanceReportFolder(teacher=request.user)
+            folder.name = folder_name
+            folder.operation_start_date = parsed_start_date
+            folder.operation_end_date = parsed_end_date
+            folder.allow_edit_after_submission = request.POST.get('allow_edit_after_submission') == 'True'
+            folder.save()
             folder.target_students.set(target_ids)
-            messages.success(request, '출결신고서 폴더를 생성했습니다.')
+            messages.success(
+                request,
+                '출결신고서 폴더를 생성했습니다.' if creating else '출결신고서 폴더 설정을 수정했습니다.',
+            )
             return redirect('attendance_folder_detail', folder_id=folder.id)
+        for error in errors:
+            messages.error(request, error)
 
     return render(request, 'activities/attendance_folder_form.html', {
-        'attendance_types': ('결석', '지각', '조퇴', '결과'),
+        'folder': folder,
+        'is_edit': folder is not None,
         'student_tree': get_student_tree(request.user),
         'selected_students': selected_students,
-        'allow_edit_after_submission': request.POST.get('allow_edit_after_submission', 'True'),
+        'folder_name': request.POST.get('name', folder.name if folder else ''),
+        'operation_start_date': request.POST.get(
+            'operation_start_date',
+            folder.operation_start_date.isoformat() if folder and folder.operation_start_date else '',
+        ),
+        'operation_end_date': request.POST.get(
+            'operation_end_date',
+            folder.operation_end_date.isoformat() if folder and folder.operation_end_date else '',
+        ),
+        'allow_edit_after_submission': request.POST.get(
+            'allow_edit_after_submission',
+            'True' if not folder or folder.allow_edit_after_submission else 'False',
+        ),
     })
 
 
@@ -95,6 +150,9 @@ def student_attendance_report(request, folder_id):
         target_students=student,
         is_active=True,
     )
+    if not folder.is_within_operation_period:
+        messages.warning(request, '현재 출결 신고서 운영 기간이 아닙니다.')
+        return redirect('dashboard')
     report = AttendanceReport.objects.filter(folder=folder, student=student).first()
     locked = bool(report and report.submitted_at and not folder.allow_edit_after_submission)
 

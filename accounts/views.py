@@ -405,6 +405,9 @@ def dashboard(request):
                 AttendanceReportFolder.objects.filter(
                     target_students=student_profile,
                     is_active=True,
+                ).filter(
+                    Q(operation_start_date__isnull=True) | Q(operation_start_date__lte=timezone.localdate()),
+                    Q(operation_end_date__isnull=True) | Q(operation_end_date__gte=timezone.localdate()),
                 ).select_related('teacher').order_by('-created_at').distinct()
             )
             reports_by_folder = {

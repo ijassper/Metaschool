@@ -764,6 +764,12 @@ class CourseNotebook(models.Model):
 class AttendanceReportFolder(models.Model):
     """교사가 대상 학생에게 배정하는 출결 신고서 보관함."""
 
+    name = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='폴더명',
+    )
     teacher = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -780,6 +786,16 @@ class AttendanceReportFolder(models.Model):
         related_name='attendance_report_folders',
         verbose_name='대상 학생',
     )
+    operation_start_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='운영 시작일',
+    )
+    operation_end_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='운영 종료일',
+    )
     is_active = models.BooleanField(default=True, verbose_name='사용 여부')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -793,8 +809,23 @@ class AttendanceReportFolder(models.Model):
         verbose_name_plural = '출결 신고서 폴더 목록'
 
     def __str__(self):
+        if self.name:
+            return self.name
         created = timezone.localtime(self.created_at).strftime('%Y.%m.%d') if self.created_at else ''
         return f'{created} 출결 신고서 폴더'.strip()
+
+    @property
+    def display_name(self):
+        return str(self)
+
+    @property
+    def is_within_operation_period(self):
+        today = timezone.localdate()
+        if self.operation_start_date and today < self.operation_start_date:
+            return False
+        if self.operation_end_date and today > self.operation_end_date:
+            return False
+        return self.is_active
 
     @property
     def submitted_count(self):

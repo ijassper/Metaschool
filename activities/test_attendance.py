@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.test import TestCase
 from django.urls import reverse
@@ -47,20 +47,64 @@ class AttendanceReportFlowTests(TestCase):
     def test_teacher_creates_folder_with_only_policy_and_targets(self):
         self.client.force_login(self.teacher)
         response = self.client.post(reverse('attendance_folder_create'), {
+            'name': '2026학년도 출결자료',
+            'operation_start_date': '2026-03-01',
+            'operation_end_date': '2027-02-28',
             'allow_edit_after_submission': 'False',
             'target_students': [str(self.student.id)],
         })
         folder = AttendanceReportFolder.objects.get()
         self.assertRedirects(response, reverse('attendance_folder_detail', args=[folder.id]))
+        self.assertEqual(folder.name, '2026학년도 출결자료')
+        self.assertEqual(folder.operation_start_date, date(2026, 3, 1))
+        self.assertEqual(folder.operation_end_date, date(2027, 2, 28))
         self.assertFalse(folder.allow_edit_after_submission)
         self.assertEqual(list(folder.target_students.all()), [self.student])
 
-    def test_teacher_form_shows_generic_attendance_names_only(self):
+    def test_teacher_form_uses_folder_name_and_operation_period(self):
         self.client.force_login(self.teacher)
         response = self.client.get(reverse('attendance_folder_create'))
-        for label in ['결석', '지각', '조퇴', '결과']:
-            self.assertContains(response, label)
+        self.assertContains(response, '폴더명')
+        self.assertContains(response, '운영 기간')
+        self.assertContains(response, '2026학년도 출결자료')
         self.assertNotContains(response, '질병지각')
+
+    def test_teacher_can_update_folder_settings(self):
+        folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher,
+            name='기존 폴더',
+            operation_start_date=date(2026, 3, 1),
+            operation_end_date=date(2026, 8, 31),
+        )
+        folder.target_students.add(self.student)
+        self.client.force_login(self.teacher)
+
+        response = self.client.post(reverse('attendance_folder_update', args=[folder.id]), {
+            'name': '2026학년도 출결자료',
+            'operation_start_date': '2026-03-02',
+            'operation_end_date': '2027-02-28',
+            'allow_edit_after_submission': 'False',
+            'target_students': [str(self.student.id)],
+        })
+
+        folder.refresh_from_db()
+        self.assertRedirects(response, reverse('attendance_folder_detail', args=[folder.id]))
+        self.assertEqual(folder.name, '2026학년도 출결자료')
+        self.assertEqual(folder.operation_start_date, date(2026, 3, 2))
+        self.assertEqual(folder.operation_end_date, date(2027, 2, 28))
+        self.assertFalse(folder.allow_edit_after_submission)
+
+    def test_teacher_cannot_set_end_date_before_start_date(self):
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse('attendance_folder_create'), {
+            'name': '잘못된 기간',
+            'operation_start_date': '2026-12-31',
+            'operation_end_date': '2026-03-01',
+            'allow_edit_after_submission': 'True',
+            'target_students': [str(self.student.id)],
+        })
+        self.assertContains(response, '운영 종료일은 시작일보다 빠를 수 없습니다.')
+        self.assertFalse(AttendanceReportFolder.objects.exists())
 
     def test_student_submits_absence_report_and_can_print(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
@@ -112,11 +156,31 @@ class AttendanceReportFlowTests(TestCase):
 
     def test_dashboard_template_contains_attendance_card(self):
         self.client.force_login(self.student_user)
-        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
+        folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher,
+            name='2026학년도 출결자료',
+        )
         folder.target_students.add(self.student)
         response = self.client.get(reverse('dashboard'))
-        self.assertContains(response, '출결 확인 신고서')
+        self.assertContains(response, '2026학년도 출결자료')
         self.assertContains(response, reverse('student_attendance_report', args=[folder.id]))
+
+    def test_dashboard_hides_folder_outside_operation_period(self):
+        today = timezone.localdate()
+        folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher,
+            name='운영 전 폴더',
+            operation_start_date=today + timedelta(days=1),
+            operation_end_date=today + timedelta(days=10),
+        )
+        folder.target_students.add(self.student)
+        self.client.force_login(self.student_user)
+
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertNotContains(response, '운영 전 폴더')
+        report_response = self.client.get(reverse('student_attendance_report', args=[folder.id]))
+        self.assertRedirects(report_response, reverse('dashboard'))
 
     def test_attendance_folders_are_returned_by_mega_menu_endpoint(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
