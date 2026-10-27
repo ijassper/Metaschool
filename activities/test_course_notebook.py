@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 from types import SimpleNamespace
 from unittest.mock import patch
+from pathlib import Path
 import json
 import io
 
@@ -125,12 +126,22 @@ class CourseNotebookUiTests(SimpleTestCase):
             section_source.index('<span class="section-page-image">'),
         )
         self.assertIn('id="nativeDocumentScan"', section_source)
+        self.assertIn('id="noteCamera" class="note-image-input" name="image" type="file" accept="image/*" capture="environment"', section_source)
+        self.assertIn('id="noteUpload" class="note-image-input" name="image" type="file" accept="image/*" multiple', section_source)
+        self.assertNotIn('id="noteUpload" class="note-image-input" name="image" type="file" accept="image/*" capture=', section_source)
         self.assertIn('id="photoReview"', section_source)
         self.assertIn('id="photoThumbnails"', section_source)
         self.assertIn('id="retakeNotePhoto"', section_source)
         self.assertIn('다시 촬영·선택', section_source)
         self.assertIn('선택한 사진 제출', section_source)
         self.assertIn("form.addEventListener('submit'", section_source)
+        android_source = (
+            Path(__file__).resolve().parents[1]
+            / 'android-student/app/src/main/java/com/schoolingrid/student/IngridWebActivity.kt'
+        ).read_text(encoding='utf-8')
+        self.assertIn('isNotebookImageRequest && fileChooserParams.isCaptureEnabled', android_source)
+        self.assertIn('launchGalleryImageChooser(', android_source)
+        self.assertIn('Intent(Intent.ACTION_OPEN_DOCUMENT)', android_source)
         self.assertIn("'student_course_notebook_page' page.id", section_source)
         self.assertNotIn('pageEditorModal', section_source)
         self.assertIn('전체 PDF 다운로드', page_source)

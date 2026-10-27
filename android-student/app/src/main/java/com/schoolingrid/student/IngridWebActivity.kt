@@ -281,10 +281,17 @@ class IngridWebActivity : Activity() {
             ): Boolean {
                 fileChooserCallback?.onReceiveValue(null)
                 fileChooserCallback = filePathCallback
-                return if (isCourseNotebookUploadPage(webView.url) && acceptsImages(fileChooserParams)) {
+                val isNotebookImageRequest =
+                    isCourseNotebookUploadPage(webView.url) && acceptsImages(fileChooserParams)
+                return if (isNotebookImageRequest && fileChooserParams.isCaptureEnabled) {
                     clearNativeDocumentScanMarker()
                     launchDocumentScanner()
                     true
+                } else if (isNotebookImageRequest) {
+                    clearNativeDocumentScanMarker()
+                    launchGalleryImageChooser(
+                        fileChooserParams.mode == FileChooserParams.MODE_OPEN_MULTIPLE,
+                    )
                 } else {
                     launchLegacyImageChooser(fileChooserParams.mode == FileChooserParams.MODE_OPEN_MULTIPLE)
                 }
@@ -415,6 +422,22 @@ class IngridWebActivity : Activity() {
         ).apply { putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(cameraIntent)) }
         return try {
             startActivityForResult(chooser, NOTE_FILE_CHOOSER_REQUEST)
+            true
+        } catch (_: Exception) {
+            completeFileChooser(null)
+            false
+        }
+    }
+
+    private fun launchGalleryImageChooser(allowMultiple: Boolean): Boolean {
+        pendingCameraUri = null
+        val galleryIntent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "image/*"
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, allowMultiple)
+        }
+        return try {
+            startActivityForResult(galleryIntent, NOTE_FILE_CHOOSER_REQUEST)
             true
         } catch (_: Exception) {
             completeFileChooser(null)
