@@ -1,0 +1,19 @@
+<style>
+.signature-pad{padding:10px;border:1px solid #d9c8df;border-radius:14px;background:#fff}.signature-pad canvas{display:block;width:100%;height:180px;touch-action:none;background:#fff;border:1px dashed #bda5c5;border-radius:9px}.signature-pad-actions{display:flex;justify-content:flex-end;margin-top:7px}.signature-pad-actions button{border:0;background:none;color:#754387;font-weight:700}
+</style>
+<script>
+(function(){
+ document.querySelectorAll('[data-signature-pad]').forEach(function(pad){
+  const canvas=pad.querySelector('canvas'),field=pad.querySelector('input[type="hidden"]'),ctx=canvas.getContext('2d');
+  ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#24202a';
+  if(field.value){const image=new Image();image.onload=function(){ctx.drawImage(image,0,0,canvas.width,canvas.height);};image.src=field.value;}
+  let drawing=false;
+  function point(event){const box=canvas.getBoundingClientRect();return {x:(event.clientX-box.left)*canvas.width/box.width,y:(event.clientY-box.top)*canvas.height/box.height};}
+  canvas.addEventListener('pointerdown',function(event){if(pad.dataset.locked==='true')return;drawing=true;canvas.setPointerCapture(event.pointerId);const position=point(event);ctx.beginPath();ctx.moveTo(position.x,position.y);ctx.lineTo(position.x+.1,position.y+.1);ctx.stroke();event.preventDefault();});
+  canvas.addEventListener('pointermove',function(event){if(!drawing)return;const position=point(event);ctx.lineTo(position.x,position.y);ctx.stroke();event.preventDefault();});
+  function finish(){if(!drawing)return;drawing=false;field.value=canvas.toDataURL('image/png');}
+  canvas.addEventListener('pointerup',finish);canvas.addEventListener('pointercancel',finish);
+  const clear=pad.querySelector('button');if(clear)clear.addEventListener('click',function(){ctx.clearRect(0,0,canvas.width,canvas.height);field.value='';});
+ });
+})();
+</script>

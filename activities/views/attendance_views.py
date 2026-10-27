@@ -1,15 +1,49 @@
-from datetime import date
+import base64
+import io
+import re
+import secrets
+from datetime import date, timedelta
+
+import qrcode
+from PIL import Image, UnidentifiedImageError
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 
 from accounts.decorators import teacher_required
 from accounts.models import Student
 from ..models import AttendanceReport, AttendanceReportFolder
 from .main_views import get_accessible_student_ids, get_student_tree
+
+
+ATTENDANCE_CATEGORIES = [('SICK', '질병'), ('RECOGNIZED', '인정'), ('UNEXCUSED', '미인정')]
+ATTENDANCE_KINDS = [('ABSENCE', '결석'), ('TARDY', '지각'), ('LEAVE', '조퇴'), ('RESULT', '결과')]
+GUARDIAN_LINK_LIFETIME = timedelta(days=7)
+
+
+def _valid_signature_data(value):
+    if not re.fullmatch(r'data:image/png;base64,[A-Za-z0-9+/=]+', value or ''):
+        return False
+    try:
+        raw = base64.b64decode(value.split(',', 1)[1], validate=True)
+        if not raw or len(raw) > 200_000:
+            return False
+        with Image.open(io.BytesIO(raw)) as image:
+            return image.format == 'PNG' and 1 <= image.width <= 2000 and 1 <= image.height <= 1000
+    except (ValueError, UnidentifiedImageError, OSError):
+        return False
+
+
+def _guardian_link_is_active(report):
+    return bool(
+        report.guardian_token and report.guardian_token_created_at
+        and not report.guardian_signed_at and not report.confirmed_at
+        and timezone.now() < report.guardian_token_created_at + GUARDIAN_LINK_LIFETIME
+    )
 
 
 def _student_for_user(user):
@@ -133,14 +167,85 @@ def attendance_folder_detail(request, folder_id):
         teacher=request.user,
     )
     reports_by_student = {report.student_id: report for report in folder.reports.all()}
-    rows = [
-        {'student': student, 'report': reports_by_student.get(student.id)}
-        for student in folder.target_students.all().order_by('grade', 'class_no', 'number', 'name')
-    ]
+    rows = []
+    for student in folder.target_students.all().order_by('grade', 'class_no', 'number', 'name'):
+        report = reports_by_student.get(student.id)
+        row = {'student': student, 'report': report}
+        if report and _guardian_link_is_active(report):
+            row['guardian_url'] = request.build_absolute_uri(
+                reverse('attendance_guardian_sign', args=[report.guardian_token])
+            )
+            qr = io.BytesIO()
+            qrcode.make(row['guardian_url']).save(qr, format='PNG')
+            row['guardian_qr'] = base64.b64encode(qr.getvalue()).decode('ascii')
+        rows.append(row)
     return render(request, 'activities/attendance_folder_detail.html', {
         'folder': folder,
         'rows': rows,
     })
+
+
+@login_required
+@teacher_required
+@require_POST
+def attendance_report_guardian_invite(request, report_id):
+    report = get_object_or_404(AttendanceReport, id=report_id, folder__teacher=request.user, submitted_at__isnull=False)
+    if report.confirmed_at or report.guardian_signed_at:
+        messages.warning(request, '이미 보호자 서명 또는 교사 확정이 완료되었습니다.')
+    else:
+        report.guardian_token = secrets.token_urlsafe(32)
+        report.guardian_token_created_at = timezone.now()
+        report.save(update_fields=['guardian_token', 'guardian_token_created_at'])
+        messages.success(request, '보호자 서명 QR을 만들었습니다. 내용을 확인한 뒤 보호자에게 전달해 주세요.')
+    return redirect(f"{reverse('attendance_folder_detail', args=[report.folder_id])}#report-{report.id}")
+
+
+@require_http_methods(['GET', 'POST'])
+def attendance_guardian_sign(request, token):
+    report = AttendanceReport.objects.select_related('folder', 'student').filter(
+        guardian_token=token, submitted_at__isnull=False,
+    ).first()
+    if not report or not _guardian_link_is_active(report):
+        return render(request, 'activities/attendance_guardian_sign.html', {'expired': True}, status=410)
+    if request.method == 'POST':
+        guardian_name = request.POST.get('guardian_name', '').strip()
+        signature_data = request.POST.get('guardian_signature_data', '').strip()
+        if not guardian_name or len(guardian_name) > 100:
+            messages.error(request, '보호자 성명을 입력해 주세요.')
+        elif not _valid_signature_data(signature_data):
+            messages.error(request, '보호자 서명을 손가락이나 펜으로 작성해 주세요.')
+        else:
+            updated = AttendanceReport.objects.filter(
+                id=report.id, guardian_token=token,
+                guardian_signed_at__isnull=True, confirmed_at__isnull=True,
+                guardian_token_created_at__gt=timezone.now() - GUARDIAN_LINK_LIFETIME,
+            ).update(
+                guardian_signature=guardian_name, guardian_signature_data=signature_data,
+                guardian_signed_at=timezone.now(), guardian_token=None, guardian_token_created_at=None,
+            )
+            if updated:
+                return redirect('attendance_guardian_complete')
+            return render(request, 'activities/attendance_guardian_sign.html', {'expired': True}, status=410)
+    return render(request, 'activities/attendance_guardian_sign.html', {'report': report})
+
+
+@require_http_methods(['GET'])
+def attendance_guardian_complete(request):
+    return render(request, 'activities/attendance_guardian_complete.html')
+
+
+@login_required
+@teacher_required
+@require_POST
+def attendance_report_confirm(request, report_id):
+    report = get_object_or_404(AttendanceReport, id=report_id, folder__teacher=request.user, submitted_at__isnull=False)
+    if not report.guardian_signed_at:
+        messages.error(request, '보호자 서명 후 확정할 수 있습니다.')
+    elif not report.confirmed_at:
+        report.confirmed_at = timezone.now()
+        report.save(update_fields=['confirmed_at'])
+        messages.success(request, '출결 신고서를 확정했습니다. 학생 수정이 차단됩니다.')
+    return redirect(f"{reverse('attendance_folder_detail', args=[report.folder_id])}#report-{report.id}")
 
 
 @login_required
@@ -162,28 +267,30 @@ def student_attendance_report(request, folder_id):
         messages.warning(request, '현재 출결 신고서 운영 기간이 아닙니다.')
         return redirect('dashboard')
     report = AttendanceReport.objects.filter(folder=folder, student=student).first()
-    locked = bool(report and report.submitted_at and not folder.allow_edit_after_submission)
+    locked = bool(report and (report.confirmed_at or (report.submitted_at and not folder.allow_edit_after_submission)))
 
     if request.method == 'POST':
         if locked:
             messages.warning(request, '이 출결 신고서는 제출 후 수정할 수 없습니다.')
             return redirect('student_attendance_report', folder_id=folder.id)
 
-        attendance_type = request.POST.get('attendance_type', '')
-        start_date = request.POST.get('start_date', '')
+        category = request.POST.get('attendance_category', '')
+        kind = request.POST.get('attendance_kind', '')
+        attendance_type = f'{category}_{kind}'
+        start_date = request.POST.get('start_date', '') if kind == 'ABSENCE' else request.POST.get('single_date', '')
         end_date = request.POST.get('end_date', '')
         start_period = request.POST.get('start_period', '')
         end_period = request.POST.get('end_period', '')
         reason = request.POST.get('reason', '').strip()
         written_date = request.POST.get('written_date', '')
-        student_signature = request.POST.get('student_signature', '').strip()
-        guardian_signature = request.POST.get('guardian_signature', '').strip()
+        student_signature = student.name
+        student_signature_data = request.POST.get('student_signature_data', '').strip()
         errors = []
 
         valid_types = {value for value, _label in AttendanceReport.AttendanceType.choices}
         valid_periods = {value for value, _label in AttendanceReport.Period.choices}
-        if attendance_type not in valid_types:
-            errors.append('출결명을 선택해 주세요.')
+        if category not in dict(ATTENDANCE_CATEGORIES) or kind not in dict(ATTENDANCE_KINDS) or attendance_type not in valid_types:
+            errors.append('출결 구분과 종류를 각각 선택해 주세요.')
         try:
             parsed_start_date = date.fromisoformat(start_date)
         except ValueError:
@@ -196,7 +303,7 @@ def student_attendance_report(request, folder_id):
             errors.append('작성 날짜를 선택해 주세요.')
 
         parsed_end_date = None
-        if attendance_type == AttendanceReport.AttendanceType.SICK_ABSENCE:
+        if kind == 'ABSENCE':
             try:
                 parsed_end_date = date.fromisoformat(end_date)
             except ValueError:
@@ -213,10 +320,8 @@ def student_attendance_report(request, folder_id):
 
         if not reason:
             errors.append('출결 사유를 입력해 주세요.')
-        if not student_signature:
-            errors.append('학생 서명을 입력해 주세요.')
-        if not guardian_signature:
-            errors.append('보호자 서명을 입력해 주세요.')
+        if not _valid_signature_data(student_signature_data):
+            errors.append('학생 서명을 손가락이나 펜으로 작성해 주세요.')
 
         if not errors:
             report = report or AttendanceReport(folder=folder, student=student)
@@ -228,7 +333,13 @@ def student_attendance_report(request, folder_id):
             report.reason = reason
             report.written_date = parsed_written_date
             report.student_signature = student_signature
-            report.guardian_signature = guardian_signature
+            report.student_signature_data = student_signature_data
+            # Editing a submitted report requires a fresh teacher review and guardian signature.
+            report.guardian_signature = ''
+            report.guardian_signature_data = ''
+            report.guardian_signed_at = None
+            report.guardian_token = None
+            report.guardian_token_created_at = None
             report.submitted_at = timezone.now()
             report.save()
             messages.success(request, '출결 확인 신고서를 제출했습니다.')
@@ -246,7 +357,10 @@ def student_attendance_report(request, folder_id):
         'report': report,
         'locked': locked,
         'form_values': form_values,
-        'attendance_types': AttendanceReport.AttendanceType.choices,
+        'attendance_categories': ATTENDANCE_CATEGORIES,
+        'attendance_kinds': ATTENDANCE_KINDS,
+        'selected_category': form_values.get('attendance_category', '') if form_values else report.attendance_category if report else '',
+        'selected_kind': form_values.get('attendance_kind', '') if form_values else report.attendance_kind if report else '',
         'period_choices': AttendanceReport.Period.choices,
         'today': timezone.localdate(),
     })

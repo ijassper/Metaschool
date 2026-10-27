@@ -840,6 +840,14 @@ class AttendanceReport(models.Model):
         SICK_RESULT = 'SICK_RESULT', '질병결과'
         SICK_LEAVE = 'SICK_LEAVE', '질병조퇴'
         SICK_ABSENCE = 'SICK_ABSENCE', '질병결석'
+        RECOGNIZED_TARDY = 'RECOGNIZED_TARDY', '인정지각'
+        RECOGNIZED_RESULT = 'RECOGNIZED_RESULT', '인정결과'
+        RECOGNIZED_LEAVE = 'RECOGNIZED_LEAVE', '인정조퇴'
+        RECOGNIZED_ABSENCE = 'RECOGNIZED_ABSENCE', '인정결석'
+        UNEXCUSED_TARDY = 'UNEXCUSED_TARDY', '미인정지각'
+        UNEXCUSED_RESULT = 'UNEXCUSED_RESULT', '미인정결과'
+        UNEXCUSED_LEAVE = 'UNEXCUSED_LEAVE', '미인정조퇴'
+        UNEXCUSED_ABSENCE = 'UNEXCUSED_ABSENCE', '미인정결석'
 
     class Period(models.TextChoices):
         HOMEROOM = 'HOMEROOM', '조회'
@@ -888,8 +896,14 @@ class AttendanceReport(models.Model):
     )
     reason = models.TextField(max_length=1000, verbose_name='출결 사유')
     written_date = models.DateField(verbose_name='작성 날짜')
-    student_signature = models.CharField(max_length=100, verbose_name='학생 서명')
-    guardian_signature = models.CharField(max_length=100, verbose_name='보호자 서명')
+    student_signature = models.CharField(max_length=100, verbose_name='학생 성명')
+    student_signature_data = models.TextField(blank=True, default='', verbose_name='학생 필기 서명')
+    guardian_signature = models.CharField(max_length=100, blank=True, default='', verbose_name='보호자 성명')
+    guardian_signature_data = models.TextField(blank=True, default='', verbose_name='보호자 필기 서명')
+    guardian_token = models.CharField(max_length=64, null=True, blank=True, unique=True, verbose_name='보호자 서명 링크 토큰')
+    guardian_token_created_at = models.DateTimeField(null=True, blank=True, verbose_name='보호자 서명 링크 발급 시각')
+    guardian_signed_at = models.DateTimeField(null=True, blank=True, verbose_name='보호자 서명 시각')
+    confirmed_at = models.DateTimeField(null=True, blank=True, verbose_name='교사 확정 시각')
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name='제출 시각')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -916,6 +930,18 @@ class AttendanceReport(models.Model):
         if not self.end_date:
             return 1
         return max((self.end_date - self.start_date).days + 1, 1)
+
+    @property
+    def is_absence(self):
+        return self.attendance_type.endswith('_ABSENCE')
+
+    @property
+    def attendance_category(self):
+        return self.attendance_type.rsplit('_', 1)[0]
+
+    @property
+    def attendance_kind(self):
+        return self.attendance_type.rsplit('_', 1)[-1]
 
     @property
     def can_edit(self):
