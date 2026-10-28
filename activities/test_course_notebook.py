@@ -204,6 +204,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertLess(student_status_source.index('class="summary-pills"'), student_status_source.index('class="all-pdf"'))
         self.assertIn('class="student-note-head-actions"', student_status_source)
         self.assertLess(teacher_page_source.index('class="reader-strip"'), teacher_page_source.index('class="reader-stage"'))
+        self.assertLess(teacher_page_source.index('이 단원 PDF'), teacher_page_source.index('class="reader-student-nav" aria-label="작성 학생 이동"'))
         self.assertLess(teacher_page_source.index('class="reader-stage"'), teacher_page_source.index('class="reader-footer"'))
         self.assertNotIn('class="reader-side', teacher_page_source)
         self.assertNotIn('<span>{{ current_number }} / {{ pages|length }}</span>', teacher_page_source)
