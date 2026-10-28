@@ -15,6 +15,7 @@ from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_http_methods, require_POST
 
 from accounts.decorators import teacher_required
@@ -31,6 +32,13 @@ from .main_views import get_accessible_student_ids, get_student_tree
 
 MATERIAL_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'}
 MATERIAL_MAX_SIZE = 25 * 1024 * 1024
+
+
+def _parse_notebook_date(value):
+    try:
+        return parse_date(value)
+    except ValueError:
+        return None
 PHOTO_ROTATIONS = {'0': 0, '90': 90, '180': 180, '270': 270}
 
 
@@ -323,6 +331,10 @@ def course_notebook_submission_status(request, notebook_id):
     class_filter = request.GET.get('class_no', '').strip()
     status_filter = request.GET.get('status', '').strip()
     search_query = request.GET.get('q', '').strip()
+    view_mode = 'date' if request.GET.get('view') == 'date' else 'student'
+    date_filter = request.GET.get('note_date', '').strip()
+    if date_filter and _parse_notebook_date(date_filter) is None:
+        date_filter = ''
 
     students = all_students.annotate(
         notebook_page_count=Count(
@@ -394,10 +406,24 @@ def course_notebook_submission_status(request, notebook_id):
     )
     total_students = all_students.count()
     submitted_students = page_summary['submitted_student_count'] or 0
+    dated_pages = list(CourseNotebookPage.objects.filter(
+        notebook=notebook, student_id__in=student_ids,
+    ).select_related('student', 'section').order_by('-created_at', '-id')) if view_mode == 'date' else []
+    if date_filter:
+        dated_pages = [page for page in dated_pages if timezone.localtime(page.created_at).date() == _parse_notebook_date(date_filter)]
+    date_groups = []
+    for page in dated_pages:
+        display_date = timezone.localtime(page.created_at).date()
+        if not date_groups or date_groups[-1]['date'] != display_date:
+            date_groups.append({'date': display_date, 'pages': []})
+        date_groups[-1]['pages'].append(page)
     return render(request, 'activities/course_notebook_submission_status.html', {
         'notebook': notebook,
         'sections': sections,
         'student_rows': student_rows,
+        'view_mode': view_mode,
+        'date_filter': date_filter,
+        'date_groups': date_groups,
         'grade_options': grade_options,
         'class_options': class_options,
         'filters': {
@@ -430,7 +456,13 @@ def course_notebook_student_status(request, notebook_id, student_id):
     pages = list(CourseNotebookPage.objects.filter(
         notebook=notebook,
         student=student,
-    ).select_related('section').order_by('-created_at', '-id'))
+    ).select_related('section').order_by('section__position', 'sort_order', 'created_at', 'id'))
+    student_ids_with_pages = list(notebook.target_students.filter(
+        course_notebook_pages__notebook=notebook,
+    ).distinct().order_by('grade', 'class_no', 'number', 'name', 'id').values_list('id', flat=True))
+    student_index = student_ids_with_pages.index(student.id) if student.id in student_ids_with_pages else -1
+    previous_student_id = student_ids_with_pages[student_index - 1] if student_index > 0 else None
+    next_student_id = student_ids_with_pages[student_index + 1] if 0 <= student_index < len(student_ids_with_pages) - 1 else None
     pages_by_section = {}
     unassigned_pages = []
     for page in pages:
@@ -456,7 +488,9 @@ def course_notebook_student_status(request, notebook_id, student_id):
         'unassigned_pages': unassigned_pages,
         'total_page_count': len(pages),
         'written_section_count': sum(bool(item['pages']) for item in section_items),
-        'last_created_at': pages[0].created_at if pages else None,
+        'last_created_at': max((page.created_at for page in pages), default=None),
+        'previous_student_id': previous_student_id,
+        'next_student_id': next_student_id,
     })
 
 
@@ -472,13 +506,21 @@ def course_notebook_teacher_page(request, notebook_id, student_id, page_id):
     )
     pages = list(CourseNotebookPage.objects.filter(
         notebook=notebook, student=student, section_id=page.section_id,
-    ).order_by('created_at', 'id'))
+    ).order_by('sort_order', 'created_at', 'id'))
     index = next(index for index, item in enumerate(pages) if item.id == page.id)
+    student_ids_with_pages = list(notebook.target_students.filter(
+        course_notebook_pages__notebook=notebook,
+    ).distinct().order_by('grade', 'class_no', 'number', 'name', 'id').values_list('id', flat=True))
+    student_index = student_ids_with_pages.index(student.id)
     return render(request, 'activities/course_notebook_teacher_page.html', {
         'notebook': notebook, 'student': student, 'page': page,
         'pages': pages, 'current_number': index + 1,
         'previous_page': pages[index - 1] if index else None,
         'next_page': pages[index + 1] if index + 1 < len(pages) else None,
+        'previous_student_id': student_ids_with_pages[student_index - 1] if student_index else None,
+        'next_student_id': student_ids_with_pages[student_index + 1] if student_index + 1 < len(student_ids_with_pages) else None,
+        'from_date': request.GET.get('from') == 'date',
+        'date_filter': request.GET.get('note_date', '') if _parse_notebook_date(request.GET.get('note_date', '')) else '',
     })
 
 
@@ -522,7 +564,7 @@ def course_notebook_teacher_pdf(request, notebook_id, student_id):
             list(notebook.sections.all()), int(section_id),
         ))
     return _course_notebook_pdf_response(
-        list(pages.order_by('created_at', 'id')),
+        list(pages.order_by('section__position', 'sort_order', 'created_at', 'id')),
         title=f'{notebook.title} - {student.name}',
         filename=f'course-notebook-{notebook.id}-student-{student.id}'
                  f'{"-section-" + section_id if section_id else ""}.pdf',
@@ -713,6 +755,8 @@ def student_course_notebook(request, notebook_id):
             raise Http404
     if request.method == 'POST':
         uploads = request.FILES.getlist('image')
+        date_value = request.POST.get('note_date', '').strip()
+        note_date = _parse_notebook_date(date_value) if date_value else timezone.localdate()
         rotation_values = request.POST.getlist('photo_rotation')
         native_document_scan = (
             request.POST.get('native_document_scan') == '1'
@@ -731,6 +775,8 @@ def student_course_notebook(request, notebook_id):
             messages.error(request, '사진 한 장의 크기는 12MB 이하여야 합니다.')
         elif len(memo) > 200:
             messages.error(request, '메모는 200자 이내로 입력해 주세요.')
+        elif note_date is None:
+            messages.error(request, '노트 날짜를 확인해 주세요.')
         elif sections and not active_section:
             messages.error(request, '목차에서 노트를 저장할 단원을 선택해 주세요.')
         else:
@@ -746,10 +792,14 @@ def student_course_notebook(request, notebook_id):
                 prepared_uploads = None
             if prepared_uploads is not None:
                 with transaction.atomic():
+                    CourseNotebook.objects.select_for_update().get(pk=notebook.pk)
+                    last_order = CourseNotebookPage.objects.filter(
+                        notebook=notebook, student=student, section=active_section,
+                    ).aggregate(last=Max('sort_order'))['last'] or 0
                     created_pages = [CourseNotebookPage.objects.create(
                         notebook=notebook, student=student, section=active_section,
-                        image=uploaded, memo=memo,
-                    ) for uploaded in prepared_uploads]
+                        image=uploaded, memo=memo, note_date=note_date, sort_order=last_order + index,
+                    ) for index, uploaded in enumerate(prepared_uploads, start=1)]
                     if native_document_scan:
                         for page in created_pages:
                             accept_native_document_scan(page)
@@ -757,7 +807,7 @@ def student_course_notebook(request, notebook_id):
                 page_url = reverse('student_course_notebook_page', args=[created_pages[0].id])
                 return redirect(f'{page_url}?uploaded={len(created_pages)}')
 
-    all_pages = list(notebook.pages.filter(student=student).select_related('section'))
+    all_pages = list(notebook.pages.filter(student=student).select_related('section').order_by('sort_order', 'created_at', 'id'))
     common_context = {
         'notebook': notebook,
         'student': student,
@@ -793,6 +843,40 @@ def student_course_notebook(request, notebook_id):
     })
 
 
+@login_required
+@require_POST
+def student_course_notebook_reorder(request, notebook_id):
+    if getattr(request.user, 'role', None) != 'STUDENT':
+        raise Http404
+    student = _student_profile_for(request.user)
+    notebook = get_object_or_404(CourseNotebook, id=notebook_id, target_students=student, is_archived=False)
+    try:
+        payload = json.loads(request.body)
+        page_ids = payload['page_ids']
+        section_id = payload.get('section_id')
+    except (ValueError, TypeError, KeyError):
+        return JsonResponse({'message': '순서 정보를 확인해 주세요.'}, status=400)
+    if not isinstance(page_ids, list) or not page_ids or any(type(value) is not int for value in page_ids) or len(set(page_ids)) != len(page_ids):
+        return JsonResponse({'message': '순서 정보를 확인해 주세요.'}, status=400)
+    if section_id != 'general':
+        if type(section_id) is not int or not notebook.sections.filter(id=section_id).exists():
+            return JsonResponse({'message': '단원 정보를 확인해 주세요.'}, status=400)
+    else:
+        section_id = None
+    with transaction.atomic():
+        CourseNotebook.objects.select_for_update().get(pk=notebook.pk)
+        pages = list(CourseNotebookPage.objects.filter(
+            notebook=notebook, student=student, section_id=section_id,
+        ))
+        if len(pages) != len(page_ids) or {page.id for page in pages} != set(page_ids):
+            return JsonResponse({'message': '이 단원의 페이지 목록이 변경되었습니다. 새로고침해 주세요.'}, status=409)
+        by_id = {page.id: page for page in pages}
+        for position, page_id in enumerate(page_ids, start=1):
+            by_id[page_id].sort_order = position
+        CourseNotebookPage.objects.bulk_update(pages, ['sort_order'])
+    return JsonResponse({'message': '노트 순서를 저장했습니다.'})
+
+
 def _student_notebook_page(user, page_id):
     if getattr(user, 'role', None) != 'STUDENT':
         raise Http404
@@ -819,7 +903,7 @@ def student_course_notebook_page(request, page_id):
     ).prefetch_related('sticky_notes').get(id=page.id)
     archive_pages = list(CourseNotebookPage.objects.filter(
         notebook=page.notebook, student=page.student, section_id=page.section_id,
-    ).select_related('section').order_by('created_at', 'id'))
+    ).select_related('section').order_by('sort_order', 'created_at', 'id'))
     current_index = next(index for index, item in enumerate(archive_pages) if item.id == page.id)
     try:
         uploaded_count = int(request.GET.get('uploaded', '0'))
@@ -863,12 +947,16 @@ def student_course_notebook_page_edit(request, page_id):
             return redirect(f"{reverse('student_course_notebook', args=[notebook_id])}?section={section_value}#sectionNotes")
 
         memo = request.POST.get('memo', '').strip()
+        date_value = request.POST.get('note_date', '').strip()
+        note_date = _parse_notebook_date(date_value) if date_value else (page.note_date or timezone.localdate())
         uploaded = request.FILES.get('image')
         rotation_value = request.POST.get('photo_rotation', '0')
         requested_section = request.POST.get('section', '')
         section = next((item for item in sections if str(item.id) == requested_section), None)
         if len(memo) > 200:
             messages.error(request, '노트 페이지 제목은 200자 이내로 입력해 주세요.')
+        elif note_date is None:
+            messages.error(request, '노트 날짜를 확인해 주세요.')
         elif sections and section is None:
             messages.error(request, '노트를 저장할 단원을 선택해 주세요.')
         elif uploaded and not (getattr(uploaded, 'content_type', '') or '').startswith('image/'):
@@ -907,7 +995,13 @@ def student_course_notebook_page_edit(request, page_id):
                 page.ocr_usage = {}
                 page.ocr_processed_at = None
             page.memo = memo
+            page.note_date = note_date
             if sections:
+                if page.section_id != section.id:
+                    last_order = CourseNotebookPage.objects.filter(
+                        notebook=page.notebook, student=page.student, section=section,
+                    ).aggregate(last=Max('sort_order'))['last'] or 0
+                    page.sort_order = last_order + 1
                 page.section = section
             with transaction.atomic():
                 page.save()
@@ -938,7 +1032,7 @@ def course_notebook_archive_pdf(request, notebook_id):
     )
     pages = list(CourseNotebookPage.objects.filter(
         notebook=notebook, student=student,
-    ).order_by('created_at', 'id'))
+    ).order_by('section__position', 'sort_order', 'created_at', 'id'))
     return _course_notebook_pdf_response(
         pages, title=notebook.title, filename=f'course-notebook-{notebook.id}.pdf',
     )

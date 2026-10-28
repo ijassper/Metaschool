@@ -1043,6 +1043,8 @@ class CourseNotebookPage(models.Model):
     ocr_processed_at = models.DateTimeField(null=True, blank=True, verbose_name='OCR 처리 시각')
     source_hash = models.CharField(max_length=64, blank=True, db_index=True, verbose_name='원본 이미지 해시')
     processing_version = models.PositiveSmallIntegerField(default=1, verbose_name='처리 버전')
+    note_date = models.DateField(null=True, blank=True, db_index=True, verbose_name='노트 날짜')
+    sort_order = models.PositiveIntegerField(null=True, blank=True, verbose_name='단원 내 순서')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

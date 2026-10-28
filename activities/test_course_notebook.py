@@ -9,6 +9,7 @@ from unittest.mock import patch
 from pathlib import Path
 import json
 import io
+from datetime import datetime
 
 from PIL import Image
 
@@ -206,8 +207,12 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertLess(teacher_page_source.index('class="reader-stage"'), teacher_page_source.index('class="reader-footer"'))
         self.assertNotIn('class="reader-side', teacher_page_source)
         self.assertNotIn('<span>{{ current_number }} / {{ pages|length }}</span>', teacher_page_source)
-        for heading in ['학년', '반', '번호', '이름', '상태', '최근 작성일', '전체 장수', '단원별 장수']:
+        for heading in ['학년', '반', '번호', '이름', '상태', '최근 작성일', '전체 장수', '단원별 장수 · 열람']:
             self.assertIn(f'<th>{heading}</th>', submission_source)
+        self.assertIn('날짜별 보기', submission_source)
+        self.assertIn('이전 학생', student_status_source)
+        self.assertIn('name="note_date"', section_source)
+        self.assertIn('sortableNotePages', section_source)
         self.assertIn('border-bottom:1px solid #f0ebf2;vertical-align:top', submission_source)
         self.assertIn('.tree-children.is-leaf-row{display:flex;flex-wrap:wrap', submission_source)
         self.assertIn('{% if node.all_leaf_children %} is-leaf-row{% endif %}', tree_source)
@@ -529,6 +534,35 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         self.assertEqual(response.context['total_page_count'], 1)
         self.assertContains(response, '김작성 학생의 수업 노트')
 
+    def test_teacher_can_browse_notes_by_date_and_move_to_next_student(self):
+        first = CourseNotebookPage.objects.get(student=self.submitted_student)
+        first.note_date = '2026-10-22'
+        first.save(update_fields=['note_date'])
+        CourseNotebookPage.objects.filter(id=first.id).update(
+            created_at=timezone.make_aware(datetime(2026, 10, 22, 12, 0)),
+        )
+        second = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.empty_student, section=self.section,
+            image='course_notebooks/second.jpg', note_date='2026-10-23', sort_order=1,
+        )
+        CourseNotebookPage.objects.filter(id=second.id).update(
+            created_at=timezone.make_aware(datetime(2026, 10, 23, 12, 0)),
+        )
+        response = self.client.get(reverse('course_notebook_submission_status', args=[self.notebook.id]), {
+            'view': 'date', 'note_date': '2026-10-22',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['date_groups']), 1)
+        self.assertEqual([page.id for page in response.context['date_groups'][0]['pages']], [first.id])
+        self.assertContains(response, '김작성')
+        self.assertNotContains(response, '이미작성')
+
+        response = self.client.get(reverse('course_notebook_student_status', args=[
+            self.notebook.id, self.submitted_student.id,
+        ]))
+        self.assertEqual(response.context['next_student_id'], self.empty_student.id)
+        self.assertContains(response, '다음 학생')
+
     def test_other_teacher_cannot_open_submission_status(self):
         self.client.force_login(self.other_teacher)
 
@@ -635,6 +669,49 @@ class CourseNotebookStudentUploadTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '목차에서 노트를 저장할 단원을 선택해 주세요.')
         self.assertEqual(CourseNotebookPage.objects.count(), 0)
+
+    def test_upload_date_and_reorder_are_saved_and_scope_checked(self):
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
+            with patch('activities.views.course_notebook_views._rotated_notebook_image', side_effect=lambda image, rotation: image):
+                for index in range(2):
+                    response = self.client.post(
+                        reverse('student_course_notebook', args=[self.notebook.id]) + f'?section={self.section.id}',
+                        {'image': SimpleUploadedFile(f'note{index}.jpg', b'image', content_type='image/jpeg'),
+                         'memo': f'노트 {index}', 'note_date': '2026-10-20'},
+                    )
+                    self.assertEqual(response.status_code, 302)
+        pages = list(CourseNotebookPage.objects.filter(student=self.student).order_by('sort_order'))
+        self.assertEqual([page.sort_order for page in pages], [1, 2])
+        self.assertEqual([page.note_date.isoformat() for page in pages], ['2026-10-20', '2026-10-20'])
+        url = reverse('student_course_notebook_reorder', args=[self.notebook.id])
+        payload = {'section_id': self.section.id, 'page_ids': [pages[1].id, pages[0].id]}
+        response = self.client.post(url, data=json.dumps(payload), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(CourseNotebookPage.objects.filter(student=self.student).order_by('sort_order').values_list('id', flat=True)), payload['page_ids'])
+        self.assertEqual(self.client.post(url, data=json.dumps({'section_id': self.section.id, 'page_ids': [pages[0].id]}), content_type='application/json').status_code, 409)
+        self.assertEqual(self.client.post(url, data=json.dumps({'section_id': self.section.id, 'page_ids': [pages[0].id, 999999]}), content_type='application/json').status_code, 409)
+        self.client.force_login(self.teacher)
+        self.assertEqual(self.client.post(url, data=json.dumps(payload), content_type='application/json').status_code, 404)
+
+    def test_editing_note_date_updates_display_date_without_changing_upload_time(self):
+        page = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.student, section=self.section,
+            image='course_notebooks/date.jpg', note_date='2026-10-20', sort_order=1,
+        )
+        uploaded_at = page.created_at
+        response = self.client.post(reverse('student_course_notebook_page_edit', args=[page.id]), {
+            'action': 'save', 'section': str(self.section.id), 'note_date': '2026-10-21',
+        })
+        self.assertEqual(response.status_code, 302)
+        page.refresh_from_db()
+        self.assertEqual(page.note_date.isoformat(), '2026-10-21')
+        self.assertEqual(page.created_at, uploaded_at)
+        response = self.client.post(reverse('student_course_notebook_page_edit', args=[page.id]), {
+            'action': 'save', 'section': str(self.section.id), 'note_date': '2026-02-31',
+        })
+        self.assertContains(response, '노트 날짜를 확인해 주세요.')
+        page.refresh_from_db()
+        self.assertEqual(page.note_date.isoformat(), '2026-10-21')
 
     def test_rotated_upload_is_saved_with_rotated_dimensions(self):
         image = Image.new('RGB', (80, 40), 'white')

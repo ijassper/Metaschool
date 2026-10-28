@@ -1,0 +1,44 @@
+<script>
+(function(){
+ const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+ if(!csrf)return;
+ document.querySelectorAll('.sortable-note-list').forEach(list=>{
+  const status=list.nextElementSibling;
+  let dragging=null,changed=false,saving=false;
+  function renumber(){list.querySelectorAll('.note-page-number').forEach((number,index)=>{number.textContent=String(index+1);});}
+  async function save(){
+   if(!changed||saving)return;
+   saving=true;status.textContent='노트 순서를 저장하는 중...';
+   try{
+    const response=await fetch(list.dataset.reorderUrl,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},body:JSON.stringify({section_id:list.dataset.sectionId==='general'?'general':Number(list.dataset.sectionId),page_ids:Array.from(list.children,item=>Number(item.dataset.pageId))})});
+    if(!response.ok)throw new Error('저장하지 못했습니다.');
+    status.textContent='노트 순서를 저장했습니다.';
+   }catch(error){status.textContent='순서를 저장하지 못했습니다. 새로고침 후 다시 시도해 주세요.';}
+   finally{saving=false;changed=false;}
+  }
+  list.querySelectorAll('.page-drag-handle').forEach(handle=>{
+   handle.addEventListener('pointerdown',event=>{if(saving)return;dragging=handle.closest('.note-sort-item');changed=false;handle.setPointerCapture(event.pointerId);dragging.classList.add('is-dragging');event.preventDefault();});
+   handle.addEventListener('pointermove',event=>{
+    if(!dragging)return;
+    const target=document.elementFromPoint(event.clientX,event.clientY)?.closest('.note-sort-item');
+    if(!target||target===dragging||target.parentElement!==list)return;
+    const rect=target.getBoundingClientRect(),dragRect=dragging.getBoundingClientRect();
+    const sameRow=Math.abs(dragRect.top-rect.top)<rect.height/2;
+    const after=sameRow?event.clientX>rect.left+rect.width/2:event.clientY>rect.top+rect.height/2;
+    if(after)target.after(dragging);else target.before(dragging);
+    changed=true;renumber();
+   });
+   function finish(){if(!dragging)return;dragging.classList.remove('is-dragging');dragging=null;save();}
+   handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',finish);
+   handle.addEventListener('keydown',event=>{
+    if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)||saving)return;
+    event.preventDefault();
+    const item=handle.closest('.note-sort-item'),other=event.key==='ArrowLeft'||event.key==='ArrowUp'?item.previousElementSibling:item.nextElementSibling;
+    if(!other)return;
+    if(other===item.previousElementSibling)other.before(item);else other.after(item);
+    changed=true;renumber();save();handle.focus();
+   });
+  });
+ });
+})();
+</script>
