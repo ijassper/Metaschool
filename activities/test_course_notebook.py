@@ -207,8 +207,11 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertLess(teacher_page_source.index('class="reader-stage"'), teacher_page_source.index('class="reader-footer"'))
         self.assertNotIn('class="reader-side', teacher_page_source)
         self.assertNotIn('<span>{{ current_number }} / {{ pages|length }}</span>', teacher_page_source)
-        for heading in ['학년', '반', '번호', '이름', '상태', '최근 작성일', '전체 장수', '단원별 장수 · 열람']:
-            self.assertIn(f'<th>{heading}</th>', submission_source)
+        headings = ['학년', '반', '번호', '이름', '상태', '최근 작성일', '열람', '전체 장수', '단원별 장수']
+        header_row = submission_source.split('<thead><tr>', 1)[1].split('</tr></thead>', 1)[0]
+        self.assertEqual(header_row, ''.join(f'<th>{heading}</th>' for heading in headings))
+        self.assertIn('<td><a class="btn-student-notes"', submission_source)
+        self.assertLess(student_status_source.index('class="student-switch"'), student_status_source.index('class="all-pdf"'))
         self.assertIn('날짜별 보기', submission_source)
         self.assertIn('이전 학생', student_status_source)
         self.assertIn('name="note_date"', section_source)

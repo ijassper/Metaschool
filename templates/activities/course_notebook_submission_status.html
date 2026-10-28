@@ -16,8 +16,9 @@
 .status-table th:nth-child(4){width:7%}
 .status-table th:nth-child(5){width:6.5%}
 .status-table th:nth-child(6){width:10%}
-.status-table th:nth-child(7){width:5.5%}
-.status-table th:nth-child(8){width:60.6%;text-align:left}
+.status-table th:nth-child(7){width:7%}
+.status-table th:nth-child(8){width:5.5%}
+.status-table th:nth-child(9){width:53.6%;text-align:left}
 .status-table td{overflow-wrap:anywhere}
 .status-table .student-name{display:block}
 .status-table .latest-at{font-size:.75rem}
@@ -25,7 +26,7 @@
 .status-table .btn-student-notes{padding:5px 7px;font-size:.72rem;gap:3px}
 .status-table .section-cell{text-align:left}
 .section-cell-content{display:flex;align-items:flex-start;gap:8px;min-width:0}
-.section-cell-controls{flex:0 0 280px;white-space:nowrap;font-size:.75rem}
+.section-cell-controls{flex:0 0 200px;white-space:nowrap;font-size:.75rem}
 .section-toggle{display:inline-flex;align-items:center;gap:3px;margin-left:4px;border:0;background:#f5ecf8;color:#713985;border-radius:7px;padding:4px 6px;font-weight:800;font-size:.72rem;white-space:nowrap}
 .section-toggle[aria-expanded="true"]{background:#9148aa;color:#fff}
 .section-tree[hidden]{display:none}
@@ -41,7 +42,7 @@
 .tree-own{font-size:.68rem;color:#8b7d8f;margin:3px 0 0 3px}
 .status-table-wrap{overflow-x:auto}
 /* 밀도 축소용 글자 크기를 일반 서브페이지의 본문 크기로 복원 */
-.back-link{font-size:1rem}.submission-kicker{font-size:.82rem}.notebook-meta{font-size:1rem}.edit-link{font-size:.95rem}.summary-card{min-height:68px;padding:10px 12px}.summary-label{font-size:.9rem}.summary-value{font-size:1.35rem}.summary-value small{font-size:.85rem}.filter-field label{font-size:.95rem}.filter-field .form-select,.filter-field .form-control,.btn-filter{font-size:1rem}.filter-result{font-size:.95rem}.status-table{min-width:1400px;font-size:1rem}.status-table th{font-size:.92rem}.status-table .latest-at{font-size:.9rem}.status-table .submission-badge{padding:5px 8px;font-size:.88rem}.status-table .btn-student-notes{padding:6px 9px;font-size:.9rem}.section-cell-controls{flex-basis:310px;font-size:.9rem}.section-toggle{padding:5px 8px;font-size:.85rem}.tree-label{gap:5px;font-size:.92rem;line-height:1.4}.tree-count{padding:2px 6px;font-size:.82rem}.tree-own{font-size:.82rem}
+.back-link{font-size:1rem}.submission-kicker{font-size:.82rem}.notebook-meta{font-size:1rem}.edit-link{font-size:.95rem}.summary-card{min-height:68px;padding:10px 12px}.summary-label{font-size:.9rem}.summary-value{font-size:1.35rem}.summary-value small{font-size:.85rem}.filter-field label{font-size:.95rem}.filter-field .form-select,.filter-field .form-control,.btn-filter{font-size:1rem}.filter-result{font-size:.95rem}.status-table{min-width:1400px;font-size:1rem}.status-table th{font-size:.92rem}.status-table .latest-at{font-size:.9rem}.status-table .submission-badge{padding:5px 8px;font-size:.88rem}.status-table .btn-student-notes{padding:6px 9px;font-size:.9rem}.section-cell-controls{flex-basis:220px;font-size:.9rem}.section-toggle{padding:5px 8px;font-size:.85rem}.tree-label{gap:5px;font-size:.92rem;line-height:1.4}.tree-count{padding:2px 6px;font-size:.82rem}.tree-own{font-size:.82rem}
 .view-tabs{display:flex;gap:7px;margin:0 0 10px}.view-tab{padding:7px 13px;border:1px solid #decfe4;border-radius:10px;background:#fff;color:#713985;text-decoration:none;font-weight:800}.view-tab.active{background:#9148aa;color:#fff}.date-filter{margin:0 0 10px}.date-filter input{max-width:210px}.date-group{margin-bottom:14px;padding:14px;border:1px solid #e7dfeb;border-radius:16px;background:#fff}.date-group h3{font-size:1.06rem;font-weight:850}.date-page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}.date-page{display:block;padding:8px;border:1px solid #e7dfeb;border-radius:12px;color:#3a303e;text-decoration:none}.date-page img{display:block;width:100%;height:180px;object-fit:contain;background:#f5f1f7}.date-page strong,.date-page span{display:block;margin-top:5px;font-size:.82rem}
 .filter-panel.date-mode .filter-grid{grid-template-columns:140px 140px 170px minmax(220px,1fr) 170px auto}.date-filter{margin:0}.date-filter input{max-width:none}@media(max-width:1100px){.filter-panel.date-mode .filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:620px){.filter-panel.date-mode .filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
@@ -85,20 +86,20 @@
   <section class="status-table-wrap">
     {% if student_rows %}
     <table class="table status-table">
-      <thead><tr><th>학년</th><th>반</th><th>번호</th><th>이름</th><th>상태</th><th>최근 작성일</th><th>전체 장수</th><th>단원별 장수 · 열람</th></tr></thead>
+      <thead><tr><th>학년</th><th>반</th><th>번호</th><th>이름</th><th>상태</th><th>최근 작성일</th><th>열람</th><th>전체 장수</th><th>단원별 장수</th></tr></thead>
       <tbody>
       {% for row in student_rows %}
         <tr>
           <td>{{ row.student.grade }}</td><td>{{ row.student.class_no }}</td><td>{{ row.student.number }}</td><td><span class="student-name">{{ row.student.name }}</span></td>
           <td>{% if row.page_count %}<span class="submission-badge">작성</span>{% else %}<span class="submission-badge empty">미작성</span>{% endif %}</td>
           <td class="latest-at">{% if row.last_created_at %}{{ row.last_created_at|date:'Y.m.d H:i' }}{% else %}-{% endif %}</td>
+          <td><a class="btn-student-notes" href="{% url 'course_notebook_student_status' notebook.id row.student.id %}"><i class="bi bi-images"></i>노트 보기</a></td>
           <td><span class="count-strong">{{ row.page_count }}</span>장</td>
           <td class="section-cell">
             <div class="section-cell-content">
               <div class="section-cell-controls">
                 <strong>{{ row.written_section_count }}</strong> / {{ sections|length }}개 단원
                 {% if sections %}<button class="section-toggle" type="button" aria-expanded="false" aria-controls="section-breakdown-{{ row.student.id }}">장수 보기 <i class="bi bi-chevron-down"></i></button>{% endif %}
-                <a class="btn-student-notes" href="{% url 'course_notebook_student_status' notebook.id row.student.id %}"><i class="bi bi-images"></i>노트 보기</a>
               </div>
               {% if sections %}<div class="section-tree" id="section-breakdown-{{ row.student.id }}" aria-label="{{ row.student.name }} 학생 단원별 장수" hidden>{% include 'activities/course_notebook_section_tree_nodes.html' with nodes=row.section_tree %}</div>{% endif %}
             </div>
