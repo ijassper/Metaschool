@@ -20,7 +20,7 @@
  document.getElementById('reportPreviewModal').addEventListener('show.bs.modal', function (event) {
   const button = event.relatedTarget;
   this.querySelector('#reportPreviewTitle').textContent = button.dataset.studentName + ' 학생 신고서';
-  this.querySelector('iframe').src = button.dataset.reportUrl;
+  this.querySelector('iframe').src = button.dataset.reportUrl + '?popup=1';
  });
  document.getElementById('reportPreviewModal').addEventListener('hidden.bs.modal', function () {
   this.querySelector('iframe').removeAttribute('src');

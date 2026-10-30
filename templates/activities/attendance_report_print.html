@@ -21,7 +21,7 @@
   .approval .approval-label{width:8mm;border-left:0;letter-spacing:.1em}
   .approval tr>*:last-child{border-right:0}
   .approval .signature-space{height:14mm}
-  .student-meta{margin:5mm 0 4mm auto;width:max-content;min-width:53mm;font-size:9.5pt;line-height:1.7}
+  .student-meta{margin:5mm 0 4mm auto;width:max-content;min-width:53mm;font-size:11.5pt;line-height:1.7}
   .student-meta div{white-space:nowrap}
   .declaration{margin:0 0 3mm}
   table{border-collapse:collapse}
@@ -58,7 +58,7 @@
 </head>
 <body>
  <div class="toolbar">
-  {% if is_student %}<a href="{% url 'dashboard' %}#student-activities">학생 대시보드</a>{% else %}<a href="{% url 'attendance_folder_detail' report.folder_id %}">제출 현황</a>{% endif %}
+  {% if is_student %}<a href="{% url 'dashboard' %}#student-activities">학생 대시보드</a>{% elif not is_popup %}<a href="{% url 'attendance_folder_detail' report.folder_id %}">제출 현황</a>{% endif %}
   {% if can_student_edit %}<a class="edit-link" href="{% url 'student_attendance_report' report.folder_id %}?edit=1">신고서 수정</a>{% endif %}
   <button type="button" onclick="window.print()">인쇄 / PDF 저장</button>
  </div>

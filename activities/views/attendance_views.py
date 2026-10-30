@@ -406,5 +406,6 @@ def attendance_report_print(request, report_id):
     return render(request, 'activities/attendance_report_print.html', {
         'report': report,
         'is_student': is_student,
+        'is_popup': request.GET.get('popup') == '1' and not is_student,
         'can_student_edit': can_student_edit,
     })
