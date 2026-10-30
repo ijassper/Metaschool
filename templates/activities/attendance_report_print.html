@@ -1,3 +1,108 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>출결 확인 신고서 - {{ report.student.name }}</title><style>
-@page{size:A4;margin:12mm}*{box-sizing:border-box}body{margin:0;font-family:'Malgun Gothic',sans-serif;color:#111;font-size:12px}.toolbar{display:flex;justify-content:flex-end;gap:8px;margin:0 auto 16px;max-width:210mm}.toolbar button,.toolbar a{padding:9px 15px;border:1px solid #777;border-radius:8px;background:#fff;color:#222;text-decoration:none;font-weight:700}.toolbar .edit-link{background:#9148aa;color:#fff;border-color:#9148aa}.report-view-status{max-width:210mm;margin:0 auto 12px;padding:9px 13px;border-radius:10px;background:#edf9f2;color:#257346;font-weight:700}.sheet{width:100%;max-width:210mm;margin:auto;padding:7mm 9mm;border:1px solid #bbb}.approval{margin-left:auto;width:42mm;border-collapse:collapse;text-align:center}.approval td{border:1px solid #222;height:9mm}.sheet h1{text-align:center;font-size:23px;letter-spacing:.12em;margin:5mm 0 7mm}.meta{text-align:right;margin-bottom:4mm;line-height:1.8}.declaration{margin:5mm 0}.form-table,.notice-table{width:100%;border-collapse:collapse;table-layout:fixed}.form-table th,.form-table td,.notice-table th,.notice-table td{border:1px solid #222;padding:7px}.form-table th{width:22%;background:#f4f4f4;text-align:center}.reason{height:38mm;vertical-align:top;white-space:pre-wrap}.notice{margin-top:5mm;font-size:9.5px;line-height:1.45}.notice h3{margin:3mm 0 1mm;font-size:10.5px}.notice-table th{background:#f4f4f4}.signatures{margin-top:7mm;text-align:right;line-height:2}.signature-line{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:25mm}.signature-line img{width:42mm;max-height:20mm;object-fit:contain;border-bottom:1px solid #999}.school{margin-top:6mm;text-align:left;font-size:16px;font-weight:800}.confirmation{margin-top:6mm}.confirmation h2{text-align:center;font-size:16px;letter-spacing:.15em}.teacher-sign{text-align:right;margin-top:5mm}.pending{font-size:10px;color:#666}@media print{.toolbar,.report-view-status{display:none}.sheet{border:0;padding:0}}
-</style></head><body><div class="toolbar">{% if is_student %}<a href="{% url 'dashboard' %}#student-activities">학생 대시보드</a>{% else %}<a href="{% url 'attendance_folder_detail' report.folder_id %}">제출 현황</a>{% endif %}{% if can_student_edit %}<a class="edit-link" href="{% url 'student_attendance_report' report.folder_id %}?edit=1">신고서 수정</a>{% endif %}<button onclick="window.print()">인쇄 / PDF 저장</button></div><div class="report-view-status">{% if report.confirmed_at %}교사 확정 완료{% elif report.guardian_signed_at %}보호자 서명 완료 · 교사 확정 대기{% elif report.guardian_token %}보호자 서명 대기{% else %}학생 제출 완료 · 교사 검토 대기{% endif %}</div><main class="sheet"><table class="approval"><tr><td rowspan="2">결재</td><td>계</td><td>학년부장</td></tr><tr><td></td><td></td></tr></table><h1>출결 확인 신고서</h1><div class="meta">제 {{ report.student.grade }}학년 {{ report.student.class_no }}반 {{ report.student.number }}번<br>성명: {{ report.student.name }}</div><p class="declaration">본인은 학업성적관리규정 제37조에 의거하여 다음과 같이 보호자 연서로 신고합니다.</p><table class="form-table"><tr><th>출결명</th><td>{{ report.get_attendance_type_display }}</td></tr><tr><th>출결 기간</th><td>{% if report.is_absence %}{{ report.start_date|date:'Y년 n월 j일' }} ∼ {{ report.end_date|date:'n월 j일' }} ({{ report.absence_days }}일간){% else %}{{ report.start_date|date:'Y년 n월 j일' }} ({{ report.get_start_period_display }} ∼ {{ report.get_end_period_display }}){% endif %}</td></tr><tr><th>출결 사유</th><td class="reason">{{ report.reason }}</td></tr></table><section class="notice"><h3>□ 개인정보 수집·이용 사항 고지</h3><p>「개인정보 보호법」 제15조 제1항 제2호에 따라 정보주체의 동의 없이 수집·이용합니다.</p><table class="notice-table"><tr><th>개인정보 처리목적</th><th>개인정보 항목</th><th>수집 근거</th></tr><tr><td>결석 업무 처리</td><td>학년, 반, 번호, 성명, 보호자성명</td><td>「초·중등교육법」 제25조, 동법 시행규칙 제21조 및 제25조</td></tr></table><p>* 의사 소견서, 진료 확인서 등으로 병명, 진료기간 등이 기록된 증빙서류</p><h3>□ 민감정보 수집·이용 사항 고지</h3><table class="notice-table"><tr><th>개인정보 처리목적</th><th>민감정보 항목</th><th>수집 근거</th></tr><tr><td>결석 업무 처리</td><td>의사진단서 또는 의견서</td><td>「초·중등교육법」 제25조, 동법 시행규칙 제21조 및 제25조, 「개인정보 보호법」 제23조 제1항 제2호</td></tr></table></section><div class="signatures"><div>{{ report.written_date|date:'Y년 n월 j일' }}</div><div class="signature-line">학생: {{ report.student_signature }}{% if report.student_signature_data %}<img src="{{ report.student_signature_data }}" alt="학생 서명">{% else %}(인){% endif %}</div><div class="signature-line">보호자: {{ report.guardian_signature|default:'____________' }}{% if report.guardian_signature_data %}<img src="{{ report.guardian_signature_data }}" alt="보호자 서명">{% else %}<span class="pending">서명 대기</span>{% endif %}</div></div><div class="school">{{ report.student.school.name }}장 귀하</div><section class="confirmation"><h2>내용 확인</h2><table class="form-table"><tr><th>확인방법</th><td>가정방문, 전화연락, 학부모내교, 의사소견서, 담임상담, 기타(　　　　　　　　)</td></tr><tr><th>첨부</th><td>진료확인서, 소견서, 처방전, 학부모확인서, 보건실확인증, 기타(　　　　　　)</td></tr></table><p>위와 같이 확인하였습니다.</p><div class="teacher-sign">담임: {{ report.folder.teacher.name }}　(인)</div></section></main></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1">
+ <title>출결 확인 신고서 - {{ report.student.name }}</title>
+ <style>
+  @page{size:A4;margin:12mm}
+  *{box-sizing:border-box}
+  body{margin:0;background:#f4f2f5;color:#111;font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;font-size:10pt;line-height:1.45}
+  .toolbar{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;max-width:186mm;margin:18px auto 12px}
+  .toolbar a,.toolbar button{padding:8px 13px;border:1px solid #c8becd;border-radius:8px;background:#fff;color:#34273a;text-decoration:none;font-size:13px;font-weight:700;cursor:pointer}
+  .toolbar .edit-link{border-color:#9148aa;background:#9148aa;color:#fff}
+  .report-view-status{max-width:186mm;margin:0 auto 12px;padding:8px 12px;border-radius:9px;background:#edf9f2;color:#257346;font-size:12px;font-weight:700}
+  .sheet{width:186mm;min-height:273mm;margin:0 auto 20px;padding:9mm 9mm 8mm;border:1px solid #d8d2d9;background:#fff;box-shadow:0 8px 26px rgba(45,32,50,.1)}
+  .document-head{display:grid;grid-template-columns:minmax(0,1fr) 46mm;border:1px solid #222;break-inside:avoid}
+  .document-head h1{display:flex;align-items:center;margin:0;padding:0 4mm;font-size:16pt;font-weight:800;letter-spacing:.02em}
+  .approval{width:100%;border:0;border-left:1px solid #222;border-collapse:collapse;table-layout:fixed;text-align:center;font-size:8pt}
+  .approval th,.approval td{border:1px solid #222;padding:1mm 0}
+  .approval tr:first-child th{border-top:0}.approval tr:last-child td{border-bottom:0}
+  .approval .approval-label{width:8mm;border-left:0;letter-spacing:.1em}
+  .approval tr>*:last-child{border-right:0}
+  .approval .signature-space{height:14mm}
+  .student-meta{margin:5mm 0 4mm auto;width:max-content;min-width:53mm;font-size:9.5pt;line-height:1.7}
+  .student-meta div{white-space:nowrap}
+  .declaration{margin:0 0 3mm}
+  table{border-collapse:collapse}
+  .form-table,.notice-table,.confirmation-table{width:100%;table-layout:fixed}
+  .form-table th,.form-table td,.notice-table th,.notice-table td,.confirmation-table th,.confirmation-table td{border:1px solid #222;vertical-align:middle}
+  .form-table th{width:22%;padding:2.3mm 2mm;text-align:center;font-weight:700}
+  .form-table td{padding:2.3mm 3mm}
+  .form-table .reason{height:24mm;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere}
+  .privacy{margin-top:6mm;font-size:7.1pt;line-height:1.34}
+  .privacy-block{break-inside:avoid}
+  .privacy-block+.privacy-block{margin-top:3mm}
+  .privacy h2{margin:0 0 1mm;font-size:8.1pt;font-weight:800}
+  .privacy p{margin:0 0 1mm}
+  .notice-table th,.notice-table td{padding:1.2mm 1.5mm}
+  .notice-table th{font-weight:700;text-align:center}
+  .notice-table th:nth-child(1){width:20%}.notice-table th:nth-child(2){width:34%}
+  .privacy .footnote{margin:1mm 0 0}
+  .signatures{display:grid;justify-items:end;margin-top:6mm;break-inside:avoid}
+  .written-date{margin-right:15mm;margin-bottom:3mm}
+  .signature-row{display:grid;grid-template-columns:16mm 42mm 22mm;align-items:center;min-height:10mm}
+  .signature-row img{max-width:22mm;max-height:9mm;object-fit:contain}
+  .signature-row .seal{text-align:center}
+  .school{margin:5mm 0 3mm;font-size:14pt;letter-spacing:.16em;break-inside:avoid}
+  .confirmation{break-inside:avoid}
+  .confirmation h2{margin:0 0 2mm;text-align:center;font-size:12pt;letter-spacing:.3em}
+  .confirmation-table th{width:22%;padding:1.8mm 2mm;text-align:center}
+  .confirmation-table td{padding:1.8mm 2mm;font-size:8.3pt;line-height:1.45}
+  .confirmation-table .option{display:inline-block;margin-right:3mm;white-space:nowrap}
+  .confirmation p{text-align:center;margin:3mm 0 1mm}
+  .teacher-sign{text-align:right;margin-right:8mm}
+  @media(max-width:760px){.toolbar,.report-view-status{margin-left:10px;margin-right:10px}.sheet{width:100%;min-height:0;margin:0;padding:16px}.document-head{grid-template-columns:minmax(0,1fr) 40mm}.document-head h1{font-size:13pt}.notice-table{font-size:6.5pt}}
+  @media print{html,body{width:auto;min-height:0;margin:0;background:#fff;print-color-adjust:exact;-webkit-print-color-adjust:exact}.toolbar,.report-view-status{display:none}.sheet{width:186mm;min-height:0;margin:0;padding:0;border:0;box-shadow:none}.document-head,.privacy-block,.signatures,.school,.confirmation{break-inside:avoid}}
+ </style>
+</head>
+<body>
+ <div class="toolbar">
+  {% if is_student %}<a href="{% url 'dashboard' %}#student-activities">학생 대시보드</a>{% else %}<a href="{% url 'attendance_folder_detail' report.folder_id %}">제출 현황</a>{% endif %}
+  {% if can_student_edit %}<a class="edit-link" href="{% url 'student_attendance_report' report.folder_id %}?edit=1">신고서 수정</a>{% endif %}
+  <button type="button" onclick="window.print()">인쇄 / PDF 저장</button>
+ </div>
+ <div class="report-view-status">{% if report.confirmed_at %}교사 확정 완료{% elif report.guardian_signed_at %}보호자 서명 완료 · 교사 확정 대기{% elif report.guardian_token %}보호자 서명 대기{% else %}학생 제출 완료 · 교사 검토 대기{% endif %}</div>
+ <main class="sheet">
+  <header class="document-head">
+   <h1>출결 확인(질병, 출석인정) 신고서</h1>
+   <table class="approval" aria-label="결재란"><tr><th class="approval-label" rowspan="2">결<br>재</th><th>계</th><th>학년부장</th></tr><tr><td class="signature-space"></td><td class="signature-space"></td></tr></table>
+  </header>
+  <div class="student-meta"><div>제 {{ report.student.grade }}학년 {{ report.student.class_no }}반 {{ report.student.number }}번</div><div>성명: {{ report.student.name }}</div></div>
+  <p class="declaration">본인은 학업성적관리규정 제37조에 의거하여 다음과 같이 보호자 연서로 신고합니다.</p>
+  <table class="form-table">
+   <tr><th>출결명</th><td>{{ report.get_attendance_type_display }}</td></tr>
+   <tr><th>출결 기간</th><td>{% if report.is_absence %}{{ report.start_date|date:'Y년 n월 j일' }} ∼ {{ report.end_date|date:'Y년 n월 j일' }} ({{ report.absence_days }}일간){% else %}{{ report.start_date|date:'Y년 n월 j일' }} ({{ report.get_start_period_display }} ∼ {{ report.get_end_period_display }}){% endif %}</td></tr>
+   <tr><th>출결 사유</th><td class="reason">{{ report.reason }}</td></tr>
+  </table>
+  <section class="privacy" aria-label="개인정보 및 민감정보 수집 이용 고지">
+   <div class="privacy-block">
+    <h2>□ 개인정보 수집·이용 사항 고지</h2>
+    <p>「개인정보 보호법」 제15조 제1항 제2호에 따라 정보주체의 동의 없이 개인정보를 수집·이용합니다.</p>
+    <table class="notice-table"><tr><th>개인정보 처리목적</th><th>개인정보 항목</th><th>수집 근거</th></tr><tr><td>결석 업무 처리</td><td>학년, 반, 번호, 성명, 보호자 성명</td><td>「초·중등교육법」 제25조, 동법 시행규칙 제21조 및 제25조</td></tr></table>
+    <p class="footnote">* 의사 소견서, 진료 확인서 등으로 병명, 진료기간 등이 기록된 증빙서류</p>
+   </div>
+   <div class="privacy-block">
+    <h2>□ 민감정보 수집·이용 사항 고지 (의사 소견서, 진료 확인서 등 민감정보가 포함된 증빙서류 제출 시)</h2>
+    <table class="notice-table"><tr><th>개인정보 처리목적</th><th>민감정보 항목</th><th>수집 근거</th></tr><tr><td>결석 업무 처리</td><td>의사진단서 또는 의견서*</td><td>「초·중등교육법」 제25조, 동법 시행규칙 제21조 및 제25조, 「개인정보 보호법」 제23조 제1항 제2호</td></tr></table>
+    <p class="footnote">* 의사 소견서, 진료 확인서 등으로 병명, 진료기간 등이 기록된 증빙서류</p>
+   </div>
+  </section>
+  <section class="signatures" aria-label="작성일 및 서명">
+   <div class="written-date">{{ report.written_date|date:'Y년 n월 j일' }}</div>
+   <div class="signature-row"><span>학생:</span><strong>{{ report.student_signature }}</strong><span class="seal">{% if report.student_signature_data %}<img src="{{ report.student_signature_data }}" alt="학생 서명">{% else %}(인){% endif %}</span></div>
+   <div class="signature-row"><span>보호자:</span><strong>{{ report.guardian_signature|default:'____________' }}</strong><span class="seal">{% if report.guardian_signature_data %}<img src="{{ report.guardian_signature_data }}" alt="보호자 서명">{% else %}(인){% endif %}</span></div>
+  </section>
+  <div class="school">{{ report.student.school.name }}장 귀하</div>
+  <section class="confirmation">
+   <h2>내용 확인</h2>
+   <table class="confirmation-table">
+    <tr><th>확인방법</th><td><span class="option">□ 가정방문</span><span class="option">□ 전화연락</span><span class="option">□ 학부모내교</span><span class="option">□ 의사소견서</span><span class="option">□ 담임상담</span><span class="option">□ 기타 (　　　　　)</span></td></tr>
+    <tr><th>첨부 증빙서류</th><td><span class="option">□ 진료확인서</span><span class="option">□ 소견서</span><span class="option">□ 처방전</span><span class="option">□ 학부모확인서</span><span class="option">□ 보건실확인증</span><span class="option">□ 기타 (　　　　　)</span></td></tr>
+   </table>
+   <p>위와 같이 확인하였습니다.</p>
+   <div class="teacher-sign">담임: {{ report.folder.teacher.name }} (인)</div>
+  </section>
+ </main>
+</body>
+</html>
