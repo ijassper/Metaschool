@@ -75,6 +75,7 @@ import sys
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
     try:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         probe.bind(('0.0.0.0', 8080))
     except OSError as error:
         print('8080 포트를 사용할 수 없습니다: {}'.format(error), file=sys.stderr)
