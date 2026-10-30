@@ -2,6 +2,41 @@
 (function(){
  const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value;
  if(!csrf)return;
+ const moveDialog=document.getElementById('noteMoveDialog');
+ const moveSelect=document.getElementById('noteMoveTarget');
+ const moveForm=document.getElementById('noteMoveForm');
+ let movingItem=null;
+ function openMove(item){
+  if(!moveDialog||!item)return;
+  movingItem=item;
+  const current=item.closest('.sortable-note-list').dataset.sectionId;
+  Array.from(moveSelect.options).forEach(option=>{option.disabled=option.value===current;});
+  const first=Array.from(moveSelect.options).find(option=>!option.disabled);
+  if(!first)return;
+  moveSelect.value=first.value;
+  moveDialog.querySelector('[role=status]').textContent='';
+  moveDialog.hidden=false;
+  moveSelect.focus();
+ }
+ function closeMove(){moveDialog.hidden=true;movingItem=null;}
+ if(moveDialog){
+  moveDialog.querySelectorAll('[data-close-move]').forEach(button=>button.addEventListener('click',closeMove));
+  moveDialog.addEventListener('click',event=>{if(event.target===moveDialog)closeMove();});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!moveDialog.hidden)closeMove();});
+  moveForm.addEventListener('submit',async event=>{
+   event.preventDefault();
+   if(!movingItem)return;
+   const list=movingItem.closest('.sortable-note-list');
+   const button=moveForm.querySelector('[type=submit]');
+   button.disabled=true;
+   try{
+    const target=moveSelect.value;
+    const response=await fetch(list.dataset.reorderUrl,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},body:JSON.stringify({move_page_id:Number(movingItem.dataset.pageId),target_section_id:target==='general'?'general':Number(target)})});
+    if(!response.ok){const result=await response.json();throw new Error(result.message||'단원을 옮기지 못했습니다.');}
+    window.location.reload();
+   }catch(error){moveDialog.querySelector('[role=status]').textContent=error.message;button.disabled=false;}
+  });
+ }
  document.querySelectorAll('.sortable-note-list').forEach(list=>{
   const status=list.nextElementSibling;
   let dragging=null,changed=false,saving=false;
@@ -11,17 +46,32 @@
    saving=true;status.textContent='노트 순서를 저장하는 중...';
    try{
     const response=await fetch(list.dataset.reorderUrl,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrf},body:JSON.stringify({section_id:list.dataset.sectionId==='general'?'general':Number(list.dataset.sectionId),page_ids:Array.from(list.children,item=>Number(item.dataset.pageId))})});
-    if(!response.ok)throw new Error('저장하지 못했습니다.');
+    if(!response.ok){const result=await response.json();throw new Error(result.message||'저장하지 못했습니다.');}
     status.textContent='노트 순서를 저장했습니다.';
-   }catch(error){status.textContent='순서를 저장하지 못했습니다. 새로고침 후 다시 시도해 주세요.';}
+   }catch(error){status.textContent=error.message+' 새로고침 후 다시 시도해 주세요.';}
    finally{saving=false;changed=false;}
   }
+  list.querySelectorAll('.note-sort-item').forEach(item=>{
+   const card=item.querySelector('.toc-page,.section-page-card');
+   if(!card)return;
+   card.addEventListener('contextmenu',event=>event.preventDefault());
+   let timer=null,startX=0,startY=0,suppressClick=false;
+   card.addEventListener('pointerdown',event=>{
+    if(event.button!==0)return;
+    startX=event.clientX;startY=event.clientY;
+    timer=setTimeout(()=>{timer=null;suppressClick=true;openMove(item);},550);
+   });
+   card.addEventListener('pointermove',event=>{if(timer&&Math.hypot(event.clientX-startX,event.clientY-startY)>12){clearTimeout(timer);timer=null;}});
+   ['pointerup','pointercancel','pointerleave'].forEach(name=>card.addEventListener(name,()=>{if(timer){clearTimeout(timer);timer=null;}}));
+   card.addEventListener('click',event=>{if(suppressClick){event.preventDefault();suppressClick=false;}});
+  });
   list.querySelectorAll('.page-drag-handle').forEach(handle=>{
    handle.addEventListener('pointerdown',event=>{if(saving)return;dragging=handle.closest('.note-sort-item');changed=false;handle.setPointerCapture(event.pointerId);dragging.classList.add('is-dragging');event.preventDefault();});
    handle.addEventListener('pointermove',event=>{
     if(!dragging)return;
     const target=document.elementFromPoint(event.clientX,event.clientY)?.closest('.note-sort-item');
     if(!target||target===dragging||target.parentElement!==list)return;
+    if(target.dataset.noteDate!==dragging.dataset.noteDate){status.textContent='같은 날짜의 노트끼리 순서를 바꿀 수 있습니다. 단원 이동은 사진을 길게 눌러 주세요.';return;}
     const rect=target.getBoundingClientRect(),dragRect=dragging.getBoundingClientRect();
     const sameRow=Math.abs(dragRect.top-rect.top)<rect.height/2;
     const after=sameRow?event.clientX>rect.left+rect.width/2:event.clientY>rect.top+rect.height/2;
@@ -31,10 +81,12 @@
    function finish(){if(!dragging)return;dragging.classList.remove('is-dragging');dragging=null;save();}
    handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',finish);
    handle.addEventListener('keydown',event=>{
+    if(event.key==='Enter'||event.key===' '){event.preventDefault();openMove(handle.closest('.note-sort-item'));return;}
     if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)||saving)return;
     event.preventDefault();
     const item=handle.closest('.note-sort-item'),other=event.key==='ArrowLeft'||event.key==='ArrowUp'?item.previousElementSibling:item.nextElementSibling;
     if(!other)return;
+    if(other.dataset.noteDate!==item.dataset.noteDate){status.textContent='같은 날짜의 노트끼리 순서를 바꿀 수 있습니다.';return;}
     if(other===item.previousElementSibling)other.before(item);else other.after(item);
     changed=true;renumber();save();handle.focus();
    });

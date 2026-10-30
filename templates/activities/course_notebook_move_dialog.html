@@ -1,0 +1,15 @@
+<style>
+.note-move-overlay[hidden]{display:none}.note-move-overlay{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:16px;background:rgba(28,19,34,.68)}.note-move-panel{width:min(100%,420px);padding:20px;border-radius:18px;background:#fff;box-shadow:0 18px 55px rgba(25,15,30,.25)}.note-move-panel h2{font-size:1.15rem;font-weight:850}.note-move-panel p{font-size:.84rem;color:#716877}.note-move-panel select{width:100%;min-height:43px;margin:8px 0 12px;border:1px solid #d8cadd;border-radius:10px;padding:8px}.note-move-actions{display:flex;justify-content:flex-end;gap:8px}.note-move-actions button{border:1px solid #d8cadd;border-radius:9px;padding:8px 15px;background:#fff;color:#713985;font-weight:800}.note-move-actions button[type=submit]{background:#9148aa;color:#fff}.note-move-panel [role=status]{min-height:1.3em;color:#b32052}
+</style>
+<div id="noteMoveDialog" class="note-move-overlay" role="dialog" aria-modal="true" aria-labelledby="noteMoveTitle" hidden>
+ <div class="note-move-panel">
+  <h2 id="noteMoveTitle">노트 단원 이동</h2>
+  <p>노트 사진을 길게 누르거나 순서 이동 손잡이에서 Enter를 누르면 다른 단원으로 옮길 수 있습니다.</p>
+  <form id="noteMoveForm">
+   <label for="noteMoveTarget">이동할 단원</label>
+   <select id="noteMoveTarget" required>{% for section in sections %}<option value="{{ section.id }}">{{ section.title }}</option>{% endfor %}{% if not sections %}<option value="general">기본 노트</option>{% endif %}</select>
+   <div role="status" aria-live="polite"></div>
+   <div class="note-move-actions"><button type="button" data-close-move>취소</button><button type="submit">단원 이동</button></div>
+  </form>
+ </div>
+</div>
