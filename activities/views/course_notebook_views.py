@@ -2,15 +2,17 @@ import json
 import io
 import re
 from functools import wraps
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
+from urllib.parse import urlencode
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Max, Min, Q
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -377,6 +379,8 @@ def course_notebook_submission_status(request, notebook_id):
         if token.isdigit():
             token_filter |= Q(number=int(token))
         students = students.filter(token_filter)
+    if view_mode == 'date':
+        status_filter = ''
     if status_filter == 'submitted':
         students = students.filter(notebook_page_count__gt=0)
     elif status_filter == 'not_submitted':
@@ -384,16 +388,18 @@ def course_notebook_submission_status(request, notebook_id):
     else:
         status_filter = ''
 
-    student_list = list(students)
-    student_ids = [student.id for student in student_list]
-    section_count_map = {
-        (item['student_id'], item['section_id']): item['page_count']
-        for item in CourseNotebookPage.objects.filter(
-            notebook=notebook,
-            student_id__in=student_ids,
-            section_id__isnull=False,
-        ).values('student_id', 'section_id').annotate(page_count=Count('id'))
-    }
+    student_list = list(students) if view_mode == 'student' else []
+    student_ids = [student.id for student in student_list] if view_mode == 'student' else list(students.values_list('id', flat=True))
+    section_count_map = {}
+    if view_mode == 'student':
+        section_count_map = {
+            (item['student_id'], item['section_id']): item['page_count']
+            for item in CourseNotebookPage.objects.filter(
+                notebook=notebook,
+                student_id__in=student_ids,
+                section_id__isnull=False,
+            ).values('student_id', 'section_id').annotate(page_count=Count('id'))
+        }
     student_rows = []
     for student in student_list:
         section_statuses = [
@@ -423,17 +429,49 @@ def course_notebook_submission_status(request, notebook_id):
     )
     total_students = all_students.count()
     submitted_students = page_summary['submitted_student_count'] or 0
-    dated_pages = list(CourseNotebookPage.objects.filter(
-        notebook=notebook, student_id__in=student_ids,
-    ).select_related('student', 'section').order_by('-created_at', '-id')) if view_mode == 'date' else []
-    if date_filter:
-        dated_pages = [page for page in dated_pages if timezone.localtime(page.created_at).date() == _parse_notebook_date(date_filter)]
     date_groups = []
-    for page in dated_pages:
-        display_date = timezone.localtime(page.created_at).date()
-        if not date_groups or date_groups[-1]['date'] != display_date:
-            date_groups.append({'date': display_date, 'pages': []})
-        date_groups[-1]['pages'].append(page)
+    date_page = None
+    date_previous = None
+    date_next = None
+    date_student_count = 0
+    date_page_count = 0
+    if view_mode == 'date':
+        scoped_pages = CourseNotebookPage.objects.filter(notebook=notebook, student_id__in=student_ids)
+        latest_at = scoped_pages.aggregate(latest=Max('created_at'))['latest']
+        selected_date = _parse_notebook_date(date_filter) if date_filter else (
+            timezone.localtime(latest_at).date() if latest_at else None
+        )
+        if selected_date:
+            date_filter = selected_date.isoformat()
+            day_start = timezone.make_aware(datetime.combine(selected_date, time.min))
+            day_end = timezone.make_aware(datetime.combine(selected_date + timedelta(days=1), time.min)) if selected_date < date.max else None
+            day_pages = scoped_pages.filter(created_at__gte=day_start)
+            if day_end:
+                day_pages = day_pages.filter(created_at__lt=day_end)
+            student_numbers = day_pages.order_by(
+                'student__grade', 'student__class_no', 'student__number', 'student__name', 'student_id',
+            ).values_list('student_id', flat=True).distinct()
+            date_page = Paginator(student_numbers, 8).get_page(request.GET.get('page'))
+            date_student_count = date_page.paginator.count
+            date_page_count = day_pages.count()
+            visible_pages = list(day_pages.filter(student_id__in=list(date_page.object_list)).select_related(
+                'student', 'section',
+            ).order_by('student__grade', 'student__class_no', 'student__number',
+                       'student__name', 'student_id', 'created_at', 'id'))
+            group = {'date': selected_date, 'pages': visible_pages, 'students': []}
+            for page in visible_pages:
+                if not group['students'] or group['students'][-1]['student'].id != page.student_id:
+                    group['students'].append({'student': page.student, 'pages': []})
+                group['students'][-1]['pages'].append(page)
+            date_groups.append(group)
+            previous_at = scoped_pages.filter(created_at__lt=day_start).aggregate(value=Max('created_at'))['value']
+            next_at = scoped_pages.filter(created_at__gte=day_end).aggregate(value=Min('created_at'))['value'] if day_end else None
+            date_previous = timezone.localtime(previous_at).date() if previous_at else None
+            date_next = timezone.localtime(next_at).date() if next_at else None
+    date_query_params = {'view': 'date'}
+    for key, value in (('grade', grade_filter), ('class_no', class_filter), ('q', search_query)):
+        if value:
+            date_query_params[key] = value
     return render(request, 'activities/course_notebook_submission_status.html', {
         'notebook': notebook,
         'sections': sections,
@@ -441,6 +479,12 @@ def course_notebook_submission_status(request, notebook_id):
         'view_mode': view_mode,
         'date_filter': date_filter,
         'date_groups': date_groups,
+        'date_page': date_page,
+        'date_previous': date_previous,
+        'date_next': date_next,
+        'date_student_count': date_student_count,
+        'date_page_count': date_page_count,
+        'date_query_prefix': '?' + urlencode(date_query_params),
         'grade_options': grade_options,
         'class_options': class_options,
         'filters': {

@@ -45,6 +45,9 @@
 .back-link{font-size:1rem}.submission-kicker{font-size:.82rem}.notebook-meta{font-size:1rem}.edit-link{font-size:.95rem}.summary-card{min-height:68px;padding:10px 12px}.summary-label{font-size:.9rem}.summary-value{font-size:1.35rem}.summary-value small{font-size:.85rem}.filter-field label{font-size:.95rem}.filter-field .form-select,.filter-field .form-control,.btn-filter{font-size:1rem}.filter-result{font-size:.95rem}.status-table{min-width:1400px;font-size:1rem}.status-table th{font-size:.92rem}.status-table .latest-at{font-size:.9rem}.status-table .submission-badge{padding:5px 8px;font-size:.88rem}.status-table .btn-student-notes{padding:6px 9px;font-size:.9rem}.section-cell-controls{flex-basis:220px;font-size:.9rem}.section-toggle{padding:5px 8px;font-size:.85rem}.tree-label{gap:5px;font-size:.92rem;line-height:1.4}.tree-count{padding:2px 6px;font-size:.82rem}.tree-own{font-size:.82rem}
 .view-tabs{display:flex;gap:7px;margin:0 0 10px}.view-tab{padding:7px 13px;border:1px solid #decfe4;border-radius:10px;background:#fff;color:#713985;text-decoration:none;font-weight:800}.view-tab.active{background:#9148aa;color:#fff}.date-filter{margin:0 0 10px}.date-filter input{max-width:210px}.date-group{margin-bottom:14px;padding:14px;border:1px solid #e7dfeb;border-radius:16px;background:#fff}.date-group h3{font-size:1.06rem;font-weight:850}.date-page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}.date-page{display:block;padding:8px;border:1px solid #e7dfeb;border-radius:12px;color:#3a303e;text-decoration:none}.date-page img{display:block;width:100%;height:180px;object-fit:contain;background:#f5f1f7}.date-page strong,.date-page span{display:block;margin-top:5px;font-size:.82rem}
 .filter-panel.date-mode .filter-grid{grid-template-columns:140px 140px 170px minmax(220px,1fr) 170px auto}.date-filter{margin:0}.date-filter input{max-width:none}@media(max-width:1100px){.filter-panel.date-mode .filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:620px){.filter-panel.date-mode .filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.filter-panel.date-mode .filter-grid{grid-template-columns:170px 140px 140px minmax(220px,1fr) auto}
+.date-nav,.date-pages-nav{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin:10px 0 16px}.date-nav a,.date-pages-nav a{padding:7px 12px;border:1px solid #decfe4;border-radius:9px;background:#fff;color:#713985;text-decoration:none;font-weight:800}.date-nav strong{color:#47364c}.date-nav .disabled{color:#aaa}.date-student{margin:0 0 14px;padding:14px;border:1px solid #e7dfeb;border-radius:16px;background:#fff}.date-student h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:1rem;font-weight:850}.date-student h3 small{color:#806f84;font-size:.78rem}.date-page{cursor:pointer}.date-page .date-upload-time{color:#857789}.date-note-modal[hidden]{display:none}.date-note-modal{position:fixed;inset:0;z-index:1100;display:grid;place-items:center;padding:16px;background:rgba(28,19,34,.78)}.date-note-dialog{display:flex;flex-direction:column;width:min(100%,1050px);max-height:95vh;overflow:hidden;border-radius:18px;background:#fff}.date-note-header,.date-note-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:11px 15px}.date-note-header{border-bottom:1px solid #eadfec}.date-note-header h3{margin:0;font-size:1.08rem;font-weight:900}.date-note-header p{margin:3px 0 0;color:#746a77;font-size:.83rem}.date-note-close{border:0;background:#f2eaf5;border-radius:50%;width:36px;height:36px;color:#713985;font-size:1.25rem}.date-note-image-wrap{display:grid;place-items:center;min-height:0;overflow:auto;background:#f5f1f7;padding:10px}.date-note-image-wrap img{display:block;max-width:100%;max-height:68vh;object-fit:contain}.date-note-footer{border-top:1px solid #eadfec}.date-note-controls{display:flex;gap:7px;flex-wrap:wrap}.date-note-footer button,.date-note-footer a{border:1px solid #dccfdf;border-radius:9px;padding:7px 10px;background:#fff;color:#713985;text-decoration:none;font-weight:800;font-size:.82rem}.date-note-footer button:disabled{opacity:.4}.date-note-footer a:hover,.date-note-footer button:not(:disabled):hover{background:#9148aa;color:#fff}.date-page:focus-visible,.date-note-footer a:focus-visible,.date-note-footer button:focus-visible{outline:3px solid #9148aa;outline-offset:2px}
+@media(max-width:1100px){.filter-panel.date-mode .filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:620px){.filter-panel.date-mode .filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <main class="submission-shell">
   <header class="submission-top">
@@ -70,18 +73,21 @@
   <nav class="view-tabs" aria-label="노트 열람 방식"><a class="view-tab {% if view_mode == 'student' %}active{% endif %}" href="?view=student">학생별 보기</a><a class="view-tab {% if view_mode == 'date' %}active{% endif %}" href="?view=date">날짜별 보기</a></nav>
   <form class="filter-panel {% if view_mode == 'date' %}date-mode{% endif %}" method="get"><input type="hidden" name="view" value="{{ view_mode }}">
     <div class="filter-grid">
+      {% if view_mode == 'date' %}<div class="filter-field date-filter"><label for="noteDateFilter">업로드 날짜</label><input class="form-control" type="date" id="noteDateFilter" name="note_date" value="{{ date_filter }}"></div>{% endif %}
       <div class="filter-field"><label for="gradeFilter">학년</label><select class="form-select" id="gradeFilter" name="grade"><option value="">전체 학년</option>{% for grade in grade_options %}<option value="{{ grade }}" {% if filters.grade == grade|stringformat:'s' %}selected{% endif %}>{{ grade }}학년</option>{% endfor %}</select></div>
       <div class="filter-field"><label for="classFilter">반</label><select class="form-select" id="classFilter" name="class_no"><option value="">전체 반</option>{% for class_no in class_options %}<option value="{{ class_no }}" {% if filters.class_no == class_no|stringformat:'s' %}selected{% endif %}>{{ class_no }}반</option>{% endfor %}</select></div>
-      <div class="filter-field"><label for="statusFilter">작성 상태</label><select class="form-select" id="statusFilter" name="status"><option value="">전체 상태</option><option value="submitted" {% if filters.status == 'submitted' %}selected{% endif %}>작성</option><option value="not_submitted" {% if filters.status == 'not_submitted' %}selected{% endif %}>미작성</option></select></div>
+      {% if view_mode == 'student' %}<div class="filter-field"><label for="statusFilter">작성 상태</label><select class="form-select" id="statusFilter" name="status"><option value="">전체 상태</option><option value="submitted" {% if filters.status == 'submitted' %}selected{% endif %}>작성</option><option value="not_submitted" {% if filters.status == 'not_submitted' %}selected{% endif %}>미작성</option></select></div>{% endif %}
       <div class="filter-field search"><label for="studentSearch">학생 검색</label><input class="form-control" id="studentSearch" name="q" value="{{ filters.q }}" placeholder="이름 또는 번호"></div>
-      {% if view_mode == 'date' %}<div class="filter-field date-filter"><label for="noteDateFilter">업로드 날짜</label><input class="form-control" type="date" id="noteDateFilter" name="note_date" value="{{ date_filter }}"></div>{% endif %}
       <button class="btn-filter" type="submit"><i class="bi bi-search me-1"></i>조회</button>
     </div>
-    <div class="filter-result">조건에 맞는 학생 {{ student_rows|length }}명{% if filters.grade or filters.class_no or filters.status or filters.q or date_filter %}<a class="filter-reset" href="?view={{ view_mode }}">필터 초기화</a>{% endif %}</div>
+    <div class="filter-result">{% if view_mode == 'date' %}선택한 날짜의 학생 {{ date_student_count }}명 · 노트 {{ date_page_count }}장{% else %}조건에 맞는 학생 {{ student_rows|length }}명{% endif %}{% if filters.grade or filters.class_no or filters.status or filters.q or date_filter %}<a class="filter-reset" href="?view={{ view_mode }}">필터 초기화</a>{% endif %}</div>
   </form>
 
   {% if view_mode == 'date' %}
-    {% for group in date_groups %}<section class="date-group"><h3>업로드 {{ group.date|date:'Y.m.d' }} · {{ group.pages|length }}장</h3><div class="date-page-grid">{% for page in group.pages %}<a class="date-page" href="{% url 'course_notebook_teacher_page' notebook.id page.student_id page.id %}?from=date&amp;note_date={{ group.date|date:'Y-m-d' }}"><img src="{% if page.processed_image %}{{ page.processed_image.url }}{% else %}{{ page.image.url }}{% endif %}" alt="{{ page.student.name }} 학생 노트"><strong>{{ page.student.grade }}학년 {{ page.student.class_no }}반 {{ page.student.number }}번 {{ page.student.name }}</strong><span>{{ page.section.title|default:'미분류' }} · {{ page.memo|default:'제목 없는 노트' }}{% if page.note_date %} · 노트 날짜 {{ page.note_date|date:'m.d' }}{% endif %}</span></a>{% endfor %}</div></section>{% empty %}<div class="status-empty">조건에 맞는 노트가 없습니다.</div>{% endfor %}
+    {% if date_filter %}<nav class="date-nav" aria-label="업로드 날짜 이동">{% if date_previous %}<a href="{{ date_query_prefix }}&amp;note_date={{ date_previous|date:'Y-m-d' }}">← 이전 업로드 날짜</a>{% else %}<span class="disabled">이전 날짜 없음</span>{% endif %}<strong>업로드 {{ date_filter }} · {{ date_page_count }}장</strong>{% if date_next %}<a href="{{ date_query_prefix }}&amp;note_date={{ date_next|date:'Y-m-d' }}">다음 업로드 날짜 →</a>{% else %}<span class="disabled">다음 날짜 없음</span>{% endif %}</nav>{% endif %}
+    {% for group in date_groups %}{% for bundle in group.students %}<section class="date-student"><h3>{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }} <small>{{ bundle.pages|length }}장 · 먼저 올린 순서</small></h3><div class="date-page-grid">{% for page in bundle.pages %}<a class="date-page" data-date-page data-student-id="{{ page.student_id }}" data-student-label="{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }}" data-section-title="{{ page.section.title|default:'미분류' }}" data-page-title="{{ page.memo|default:'제목 없는 노트' }}" data-upload-time="{{ page.created_at|date:'H:i' }}" href="{% url 'course_notebook_teacher_page' notebook.id page.student_id page.id %}?from=date&amp;note_date={{ group.date|date:'Y-m-d' }}"><img src="{% if page.processed_image %}{{ page.processed_image.url }}{% else %}{{ page.image.url }}{% endif %}" alt="{{ page.student.name }} 학생 노트" loading="lazy"><strong>{{ forloop.counter }}장 · {{ page.memo|default:'제목 없는 노트' }}</strong><span>{{ page.section.title|default:'미분류' }}{% if page.note_date %} · 노트 날짜 {{ page.note_date|date:'m.d' }}{% endif %}</span><span class="date-upload-time">업로드 {{ page.created_at|date:'H:i' }}</span></a>{% endfor %}</div></section>{% empty %}<div class="status-empty">선택한 날짜에 제출된 노트가 없습니다.</div>{% endfor %}{% empty %}<div class="status-empty">조건에 맞는 노트가 없습니다.</div>{% endfor %}
+    {% if date_page and date_page.paginator.num_pages > 1 %}<nav class="date-pages-nav" aria-label="학생 목록 페이지">{% if date_page.has_previous %}<a href="{{ date_query_prefix }}&amp;note_date={{ date_filter }}&amp;page={{ date_page.previous_page_number }}">← 이전 학생 묶음</a>{% endif %}<span>{{ date_page.number }} / {{ date_page.paginator.num_pages }} 페이지 · 한 페이지 8명</span>{% if date_page.has_next %}<a href="{{ date_query_prefix }}&amp;note_date={{ date_filter }}&amp;page={{ date_page.next_page_number }}">다음 학생 묶음 →</a>{% endif %}</nav>{% endif %}
+    <div class="date-note-modal" id="dateNoteModal" role="dialog" aria-modal="true" aria-labelledby="dateNoteTitle" {% if date_page.has_next %}data-next-page-url="{{ date_query_prefix }}&amp;note_date={{ date_filter }}&amp;page={{ date_page.next_page_number }}&amp;open=first"{% endif %} hidden><div class="date-note-dialog"><header class="date-note-header"><div><h3 id="dateNoteTitle"></h3><p id="dateNoteMeta"></p></div><button class="date-note-close" id="dateNoteClose" type="button" aria-label="팝업 닫기">×</button></header><div class="date-note-image-wrap"><img id="dateNoteImage" alt="학생 노트 이미지"></div><footer class="date-note-footer"><div class="date-note-controls"><button id="dateNotePrevious" type="button">← 이전 사진</button><button id="dateNoteNext" type="button">다음 사진 →</button><a id="dateNoteNextStudent" href="#">다음 학생 →</a></div><a id="dateNoteDetail" href="#">상세 페이지</a></footer></div></div>
   {% else %}
   <section class="status-table-wrap">
     {% if student_rows %}
@@ -114,5 +120,40 @@
 </main>
 <script>
 document.querySelectorAll('.section-toggle').forEach(function(button){button.addEventListener('click',function(){const row=document.getElementById(button.getAttribute('aria-controls'));const opening=button.getAttribute('aria-expanded')!=='true';button.setAttribute('aria-expanded',String(opening));row.hidden=!opening;});});
+(function(){
+ const modal=document.getElementById('dateNoteModal');
+ if(!modal)return;
+ const cards=Array.from(document.querySelectorAll('[data-date-page]'));
+ const title=document.getElementById('dateNoteTitle'),meta=document.getElementById('dateNoteMeta'),image=document.getElementById('dateNoteImage');
+ const previous=document.getElementById('dateNotePrevious'),next=document.getElementById('dateNoteNext'),nextStudent=document.getElementById('dateNoteNextStudent');
+ const detail=document.getElementById('dateNoteDetail'),closeButton=document.getElementById('dateNoteClose');
+ let current=-1,returnFocus=null;
+ function show(index){
+  if(index<0||index>=cards.length)return;
+  current=index;
+  const card=cards[index];
+  title.textContent=card.dataset.studentLabel+' · '+card.dataset.pageTitle;
+  meta.textContent=card.dataset.sectionTitle+' · 업로드 '+card.dataset.uploadTime+' · '+(index+1)+' / '+cards.length+'장';
+  image.src=card.querySelector('img').src;
+  image.alt=card.dataset.studentLabel+' 노트 이미지';
+  detail.href=card.href;
+  previous.disabled=index===0;
+  next.disabled=index===cards.length-1;
+  const following=cards.findIndex((item,position)=>position>index&&item.dataset.studentId!==card.dataset.studentId);
+  nextStudent.hidden=following<0&&!modal.dataset.nextPageUrl;
+  nextStudent.dataset.targetIndex=following;
+  nextStudent.href=following>=0?'#':(modal.dataset.nextPageUrl||'#');
+ }
+ function open(index){returnFocus=document.activeElement;modal.hidden=false;document.body.style.overflow='hidden';show(index);closeButton.focus();}
+ function close(){modal.hidden=true;document.body.style.overflow='';image.removeAttribute('src');if(returnFocus&&returnFocus.isConnected)returnFocus.focus();}
+ cards.forEach((card,index)=>card.addEventListener('click',event=>{event.preventDefault();open(index);}));
+ previous.addEventListener('click',()=>show(current-1));
+ next.addEventListener('click',()=>show(current+1));
+ nextStudent.addEventListener('click',event=>{const target=Number(nextStudent.dataset.targetIndex);if(target>=0){event.preventDefault();show(target);}});
+ closeButton.addEventListener('click',close);
+ modal.addEventListener('click',event=>{if(event.target===modal)close();});
+ document.addEventListener('keydown',event=>{if(modal.hidden)return;if(event.key==='Escape')close();else if(event.key==='ArrowLeft')show(current-1);else if(event.key==='ArrowRight')show(current+1);});
+ if(new URLSearchParams(window.location.search).get('open')==='first'&&cards.length)open(0);
+})();
 </script>
 {% endblock %}

@@ -567,6 +567,62 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         self.assertEqual(response.context['next_student_id'], self.empty_student.id)
         self.assertContains(response, '다음 학생')
 
+    def test_date_view_limits_students_per_page_and_keeps_their_pages_in_upload_order(self):
+        first = CourseNotebookPage.objects.get(student=self.submitted_student)
+        CourseNotebookPage.objects.filter(id=first.id).update(
+            created_at=timezone.make_aware(datetime(2026, 10, 23, 9, 0)),
+        )
+        second = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.submitted_student, section=self.section,
+            image='course_notebooks/second.jpg',
+        )
+        CourseNotebookPage.objects.filter(id=second.id).update(
+            created_at=timezone.make_aware(datetime(2026, 10, 23, 10, 0)),
+        )
+        for number in range(2, 11):
+            student = Student.objects.create(
+                teacher=self.teacher, grade=2, class_no=6, number=number,
+                name=f'학생{number}',
+            )
+            self.notebook.target_students.add(student)
+            page = CourseNotebookPage.objects.create(
+                notebook=self.notebook, student=student, section=self.section,
+                image=f'course_notebooks/{number}.jpg',
+            )
+            CourseNotebookPage.objects.filter(id=page.id).update(
+                created_at=timezone.make_aware(datetime(2026, 10, 23, 11, 0)),
+            )
+        older = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.submitted_student, section=self.section,
+            image='course_notebooks/older.jpg',
+        )
+        CourseNotebookPage.objects.filter(id=older.id).update(
+            created_at=timezone.make_aware(datetime(2026, 10, 22, 12, 0)),
+        )
+
+        url = reverse('course_notebook_submission_status', args=[self.notebook.id])
+        response = self.client.get(url, {'view': 'date'})
+        self.assertEqual(response.context['date_filter'], '2026-10-23')
+        self.assertEqual(response.context['date_student_count'], 10)
+        self.assertEqual(response.context['date_page_count'], 11)
+        self.assertEqual(len(response.context['date_groups'][0]['students']), 8)
+        self.assertEqual(
+            [page.id for page in response.context['date_groups'][0]['students'][0]['pages']],
+            [first.id, second.id],
+        )
+        self.assertEqual(response.context['date_previous'].isoformat(), '2026-10-22')
+        self.assertContains(response, 'dateNoteModal')
+        self.assertContains(response, 'open=first')
+        self.assertNotContains(response, '학생9')
+
+        response = self.client.get(url, {'view': 'date', 'note_date': '2026-10-23', 'page': '2'})
+        self.assertEqual(response.context['date_page'].number, 2)
+        self.assertEqual([item['student'].number for item in response.context['date_groups'][0]['students']], [9, 10])
+        self.assertNotContains(response, '김작성 학생 노트')
+
+        response = self.client.get(url, {'view': 'date', 'note_date': '2026-10-22'})
+        self.assertEqual([page.id for page in response.context['date_groups'][0]['pages']], [older.id])
+
     def test_other_teacher_cannot_open_submission_status(self):
         self.client.force_login(self.other_teacher)
 
