@@ -289,6 +289,8 @@ class AttendanceReportFlowTests(TestCase):
         self.assertTrue(token)
         detail = self.client.get(reverse('attendance_folder_detail', args=[folder.id]))
         self.assertContains(detail, reverse('attendance_guardian_sign', args=[token]))
+        self.assertContains(detail, 'data-bs-target="#reportPreviewModal"')
+        self.assertContains(detail, 'data-report-url="' + reverse('attendance_report_print', args=[report.id]) + '"')
 
         self.client.logout()
         guardian_url = reverse('attendance_guardian_sign', args=[token])
