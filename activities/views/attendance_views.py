@@ -263,16 +263,20 @@ def student_attendance_report(request, folder_id):
         target_students=student,
         is_active=True,
     )
-    if not folder.is_within_operation_period:
-        messages.warning(request, '현재 출결 신고서 운영 기간이 아닙니다.')
-        return redirect('dashboard')
     report = AttendanceReport.objects.filter(folder=folder, student=student).first()
     locked = bool(report and (report.confirmed_at or (report.submitted_at and not folder.allow_edit_after_submission)))
+    if request.method == 'GET' and report and report.submitted_at and (
+        request.GET.get('edit') != '1' or locked or not folder.is_within_operation_period
+    ):
+        return redirect('attendance_report_print', report_id=report.id)
+    if not folder.is_within_operation_period:
+        messages.warning(request, '현재 출결 신고서 운영 기간이 아닙니다.')
+        return redirect('attendance_report_print', report_id=report.id) if report and report.submitted_at else redirect('dashboard')
 
     if request.method == 'POST':
         if locked:
             messages.warning(request, '이 출결 신고서는 제출 후 수정할 수 없습니다.')
-            return redirect('student_attendance_report', folder_id=folder.id)
+            return redirect('attendance_report_print', report_id=report.id)
 
         category = request.POST.get('attendance_category', '')
         kind = request.POST.get('attendance_kind', '')
@@ -349,7 +353,7 @@ def student_attendance_report(request, folder_id):
             report.submitted_at = timezone.now()
             report.save()
             messages.success(request, '출결 확인 신고서를 제출했습니다.')
-            return redirect('student_attendance_report', folder_id=folder.id)
+            return redirect('attendance_report_print', report_id=report.id)
 
         for error in errors:
             messages.error(request, error)
@@ -387,10 +391,20 @@ def attendance_report_print(request, report_id):
         id=report_id,
         submitted_at__isnull=False,
     )
-    if request.user.role == 'STUDENT':
+    is_student = request.user.role == 'STUDENT'
+    if is_student:
         student = _student_for_user(request.user)
         if not student or report.student_id != student.id:
             return redirect('dashboard')
     elif report.folder.teacher_id != request.user.id:
         return redirect('attendance_folder_list')
-    return render(request, 'activities/attendance_report_print.html', {'report': report})
+    can_student_edit = bool(
+        is_student and report.folder.is_active and report.folder.is_within_operation_period
+        and report.folder.allow_edit_after_submission and not report.confirmed_at
+        and report.folder.target_students.filter(id=report.student_id).exists()
+    )
+    return render(request, 'activities/attendance_report_print.html', {
+        'report': report,
+        'is_student': is_student,
+        'can_student_edit': can_student_edit,
+    })

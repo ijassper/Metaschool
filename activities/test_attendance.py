@@ -156,7 +156,7 @@ class AttendanceReportFlowTests(TestCase):
             'student_signature_data': self.signature_data,
         })
         report = AttendanceReport.objects.get()
-        self.assertRedirects(response, reverse('student_attendance_report', args=[folder.id]))
+        self.assertRedirects(response, reverse('attendance_report_print', args=[report.id]))
         self.assertEqual(report.absence_days, 3)
         self.assertEqual(report.guardian_signature, '')
         self.assertEqual(report.student_signature_data, self.signature_data)
@@ -164,6 +164,9 @@ class AttendanceReportFlowTests(TestCase):
         print_response = self.client.get(reverse('attendance_report_print', args=[report.id]))
         self.assertContains(print_response, '출결 확인 신고서')
         self.assertContains(print_response, '3일간')
+        self.assertContains(print_response, reverse('student_attendance_report', args=[folder.id]) + '?edit=1')
+        self.assertContains(self.client.get(reverse('student_attendance_report', args=[folder.id]) + '?edit=1'), '수정 제출')
+        self.assertContains(self.client.get(reverse('dashboard')), reverse('attendance_report_print', args=[report.id]))
 
     def test_student_form_has_optional_guardian_fields_and_native_notice_tables(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
@@ -199,11 +202,11 @@ class AttendanceReportFlowTests(TestCase):
         report = AttendanceReport.objects.get()
         self.assertIsNotNone(report.guardian_signed_at)
         self.assertIsNone(report.guardian_token)
-        self.assertContains(self.client.get(url), '보호자 서명 완료')
+        self.assertRedirects(self.client.get(url), reverse('attendance_report_print', args=[report.id]))
         self.assertContains(self.client.get(reverse('attendance_report_print', args=[report.id])),
                             'alt="보호자 서명"')
 
-        edit_page = self.client.get(url)
+        edit_page = self.client.get(url + '?edit=1')
         self.assertContains(edit_page, 'name="guardian_signature_data" value=""')
         revised_payload = {**payload, 'reason': '수정한 사유', 'guardian_signature_data': ''}
         self.client.post(url, revised_payload)
@@ -252,6 +255,9 @@ class AttendanceReportFlowTests(TestCase):
         })
         report.refresh_from_db()
         self.assertEqual(report.attendance_type, AttendanceReport.AttendanceType.SICK_TARDY)
+        print_url = reverse('attendance_report_print', args=[report.id])
+        self.assertRedirects(self.client.get(reverse('student_attendance_report', args=[folder.id]) + '?edit=1'), print_url)
+        self.assertNotContains(self.client.get(print_url), '신고서 수정')
 
     def test_guardian_qr_signature_and_teacher_confirmation(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher, allow_edit_after_submission=True)
@@ -299,7 +305,9 @@ class AttendanceReportFlowTests(TestCase):
         report.refresh_from_db()
         self.assertIsNotNone(report.confirmed_at)
         self.client.force_login(self.student_user)
-        self.assertContains(self.client.get(student_url), '교사 확정 완료')
+        print_url = reverse('attendance_report_print', args=[report.id])
+        self.assertRedirects(self.client.get(student_url), print_url)
+        self.assertContains(self.client.get(print_url), '교사 확정 완료')
         self.client.post(student_url, {'reason': '변경 시도'})
         report.refresh_from_db()
         self.assertEqual(report.reason, '공식 대회 참가')

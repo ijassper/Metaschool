@@ -585,7 +585,7 @@
         {% if block.attendance_folders %}
           <div class="course-notebook-slot">
             {% for folder in block.attendance_folders %}
-              <a class="student-note-link" href="{% url 'student_attendance_report' folder.id %}" aria-label="출결 확인 신고서 작성">
+              <a class="student-note-link" href="{% if folder.my_report and folder.my_report.submitted_at %}{% url 'attendance_report_print' folder.my_report.id %}{% else %}{% url 'student_attendance_report' folder.id %}{% endif %}" aria-label="{% if folder.my_report and folder.my_report.submitted_at %}출결 확인 신고서 보기{% else %}출결 확인 신고서 작성{% endif %}">
                 <span class="student-note-top">
                   <span class="student-note-subject"><i class="bi bi-calendar2-check me-1"></i>출결 신고</span>
                   <span class="student-note-status{% if folder.my_report and folder.my_report.submitted_at %} has-pages{% endif %}">{% if folder.my_report and folder.my_report.submitted_at %}제출 완료{% else %}작성 필요{% endif %}</span>
