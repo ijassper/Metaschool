@@ -285,7 +285,7 @@ class IngridWebActivity : Activity() {
                     isCourseNotebookUploadPage(webView.url) && acceptsImages(fileChooserParams)
                 return if (isNotebookImageRequest && fileChooserParams.isCaptureEnabled) {
                     clearNativeDocumentScanMarker()
-                    launchDocumentScanner()
+                    showDocumentScanGuide()
                     true
                 } else if (isNotebookImageRequest) {
                     clearNativeDocumentScanMarker()
@@ -332,7 +332,10 @@ class IngridWebActivity : Activity() {
                 emptyList()
             }
             val result = pages.map { it.imageUri }.take(MAX_DOCUMENT_SCAN_PAGES).toTypedArray()
-            if (result.isNotEmpty()) notifyNativeDocumentScanReady(result.size)
+            if (result.isNotEmpty()) {
+                notifyNativeDocumentScanReady(result.size)
+                Toast.makeText(this, getString(R.string.document_scan_complete, result.size), Toast.LENGTH_LONG).show()
+            }
             completeFileChooser(result.ifEmpty { null })
             return
         }
@@ -374,6 +377,16 @@ class IngridWebActivity : Activity() {
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         }
         if (requestedOrientation != orientation) requestedOrientation = orientation
+    }
+
+    private fun showDocumentScanGuide() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.document_scan_guide_title)
+            .setMessage(R.string.document_scan_guide_message)
+            .setPositiveButton(R.string.document_scan_guide_start) { _, _ -> launchDocumentScanner() }
+            .setNegativeButton(android.R.string.cancel) { _, _ -> completeFileChooser(null) }
+            .setOnCancelListener { completeFileChooser(null) }
+            .show()
     }
 
     private fun launchDocumentScanner() {

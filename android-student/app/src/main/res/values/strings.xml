@@ -2,6 +2,10 @@
 <resources>
     <string name="note_photo_chooser_title">노트 사진 촬영 또는 선택</string>
     <string name="document_scanner_fallback">문서 스캐너를 준비하지 못해 기본 카메라·사진 선택으로 전환합니다.</string>
+    <string name="document_scan_guide_title">노트 촬영 안내</string>
+    <string name="document_scan_guide_message">종이 전체가 화면에 들어오도록 맞춰 주세요. 화면이 번쩍인 직후에도 촬영이 완료될 때까지 태블릿과 노트를 움직이지 마세요. 촬영한 사진은 제출 전에 다시 확인할 수 있습니다.</string>
+    <string name="document_scan_guide_start">촬영 시작</string>
+    <string name="document_scan_complete">촬영 완료 · %1$d장. 사진을 확인한 뒤 제출해 주세요.</string>
     <string name="app_name">인그리드 학생</string>
     <string name="brand_name">Ingrid</string>
     <string name="student_app">학생용 평가 앱</string>
