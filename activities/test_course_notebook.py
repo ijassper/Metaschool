@@ -675,15 +675,17 @@ class CourseNotebookStudentUploadTests(TestCase):
         self.assertEqual(CourseNotebookPage.objects.count(), 0)
 
     def test_upload_date_and_reorder_are_saved_and_scope_checked(self):
+        image = Image.new('RGB', (40, 60), 'white')
+        image_bytes = io.BytesIO()
+        image.save(image_bytes, format='JPEG')
         with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
-            with patch('activities.views.course_notebook_views._rotated_notebook_image', side_effect=lambda image, rotation: image):
-                for index in range(2):
-                    response = self.client.post(
-                        reverse('student_course_notebook', args=[self.notebook.id]) + f'?section={self.section.id}',
-                        {'image': SimpleUploadedFile(f'note{index}.jpg', b'image', content_type='image/jpeg'),
-                         'memo': f'노트 {index}', 'note_date': '2026-10-20'},
-                    )
-                    self.assertEqual(response.status_code, 302)
+            for index in range(2):
+                response = self.client.post(
+                    reverse('student_course_notebook', args=[self.notebook.id]) + f'?section={self.section.id}',
+                    {'image': SimpleUploadedFile(f'note{index}.jpg', image_bytes.getvalue(), content_type='image/jpeg'),
+                     'memo': f'노트 {index}', 'note_date': '2026-10-20'},
+                )
+                self.assertEqual(response.status_code, 302)
         pages = list(CourseNotebookPage.objects.filter(student=self.student).order_by('sort_order'))
         self.assertEqual([page.sort_order for page in pages], [1, 2])
         self.assertEqual([page.note_date.isoformat() for page in pages], ['2026-10-20', '2026-10-20'])
@@ -734,6 +736,38 @@ class CourseNotebookStudentUploadTests(TestCase):
             with page.image.open('rb') as saved:
                 with Image.open(saved) as rotated:
                     self.assertEqual(rotated.size, (40, 80))
+
+    def test_invalid_image_rejects_entire_batch_before_saving(self):
+        image = Image.new('RGB', (40, 60), 'white')
+        image_bytes = io.BytesIO()
+        image.save(image_bytes, format='JPEG')
+        response = self.client.post(
+            reverse('student_course_notebook', args=[self.notebook.id]) + f'?section={self.section.id}',
+            {'image': [
+                SimpleUploadedFile('good.jpg', image_bytes.getvalue(), content_type='image/jpeg'),
+                SimpleUploadedFile('broken.jpg', b'not a jpeg', content_type='image/jpeg'),
+            ]},
+        )
+        self.assertContains(response, '2번째 사진을 읽을 수 없습니다.')
+        self.assertEqual(CourseNotebookPage.objects.count(), 0)
+
+        response = self.client.post(
+            reverse('student_course_notebook', args=[self.notebook.id]) + f'?section={self.section.id}',
+            {'image': SimpleUploadedFile('photo.heic', b'heic data', content_type='image/heic')},
+        )
+        self.assertContains(response, 'JPG, PNG 또는 WebP')
+        self.assertEqual(CourseNotebookPage.objects.count(), 0)
+
+    def test_existing_unreadable_photo_returns_reupload_guidance(self):
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
+            page = CourseNotebookPage.objects.create(
+                notebook=self.notebook, student=self.student, section=self.section,
+                image=SimpleUploadedFile('old.jpg', b'not-a-jpeg', content_type='image/jpeg'),
+            )
+            response = self.client.post(reverse('course_notebook_page_archive_process', args=[page.id]))
+        self.assertEqual(response.status_code, 422)
+        self.assertIn('사진을 다시 올려 주세요', response.json()['message'])
+        self.assertEqual(response.json()['edit_url'], reverse('student_course_notebook_page_edit', args=[page.id]))
 
     def test_rotating_existing_page_updates_image_and_resets_processed_copy(self):
         image = Image.new('RGB', (80, 40), 'white')
@@ -799,6 +833,9 @@ class CourseNotebookStudentUploadTests(TestCase):
         self.assertNotContains(response, reverse('student_course_notebook_page', args=[second.id]))
 
     def test_student_can_edit_page_title_and_replace_photo(self):
+        image = Image.new('RGB', (40, 60), 'white')
+        image_bytes = io.BytesIO()
+        image.save(image_bytes, format='JPEG')
         with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
             page = CourseNotebookPage.objects.create(
                 notebook=self.notebook, student=self.student, section=self.section,
@@ -816,7 +853,7 @@ class CourseNotebookStudentUploadTests(TestCase):
             with self.captureOnCommitCallbacks(execute=True):
                 response = self.client.post(url, {
                     'action': 'save', 'memo': '새 제목', 'section': str(self.section.id),
-                    'image': SimpleUploadedFile('new.jpg', b'new-photo', content_type='image/jpeg'),
+                    'image': SimpleUploadedFile('new.jpg', image_bytes.getvalue(), content_type='image/jpeg'),
                 })
 
             self.assertRedirects(response, reverse('student_course_notebook_page', args=[page.id]))
@@ -866,6 +903,14 @@ class CourseNotebookStudentUploadTests(TestCase):
             'image': SimpleUploadedFile('bad.txt', b'not-an-image', content_type='text/plain'),
         })
         self.assertContains(response, '이미지 파일을 선택해 주세요.')
+        page.refresh_from_db()
+        self.assertEqual(page.memo, '유지할 제목')
+
+        response = self.client.post(url, {
+            'action': 'save', 'memo': '바꾼 제목', 'section': str(self.section.id),
+            'image': SimpleUploadedFile('bad.jpg', b'not-a-jpeg', content_type='image/jpeg'),
+        })
+        self.assertContains(response, '사진을 읽을 수 없습니다.')
         page.refresh_from_db()
         self.assertEqual(page.memo, '유지할 제목')
 

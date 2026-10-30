@@ -40,6 +40,23 @@ def _parse_notebook_date(value):
     except ValueError:
         return None
 PHOTO_ROTATIONS = {'0': 0, '90': 90, '180': 180, '270': 270}
+SUPPORTED_NOTEBOOK_IMAGE_FORMATS = {'JPEG', 'PNG', 'WEBP'}
+
+
+def _validate_notebook_image(source):
+    """Decode the entire upload before a database row or file is created."""
+    try:
+        source.seek(0)
+        with Image.open(source) as image:
+            if image.format not in SUPPORTED_NOTEBOOK_IMAGE_FORMATS:
+                raise ValueError('unsupported image format')
+            if image.width * image.height > 60_000_000:
+                raise ValueError('image dimensions are too large')
+            image.load()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise ValueError('사진을 읽을 수 없습니다. JPG, PNG 또는 WebP 사진을 다시 촬영하거나 변환해 올려 주세요.') from exc
+    finally:
+        source.seek(0)
 
 
 def _rotated_notebook_image(source, degrees):
@@ -783,12 +800,17 @@ def student_course_notebook(request, notebook_id):
             if not rotation_values:
                 rotation_values = ['0'] * len(uploads)
             try:
+                for index, uploaded in enumerate(uploads, start=1):
+                    try:
+                        _validate_notebook_image(uploaded)
+                    except ValueError as exc:
+                        raise ValueError(f'{index}번째 {exc}') from exc
                 prepared_uploads = [
                     _rotated_notebook_image(uploaded, PHOTO_ROTATIONS[rotation]) if rotation != '0' else uploaded
                     for uploaded, rotation in zip(uploads, rotation_values)
                 ]
-            except (UnidentifiedImageError, OSError, ValueError):
-                messages.error(request, '회전할 사진을 읽을 수 없습니다. 다른 이미지를 선택해 주세요.')
+            except (UnidentifiedImageError, OSError, ValueError) as exc:
+                messages.error(request, str(exc) if isinstance(exc, ValueError) else '사진을 처리할 수 없습니다. 다시 촬영해 주세요.')
                 prepared_uploads = None
             if prepared_uploads is not None:
                 with transaction.atomic():
@@ -967,6 +989,14 @@ def student_course_notebook_page_edit(request, page_id):
             messages.error(request, '사진 회전 정보를 확인해 주세요.')
         else:
             rotation = PHOTO_ROTATIONS[rotation_value]
+            if uploaded:
+                try:
+                    _validate_notebook_image(uploaded)
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                    return render(request, 'activities/student_course_notebook_page_edit.html', {
+                        'page': page, 'notebook': page.notebook, 'sections': sections,
+                    })
             if rotation:
                 try:
                     source = uploaded or page.image
@@ -1043,7 +1073,14 @@ def course_notebook_archive_pdf(request, notebook_id):
 @_redirect_missing_student_notebook
 def course_notebook_page_archive_process(request, page_id):
     """OCR 비용 없이 현재 사진만 A4 문서 이미지로 보정한다."""
-    page = ensure_archive_image(_student_notebook_page(request.user, page_id))
+    page = _student_notebook_page(request.user, page_id)
+    try:
+        page = ensure_archive_image(page)
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        return JsonResponse({
+            'message': '원본 사진을 읽을 수 없습니다. 노트 수정에서 사진을 다시 올려 주세요.',
+            'edit_url': reverse('student_course_notebook_page_edit', args=[page.id]),
+        }, status=422)
     return JsonResponse({
         'message': 'A4 문서 보정이 완료되었습니다.',
         'processed_image_url': page.processed_image.url,
