@@ -208,8 +208,9 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertLess(teacher_page_source.index('class="reader-stage"'), teacher_page_source.index('class="reader-footer"'))
         self.assertNotIn('class="reader-side', teacher_page_source)
         self.assertNotIn('<span>{{ current_number }} / {{ pages|length }}</span>', teacher_page_source)
-        headings = ['학년', '반', '번호', '이름', '상태', '최근 작성일', '열람', '전체 장수', '단원별 장수']
+        headings = ['학년', '반', '번호', '이름', '최근 작성일', '열람', '전체 장수', '단원별 장수']
         header_row = submission_source.split('<thead><tr>', 1)[1].split('</tr></thead>', 1)[0]
+        header_row = header_row.replace('{% comment %}<th>상태</th>{% endcomment %}', '')
         self.assertEqual(header_row, ''.join(f'<th>{heading}</th>' for heading in headings))
         self.assertIn('<td><a class="btn-student-notes"', submission_source)
         self.assertLess(student_status_source.index('class="student-switch"'), student_status_source.index('class="all-pdf"'))

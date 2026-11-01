@@ -14,11 +14,10 @@
 .status-table th:nth-child(1),.status-table th:nth-child(2){width:3.3%}
 .status-table th:nth-child(3){width:3.8%}
 .status-table th:nth-child(4){width:7%}
-.status-table th:nth-child(5){width:6.5%}
-.status-table th:nth-child(6){width:10%}
-.status-table th:nth-child(7){width:7%}
-.status-table th:nth-child(8){width:5.5%}
-.status-table th:nth-child(9){width:53.6%;text-align:left}
+.status-table th:nth-child(5){width:10%}
+.status-table th:nth-child(6){width:7%}
+.status-table th:nth-child(7){width:5.5%}
+.status-table th:nth-child(8){width:60.1%;text-align:left}
 .status-table td{overflow-wrap:anywhere}
 .status-table .student-name{display:block}
 .status-table .latest-at{font-size:.75rem}
@@ -94,12 +93,12 @@
   <section class="status-table-wrap">
     {% if student_rows %}
     <table class="table status-table">
-      <thead><tr><th>학년</th><th>반</th><th>번호</th><th>이름</th><th>상태</th><th>최근 작성일</th><th>열람</th><th>전체 장수</th><th>단원별 장수</th></tr></thead>
+      <thead><tr><th>학년</th><th>반</th><th>번호</th><th>이름</th>{% comment %}<th>상태</th>{% endcomment %}<th>최근 작성일</th><th>열람</th><th>전체 장수</th><th>단원별 장수</th></tr></thead>
       <tbody>
       {% for row in student_rows %}
         <tr>
           <td>{{ row.student.grade }}</td><td>{{ row.student.class_no }}</td><td>{{ row.student.number }}</td><td><span class="student-name">{{ row.student.name }}</span></td>
-          <td>{% if row.page_count %}<span class="submission-badge">작성</span>{% else %}<span class="submission-badge empty">미작성</span>{% endif %}</td>
+          {% comment %}<td>{% if row.page_count %}<span class="submission-badge">작성</span>{% else %}<span class="submission-badge empty">미작성</span>{% endif %}</td>{% endcomment %}
           <td class="latest-at">{% if row.last_created_at %}{{ row.last_created_at|date:'Y.m.d H:i' }}{% else %}-{% endif %}</td>
           <td><a class="btn-student-notes" href="{% url 'course_notebook_student_status' notebook.id row.student.id %}"><i class="bi bi-images"></i>노트 보기</a></td>
           <td><span class="count-strong">{{ row.page_count }}</span>장</td>
