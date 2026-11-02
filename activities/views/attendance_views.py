@@ -1,14 +1,17 @@
 import base64
+import calendar
 import io
 import re
 import secrets
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 import qrcode
 from PIL import Image, UnidentifiedImageError
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -162,9 +165,35 @@ def attendance_folder_detail(request, folder_id):
         teacher=request.user,
     )
     reports_by_student = {report.student_id: report for report in folder.reports.all()}
+    view_mode = 'list' if request.GET.get('view') == 'list' else 'calendar'
+    search_query = request.GET.get('q', '').strip()
+    start_filter = request.GET.get('start_date', '').strip()
+    end_filter = request.GET.get('end_date', '').strip()
+    try:
+        start_date = date.fromisoformat(start_filter) if start_filter else None
+    except ValueError:
+        start_date, start_filter = None, ''
+    try:
+        end_date = date.fromisoformat(end_filter) if end_filter else None
+    except ValueError:
+        end_date, end_filter = None, ''
+    if start_date and end_date and end_date < start_date:
+        end_date, end_filter = None, ''
+    students = folder.target_students.all().order_by('grade', 'class_no', 'number', 'name')
+    for token in search_query.split():
+        match = Q(name__icontains=token)
+        if token.isdigit():
+            match |= Q(number=int(token))
+        students = students.filter(match)
     rows = []
-    for student in folder.target_students.all().order_by('grade', 'class_no', 'number', 'name'):
+    for student in students:
         report = reports_by_student.get(student.id)
+        if start_date or end_date:
+            if not report or not report.submitted_at:
+                continue
+            report_end = report.end_date or report.start_date
+            if start_date and report_end < start_date or end_date and report.start_date > end_date:
+                continue
         row = {'student': student, 'report': report}
         if report and _guardian_link_is_active(report):
             row['guardian_url'] = request.build_absolute_uri(
@@ -174,9 +203,74 @@ def attendance_folder_detail(request, folder_id):
             qrcode.make(row['guardian_url']).save(qr, format='PNG')
             row['guardian_qr'] = base64.b64encode(qr.getvalue()).decode('ascii')
         rows.append(row)
+    month_value = request.GET.get('month', '')
+    try:
+        month_date = date.fromisoformat(month_value + '-01')
+    except ValueError:
+        month_date = timezone.localdate().replace(day=1)
+    month_start = month_date.replace(day=1)
+    month_end = month_date.replace(day=calendar.monthrange(month_date.year, month_date.month)[1])
+    calendar_weeks = []
+    for week_dates in calendar.Calendar(firstweekday=0).monthdatescalendar(month_date.year, month_date.month):
+        week_start, week_end = week_dates[0], week_dates[-1]
+        visible_reports = [
+            row['report'] for row in rows if row['report'] and row['report'].submitted_at
+            and row['report'].start_date <= week_end
+            and (row['report'].end_date or row['report'].start_date) >= week_start
+        ]
+        visible_reports.sort(key=lambda item: (item.start_date, -(item.end_date or item.start_date).toordinal(), item.student.number))
+        lanes = []
+        events = []
+        overflow = [[] for _ in week_dates]
+        for report in visible_reports:
+            first_day = max(report.start_date, week_start)
+            last_day = min(report.end_date or report.start_date, week_end)
+            first_column = (first_day - week_start).days + 1
+            last_column = (last_day - week_start).days + 1
+            lane = next((index for index, occupied_until in enumerate(lanes) if occupied_until < first_column), len(lanes))
+            if lane == len(lanes):
+                lanes.append(last_column)
+            else:
+                lanes[lane] = last_column
+            if lane < 3:
+                events.append({
+                    'report': report, 'column': first_column, 'span': last_column - first_column + 1,
+                    'lane': lane + 1, 'category': report.attendance_category.lower(),
+                    'label': f'{report.student.name} · {report.get_attendance_type_display()}',
+                })
+            else:
+                for index in range(first_column - 1, last_column):
+                    overflow[index].append(f'{report.student.name} · {report.get_attendance_type_display()}')
+        calendar_weeks.append({
+            'days': [
+                {'date': day, 'in_month': day.month == month_date.month,
+                 'overflow_count': len(overflow[index]), 'overflow_title': '\n'.join(overflow[index])}
+                for index, day in enumerate(week_dates)
+            ],
+            'events': events,
+        })
+    base_filters = {'q': search_query, 'start_date': start_filter, 'end_date': end_filter}
+    base_filters = {key: value for key, value in base_filters.items() if value}
+    previous_month = month_start - timedelta(days=1)
+    next_month = month_end + timedelta(days=1)
+    calendar_base = reverse('attendance_folder_detail', args=[folder.id])
+    def calendar_url(target_month):
+        return calendar_base + '?' + urlencode({**base_filters, 'month': target_month.strftime('%Y-%m')})
     return render(request, 'activities/attendance_folder_detail.html', {
         'folder': folder,
         'rows': rows,
+        'not_submitted_count': max(folder.target_students.count() - folder.submitted_count, 0),
+        'view_mode': view_mode,
+        'search_query': search_query,
+        'start_filter': start_filter,
+        'end_filter': end_filter,
+        'month_label': month_start.strftime('%Y년 %m월'),
+        'month_value': month_start.strftime('%Y-%m'),
+        'calendar_weeks': calendar_weeks,
+        'previous_month_url': calendar_url(previous_month),
+        'next_month_url': calendar_url(next_month),
+        'calendar_view_url': calendar_url(month_start),
+        'list_view_url': calendar_base + '?' + urlencode({**base_filters, 'view': 'list', 'month': month_start.strftime('%Y-%m')}),
     })
 
 
@@ -192,7 +286,19 @@ def attendance_report_guardian_invite(request, report_id):
         report.guardian_token_created_at = timezone.now()
         report.save(update_fields=['guardian_token', 'guardian_token_created_at'])
         messages.success(request, '보호자 서명 QR을 만들었습니다. 내용을 확인한 뒤 보호자에게 전달해 주세요.')
-    return redirect(f"{reverse('attendance_folder_detail', args=[report.folder_id])}#report-{report.id}")
+    return redirect(_report_detail_url(report, request))
+
+
+def _report_detail_url(report, request):
+    params = {}
+    if request.POST.get('view') == 'list':
+        params['view'] = 'list'
+    for key in ('q', 'start_date', 'end_date', 'month'):
+        value = request.POST.get(key, '').strip()
+        if value:
+            params[key] = value
+    query = '?' + urlencode(params) if params else ''
+    return f"{reverse('attendance_folder_detail', args=[report.folder_id])}{query}#report-{report.id}"
 
 
 @require_http_methods(['GET', 'POST'])
@@ -238,9 +344,10 @@ def attendance_report_confirm(request, report_id):
         messages.error(request, '보호자 서명 후 확정할 수 있습니다.')
     elif not report.confirmed_at:
         report.confirmed_at = timezone.now()
-        report.save(update_fields=['confirmed_at'])
+        report.reopened_at = None
+        report.save(update_fields=['confirmed_at', 'reopened_at'])
         messages.success(request, '출결 신고서를 확정했습니다. 학생 수정이 차단됩니다.')
-    return redirect(f"{reverse('attendance_folder_detail', args=[report.folder_id])}#report-{report.id}")
+    return redirect(_report_detail_url(report, request))
 
 
 @login_required
@@ -250,9 +357,35 @@ def attendance_report_unconfirm(request, report_id):
     report = get_object_or_404(AttendanceReport, id=report_id, folder__teacher=request.user, submitted_at__isnull=False)
     if report.confirmed_at:
         report.confirmed_at = None
-        report.save(update_fields=['confirmed_at'])
+        report.reopened_at = timezone.now()
+        report.save(update_fields=['confirmed_at', 'reopened_at'])
         messages.success(request, '출결 신고서 확정을 취소했습니다. 학생이 다시 수정할 수 있습니다.')
-    return redirect(f"{reverse('attendance_folder_detail', args=[report.folder_id])}#report-{report.id}")
+    return redirect(_report_detail_url(report, request))
+
+
+@login_required
+def student_attendance_list(request):
+    if request.user.role != 'STUDENT':
+        return redirect('attendance_folder_list')
+    student = _student_for_user(request.user)
+    if not student:
+        messages.error(request, '연결된 학생 정보를 찾을 수 없습니다.')
+        return redirect('dashboard')
+    folders = list(
+        AttendanceReportFolder.objects.filter(target_students=student)
+        .select_related('teacher').order_by('-created_at').distinct()
+    )
+    reports = {
+        report.folder_id: report for report in AttendanceReport.objects.filter(
+            folder__in=folders, student=student,
+        )
+    }
+    for folder in folders:
+        folder.my_report = reports.get(folder.id)
+    return render(request, 'activities/student_attendance_list.html', {
+        'folders': folders, 'student': student,
+        'submitted_count': sum(bool(folder.my_report and folder.my_report.submitted_at) for folder in folders),
+    })
 
 
 @login_required
@@ -264,19 +397,15 @@ def student_attendance_report(request, folder_id):
     if not student:
         messages.error(request, '연결된 학생 정보를 찾을 수 없습니다.')
         return redirect('dashboard')
-    folder = get_object_or_404(
-        AttendanceReportFolder,
-        id=folder_id,
-        target_students=student,
-        is_active=True,
-    )
+    folder = get_object_or_404(AttendanceReportFolder, id=folder_id, target_students=student)
     report = AttendanceReport.objects.filter(folder=folder, student=student).first()
     locked = bool(report and not report.can_edit)
+    can_operate = folder.is_within_operation_period or bool(report and report.reopened_at and report.can_edit)
     if request.method == 'GET' and report and report.submitted_at and (
-        request.GET.get('edit') != '1' or locked or not folder.is_within_operation_period
+        request.GET.get('edit') != '1' or locked or not can_operate
     ):
         return redirect('attendance_report_print', report_id=report.id)
-    if not folder.is_within_operation_period:
+    if not can_operate:
         messages.warning(request, '현재 출결 신고서 운영 기간이 아닙니다.')
         return redirect('attendance_report_print', report_id=report.id) if report and report.submitted_at else redirect('dashboard')
 
@@ -351,10 +480,17 @@ def student_attendance_report(request, folder_id):
             report.written_date = parsed_written_date
             report.student_signature = student_signature
             report.student_signature_data = student_signature_data
-            # A revised report does not automatically carry forward the prior guardian signature or QR.
+            # Keep the guardian's drawn signature on the edit form; a newly issued QR is invalidated.
+            previous_guardian_name = report.guardian_signature
+            previous_guardian_data = report.guardian_signature_data
+            previous_guardian_signed_at = report.guardian_signed_at
             report.guardian_signature = guardian_name
             report.guardian_signature_data = guardian_signature_data
-            report.guardian_signed_at = timezone.now() if guardian_name and guardian_signature_data else None
+            report.guardian_signed_at = (
+                previous_guardian_signed_at
+                if guardian_name == previous_guardian_name and guardian_signature_data == previous_guardian_data
+                else timezone.now() if guardian_name and guardian_signature_data else None
+            )
             report.guardian_token = None
             report.guardian_token_created_at = None
             report.submitted_at = timezone.now()
@@ -368,12 +504,10 @@ def student_attendance_report(request, folder_id):
     else:
         form_values = None
 
-    if form_values:
-        guardian_signature_data_for_form = form_values.get('guardian_signature_data', '')
-    elif report and (locked or not report.guardian_signed_at):
-        guardian_signature_data_for_form = report.guardian_signature_data
-    else:
-        guardian_signature_data_for_form = ''
+    guardian_signature_data_for_form = (
+        form_values.get('guardian_signature_data', '') if form_values else
+        report.guardian_signature_data if report else ''
+    )
 
     return render(request, 'activities/student_attendance_report.html', {
         'folder': folder,
@@ -406,7 +540,7 @@ def attendance_report_print(request, report_id):
     elif report.folder.teacher_id != request.user.id:
         return redirect('attendance_folder_list')
     can_student_edit = bool(
-        is_student and report.folder.is_active and report.folder.is_within_operation_period
+        is_student and (report.folder.is_within_operation_period or bool(report.reopened_at))
         and report.can_edit
         and report.folder.target_students.filter(id=report.student_id).exists()
     )

@@ -900,6 +900,7 @@ class AttendanceReport(models.Model):
     guardian_token_created_at = models.DateTimeField(null=True, blank=True, verbose_name='보호자 서명 링크 발급 시각')
     guardian_signed_at = models.DateTimeField(null=True, blank=True, verbose_name='보호자 서명 시각')
     confirmed_at = models.DateTimeField(null=True, blank=True, verbose_name='교사 확정 시각')
+    reopened_at = models.DateTimeField(null=True, blank=True, verbose_name='교사 확정 취소 시각')
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name='제출 시각')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

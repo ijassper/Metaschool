@@ -419,6 +419,10 @@ def dashboard(request):
             }
             for folder in student_attendance_folders:
                 folder.my_report = reports_by_folder.get(folder.id)
+            student_attendance_history = list(
+                AttendanceReportFolder.objects.filter(target_students=student_profile)
+                .order_by('-created_at').distinct()
+            )
             attendance_completed_count = sum(
                 1 for folder in student_attendance_folders
                 if folder.my_report and folder.my_report.submitted_at
@@ -435,7 +439,7 @@ def dashboard(request):
                     student_course_notebooks if cat_code == 'SUBJECT_ACTIVITY' else []
                 )
                 attendance_folders = (
-                    student_attendance_folders if cat_code == 'SCHOOL_LIFE' else []
+                    student_attendance_history if cat_code == 'SCHOOL_LIFE' else []
                 )
                 
                 if items or course_notebooks or attendance_folders:

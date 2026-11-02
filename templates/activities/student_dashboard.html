@@ -585,17 +585,18 @@
         {% if block.attendance_folders %}
           <div class="course-notebook-slot">
             {% for folder in block.attendance_folders %}
-              <a class="student-note-link" href="{% if folder.my_report and folder.my_report.submitted_at %}{% url 'attendance_report_print' folder.my_report.id %}{% else %}{% url 'student_attendance_report' folder.id %}{% endif %}" aria-label="{% if folder.my_report and folder.my_report.submitted_at %}출결 확인 신고서 보기{% else %}출결 확인 신고서 작성{% endif %}">
+              {% if forloop.first %}<a class="student-note-link" href="{% url 'student_attendance_list' %}" aria-label="출결 신고서 목록 보기">
                 <span class="student-note-top">
                   <span class="student-note-subject"><i class="bi bi-calendar2-check me-1"></i>출결 신고</span>
-                  <span class="student-note-status{% if folder.my_report and folder.my_report.submitted_at %} has-pages{% endif %}">{% if folder.my_report and folder.my_report.submitted_at %}제출 완료{% else %}작성 필요{% endif %}</span>
+                  <span class="student-note-status has-pages">{{ block.attendance_folders|length }}개 폴더</span>
                 </span>
                 <span class="student-note-main attendance-note-main">
-                  <span class="student-note-copy"><strong class="student-note-title">{{ folder.display_name }}</strong><span class="student-note-description">결석·지각·조퇴·결과 신고서를 작성합니다.</span></span>
+                  <span class="student-note-copy"><strong class="student-note-title">출결 신고서 목록</strong><span class="student-note-description">작성한 신고서를 확인하고 새 신고서를 작성합니다.</span></span>
                 </span>
-                <span class="student-note-meta">{% if folder.operation_start_date and folder.operation_end_date %}{{ folder.operation_start_date|date:'Y.m.d' }} ~ {{ folder.operation_end_date|date:'Y.m.d' }} · {% endif %}{{ folder.teacher.name }} 선생님</span>
-                <span class="student-note-bottom"><span class="student-note-stats"><span><i class="bi bi-pencil-square me-1"></i>{% if folder.my_report and folder.my_report.confirmed_at %}확정 완료 · 수정 불가{% else %}확정 전 수정 가능{% endif %}</span></span><span class="student-note-open">{% if folder.my_report and folder.my_report.submitted_at %}신고서 보기{% else %}작성하기{% endif %} <i class="bi bi-chevron-right"></i></span></span>
+                <span class="student-note-meta">출결 신고 내역과 제출 상태</span>
+                <span class="student-note-bottom"><span class="student-note-stats"><span><i class="bi bi-file-earmark-text me-1"></i>전체 목록</span></span><span class="student-note-open">목록 보기 <i class="bi bi-chevron-right"></i></span></span>
               </a>
+              {% endif %}
             {% endfor %}
           </div>
         {% endif %}
