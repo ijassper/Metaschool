@@ -568,6 +568,33 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         self.assertEqual(response.context['next_student_id'], self.empty_student.id)
         self.assertContains(response, '다음 학생')
 
+    def test_date_view_uses_student_note_date_instead_of_upload_date(self):
+        first = CourseNotebookPage.objects.get(student=self.submitted_student)
+        first.note_date = '2026-10-20'
+        first.save(update_fields=['note_date'])
+        CourseNotebookPage.objects.filter(id=first.id).update(
+            created_at=timezone.make_aware(datetime(2026, 10, 23, 9, 0)),
+        )
+        second = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.empty_student, section=self.section,
+            image='course_notebooks/second.jpg', note_date='2026-10-21',
+        )
+        CourseNotebookPage.objects.filter(id=second.id).update(
+            created_at=timezone.make_aware(datetime(2026, 10, 22, 10, 0)),
+        )
+
+        url = reverse('course_notebook_submission_status', args=[self.notebook.id])
+        latest = self.client.get(url, {'view': 'date'})
+        self.assertEqual(latest.context['date_filter'], '2026-10-21')
+        self.assertEqual([page.id for page in latest.context['date_groups'][0]['pages']], [second.id])
+        self.assertEqual(latest.context['date_previous'].isoformat(), '2026-10-20')
+        self.assertContains(latest, '노트 날짜')
+        self.assertContains(latest, '업로드 2026.10.22 10:00')
+
+        earlier = self.client.get(url, {'view': 'date', 'note_date': '2026-10-20'})
+        self.assertEqual([page.id for page in earlier.context['date_groups'][0]['pages']], [first.id])
+        self.assertEqual(earlier.context['date_next'].isoformat(), '2026-10-21')
+
     def test_date_view_limits_students_per_page_and_keeps_their_pages_in_upload_order(self):
         first = CourseNotebookPage.objects.get(student=self.submitted_student)
         CourseNotebookPage.objects.filter(id=first.id).update(
@@ -580,7 +607,7 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         CourseNotebookPage.objects.filter(id=second.id).update(
             created_at=timezone.make_aware(datetime(2026, 10, 23, 10, 0)),
         )
-        for number in range(2, 11):
+        for number in range(2, 12):
             student = Student.objects.create(
                 teacher=self.teacher, grade=2, class_no=6, number=number,
                 name=f'학생{number}',
@@ -607,9 +634,9 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         markup = response.content.decode()
         self.assertLess(markup.index('class="filter-panel date-mode"'), markup.index('class="view-tabs"'))
         self.assertLess(markup.index('class="view-tabs"'), markup.index('id="noteDateFilter"'))
-        self.assertEqual(response.context['date_student_count'], 10)
-        self.assertEqual(response.context['date_page_count'], 11)
-        self.assertEqual(len(response.context['date_groups'][0]['students']), 8)
+        self.assertEqual(response.context['date_student_count'], 11)
+        self.assertEqual(response.context['date_page_count'], 12)
+        self.assertEqual(len(response.context['date_groups'][0]['students']), 10)
         self.assertEqual(
             [page.id for page in response.context['date_groups'][0]['students'][0]['pages']],
             [first.id, second.id],
@@ -617,11 +644,12 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         self.assertEqual(response.context['date_previous'].isoformat(), '2026-10-22')
         self.assertContains(response, 'dateNoteModal')
         self.assertContains(response, 'open=first')
-        self.assertNotContains(response, '학생9')
+        self.assertContains(response, '한 페이지 10명')
+        self.assertNotContains(response, '학생11')
 
         response = self.client.get(url, {'view': 'date', 'note_date': '2026-10-23', 'page': '2'})
         self.assertEqual(response.context['date_page'].number, 2)
-        self.assertEqual([item['student'].number for item in response.context['date_groups'][0]['students']], [9, 10])
+        self.assertEqual([item['student'].number for item in response.context['date_groups'][0]['students']], [11])
         self.assertNotContains(response, '김작성 학생 노트')
 
         response = self.client.get(url, {'view': 'date', 'note_date': '2026-10-22'})
