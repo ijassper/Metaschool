@@ -847,7 +847,7 @@ class CourseNotebookStudentUploadTests(TestCase):
         page.refresh_from_db()
         self.assertEqual(page.note_date.isoformat(), '2026-10-21')
 
-    def test_note_dates_sort_first_and_reorder_only_within_one_date(self):
+    def test_manual_order_can_move_pages_across_note_dates(self):
         newer = CourseNotebookPage.objects.create(
             notebook=self.notebook, student=self.student, section=self.section,
             image='course_notebooks/newer.jpg', note_date='2026-10-21', sort_order=1,
@@ -858,18 +858,18 @@ class CourseNotebookStudentUploadTests(TestCase):
         )
         url = reverse('student_course_notebook', args=[self.notebook.id])
         response = self.client.get(url)
-        self.assertEqual([page.id for page in response.context['section_items'][0]['pages']], [older.id, newer.id])
+        self.assertEqual([page.id for page in response.context['section_items'][0]['pages']], [newer.id, older.id])
         reorder_url = reverse('student_course_notebook_reorder', args=[self.notebook.id])
         response = self.client.post(reorder_url, data=json.dumps({
-            'section_id': self.section.id, 'page_ids': [newer.id, older.id],
+            'section_id': self.section.id, 'page_ids': [older.id, newer.id],
         }), content_type='application/json')
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
         response = self.client.post(reverse('student_course_notebook_page_edit', args=[newer.id]), {
             'action': 'save', 'section': str(self.section.id), 'note_date': '2026-10-19',
         })
         self.assertEqual(response.status_code, 302)
         response = self.client.get(url)
-        self.assertEqual([page.id for page in response.context['section_items'][0]['pages']], [newer.id, older.id])
+        self.assertEqual([page.id for page in response.context['section_items'][0]['pages']], [older.id, newer.id])
 
     def test_student_moves_own_note_to_another_section(self):
         other_section = CourseNotebookSection.objects.create(
@@ -888,10 +888,39 @@ class CourseNotebookStudentUploadTests(TestCase):
         self.assertEqual(page.section_id, other_section.id)
         response = self.client.get(reverse('student_course_notebook', args=[self.notebook.id]))
         self.assertEqual([item['pages'] for item in response.context['section_items']][0], [])
-        self.assertContains(response, 'noteMoveDialog')
+        self.assertContains(response, 'noteDropShelf')
         self.assertEqual(self.client.post(url, data=json.dumps({
             'move_page_id': page.id, 'target_section_id': 999999,
         }), content_type='application/json').status_code, 400)
+
+    def test_long_press_move_can_insert_before_page_in_another_section(self):
+        other_section = CourseNotebookSection.objects.create(
+            notebook=self.notebook, title='다른 단원', depth=0, position=1,
+        )
+        first = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.student, section=self.section,
+            image='course_notebooks/first.jpg', sort_order=1,
+        )
+        moved = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.student, section=self.section,
+            image='course_notebooks/moved.jpg', sort_order=2,
+        )
+        target = CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=self.student, section=other_section,
+            image='course_notebooks/target.jpg', sort_order=1,
+        )
+        url = reverse('student_course_notebook_reorder', args=[self.notebook.id])
+        response = self.client.post(url, data=json.dumps({
+            'move_page_id': moved.id, 'target_section_id': other_section.id,
+            'before_page_id': target.id,
+        }), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(CourseNotebookPage.objects.filter(section=self.section).values_list('id', 'sort_order')), [(first.id, 1)])
+        self.assertEqual(list(CourseNotebookPage.objects.filter(section=other_section).order_by('sort_order').values_list('id', flat=True)), [moved.id, target.id])
+        self.assertEqual(self.client.post(url, data=json.dumps({
+            'move_page_id': moved.id, 'target_section_id': other_section.id,
+            'before_page_id': first.id,
+        }), content_type='application/json').status_code, 409)
 
     def test_rotated_upload_is_saved_with_rotated_dimensions(self):
         image = Image.new('RGB', (80, 40), 'white')
