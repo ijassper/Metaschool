@@ -183,7 +183,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         for label in ['대상 학생', '작성 학생', '미작성 학생', '전체 노트']:
             self.assertIn(label, submission_source)
         self.assertLess(
-            submission_source.index('<h2>교과 수업 노트 &gt; {{ notebook.title }} 제출현황</h2>'),
+            submission_source.index('<h2>교과 수업활동 &gt; 교과 수업 노트 &gt; {{ notebook.title }} 제출현황</h2>'),
             submission_source.index('<section class="summary-grid"'),
         )
         self.assertLess(
@@ -230,7 +230,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('.submission-shell{max-width:none;margin:0;padding:1rem 1.5rem 2.5rem}', submission_source)
         self.assertIn("'course_notebook_' in request.resolver_match.url_name", get_template('base.html').template.source)
         self.assertIn("panelTitle.textContent = info.sub + ' > 제출현황'", get_template('base.html').template.source)
-        self.assertIn('{{ activity.sub_category|default:activity.get_category_display }} &gt; {{ activity.title }} 제출현황', get_template('activities/activity_result.html').template.source)
+        self.assertIn('{{ activity.get_category_display }}{% if activity.sub_category %} &gt; {{ activity.sub_category }}{% endif %} &gt; {{ activity.section|default:activity.subject_name }} 제출현황', get_template('activities/activity_result.html').template.source)
         self.assertIn('제출 현황으로', student_status_source)
         self.assertIn("{% url 'course_notebook_update' notebook.id %}", list_source)
         self.assertIn('교과 수업 노트 수정', form_source)
