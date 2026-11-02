@@ -9,7 +9,7 @@ from unittest.mock import patch
 from pathlib import Path
 import json
 import io
-from datetime import datetime
+from datetime import date, datetime
 
 from PIL import Image
 
@@ -19,12 +19,18 @@ from .models import (
     Activity, CourseNotebook, CourseNotebookMaterial, CourseNotebookPage,
     CourseNotebookSection, CourseNotebookStickyNote,
 )
-from .views.course_notebook_views import parse_section_outline
+from .views.course_notebook_views import _parse_notebook_date, parse_section_outline
 from .course_notebook_processing import correct_notebook_image
 from .views.main_views import get_form_config, get_menu_items
 
 
 class CourseNotebookUiTests(SimpleTestCase):
+    def test_aggregated_notebook_dates_accept_strings_and_date_objects(self):
+        expected = date(2026, 10, 30)
+        self.assertEqual(_parse_notebook_date('2026-10-30'), expected)
+        self.assertEqual(_parse_notebook_date(expected), expected)
+        self.assertIsNone(_parse_notebook_date(None))
+
     def test_last_level_sections_are_horizontal_even_directly_under_a_chapter(self):
         leaf_nodes = [
             {
@@ -176,8 +182,9 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertEqual(CourseNotebookSection._meta.get_field('title').max_length, 100)
         self.assertEqual(CourseNotebookMaterial._meta.get_field('original_name').max_length, 255)
         self.assertEqual(CourseNotebookStickyNote._meta.get_field('content').max_length, 1000)
-        for heading in ['학년도', '학기', '과목명', '노트 제목', '상태', '학생 현황', '관리 도구']:
+        for heading in ['학년도', '학기', '과목명', '노트 제목', '학생 현황', '관리 도구']:
             self.assertIn(f'<th>{heading}</th>', list_source)
+        self.assertNotIn('<th>상태</th>', list_source)
         self.assertIn("{% url 'course_notebook_submission_status' notebook.id %}", list_source)
         self.assertIn('제출 현황', list_source)
         for label in ['대상 학생', '작성 학생', '미작성 학생', '전체 노트']:
@@ -194,7 +201,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('name="target"', submission_source)
         self.assertIn('note-grade-check', submission_source)
         self.assertIn('note-class-check', submission_source)
-        self.assertIn('name="status"', submission_source)
+        self.assertNotIn('name="status"', submission_source)
         self.assertIn('name="q"', submission_source)
         self.assertIn("{% url 'course_notebook_student_status' notebook.id row.student.id %}", submission_source)
         self.assertIn("{% url 'course_notebook_teacher_page' notebook.id student.id page.id %}", student_status_source)
@@ -510,7 +517,7 @@ class CourseNotebookSubmissionStatusTests(TestCase):
     def test_submission_status_summarizes_and_filters_students(self):
         response = self.client.get(
             reverse('course_notebook_submission_status', args=[self.notebook.id]),
-            {'status': 'not_submitted', 'class_no': '7'},
+            {'class_no': '7'},
         )
 
         self.assertEqual(response.status_code, 200)

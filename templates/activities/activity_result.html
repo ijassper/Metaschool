@@ -2,11 +2,16 @@
 {% load tz %}
 
 {% block content %}
+<style>
+    .activity-result-heading { flex-wrap: wrap; gap: 12px; }
+    .activity-result-title { flex: 1 1 600px; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+    .activity-result-back { flex: 0 0 auto; margin-left: auto; white-space: nowrap; }
+</style>
 
 <div class="container mt-5 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="fw-bold text-primary"><i class="bi bi-card-checklist"></i> {{ activity.get_category_display }}{% if activity.sub_category %} &gt; {{ activity.sub_category }}{% endif %} &gt; {{ activity.section|default:activity.subject_name }} 제출현황</h3>
-        <a href="{% url 'unified_list' %}?category={{ activity.category }}&sub={{ activity.sub_category }}" class="btn btn-outline-secondary rounded-pill">
+    <div class="d-flex justify-content-between align-items-center mb-3 activity-result-heading">
+        <h3 class="fw-bold text-primary activity-result-title"><i class="bi bi-card-checklist"></i> {{ activity.get_category_display }}{% if activity.sub_category %} &gt; {{ activity.sub_category }}{% endif %} &gt; {{ activity.section|default:activity.subject_name }} 제출현황</h3>
+        <a href="{% url 'unified_list' %}?category={{ activity.category }}&sub={{ activity.sub_category }}" class="btn btn-outline-secondary rounded-pill activity-result-back">
             <i class="bi bi-list me-1"></i> 목록으로
         </a>
     </div>

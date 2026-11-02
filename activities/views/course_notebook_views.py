@@ -2,7 +2,7 @@ import json
 import io
 import re
 from functools import wraps
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -38,9 +38,15 @@ MATERIAL_MAX_SIZE = 25 * 1024 * 1024
 
 
 def _parse_notebook_date(value):
+    if isinstance(value, datetime):
+        return timezone.localtime(value).date() if timezone.is_aware(value) else value.date()
+    if isinstance(value, date):
+        return value
+    if not value:
+        return None
     try:
         return parse_date(value)
-    except ValueError:
+    except (TypeError, ValueError):
         return None
 PHOTO_ROTATIONS = {'0': 0, '90': 90, '180': 180, '270': 270}
 SUPPORTED_NOTEBOOK_IMAGE_FORMATS = {'JPEG', 'PNG', 'WEBP'}
@@ -360,7 +366,6 @@ def course_notebook_submission_status(request, notebook_id):
 
     grade_filter = request.GET.get('grade', '').strip()
     class_filter = request.GET.get('class_no', '').strip()
-    status_filter = request.GET.get('status', '').strip()
     search_query = request.GET.get('q', '').strip()
     view_mode = 'date' if request.GET.get('view') == 'date' else 'student'
     date_filter = request.GET.get('note_date', '').strip()
@@ -398,15 +403,6 @@ def course_notebook_submission_status(request, notebook_id):
         if token.isdigit():
             token_filter |= Q(number=int(token))
         students = students.filter(token_filter)
-    if view_mode == 'date':
-        status_filter = ''
-    if status_filter == 'submitted':
-        students = students.filter(notebook_page_count__gt=0)
-    elif status_filter == 'not_submitted':
-        students = students.filter(notebook_page_count=0)
-    else:
-        status_filter = ''
-
     student_list = list(students) if view_mode == 'student' else []
     student_ids = [student.id for student in student_list] if view_mode == 'student' else list(students.values_list('id', flat=True))
     section_count_map = {}
@@ -459,9 +455,9 @@ def course_notebook_submission_status(request, notebook_id):
         scoped_pages = CourseNotebookPage.objects.filter(
             notebook=notebook, student_id__in=student_ids,
         ).annotate(effective_note_date=Coalesce('note_date', TruncDate('created_at')))
-        selected_date = _parse_notebook_date(date_filter) if date_filter else scoped_pages.aggregate(
-            latest=Max('effective_note_date'),
-        )['latest']
+        selected_date = _parse_notebook_date(date_filter) if date_filter else _parse_notebook_date(
+            scoped_pages.aggregate(latest=Max('effective_note_date'))['latest']
+        )
         if selected_date:
             date_filter = selected_date.isoformat()
             day_pages = scoped_pages.filter(effective_note_date=selected_date)
@@ -481,12 +477,12 @@ def course_notebook_submission_status(request, notebook_id):
                     group['students'].append({'student': page.student, 'pages': []})
                 group['students'][-1]['pages'].append(page)
             date_groups.append(group)
-            date_previous = scoped_pages.filter(effective_note_date__lt=selected_date).aggregate(
-                value=Max('effective_note_date'),
-            )['value']
-            date_next = scoped_pages.filter(effective_note_date__gt=selected_date).aggregate(
-                value=Min('effective_note_date'),
-            )['value']
+            date_previous = _parse_notebook_date(
+                scoped_pages.filter(effective_note_date__lt=selected_date).aggregate(value=Max('effective_note_date'))['value']
+            )
+            date_next = _parse_notebook_date(
+                scoped_pages.filter(effective_note_date__gt=selected_date).aggregate(value=Min('effective_note_date'))['value']
+            )
     date_query_params = [('view', 'date')]
     date_query_params.extend(('target', target) for target in selected_targets)
     for key, value in (('grade', grade_filter), ('class_no', class_filter), ('q', search_query)):
@@ -515,7 +511,6 @@ def course_notebook_submission_status(request, notebook_id):
         'filters': {
             'grade': grade_filter,
             'class_no': class_filter,
-            'status': status_filter,
             'q': search_query,
         },
         'summary': {
