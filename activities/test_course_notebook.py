@@ -183,7 +183,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         for label in ['대상 학생', '작성 학생', '미작성 학생', '전체 노트']:
             self.assertIn(label, submission_source)
         self.assertLess(
-            submission_source.index('<h2>{{ notebook.title }} 제출 현황</h2>'),
+            submission_source.index('<h2>교과 수업 노트 &gt; {{ notebook.title }} 제출현황</h2>'),
             submission_source.index('<section class="summary-grid"'),
         )
         self.assertLess(
@@ -191,8 +191,9 @@ class CourseNotebookUiTests(SimpleTestCase):
             submission_source.index('</header>'),
         )
         self.assertIn('grid-template-columns:repeat(4,minmax(0,1fr))', submission_source)
-        self.assertIn('name="grade"', submission_source)
-        self.assertIn('name="class_no"', submission_source)
+        self.assertIn('name="target"', submission_source)
+        self.assertIn('note-grade-check', submission_source)
+        self.assertIn('note-class-check', submission_source)
         self.assertIn('name="status"', submission_source)
         self.assertIn('name="q"', submission_source)
         self.assertIn("{% url 'course_notebook_student_status' notebook.id row.student.id %}", submission_source)
@@ -228,6 +229,8 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertIn('.course-note-table th{font-size:.95rem}', list_source)
         self.assertIn('.submission-shell{max-width:none;margin:0;padding:1rem 1.5rem 2.5rem}', submission_source)
         self.assertIn("'course_notebook_' in request.resolver_match.url_name", get_template('base.html').template.source)
+        self.assertIn("panelTitle.textContent = info.sub + ' > 제출현황'", get_template('base.html').template.source)
+        self.assertIn('{{ activity.sub_category|default:activity.get_category_display }} &gt; {{ activity.title }} 제출현황', get_template('activities/activity_result.html').template.source)
         self.assertIn('제출 현황으로', student_status_source)
         self.assertIn("{% url 'course_notebook_update' notebook.id %}", list_source)
         self.assertIn('교과 수업 노트 수정', form_source)
@@ -305,7 +308,7 @@ class CourseNotebookUiTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(payload['items'][0]['activity_name'], '우리 반 역사 노트')
         self.assertEqual(payload['items'][0]['detail_topic'], '역사 · 대상 학생 25명')
-        self.assertEqual(payload['items'][0]['url'], f"{reverse('course_notebook_list')}#course-notebook-31")
+        self.assertEqual(payload['items'][0]['url'], reverse('course_notebook_submission_status', args=[31]))
 
     def test_student_dashboard_compacts_welcome_card_on_tablets(self):
         source = get_template('activities/student_dashboard.html').template.source
@@ -515,6 +518,36 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         self.assertEqual(response.context['summary']['submitted_students'], 1)
         self.assertEqual(len(response.context['student_rows']), 1)
         self.assertEqual(response.context['student_rows'][0]['student'], self.empty_student)
+
+    def test_submission_status_selects_multiple_grade_class_pairs_in_both_views(self):
+        third = Student.objects.create(
+            teacher=self.teacher, grade=3, class_no=6, number=1, name='다른학년',
+        )
+        self.notebook.target_students.add(third)
+        first_page = CourseNotebookPage.objects.get(student=self.submitted_student)
+        first_page.note_date = '2026-10-20'
+        first_page.save(update_fields=['note_date'])
+        CourseNotebookPage.objects.create(
+            notebook=self.notebook, student=third, section=self.section,
+            image='course_notebooks/third.jpg', note_date='2026-10-20',
+        )
+        url = reverse('course_notebook_submission_status', args=[self.notebook.id])
+        targets = [('target', '2_6'), ('target', '3_6')]
+
+        student_view = self.client.get(url, targets)
+        self.assertEqual(
+            [row['student'].id for row in student_view.context['student_rows']],
+            [self.submitted_student.id, third.id],
+        )
+        self.assertContains(student_view, '선택한 학급 2개')
+        self.assertNotContains(student_view, '이미작성')
+
+        date_view = self.client.get(url, [('view', 'date'), ('note_date', '2026-10-20'), *targets])
+        self.assertEqual(date_view.context['date_student_count'], 2)
+        self.assertEqual(date_view.context['date_page_count'], 2)
+        self.assertIn('target=2_6&target=3_6', date_view.context['date_query_prefix'])
+        self.assertIn('target=2_6&target=3_6', date_view.context['student_view_url'])
+        self.assertContains(date_view, '다른학년')
 
     def test_section_tree_expands_inside_the_student_row_cell(self):
         response = self.client.get(reverse(

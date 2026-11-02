@@ -416,7 +416,7 @@ def get_menu_items(request):
                     'activity_name': notebook.title,
                     'detail_topic': f'{notebook.subject} · 대상 학생 {notebook.target_students.count()}명',
                     'created_date': timezone.localtime(notebook.updated_at).strftime('%Y-%m-%d'),
-                    'url': f'{list_url}#course-notebook-{notebook.id}',
+                    'url': reverse('course_notebook_submission_status', args=[notebook.id]),
                 }
                 for notebook in notebooks
             ],

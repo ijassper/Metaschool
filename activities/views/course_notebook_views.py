@@ -340,12 +340,23 @@ def course_notebook_submission_status(request, notebook_id):
     )
     sections = list(notebook.sections.all())
     all_students = notebook.target_students.order_by('grade', 'class_no', 'number', 'name', 'id')
-    grade_options = list(
-        all_students.order_by('grade').values_list('grade', flat=True).distinct()
-    )
-    class_options = list(
-        all_students.order_by('class_no').values_list('class_no', flat=True).distinct()
-    )
+    grade_classes = {}
+    for grade, class_no in all_students.values_list('grade', 'class_no').distinct():
+        grade_classes.setdefault(grade, set()).add(class_no)
+    valid_targets = {f'{grade}_{class_no}' for grade, classes in grade_classes.items() for class_no in classes}
+    selected_targets = list(dict.fromkeys(
+        target for target in request.GET.getlist('target') if target in valid_targets
+    ))
+    filter_data = [
+        {
+            'grade': grade,
+            'classes': [
+                {'number': class_no, 'value': f'{grade}_{class_no}', 'checked': f'{grade}_{class_no}' in selected_targets}
+                for class_no in sorted(classes)
+            ],
+        }
+        for grade, classes in sorted(grade_classes.items())
+    ]
 
     grade_filter = request.GET.get('grade', '').strip()
     class_filter = request.GET.get('class_no', '').strip()
@@ -367,11 +378,18 @@ def course_notebook_submission_status(request, notebook_id):
             filter=Q(course_notebook_pages__notebook_id=notebook.id),
         ),
     )
-    if grade_filter.isdigit():
+    if selected_targets:
+        selected_classes = Q()
+        for target in selected_targets:
+            grade, class_no = map(int, target.split('_'))
+            selected_classes |= Q(grade=grade, class_no=class_no)
+        students = students.filter(selected_classes)
+        grade_filter = class_filter = ''
+    elif grade_filter.isdigit():
         students = students.filter(grade=int(grade_filter))
     else:
         grade_filter = ''
-    if class_filter.isdigit():
+    if not selected_targets and class_filter.isdigit():
         students = students.filter(class_no=int(class_filter))
     else:
         class_filter = ''
@@ -469,10 +487,14 @@ def course_notebook_submission_status(request, notebook_id):
             date_next = scoped_pages.filter(effective_note_date__gt=selected_date).aggregate(
                 value=Min('effective_note_date'),
             )['value']
-    date_query_params = {'view': 'date'}
+    date_query_params = [('view', 'date')]
+    date_query_params.extend(('target', target) for target in selected_targets)
     for key, value in (('grade', grade_filter), ('class_no', class_filter), ('q', search_query)):
         if value:
-            date_query_params[key] = value
+            date_query_params.append((key, value))
+    view_query_params = [('target', target) for target in selected_targets]
+    if search_query:
+        view_query_params.append(('q', search_query))
     return render(request, 'activities/course_notebook_submission_status.html', {
         'notebook': notebook,
         'sections': sections,
@@ -486,8 +508,10 @@ def course_notebook_submission_status(request, notebook_id):
         'date_student_count': date_student_count,
         'date_page_count': date_page_count,
         'date_query_prefix': '?' + urlencode(date_query_params),
-        'grade_options': grade_options,
-        'class_options': class_options,
+        'student_view_url': '?' + urlencode([('view', 'student'), *view_query_params]),
+        'date_view_url': '?' + urlencode([('view', 'date'), *view_query_params]),
+        'filter_data': filter_data,
+        'selected_targets': selected_targets,
         'filters': {
             'grade': grade_filter,
             'class_no': class_filter,
