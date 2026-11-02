@@ -126,7 +126,6 @@ def _attendance_folder_form(request, folder=None):
             folder.name = folder_name
             folder.operation_start_date = parsed_start_date
             folder.operation_end_date = parsed_end_date
-            folder.allow_edit_after_submission = request.POST.get('allow_edit_after_submission') == 'True'
             folder.save()
             folder.target_students.set(target_ids)
             messages.success(
@@ -150,10 +149,6 @@ def _attendance_folder_form(request, folder=None):
         'operation_end_date': request.POST.get(
             'operation_end_date',
             folder.operation_end_date.isoformat() if folder and folder.operation_end_date else '',
-        ),
-        'allow_edit_after_submission': request.POST.get(
-            'allow_edit_after_submission',
-            'True' if not folder or folder.allow_edit_after_submission else 'False',
         ),
     })
 
@@ -249,6 +244,18 @@ def attendance_report_confirm(request, report_id):
 
 
 @login_required
+@teacher_required
+@require_POST
+def attendance_report_unconfirm(request, report_id):
+    report = get_object_or_404(AttendanceReport, id=report_id, folder__teacher=request.user, submitted_at__isnull=False)
+    if report.confirmed_at:
+        report.confirmed_at = None
+        report.save(update_fields=['confirmed_at'])
+        messages.success(request, '출결 신고서 확정을 취소했습니다. 학생이 다시 수정할 수 있습니다.')
+    return redirect(f"{reverse('attendance_folder_detail', args=[report.folder_id])}#report-{report.id}")
+
+
+@login_required
 @require_http_methods(['GET', 'POST'])
 def student_attendance_report(request, folder_id):
     if request.user.role != 'STUDENT':
@@ -264,7 +271,7 @@ def student_attendance_report(request, folder_id):
         is_active=True,
     )
     report = AttendanceReport.objects.filter(folder=folder, student=student).first()
-    locked = bool(report and (report.confirmed_at or (report.submitted_at and not folder.allow_edit_after_submission)))
+    locked = bool(report and not report.can_edit)
     if request.method == 'GET' and report and report.submitted_at and (
         request.GET.get('edit') != '1' or locked or not folder.is_within_operation_period
     ):
@@ -275,7 +282,7 @@ def student_attendance_report(request, folder_id):
 
     if request.method == 'POST':
         if locked:
-            messages.warning(request, '이 출결 신고서는 제출 후 수정할 수 없습니다.')
+            messages.warning(request, '확정된 출결 신고서는 수정할 수 없습니다.')
             return redirect('attendance_report_print', report_id=report.id)
 
         category = request.POST.get('attendance_category', '')
@@ -400,7 +407,7 @@ def attendance_report_print(request, report_id):
         return redirect('attendance_folder_list')
     can_student_edit = bool(
         is_student and report.folder.is_active and report.folder.is_within_operation_period
-        and report.folder.allow_edit_after_submission and not report.confirmed_at
+        and report.can_edit
         and report.folder.target_students.filter(id=report.student_id).exists()
     )
     return render(request, 'activities/attendance_report_print.html', {

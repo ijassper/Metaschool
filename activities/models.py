@@ -776,10 +776,6 @@ class AttendanceReportFolder(models.Model):
         related_name='attendance_report_folders',
         verbose_name='담당 교사',
     )
-    allow_edit_after_submission = models.BooleanField(
-        default=True,
-        verbose_name='제출 후 수정 허용',
-    )
     target_students = models.ManyToManyField(
         Student,
         blank=True,
@@ -945,7 +941,7 @@ class AttendanceReport(models.Model):
 
     @property
     def can_edit(self):
-        return self.submitted_at is None or self.folder.allow_edit_after_submission
+        return self.confirmed_at is None
 
 
 class CourseNotebookSection(models.Model):

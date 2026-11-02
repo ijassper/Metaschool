@@ -30,8 +30,8 @@ class AttendanceReportInline(admin.TabularInline):
 
 @admin.register(AttendanceReportFolder)
 class AttendanceReportFolderAdmin(admin.ModelAdmin):
-    list_display = ['name', 'teacher', 'operation_start_date', 'operation_end_date', 'allow_edit_after_submission', 'is_active', 'created_at']
-    list_filter = ['allow_edit_after_submission', 'is_active', 'created_at']
+    list_display = ['name', 'teacher', 'operation_start_date', 'operation_end_date', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
     search_fields = ['name', 'teacher__name', 'teacher__username']
     filter_horizontal = ['target_students']
     inlines = [AttendanceReportInline]

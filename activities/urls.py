@@ -21,7 +21,7 @@ from .views.course_notebook_views import (
 )
 from .views.attendance_views import (
     attendance_folder_create, attendance_folder_detail, attendance_folder_list, attendance_folder_update,
-    attendance_guardian_complete, attendance_guardian_sign, attendance_report_confirm,
+    attendance_guardian_complete, attendance_guardian_sign, attendance_report_confirm, attendance_report_unconfirm,
     attendance_report_guardian_invite, attendance_report_print, student_attendance_report,
 )
 
@@ -34,6 +34,7 @@ urlpatterns = [
     path('attendance/reports/<int:report_id>/print/', attendance_report_print, name='attendance_report_print'),
     path('attendance/reports/<int:report_id>/guardian-invite/', attendance_report_guardian_invite, name='attendance_report_guardian_invite'),
     path('attendance/reports/<int:report_id>/confirm/', attendance_report_confirm, name='attendance_report_confirm'),
+    path('attendance/reports/<int:report_id>/unconfirm/', attendance_report_unconfirm, name='attendance_report_unconfirm'),
     path('attendance/guardian/complete/', attendance_guardian_complete, name='attendance_guardian_complete'),
     path('attendance/guardian/<str:token>/', attendance_guardian_sign, name='attendance_guardian_sign'),
     path('course-notebooks/', course_notebook_list, name='course_notebook_list'),

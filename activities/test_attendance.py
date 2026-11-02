@@ -52,13 +52,12 @@ class AttendanceReportFlowTests(TestCase):
             is_approved=True,
         )
 
-    def test_teacher_creates_folder_with_only_policy_and_targets(self):
+    def test_teacher_creates_folder_with_targets(self):
         self.client.force_login(self.teacher)
         response = self.client.post(reverse('attendance_folder_create'), {
             'name': '2026학년도 출결자료',
             'operation_start_date': '2026-03-01',
             'operation_end_date': '2027-02-28',
-            'allow_edit_after_submission': 'False',
             'target_students': [str(self.student.id)],
         })
         folder = AttendanceReportFolder.objects.get()
@@ -66,7 +65,6 @@ class AttendanceReportFlowTests(TestCase):
         self.assertEqual(folder.name, '2026학년도 출결자료')
         self.assertEqual(folder.operation_start_date, date(2026, 3, 1))
         self.assertEqual(folder.operation_end_date, date(2027, 2, 28))
-        self.assertFalse(folder.allow_edit_after_submission)
         self.assertEqual(list(folder.target_students.all()), [self.student])
 
     def test_teacher_form_uses_folder_name_and_operation_period(self):
@@ -76,6 +74,8 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(response, '운영 기간')
         self.assertContains(response, '2026학년도 출결자료')
         self.assertNotContains(response, '질병지각')
+        self.assertNotContains(response, '제출 후 수정 허용')
+        self.assertNotContains(self.client.get(reverse('attendance_folder_list')), '<th>수정 허용</th>')
 
     def test_teacher_can_update_folder_settings(self):
         folder = AttendanceReportFolder.objects.create(
@@ -91,7 +91,6 @@ class AttendanceReportFlowTests(TestCase):
             'name': '2026학년도 출결자료',
             'operation_start_date': '2026-03-02',
             'operation_end_date': '2027-02-28',
-            'allow_edit_after_submission': 'False',
             'target_students': [str(self.student.id)],
         })
 
@@ -100,7 +99,6 @@ class AttendanceReportFlowTests(TestCase):
         self.assertEqual(folder.name, '2026학년도 출결자료')
         self.assertEqual(folder.operation_start_date, date(2026, 3, 2))
         self.assertEqual(folder.operation_end_date, date(2027, 2, 28))
-        self.assertFalse(folder.allow_edit_after_submission)
 
     def test_update_preserves_targets_when_student_fields_are_missing(self):
         folder = AttendanceReportFolder.objects.create(
@@ -116,7 +114,6 @@ class AttendanceReportFlowTests(TestCase):
             'name': '수정된 폴더',
             'operation_start_date': '2026-03-01',
             'operation_end_date': '2027-02-28',
-            'allow_edit_after_submission': 'True',
         })
 
         self.assertRedirects(response, reverse('attendance_folder_detail', args=[folder.id]))
@@ -136,7 +133,6 @@ class AttendanceReportFlowTests(TestCase):
             'name': '잘못된 기간',
             'operation_start_date': '2026-12-31',
             'operation_end_date': '2026-03-01',
-            'allow_edit_after_submission': 'True',
             'target_students': [str(self.student.id)],
         })
         self.assertContains(response, '운영 종료일은 시작일보다 빠를 수 없습니다.')
@@ -190,7 +186,7 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(response, '「개인정보 보호법」 제23조 제1항 제2호')
 
     def test_home_guardian_signature_can_be_submitted_without_qr_and_must_be_redone_after_edit(self):
-        folder = AttendanceReportFolder.objects.create(teacher=self.teacher, allow_edit_after_submission=True)
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
         folder.target_students.add(self.student)
         url = reverse('student_attendance_report', args=[folder.id])
         self.client.force_login(self.student_user)
@@ -232,11 +228,8 @@ class AttendanceReportFlowTests(TestCase):
         report.refresh_from_db()
         self.assertIsNotNone(report.confirmed_at)
 
-    def test_locked_report_cannot_be_changed_after_submission(self):
-        folder = AttendanceReportFolder.objects.create(
-            teacher=self.teacher,
-            allow_edit_after_submission=False,
-        )
+    def test_confirmed_report_cannot_be_changed_until_teacher_cancels_confirmation(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
         folder.target_students.add(self.student)
         report = AttendanceReport.objects.create(
             folder=folder,
@@ -250,6 +243,8 @@ class AttendanceReportFlowTests(TestCase):
             written_date=date(2026, 10, 20),
             student_signature='김학생',
             guardian_signature='김보호자',
+            guardian_signed_at=timezone.now(),
+            confirmed_at=timezone.now(),
             submitted_at=timezone.now(),
         )
         self.client.force_login(self.student_user)
@@ -262,8 +257,47 @@ class AttendanceReportFlowTests(TestCase):
         self.assertRedirects(self.client.get(reverse('student_attendance_report', args=[folder.id]) + '?edit=1'), print_url)
         self.assertNotContains(self.client.get(print_url), '신고서 수정')
 
+        self.client.force_login(self.teacher)
+        detail = self.client.get(reverse('attendance_folder_detail', args=[folder.id]))
+        self.assertContains(detail, '확정취소')
+        self.assertNotContains(detail, '완료 · 확정')
+        response = self.client.post(reverse('attendance_report_unconfirm', args=[report.id]))
+        self.assertRedirects(response, reverse('attendance_folder_detail', args=[folder.id]) + f'#report-{report.id}')
+        report.refresh_from_db()
+        self.assertIsNone(report.confirmed_at)
+        self.assertIsNotNone(report.guardian_signed_at)
+
+        self.client.force_login(self.student_user)
+        self.assertContains(self.client.get(print_url), '신고서 수정')
+        self.assertContains(self.client.get(reverse('student_attendance_report', args=[folder.id]) + '?edit=1'), '수정 제출')
+        self.client.post(reverse('student_attendance_report', args=[folder.id]), {
+            'attendance_category': 'SICK', 'attendance_kind': 'TARDY',
+            'single_date': '2026-10-20', 'start_period': '1', 'end_period': '2',
+            'reason': '수정한 사유', 'written_date': '2026-10-20',
+            'student_signature_data': self.signature_data,
+        })
+        report.refresh_from_db()
+        self.assertEqual(report.reason, '수정한 사유')
+        self.assertIsNone(report.guardian_signed_at)
+
+    def test_only_own_teacher_can_cancel_confirmation_and_post_is_required(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
+        report = AttendanceReport.objects.create(
+            folder=folder, student=self.student, attendance_type=AttendanceReport.AttendanceType.SICK_ABSENCE,
+            start_date=date(2026, 10, 20), end_date=date(2026, 10, 20),
+            reason='기존 사유', written_date=date(2026, 10, 20),
+            student_signature=self.student.name, submitted_at=timezone.now(), confirmed_at=timezone.now(),
+        )
+        url = reverse('attendance_report_unconfirm', args=[report.id])
+        self.client.force_login(self.teacher)
+        self.assertEqual(self.client.get(url).status_code, 405)
+        self.client.force_login(self.student_user)
+        self.client.post(url)
+        report.refresh_from_db()
+        self.assertIsNotNone(report.confirmed_at)
+
     def test_guardian_qr_signature_and_teacher_confirmation(self):
-        folder = AttendanceReportFolder.objects.create(teacher=self.teacher, allow_edit_after_submission=True)
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
         folder.target_students.add(self.student)
         student_url = reverse('student_attendance_report', args=[folder.id])
         self.client.force_login(self.student_user)
@@ -321,7 +355,7 @@ class AttendanceReportFlowTests(TestCase):
         self.assertEqual(report.reason, '공식 대회 참가')
 
     def test_student_revision_invalidates_existing_guardian_qr(self):
-        folder = AttendanceReportFolder.objects.create(teacher=self.teacher, allow_edit_after_submission=True)
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
         folder.target_students.add(self.student)
         report = AttendanceReport.objects.create(
             folder=folder, student=self.student, attendance_type=AttendanceReport.AttendanceType.SICK_ABSENCE,
