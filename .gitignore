@@ -14,6 +14,7 @@ backups/
 releases/*.apk
 proctor-cleanup.log
 .proctor-cleanup.lock
+media/
 
 # 운영체제 관련
 .DS_Store
