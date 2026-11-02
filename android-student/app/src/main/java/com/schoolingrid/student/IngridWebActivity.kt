@@ -23,6 +23,7 @@ import android.provider.Settings
 import android.provider.MediaStore
 import android.webkit.JavascriptInterface
 import android.view.View
+import android.view.HapticFeedbackConstants
 import android.view.WindowManager
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
@@ -334,6 +335,7 @@ class IngridWebActivity : Activity() {
             val result = pages.map { it.imageUri }.take(MAX_DOCUMENT_SCAN_PAGES).toTypedArray()
             if (result.isNotEmpty()) {
                 notifyNativeDocumentScanReady(result.size)
+                webView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 Toast.makeText(this, getString(R.string.document_scan_complete, result.size), Toast.LENGTH_LONG).show()
             }
             completeFileChooser(result.ifEmpty { null })
