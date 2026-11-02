@@ -5,7 +5,7 @@
  <meta name="viewport" content="width=device-width,initial-scale=1">
  <title>출결 확인 신고서 - {{ report.student.name }}</title>
  <style>
-  @page{size:A4;margin:20mm}
+  @page{size:A4;margin:20mm 20mm 15mm}
   *{box-sizing:border-box}
   body{margin:0;background:#f4f2f5;color:#111;font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;font-size:12pt;line-height:1.3}
   .toolbar{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;max-width:170mm;margin:18px auto 12px}
@@ -13,7 +13,7 @@
   .toolbar .edit-link{border-color:#9148aa;background:#9148aa;color:#fff}
   .report-view-status{max-width:170mm;margin:0 auto 12px;padding:8px 12px;border-radius:9px;background:#edf9f2;color:#257346;font-size:12px;font-weight:700}
   .sheet{width:170mm;min-height:257mm;margin:0 auto 20px;padding:8mm;border:1px solid #d8d2d9;background:#fff;box-shadow:0 8px 26px rgba(45,32,50,.1)}
-  .document-head{display:grid;grid-template-columns:minmax(0,1fr) 50mm;border:1px solid #222;break-inside:avoid}
+  .document-head{display:grid;grid-template-columns:minmax(0,1fr) 57mm;border:1px solid #222;break-inside:avoid}
   .document-head h1{display:flex;align-items:center;margin:0;padding:0 3mm;font-size:16pt;font-weight:800;letter-spacing:.01em}
   .approval{width:100%;border:0;border-left:1px solid #222;border-collapse:collapse;table-layout:fixed;text-align:center;font-size:12pt}
   .approval th,.approval td{border:1px solid #222;padding:1mm 0}
@@ -30,15 +30,15 @@
   .form-table th{width:22%;padding:2.3mm 2mm;text-align:center;font-weight:700}
   .form-table td{padding:2.3mm 3mm}
   .form-table .reason{white-space:pre-wrap;overflow-wrap:anywhere}
-  .privacy{margin-top:5mm;font-size:12pt;line-height:1.2}
+  .privacy{margin-top:5mm;font-size:8.5pt;line-height:1.18}
   .privacy-block{break-inside:avoid}
-  .privacy-block+.privacy-block{margin-top:3mm}
-  .privacy h2{margin:0 0 1mm;font-size:12pt;font-weight:800}
-  .privacy p{margin:0 0 1mm}
-  .notice-table th,.notice-table td{padding:1.2mm 1.5mm}
+  .privacy-block+.privacy-block{margin-top:2mm}
+  .privacy h2{margin:0 0 .7mm;font-size:9pt;font-weight:800}
+  .privacy p{margin:0 0 .7mm}
+  .notice-table th,.notice-table td{padding:.8mm 1.2mm}
   .notice-table th{font-weight:700;text-align:center}
   .notice-table th:nth-child(1){width:20%}.notice-table th:nth-child(2){width:34%}
-  .privacy .footnote{margin:1mm 0 0}
+  .privacy .footnote{margin:.7mm 0 0}
   .signatures{display:grid;justify-items:end;margin-top:6mm;break-inside:avoid}
   .written-date{margin-right:15mm;margin-bottom:3mm;font-size:14pt}
   .signature-row{display:grid;grid-template-columns:20mm 23mm 22mm;column-gap:2mm;align-items:center;min-height:10mm}
@@ -53,7 +53,7 @@
   .confirmation-table .option{display:inline-block;margin-right:3mm;white-space:nowrap}
   .confirmation p{text-align:center;margin:3mm 0 1mm}
   .teacher-sign{text-align:right;margin-right:8mm}
-  @media(max-width:760px){.toolbar,.report-view-status{margin-left:10px;margin-right:10px}.sheet{width:100%;min-height:0;margin:0;padding:16px}.document-head{grid-template-columns:minmax(0,1fr) 40mm}}
+  @media(max-width:760px){.toolbar,.report-view-status{margin-left:10px;margin-right:10px}.sheet{width:100%;min-height:0;margin:0;padding:16px}}
   @media print{html,body{width:auto;min-height:0;margin:0;background:#fff;print-color-adjust:exact;-webkit-print-color-adjust:exact}.toolbar,.report-view-status{display:none}.sheet{width:100%;min-height:0;margin:0;padding:0;border:0;box-shadow:none}.document-head,.privacy-block,.signatures,.school,.confirmation{break-inside:avoid}}
  </style>
 </head>
