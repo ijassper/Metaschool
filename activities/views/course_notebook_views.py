@@ -29,6 +29,7 @@ from ..models import (
 from ..course_notebook_processing import (
     accept_native_document_scan, ensure_archive_image, process_course_notebook_page,
 )
+from ..course_notebook_local_ocr import recognize_notebook_image
 from .main_views import get_accessible_student_ids, get_student_tree
 
 
@@ -514,6 +515,60 @@ def course_notebook_submission_status(request, notebook_id):
             'page_count': page_summary['page_count'] or 0,
         },
     })
+
+
+@login_required
+@teacher_required
+@require_POST
+def course_notebook_teacher_ocr_preview(request, notebook_id):
+    """Convert one page from the selected date using the isolated local OCR model."""
+    notebook = get_object_or_404(CourseNotebook, id=notebook_id, teacher=request.user)
+    selected_date = _parse_notebook_date(request.POST.get('note_date'))
+    page_id = request.POST.get('page_id', '')
+    if not selected_date or not page_id.isdigit():
+        return JsonResponse({'message': '노트 날짜와 페이지를 확인해 주세요.'}, status=400)
+    page = get_object_or_404(
+        CourseNotebookPage,
+        id=int(page_id), notebook=notebook,
+        student__in=notebook.target_students.all(),
+    )
+    page_date = page.note_date or timezone.localtime(page.created_at).date()
+    if page_date != selected_date:
+        return JsonResponse({'message': '선택한 날짜의 노트가 아닙니다.'}, status=400)
+    if page.ocr_provider == 'rapidocr-onnx' and page.ocr_raw_text:
+        return JsonResponse({'text': page.ocr_raw_text, 'cached': True})
+    if page.ocr_status == CourseNotebookPage.OcrStatus.PROCESSING and page.ocr_processed_at:
+        if page.ocr_processed_at > timezone.now() - timedelta(minutes=5):
+            return JsonResponse({'message': '이미 변환 중인 노트입니다.'}, status=409)
+    try:
+        page = ensure_archive_image(page)
+        page.ocr_status = CourseNotebookPage.OcrStatus.PROCESSING
+        page.ocr_processed_at = timezone.now()
+        page.ocr_error = ''
+        page.save(update_fields=['ocr_status', 'ocr_processed_at', 'ocr_error'])
+        result = recognize_notebook_image(page.processed_image.path)
+        recognized_text = str(result.get('text') or '').strip()
+        if not recognized_text:
+            raise RuntimeError('이 이미지에서 인식된 글자가 없습니다.')
+    except Exception as exc:
+        page.ocr_status = CourseNotebookPage.OcrStatus.FAILED
+        page.ocr_error = str(exc)[:500]
+        page.ocr_processed_at = timezone.now()
+        page.save(update_fields=['ocr_status', 'ocr_error', 'ocr_processed_at'])
+        return JsonResponse({'message': page.ocr_error}, status=422)
+    page.ocr_raw_text = recognized_text[:100_000]
+    page.ocr_provider = 'rapidocr-onnx'
+    page.ocr_model_version = 'korean_PP-OCRv5_rec_mobile/onnxruntime'
+    page.ocr_confidence = result.get('confidence')
+    page.ocr_usage = {'processing_seconds': result.get('seconds')}
+    page.ocr_status = CourseNotebookPage.OcrStatus.NEEDS_REVIEW
+    page.ocr_error = ''
+    page.ocr_processed_at = timezone.now()
+    page.save(update_fields=[
+        'ocr_raw_text', 'ocr_provider', 'ocr_model_version', 'ocr_confidence',
+        'ocr_usage', 'ocr_status', 'ocr_error', 'ocr_processed_at',
+    ])
+    return JsonResponse({'text': page.ocr_raw_text, 'cached': False})
 
 
 @login_required

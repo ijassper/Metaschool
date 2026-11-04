@@ -60,6 +60,9 @@
 .date-board .date-page{min-width:0;padding:5px;border-color:#dfd3e4;border-radius:9px;background:#fff}
 .date-board .date-page img{height:auto;aspect-ratio:3/4;object-fit:cover;border-radius:5px}
 .date-board .date-page strong,.date-board .date-page span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.7rem}
+.filter-panel.date-mode .filter-grid{grid-template-columns:220px 170px 170px minmax(170px,280px) auto auto;justify-content:start}.filter-panel.date-mode .filter-field.search{min-width:0}.btn-ocr-test{height:42px;border:1px solid #9148aa;border-radius:12px;padding:0 15px;background:#fff;color:#713985;font-weight:850;white-space:nowrap}.btn-ocr-test:hover:not(:disabled){background:#f4eaf7}.btn-ocr-test:disabled{opacity:.55}.ocr-progress{margin-top:8px;color:#6d497a;font-size:.85rem;font-weight:750}.date-board .date-page-ocr{display:none;width:100%;height:auto;aspect-ratio:3/4;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;padding:7px;border:1px solid #e1d7e6;border-radius:5px;background:#fff;color:#322b36;font-size:.72rem;line-height:1.45}.date-board .date-page.has-ocr img{display:none}.date-board .date-page.has-ocr .date-page-ocr{display:block}.date-note-content{display:grid;flex:1;min-height:0;overflow:hidden}.date-note-content.has-ocr{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.date-note-content .date-note-image-wrap{min-height:0}.date-note-ocr{margin:0;padding:18px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;color:#2c2630;font-size:.94rem;line-height:1.65}.date-note-ocr[hidden]{display:none}
+@media(max-width:1150px){.filter-panel.date-mode .filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.filter-panel.date-mode .filter-field.search{grid-column:auto}}
+@media(max-width:620px){.filter-panel.date-mode .filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.filter-panel.date-mode .filter-field.search{grid-column:1/-1}.filter-panel.date-mode .btn-filter{grid-column:auto}.date-note-content.has-ocr{grid-template-columns:1fr}.date-note-content.has-ocr .date-note-image-wrap img{max-height:32vh}.date-note-ocr{max-height:35vh}}
 </style>
 <main class="submission-shell">
   <header class="submission-top">
@@ -89,7 +92,9 @@
       <div class="filter-field class-filter"><label>학급 선택</label><div class="dropdown"><button class="form-control dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-label="학급 선택">{% if selected_targets %}선택한 학급 {{ selected_targets|length }}개{% else %}전체 학급{% endif %}</button><div class="dropdown-menu">{% for item in filter_data %}<div class="grade-group"><div class="form-check fw-bold text-primary"><input class="form-check-input note-grade-check" type="checkbox" id="note-grade-{{ item.grade }}" data-grade="{{ item.grade }}"><label class="form-check-label" for="note-grade-{{ item.grade }}">{{ item.grade }}학년</label></div><div class="class-options">{% for class in item.classes %}<div class="form-check"><input class="form-check-input note-class-check" type="checkbox" name="target" value="{{ class.value }}" id="note-class-{{ class.value }}" data-grade="{{ item.grade }}" {% if class.checked %}checked{% endif %}><label class="form-check-label" for="note-class-{{ class.value }}">{{ class.number }}반</label></div>{% endfor %}</div></div>{% endfor %}<button class="class-apply" type="submit" data-class-apply>조회</button></div></div></div>
       <div class="filter-field search"><label for="studentSearch">학생 검색</label><input class="form-control" id="studentSearch" name="q" value="{{ filters.q }}" placeholder="이름 또는 번호"></div>
       <button class="btn-filter" type="submit"><i class="bi bi-search me-1"></i>조회</button>
+      {% if view_mode == 'date' %}<button class="btn-ocr-test" type="button" data-ocr-test data-url="{% url 'course_notebook_teacher_ocr_preview' notebook.id %}" data-note-date="{{ date_filter }}" data-csrf-token="{{ csrf_token }}" {% if not date_page_count %}disabled{% endif %}><i class="bi bi-fonts me-1"></i>텍스트 변환 테스트</button>{% endif %}
     </div>
+    {% if view_mode == 'date' %}<div class="ocr-progress" data-ocr-progress role="status" aria-live="polite">첫 번째 학생의 노트만 변환합니다.</div>{% endif %}
     <div class="filter-result">{% if view_mode == 'date' %}선택한 날짜의 학생 {{ date_student_count }}명 · 노트 {{ date_page_count }}장{% else %}조건에 맞는 학생 {{ student_rows|length }}명{% endif %}{% if selected_targets or filters.grade or filters.class_no or filters.q or date_filter %}<a class="filter-reset" href="?view={{ view_mode }}">필터 초기화</a>{% endif %}</div>
   </form>
 
@@ -103,7 +108,7 @@
         <h3 title="{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }}">{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }}</h3>
         <div class="date-page-grid">
           {% for page in bundle.pages %}
-          <a class="date-page" data-date-page data-student-id="{{ page.student_id }}" data-student-label="{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }}" data-section-title="{{ page.section.title|default:'미분류' }}" data-page-title="{{ page.memo|default:'제목 없는 노트' }}" data-upload-time="{{ page.created_at|date:'Y.m.d H:i' }}" href="{% url 'course_notebook_teacher_page' notebook.id page.student_id page.id %}?from=date&amp;note_date={{ group.date|date:'Y-m-d' }}"><img src="{% if page.processed_image %}{{ page.processed_image.url }}{% else %}{{ page.image.url }}{% endif %}" alt="{{ page.student.name }} 학생 노트" loading="lazy"><strong>{{ forloop.counter }}장 · {{ page.memo|default:'제목 없는 노트' }}</strong><span>{{ page.section.title|default:'미분류' }}{% if page.note_date %} · 노트 날짜 {{ page.note_date|date:'m.d' }}{% endif %}</span><span class="date-upload-time">업로드 {{ page.created_at|date:'Y.m.d H:i' }}</span></a>
+          <a class="date-page {% if page.ocr_provider == 'rapidocr-onnx' and page.ocr_raw_text %}has-ocr{% endif %}" data-date-page data-page-id="{{ page.id }}" data-student-id="{{ page.student_id }}" data-student-label="{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }}" data-section-title="{{ page.section.title|default:'미분류' }}" data-page-title="{{ page.memo|default:'제목 없는 노트' }}" data-upload-time="{{ page.created_at|date:'Y.m.d H:i' }}" href="{% url 'course_notebook_teacher_page' notebook.id page.student_id page.id %}?from=date&amp;note_date={{ group.date|date:'Y-m-d' }}"><img src="{% if page.processed_image %}{{ page.processed_image.url }}{% else %}{{ page.image.url }}{% endif %}" alt="{{ page.student.name }} 학생 노트" loading="lazy"><pre class="date-page-ocr">{% if page.ocr_provider == 'rapidocr-onnx' %}{{ page.ocr_raw_text }}{% endif %}</pre><strong>{{ forloop.counter }}장 · {{ page.memo|default:'제목 없는 노트' }}</strong><span>{{ page.section.title|default:'미분류' }}{% if page.note_date %} · 노트 날짜 {{ page.note_date|date:'m.d' }}{% endif %}</span><span class="date-upload-time">업로드 {{ page.created_at|date:'Y.m.d H:i' }}</span></a>
           {% endfor %}
         </div>
       </section>
@@ -111,7 +116,7 @@
     </div></div>
     {% else %}<div class="status-empty">선택한 날짜에 작성된 노트가 없습니다.</div>{% endif %}
     {% empty %}<div class="status-empty">조건에 맞는 노트가 없습니다.</div>{% endfor %}
-    <div class="date-note-modal" id="dateNoteModal" role="dialog" aria-modal="true" aria-labelledby="dateNoteTitle" hidden><div class="date-note-dialog"><header class="date-note-header"><div><h3 id="dateNoteTitle"></h3><p id="dateNoteMeta"></p></div><button class="date-note-close" id="dateNoteClose" type="button" aria-label="팝업 닫기">×</button></header><div class="date-note-image-wrap"><img id="dateNoteImage" alt="학생 노트 이미지"></div><footer class="date-note-footer"><div class="date-note-controls"><button id="dateNotePrevious" type="button">← 이전 사진</button><button id="dateNoteNext" type="button">다음 사진 →</button><a id="dateNoteNextStudent" href="#">다음 학생 →</a></div><a id="dateNoteDetail" href="#">상세 페이지</a></footer></div></div>
+    <div class="date-note-modal" id="dateNoteModal" role="dialog" aria-modal="true" aria-labelledby="dateNoteTitle" hidden><div class="date-note-dialog"><header class="date-note-header"><div><h3 id="dateNoteTitle"></h3><p id="dateNoteMeta"></p></div><button class="date-note-close" id="dateNoteClose" type="button" aria-label="팝업 닫기">×</button></header><div class="date-note-content" id="dateNoteContent"><div class="date-note-image-wrap"><img id="dateNoteImage" alt="학생 노트 이미지"></div><pre class="date-note-ocr" id="dateNoteOcr" hidden></pre></div><footer class="date-note-footer"><div class="date-note-controls"><button id="dateNotePrevious" type="button">← 이전 사진</button><button id="dateNoteNext" type="button">다음 사진 →</button><a id="dateNoteNextStudent" href="#">다음 학생 →</a></div><a id="dateNoteDetail" href="#">상세 페이지</a></footer></div></div>
   {% else %}
   <section class="status-table-wrap">
     {% if student_rows %}
@@ -153,10 +158,36 @@ document.querySelectorAll('.class-filter .note-grade-check').forEach(function(pa
 document.querySelector('[data-class-apply]')?.addEventListener('click',function(){document.getElementById('studentSearch').value='';});
 document.querySelectorAll('.section-toggle').forEach(function(button){button.addEventListener('click',function(){const row=document.getElementById(button.getAttribute('aria-controls'));const opening=button.getAttribute('aria-expanded')!=='true';button.setAttribute('aria-expanded',String(opening));row.hidden=!opening;});});
 (function(){
+ const button=document.querySelector('[data-ocr-test]');
+ if(!button)return;
+ const status=document.querySelector('[data-ocr-progress]');
+ button.addEventListener('click',async function(){
+  const firstStudent=document.querySelector('.date-board .date-student');
+  const cards=firstStudent?Array.from(firstStudent.querySelectorAll('[data-date-page]')):[];
+  if(!cards.length)return;
+  button.disabled=true;
+  let completed=0,failed=0;
+  for(const card of cards){
+   status.textContent='첫 번째 학생 노트 변환 중 '+(completed+failed+1)+' / '+cards.length+'장';
+   try{
+    const body=new FormData();body.set('page_id',card.dataset.pageId);body.set('note_date',button.dataset.noteDate);
+    const response=await fetch(button.dataset.url,{method:'POST',headers:{'X-CSRFToken':button.dataset.csrfToken,'Accept':'application/json'},body});
+    const result=await response.json();
+    if(!response.ok)throw new Error(result.message||'변환에 실패했습니다.');
+    card.querySelector('.date-page-ocr').textContent=result.text;
+    card.classList.add('has-ocr');
+    completed++;
+   }catch(error){failed++;status.textContent='변환 실패: '+error.message;}
+  }
+  status.textContent='첫 번째 학생 노트 '+completed+'장 변환 완료'+(failed?' · '+failed+'장 실패':'')+'. 텍스트 상자를 누르면 원본과 나란히 볼 수 있습니다.';
+  button.disabled=false;
+ });
+})();
+(function(){
  const modal=document.getElementById('dateNoteModal');
  if(!modal)return;
  const cards=Array.from(document.querySelectorAll('[data-date-page]'));
- const title=document.getElementById('dateNoteTitle'),meta=document.getElementById('dateNoteMeta'),image=document.getElementById('dateNoteImage');
+ const title=document.getElementById('dateNoteTitle'),meta=document.getElementById('dateNoteMeta'),image=document.getElementById('dateNoteImage'),content=document.getElementById('dateNoteContent'),ocrText=document.getElementById('dateNoteOcr');
  const previous=document.getElementById('dateNotePrevious'),next=document.getElementById('dateNoteNext'),nextStudent=document.getElementById('dateNoteNextStudent');
  const detail=document.getElementById('dateNoteDetail'),closeButton=document.getElementById('dateNoteClose');
  let current=-1,returnFocus=null;
@@ -168,6 +199,8 @@ document.querySelectorAll('.section-toggle').forEach(function(button){button.add
   meta.textContent=card.dataset.sectionTitle+' · 업로드 '+card.dataset.uploadTime+' · '+(index+1)+' / '+cards.length+'장';
   image.src=card.querySelector('img').src;
   image.alt=card.dataset.studentLabel+' 노트 이미지';
+  const text=card.classList.contains('has-ocr')?card.querySelector('.date-page-ocr').textContent:'';
+  ocrText.textContent=text;ocrText.hidden=!text;content.classList.toggle('has-ocr',Boolean(text));
   detail.href=card.href;
   previous.disabled=index===0;
   next.disabled=index===cards.length-1;

@@ -527,6 +527,32 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         self.assertEqual(len(response.context['student_rows']), 1)
         self.assertEqual(response.context['student_rows'][0]['student'], self.empty_student)
 
+    @patch('activities.views.course_notebook_views.recognize_notebook_image')
+    @patch('activities.views.course_notebook_views.ensure_archive_image')
+    def test_teacher_ocr_preview_converts_only_requested_date_page(self, archive, recognize):
+        page = CourseNotebookPage.objects.get(student=self.submitted_student)
+        page.note_date = date(2026, 11, 4)
+        page.processed_image = 'course_notebooks/processed/test.jpg'
+        page.save(update_fields=['note_date', 'processed_image'])
+        archive.side_effect = lambda item: item
+        recognize.return_value = {'text': '손글씨 인식 결과', 'confidence': .85, 'seconds': 23}
+        url = reverse('course_notebook_teacher_ocr_preview', args=[self.notebook.id])
+
+        response = self.client.post(url, {'page_id': page.id, 'note_date': '2026-11-04'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['text'], '손글씨 인식 결과')
+        page.refresh_from_db()
+        self.assertEqual(page.ocr_provider, 'rapidocr-onnx')
+        self.assertEqual(page.ocr_status, CourseNotebookPage.OcrStatus.NEEDS_REVIEW)
+        self.assertEqual(page.ocr_raw_text, '손글씨 인식 결과')
+        self.assertEqual(recognize.call_count, 1)
+        self.assertEqual(self.client.post(url, {'page_id': page.id, 'note_date': '2026-11-04'}).json()['cached'], True)
+        self.assertEqual(recognize.call_count, 1)
+        self.assertEqual(self.client.post(url, {'page_id': page.id, 'note_date': '2026-11-03'}).status_code, 400)
+        self.client.force_login(self.other_teacher)
+        self.assertEqual(self.client.post(url, {'page_id': page.id, 'note_date': '2026-11-04'}).status_code, 404)
+
     def test_submission_status_selects_multiple_grade_class_pairs_in_both_views(self):
         third = Student.objects.create(
             teacher=self.teacher, grade=3, class_no=6, number=1, name='다른학년',
