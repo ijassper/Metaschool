@@ -9,7 +9,6 @@ from urllib.parse import urlencode
 from PIL import Image, ImageOps, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Max, Min, Q
@@ -445,7 +444,6 @@ def course_notebook_submission_status(request, notebook_id):
     total_students = all_students.count()
     submitted_students = page_summary['submitted_student_count'] or 0
     date_groups = []
-    date_page = None
     date_previous = None
     date_next = None
     date_student_count = 0
@@ -461,21 +459,18 @@ def course_notebook_submission_status(request, notebook_id):
         if selected_date:
             date_filter = selected_date.isoformat()
             day_pages = scoped_pages.filter(effective_note_date=selected_date)
-            student_numbers = day_pages.order_by(
-                'student__grade', 'student__class_no', 'student__number', 'student__name', 'student_id',
-            ).values_list('student_id', flat=True).distinct()
-            date_page = Paginator(student_numbers, 10).get_page(request.GET.get('page'))
-            date_student_count = date_page.paginator.count
-            date_page_count = day_pages.count()
-            visible_pages = list(day_pages.filter(student_id__in=list(date_page.object_list)).select_related(
+            visible_pages = list(day_pages.select_related(
                 'student', 'section',
             ).order_by('student__grade', 'student__class_no', 'student__number',
                        'student__name', 'student_id', 'created_at', 'id'))
+            date_page_count = len(visible_pages)
             group = {'date': selected_date, 'pages': visible_pages, 'students': []}
             for page in visible_pages:
                 if not group['students'] or group['students'][-1]['student'].id != page.student_id:
-                    group['students'].append({'student': page.student, 'pages': []})
+                    group['students'].append({'student': page.student, 'pages': [], 'column_span': 0})
                 group['students'][-1]['pages'].append(page)
+                group['students'][-1]['column_span'] = min(len(group['students'][-1]['pages']), 10)
+            date_student_count = len(group['students'])
             date_groups.append(group)
             date_previous = _parse_notebook_date(
                 scoped_pages.filter(effective_note_date__lt=selected_date).aggregate(value=Max('effective_note_date'))['value']
@@ -498,7 +493,6 @@ def course_notebook_submission_status(request, notebook_id):
         'view_mode': view_mode,
         'date_filter': date_filter,
         'date_groups': date_groups,
-        'date_page': date_page,
         'date_previous': date_previous,
         'date_next': date_next,
         'date_student_count': date_student_count,
