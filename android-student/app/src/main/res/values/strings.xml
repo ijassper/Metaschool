@@ -3,7 +3,7 @@
     <string name="note_photo_chooser_title">노트 사진 촬영 또는 선택</string>
     <string name="document_scanner_fallback">문서 스캐너를 준비하지 못해 기본 카메라·사진 선택으로 전환합니다.</string>
     <string name="document_scan_guide_title">노트 촬영 안내</string>
-    <string name="document_scan_guide_message">종이 전체가 화면에 들어오도록 맞춰 주세요.\n\n화면이 번쩍이는 순간은 촬영 완료 신호가 아닙니다. 번쩍인 뒤에도 태블릿과 노트를 최소 3초 동안 그대로 두세요. 스캔 결과 미리보기가 나타난 것을 확인한 다음 움직이세요.\n\n사진은 제출 전에 다시 확인할 수 있습니다.</string>
+    <string name="document_scan_guide_message">화면이 번쩍인 후 3초 동안 움직이지 마세요!\n스캔 결과를 확인하고 선명한 이미지를 제출하세요.</string>
     <string name="document_scan_guide_start">촬영 시작</string>
     <string name="document_scan_complete">스캔 완료 · %1$d장. 이제 태블릿을 움직여도 됩니다. 사진을 확인한 뒤 제출해 주세요.</string>
     <string name="app_name">인그리드 학생</string>

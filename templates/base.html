@@ -263,9 +263,15 @@
         }
         .sidebar-submenu-panel-title {
             margin: 0;
+            min-width: 0;
             color: #3f3543;
             font-size: 1.08rem;
             font-weight: 850;
+            overflow-wrap: anywhere;
+        }
+        .sidebar-submenu-panel-title-suffix {
+            display: block;
+            white-space: nowrap;
         }
         .sidebar-submenu-panel-close {
             width: 34px;
@@ -940,7 +946,10 @@
 
                 cancelClose();
                 setPanelOpen(true);
-                panelTitle.textContent = info.sub + ' > 제출현황';
+                const titleSuffix = document.createElement('span');
+                titleSuffix.className = 'sidebar-submenu-panel-title-suffix';
+                titleSuffix.textContent = '> 제출현황';
+                panelTitle.replaceChildren(document.createTextNode(info.sub), titleSuffix);
                 allLink.href = info.listUrl;
 
                 const cacheKey = info.category + '::' + info.sub;
