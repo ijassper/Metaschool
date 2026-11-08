@@ -151,6 +151,20 @@ class AndroidStudentMinimumVersionMiddlewareTests(SimpleTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('student_app_update_required'))
 
+    @override_settings(ANDROID_STUDENT_MIN_VERSION='0.3.15')
+    def test_existing_submission_can_finish_before_update(self):
+        request = self.factory.post('/activities/answers/save/', HTTP_USER_AGENT='IngridStudentAndroid/0.3.14')
+        self.assertIs(self.middleware(request), self.next_response)
+
+    @override_settings(ANDROID_STUDENT_MIN_VERSION='0.3.15')
+    def test_background_fetch_can_finish_before_update(self):
+        request = self.factory.get(
+            '/activities/answers/status/',
+            HTTP_USER_AGENT='IngridStudentAndroid/0.3.14',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertIs(self.middleware(request), self.next_response)
+
     @override_settings(ANDROID_STUDENT_MIN_VERSION='0.3.6')
     def test_supported_android_app_can_continue(self):
         request = self.factory.get('/accounts/login/', HTTP_USER_AGENT='Chrome IngridStudentAndroid/0.3.6')

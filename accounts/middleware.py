@@ -40,6 +40,10 @@ class AndroidStudentMinimumVersionMiddleware:
         if request.path in self.EXEMPT_PATHS or request.path.startswith(self.EXEMPT_PREFIXES):
             return self.get_response(request)
 
+        # 이미 진행 중인 제출과 비동기 저장은 끝내고, 다음 화면 이동에서 업데이트를 요구합니다.
+        if request.method != 'GET' or request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return self.get_response(request)
+
         minimum_version = settings.ANDROID_STUDENT_MIN_VERSION
         if self._version_tuple(current_version) < self._version_tuple(minimum_version):
             return redirect('student_app_update_required')

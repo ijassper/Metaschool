@@ -30,7 +30,7 @@ class MainActivity : Activity() {
     private lateinit var notificationPermissionButton: Button
     private lateinit var loginButton: Button
     private var pendingUpdateFile: File? = null
-    private var minimumRequiredUpdate: UpdateInfo? = null
+    private var requiredUpdate: UpdateInfo? = null
     private var versionCheckPassed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +52,7 @@ class MainActivity : Activity() {
         loginButton.setOnClickListener {
             when {
                 versionCheckPassed -> startActivity(Intent(this, IngridWebActivity::class.java))
-                minimumRequiredUpdate != null -> showRequiredUpdateDialog(minimumRequiredUpdate!!)
+                requiredUpdate != null -> showRequiredUpdateDialog(requiredUpdate!!)
                 else -> checkForAppUpdate()
             }
         }
@@ -116,7 +116,7 @@ class MainActivity : Activity() {
 
     private fun checkForAppUpdate() {
         versionCheckPassed = false
-        minimumRequiredUpdate = null
+        requiredUpdate = null
         loginButton.isEnabled = false
         loginButton.setText(R.string.login_version_checking)
         Thread {
@@ -136,8 +136,6 @@ class MainActivity : Activity() {
                     UpdateInfo(
                         versionCode = json.optLong("version_code", 0L),
                         versionName = json.optString("version_name", ""),
-                        minimumVersionCode = json.optLong("minimum_version_code", 0L),
-                        minimumVersionName = json.optString("minimum_version_name", ""),
                         downloadUrl = json.optString("download_url", ""),
                         apkAvailable = json.optBoolean("apk_available", false),
                     )
@@ -158,10 +156,10 @@ class MainActivity : Activity() {
 
             val trustedDownload = updateInfo.apkAvailable &&
                 updateInfo.downloadUrl.startsWith("https://schoolingrid.com/")
-            if (currentVersionCode() < updateInfo.minimumVersionCode) {
+            if (currentVersionCode() < updateInfo.versionCode) {
                 runOnUiThread {
                     if (isFinishing || isDestroyed) return@runOnUiThread
-                    minimumRequiredUpdate = updateInfo
+                    requiredUpdate = updateInfo
                     loginButton.isEnabled = true
                     loginButton.setText(R.string.login_update_required)
                     if (intent.getBooleanExtra(EXTRA_INSTALL_UPDATE, false) && trustedDownload) {
@@ -180,19 +178,6 @@ class MainActivity : Activity() {
                 loginButton.setText(R.string.login_button)
             }
 
-            if (
-                updateInfo.versionCode > currentVersionCode() &&
-                trustedDownload
-            ) {
-                runOnUiThread {
-                    if (isFinishing || isDestroyed) return@runOnUiThread
-                    if (intent.getBooleanExtra(EXTRA_INSTALL_UPDATE, false)) {
-                        downloadAndInstallUpdate(updateInfo)
-                    } else if (!StudentAppUpdateNotice.wasRecentlyDismissed(this, updateInfo.versionCode)) {
-                        showUpdateDialog(updateInfo)
-                    }
-                }
-            }
         }.start()
     }
 
@@ -203,7 +188,7 @@ class MainActivity : Activity() {
             .setMessage(
                 getString(
                     R.string.update_required_body,
-                    updateInfo.minimumVersionName.ifBlank { updateInfo.versionName },
+                    updateInfo.versionName,
                 ),
             )
             .setCancelable(false)
@@ -216,20 +201,6 @@ class MainActivity : Activity() {
                 } else {
                     Toast.makeText(this, R.string.update_download_failed, Toast.LENGTH_LONG).show()
                 }
-            }
-            .show()
-    }
-
-    private fun showUpdateDialog(updateInfo: UpdateInfo) {
-        if (isFinishing || isDestroyed) return
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.update_available_title))
-            .setMessage(getString(R.string.update_available_body, updateInfo.versionName))
-            .setNegativeButton(R.string.update_later) { _, _ ->
-                StudentAppUpdateNotice.dismiss(this, updateInfo.versionCode)
-            }
-            .setPositiveButton(R.string.update_now) { _, _ ->
-                downloadAndInstallUpdate(updateInfo)
             }
             .show()
     }
@@ -374,8 +345,6 @@ class MainActivity : Activity() {
     private data class UpdateInfo(
         val versionCode: Long,
         val versionName: String,
-        val minimumVersionCode: Long,
-        val minimumVersionName: String,
         val downloadUrl: String,
         val apkAvailable: Boolean,
     )

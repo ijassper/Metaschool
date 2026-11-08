@@ -256,7 +256,7 @@ class IngridWebActivity : Activity() {
                 dashboardSwipeRefresh.isEnabled = isDashboardPage(url)
                 CookieManager.getInstance().flush()
                 updateAuthenticatedScreenshotProtection(url)
-                if (isDashboardPage(url)) {
+                if (isDashboardPage(url) || isUpdateRequiredPage(url)) {
                     showPendingUpdateIfSafe()
                 }
                 checkForAppUpdateIfDue()
@@ -325,7 +325,7 @@ class IngridWebActivity : Activity() {
         super.onStart()
         activityInForeground = true
         if (!pageLoading) {
-            if (isDashboardPage()) showPendingUpdateIfSafe()
+            if (isDashboardPage() || isUpdateRequiredPage()) showPendingUpdateIfSafe()
             checkForAppUpdateIfDue()
         }
         dashboardRefreshHandler.removeCallbacks(dashboardRefreshRunnable)
@@ -799,6 +799,11 @@ class IngridWebActivity : Activity() {
         return isIngridHost(uri.host) && uri.path.orEmpty().trimEnd('/') == DASHBOARD_PATH
     }
 
+    private fun isUpdateRequiredPage(url: String? = webView.url): Boolean {
+        val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull() ?: return false
+        return isIngridHost(uri.host) && uri.path.orEmpty().trimEnd('/') == UPDATE_REQUIRED_PATH
+    }
+
     private fun checkForAppUpdateIfDue() {
         if (!activityInForeground || pageLoading || hasActiveExamSession() ||
             isExamPageUrl(webView.url.orEmpty()) || fileChooserCallback != null || updateCheckInFlight
@@ -833,7 +838,6 @@ class IngridWebActivity : Activity() {
                     AvailableUpdate(
                         versionCode,
                         json.optString("version_name", ""),
-                        installedCode < json.optLong("minimum_version_code", 0L),
                     )
                 } finally {
                     connection.disconnect()
@@ -856,12 +860,12 @@ class IngridWebActivity : Activity() {
     private fun showPendingUpdateIfSafe() {
         val update = pendingUpdate ?: return
         if (!activityInForeground || isFinishing || isDestroyed || pageLoading ||
-            !isDashboardPage() || hasActiveExamSession() || fileChooserCallback != null ||
-            updateDialog?.isShowing == true ||
-            (!update.required && StudentAppUpdateNotice.wasRecentlyDismissed(this, update.versionCode))
+            (!isDashboardPage() && !isUpdateRequiredPage()) ||
+            hasActiveExamSession() || fileChooserCallback != null ||
+            updateDialog?.isShowing == true
         ) return
-        val builder = AlertDialog.Builder(this)
-            .setTitle(if (update.required) R.string.update_required_title else R.string.update_available_title)
+        updateDialog = AlertDialog.Builder(this)
+            .setTitle(R.string.update_required_title)
             .setMessage(getString(R.string.update_available_in_session_body, update.versionName))
             .setCancelable(false)
             .setPositiveButton(R.string.update_now) { _, _ ->
@@ -870,12 +874,8 @@ class IngridWebActivity : Activity() {
                 })
                 finish()
             }
-        if (!update.required) {
-            builder.setNegativeButton(R.string.update_later) { _, _ ->
-                StudentAppUpdateNotice.dismiss(this, update.versionCode)
-            }
-        }
-        updateDialog = builder.setOnDismissListener { updateDialog = null }.show()
+            .setOnDismissListener { updateDialog = null }
+            .show()
     }
 
     private fun resetNativeExamHeader() {
@@ -1151,6 +1151,7 @@ class IngridWebActivity : Activity() {
         private const val LOGIN_URL = "https://schoolingrid.com/accounts/login/"
         private const val LOGIN_PATH = "/accounts/login"
         private const val DASHBOARD_PATH = "/accounts/dashboard"
+        private const val UPDATE_REQUIRED_PATH = "/accounts/student-app/update-required"
         private const val PROFILE_SETTINGS_PATH = "/accounts/profile-settings"
         private const val ACTIVITIES_PATH_PREFIX = "/activities/"
         private const val EXAM_PATH_PREFIX = "/activities/take/"
@@ -1183,7 +1184,6 @@ class IngridWebActivity : Activity() {
     private data class AvailableUpdate(
         val versionCode: Long,
         val versionName: String,
-        val required: Boolean,
     )
 
     private enum class CaptureUiState {
