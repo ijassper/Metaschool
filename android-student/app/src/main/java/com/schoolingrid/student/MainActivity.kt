@@ -164,7 +164,11 @@ class MainActivity : Activity() {
                     minimumRequiredUpdate = updateInfo
                     loginButton.isEnabled = true
                     loginButton.setText(R.string.login_update_required)
-                    showRequiredUpdateDialog(updateInfo)
+                    if (intent.getBooleanExtra(EXTRA_INSTALL_UPDATE, false) && trustedDownload) {
+                        downloadAndInstallUpdate(updateInfo)
+                    } else {
+                        showRequiredUpdateDialog(updateInfo)
+                    }
                 }
                 return@Thread
             }
@@ -180,7 +184,14 @@ class MainActivity : Activity() {
                 updateInfo.versionCode > currentVersionCode() &&
                 trustedDownload
             ) {
-                runOnUiThread { showUpdateDialog(updateInfo) }
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    if (intent.getBooleanExtra(EXTRA_INSTALL_UPDATE, false)) {
+                        downloadAndInstallUpdate(updateInfo)
+                    } else if (!StudentAppUpdateNotice.wasRecentlyDismissed(this, updateInfo.versionCode)) {
+                        showUpdateDialog(updateInfo)
+                    }
+                }
             }
         }.start()
     }
@@ -214,7 +225,9 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.update_available_title))
             .setMessage(getString(R.string.update_available_body, updateInfo.versionName))
-            .setNegativeButton(R.string.update_later, null)
+            .setNegativeButton(R.string.update_later) { _, _ ->
+                StudentAppUpdateNotice.dismiss(this, updateInfo.versionCode)
+            }
             .setPositiveButton(R.string.update_now) { _, _ ->
                 downloadAndInstallUpdate(updateInfo)
             }
@@ -368,6 +381,7 @@ class MainActivity : Activity() {
     )
 
     companion object {
+        const val EXTRA_INSTALL_UPDATE = "com.schoolingrid.student.INSTALL_UPDATE"
         private const val VERSION_URL = "https://schoolingrid.com/accounts/student-app/version/"
         private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
         private const val NOTIFICATION_PERMISSION_REQUEST = 4101

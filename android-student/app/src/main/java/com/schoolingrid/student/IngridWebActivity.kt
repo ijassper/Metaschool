@@ -43,8 +43,11 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -81,6 +84,11 @@ class IngridWebActivity : Activity() {
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var pendingCameraUri: Uri? = null
     private var pageLoading = false
+    private var activityInForeground = false
+    private var updateCheckInFlight = false
+    private var lastUpdateCheckAt = 0L
+    private var pendingUpdate: AvailableUpdate? = null
+    private var updateDialog: AlertDialog? = null
     private var returningFromBackground = false
     private val clipboardManager by lazy { getSystemService(ClipboardManager::class.java) }
     private var clipboardProtectionActive = false
@@ -248,6 +256,10 @@ class IngridWebActivity : Activity() {
                 dashboardSwipeRefresh.isEnabled = isDashboardPage(url)
                 CookieManager.getInstance().flush()
                 updateAuthenticatedScreenshotProtection(url)
+                if (isDashboardPage(url)) {
+                    showPendingUpdateIfSafe()
+                }
+                checkForAppUpdateIfDue()
             }
 
             override fun shouldOverrideUrlLoading(
@@ -311,6 +323,11 @@ class IngridWebActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        activityInForeground = true
+        if (!pageLoading) {
+            if (isDashboardPage()) showPendingUpdateIfSafe()
+            checkForAppUpdateIfDue()
+        }
         dashboardRefreshHandler.removeCallbacks(dashboardRefreshRunnable)
         if (returningFromBackground && isDashboardPage() && !pageLoading && !hasActiveExamSession()) {
             webView.reload()
@@ -486,6 +503,7 @@ class IngridWebActivity : Activity() {
     }
 
     override fun onStop() {
+        activityInForeground = false
         returningFromBackground = true
         dashboardRefreshHandler.removeCallbacks(dashboardRefreshRunnable)
         if (captureActive && !awaitingCapturePermission && !isChangingConfigurations) {
@@ -516,6 +534,7 @@ class IngridWebActivity : Activity() {
     }
 
     override fun onDestroy() {
+        updateDialog?.dismiss()
         if (isFinishing) stopExamSession()
         disableClipboardProtection()
         captureHandler.removeCallbacksAndMessages(null)
@@ -778,6 +797,85 @@ class IngridWebActivity : Activity() {
     private fun isDashboardPage(url: String? = webView.url): Boolean {
         val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull() ?: return false
         return isIngridHost(uri.host) && uri.path.orEmpty().trimEnd('/') == DASHBOARD_PATH
+    }
+
+    private fun checkForAppUpdateIfDue() {
+        if (!activityInForeground || pageLoading || hasActiveExamSession() ||
+            isExamPageUrl(webView.url.orEmpty()) || fileChooserCallback != null || updateCheckInFlight
+        ) return
+        val now = SystemClock.elapsedRealtime()
+        if (lastUpdateCheckAt != 0L && now - lastUpdateCheckAt < UPDATE_CHECK_INTERVAL_MS) return
+        lastUpdateCheckAt = now
+        updateCheckInFlight = true
+        Thread {
+            val available = runCatching {
+                val connection = (URL(APP_VERSION_URL).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 5_000
+                    readTimeout = 5_000
+                    useCaches = false
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("User-Agent", "IngridStudentAndroid/${currentVersionName()}")
+                }
+                try {
+                    if (connection.responseCode !in 200..299) return@runCatching null
+                    val json = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                    if (!json.optBoolean("apk_available") ||
+                        !json.optString("download_url").startsWith("$INGRID_ORIGIN/")
+                    ) return@runCatching null
+                    val versionCode = json.optLong("version_code", 0L)
+                    val installed = packageManager.getPackageInfo(packageName, 0)
+                    @Suppress("DEPRECATION")
+                    val installedCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        installed.longVersionCode
+                    } else installed.versionCode.toLong()
+                    if (versionCode <= installedCode) return@runCatching null
+                    AvailableUpdate(
+                        versionCode,
+                        json.optString("version_name", ""),
+                        installedCode < json.optLong("minimum_version_code", 0L),
+                    )
+                } finally {
+                    connection.disconnect()
+                }
+            }.getOrNull()
+            runOnUiThread {
+                updateCheckInFlight = false
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (available == null) {
+                    lastUpdateCheckAt = SystemClock.elapsedRealtime() -
+                        UPDATE_CHECK_INTERVAL_MS + UPDATE_RETRY_INTERVAL_MS
+                } else {
+                    pendingUpdate = available
+                    showPendingUpdateIfSafe()
+                }
+            }
+        }.start()
+    }
+
+    private fun showPendingUpdateIfSafe() {
+        val update = pendingUpdate ?: return
+        if (!activityInForeground || isFinishing || isDestroyed || pageLoading ||
+            !isDashboardPage() || hasActiveExamSession() || fileChooserCallback != null ||
+            updateDialog?.isShowing == true ||
+            (!update.required && StudentAppUpdateNotice.wasRecentlyDismissed(this, update.versionCode))
+        ) return
+        val builder = AlertDialog.Builder(this)
+            .setTitle(if (update.required) R.string.update_required_title else R.string.update_available_title)
+            .setMessage(getString(R.string.update_available_in_session_body, update.versionName))
+            .setCancelable(false)
+            .setPositiveButton(R.string.update_now) { _, _ ->
+                startActivity(Intent(this, MainActivity::class.java).apply {
+                    putExtra(MainActivity.EXTRA_INSTALL_UPDATE, true)
+                })
+                finish()
+            }
+        if (!update.required) {
+            builder.setNegativeButton(R.string.update_later) { _, _ ->
+                StudentAppUpdateNotice.dismiss(this, update.versionCode)
+            }
+        }
+        updateDialog = builder.setOnDismissListener { updateDialog = null }.show()
     }
 
     private fun resetNativeExamHeader() {
@@ -1047,6 +1145,9 @@ class IngridWebActivity : Activity() {
 
     companion object {
         private const val INGRID_ORIGIN = "https://schoolingrid.com"
+        private const val APP_VERSION_URL = "$INGRID_ORIGIN/accounts/student-app/version/"
+        private const val UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000L
+        private const val UPDATE_RETRY_INTERVAL_MS = 5 * 60 * 1000L
         private const val LOGIN_URL = "https://schoolingrid.com/accounts/login/"
         private const val LOGIN_PATH = "/accounts/login"
         private const val DASHBOARD_PATH = "/accounts/dashboard"
@@ -1078,6 +1179,12 @@ class IngridWebActivity : Activity() {
         private const val EXAM_MODE_OPEN_LOCK = "OPEN_LOCK"
         private const val EXAM_MODE_OPEN_FREE = "OPEN_FREE"
     }
+
+    private data class AvailableUpdate(
+        val versionCode: Long,
+        val versionName: String,
+        val required: Boolean,
+    )
 
     private enum class CaptureUiState {
         RECORDING,
