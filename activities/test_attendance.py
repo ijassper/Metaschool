@@ -1,6 +1,8 @@
 import base64
+import importlib
 import io
 from datetime import date, timedelta
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from PIL import Image
@@ -160,6 +162,10 @@ class AttendanceReportFlowTests(TestCase):
         )
         folder.target_students.add(self.student)
         self.client.force_login(self.teacher)
+        self.assertNotContains(
+            self.client.get(reverse('attendance_folder_list')),
+            '이번 학년도 폴더가 이미 있습니다.',
+        )
         create_url = reverse('attendance_folder_create')
         self.assertContains(self.client.get(create_url), reverse('attendance_folder_update', args=[folder.id]))
         response = self.client.post(create_url, {
@@ -186,6 +192,34 @@ class AttendanceReportFlowTests(TestCase):
         })
         self.assertContains(response, reverse('attendance_folder_update', args=[folder.id]))
         self.assertEqual(AttendanceReportFolder.objects.count(), 1)
+        folder.refresh_from_db()
+        self.assertIsNone(folder.academic_year)
+        self.assertEqual(folder.operation_start_date, date(2026, 10, 27))
+
+    def test_existing_2026_folder_data_migration_keeps_report_and_targets(self):
+        folder = AttendanceReportFolder.objects.create(
+            id=1, teacher=self.teacher, name='기존 출결 폴더',
+            operation_start_date=date(2026, 10, 27),
+            operation_end_date=date(2026, 11, 28),
+        )
+        folder.target_students.add(self.student)
+        report = AttendanceReport.objects.create(
+            folder=folder, student=self.student,
+            attendance_type=AttendanceReport.AttendanceType.SICK_ABSENCE,
+            start_date=date(2026, 10, 27), end_date=date(2026, 10, 27),
+            reason='치료', written_date=date(2026, 10, 27),
+            student_signature=self.student.name, submitted_at=timezone.now(),
+        )
+        migration = importlib.import_module('activities.migrations.0049_normalize_2026_attendance_folder')
+        editor = SimpleNamespace(connection=SimpleNamespace(alias='default'))
+        migration.set_2026_academic_year(importlib.import_module('django.apps').apps, editor)
+        folder.refresh_from_db()
+        self.assertEqual(folder.academic_year, 2026)
+        self.assertEqual(folder.operation_start_date, date(2026, 3, 2))
+        self.assertEqual(folder.operation_end_date, date(2027, 2, 28))
+        self.assertEqual(list(folder.target_students.all()), [self.student])
+        self.assertTrue(AttendanceReport.objects.filter(id=report.id, folder=folder).exists())
+        migration.restore_original_period(importlib.import_module('django.apps').apps, editor)
         folder.refresh_from_db()
         self.assertIsNone(folder.academic_year)
         self.assertEqual(folder.operation_start_date, date(2026, 10, 27))

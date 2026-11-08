@@ -71,21 +71,8 @@ def attendance_folder_list(request):
         .prefetch_related('target_students', 'reports')
     )
     folders.sort(key=lambda item: (item.academic_year or 0, item.created_at), reverse=True)
-    today = timezone.localdate()
-    current_year = today.year if today.month >= 3 else today.year - 1
-    current_start, current_end = _academic_year_period(current_year)
-    current_folder = next((folder for folder in folders if folder.academic_year == current_year), None)
-    if not current_folder:
-        current_folder = next((
-            folder for folder in folders
-            if folder.academic_year is None
-            and folder.operation_start_date and folder.operation_end_date
-            and folder.operation_start_date <= current_end
-            and folder.operation_end_date >= current_start
-        ), None)
     return render(request, 'activities/attendance_folder_list.html', {
         'folders': folders,
-        'current_folder': current_folder,
     })
 
 
