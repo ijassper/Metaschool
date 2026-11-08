@@ -493,6 +493,7 @@ class AttendanceReportFlowTests(TestCase):
             start_date=date(2026, 3, 2), end_date=date(2026, 3, 5),
             reason='손목 부상으로 인한 염좌 치료', written_date=date(2026, 3, 7),
             student_signature=self.student.name, submitted_at=timezone.now(),
+            confirmed_at=timezone.now(),
         )
         self.client.force_login(self.student_user)
 
@@ -501,12 +502,15 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(response, '내 출결 신고서')
         self.assertNotContains(response, '작성한 신고서와 새로 작성할 수 있는 출결 신고 폴더를 확인하세요.')
         self.assertContains(response, '새로운 출결 신고서 작성')
+        self.assertContains(response, 'data-bs-target="#newReportFolderModal"')
+        self.assertNotContains(response, '새로 작성할 신고서')
         self.assertContains(response, reverse('student_attendance_report', args=[new_folder.id]))
         self.assertContains(response, '2026-001')
         self.assertContains(response, '질병결석')
         self.assertContains(response, '2026.03.02. ~ 2026.03.05.')
         self.assertContains(response, '손목 부상으로 인한 염좌 치료')
         self.assertContains(response, reverse('attendance_report_print', args=[report.id]))
+        self.assertRegex(response.content.decode(), r'담임교사 결재 완료</span>\s*<a class="action secondary"')
 
     def test_student_can_submit_multiple_reports_in_one_folder_and_edit_one(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher, name='연간 출결자료')
