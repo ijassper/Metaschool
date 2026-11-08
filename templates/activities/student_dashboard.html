@@ -26,8 +26,21 @@
   .student-profile-heading {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 12px;
     margin-bottom: 5px;
+  }
+  .student-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    white-space: nowrap;
+  }
+  .student-brand-name {
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
   }
   .student-brand-mark {
     display: grid;
@@ -498,6 +511,10 @@
       margin-bottom: 2px;
     }
 
+    .student-brand-name {
+      font-size: 1.2rem;
+    }
+
     .student-brand-mark {
       flex-basis: 36px;
       width: 36px;
@@ -549,7 +566,8 @@
   <div class="student-hero">
     <div class="profile-info">
       <div class="student-profile-heading">
-        <span class="student-brand-mark" aria-hidden="true">
+        <span class="student-brand">
+          <span class="student-brand-mark" aria-hidden="true">
           <svg viewBox="0 0 26 26" focusable="false">
             <defs>
               <linearGradient id="studentBrandDotsGradient" x1="0" y1="0" x2="1" y2="1">
@@ -565,6 +583,8 @@
               <circle cx="2" cy="22" r="2" /><circle cx="7" cy="22" r="2" />
             </g>
           </svg>
+          </span>
+          <span class="student-brand-name">Ingrid</span>
         </span>
         <h2>안녕하세요, {{ user.name }} 학생 👋</h2>
       </div>
