@@ -1,9 +1,11 @@
 import base64
 import io
 from datetime import date, timedelta
+from unittest.mock import patch
 
 from PIL import Image
 
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -55,14 +57,14 @@ class AttendanceReportFlowTests(TestCase):
     def test_teacher_creates_folder_with_targets(self):
         self.client.force_login(self.teacher)
         response = self.client.post(reverse('attendance_folder_create'), {
+            'academic_year': '2026',
             'name': '2026학년도 출결자료',
-            'operation_start_date': '2026-03-01',
-            'operation_end_date': '2027-02-28',
             'target_students': [str(self.student.id)],
         })
         folder = AttendanceReportFolder.objects.get()
         self.assertRedirects(response, reverse('attendance_folder_detail', args=[folder.id]))
         self.assertEqual(folder.name, '2026학년도 출결자료')
+        self.assertEqual(folder.academic_year, 2026)
         self.assertEqual(folder.operation_start_date, date(2026, 3, 1))
         self.assertEqual(folder.operation_end_date, date(2027, 2, 28))
         self.assertEqual(list(folder.target_students.all()), [self.student])
@@ -70,12 +72,20 @@ class AttendanceReportFlowTests(TestCase):
     def test_teacher_form_uses_folder_name_and_operation_period(self):
         self.client.force_login(self.teacher)
         response = self.client.get(reverse('attendance_folder_create'))
+        self.assertContains(response, 'name="academic_year"')
+        self.assertLess(response.content.decode().index('name="academic_year"'), response.content.decode().index('name="name"'))
         self.assertContains(response, '폴더명')
         self.assertContains(response, '운영 기간')
-        self.assertContains(response, '2026학년도 출결자료')
+        self.assertContains(response, '2026학년도 출결신고서')
+        self.assertNotContains(response, 'name="operation_start_date"')
+        self.assertNotContains(response, 'name="operation_end_date"')
         self.assertNotContains(response, '질병지각')
         self.assertNotContains(response, '제출 후 수정 허용')
         self.assertNotContains(self.client.get(reverse('attendance_folder_list')), '<th>수정 허용</th>')
+        management = self.client.get(reverse('attendance_folder_list'))
+        self.assertContains(management, '출결신고서 폴더 관리')
+        self.assertContains(management, '<th>학년도</th>', html=False)
+        self.assertContains(management, '<th>운영 상태</th>', html=False)
 
     def test_teacher_can_update_folder_settings(self):
         folder = AttendanceReportFolder.objects.create(
@@ -88,6 +98,7 @@ class AttendanceReportFlowTests(TestCase):
         self.client.force_login(self.teacher)
 
         response = self.client.post(reverse('attendance_folder_update', args=[folder.id]), {
+            'academic_year': '2027',
             'name': '2026학년도 출결자료',
             'operation_start_date': '2026-03-02',
             'operation_end_date': '2027-02-28',
@@ -97,8 +108,9 @@ class AttendanceReportFlowTests(TestCase):
         folder.refresh_from_db()
         self.assertRedirects(response, reverse('attendance_folder_detail', args=[folder.id]))
         self.assertEqual(folder.name, '2026학년도 출결자료')
-        self.assertEqual(folder.operation_start_date, date(2026, 3, 2))
-        self.assertEqual(folder.operation_end_date, date(2027, 2, 28))
+        self.assertIsNone(folder.academic_year)
+        self.assertEqual(folder.operation_start_date, date(2026, 3, 1))
+        self.assertEqual(folder.operation_end_date, date(2026, 8, 31))
 
     def test_update_preserves_targets_when_student_fields_are_missing(self):
         folder = AttendanceReportFolder.objects.create(
@@ -127,16 +139,126 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(response, "input.name='target_students'", html=False)
         self.assertContains(response, 'event.preventDefault();sync();', html=False)
 
-    def test_teacher_cannot_set_end_date_before_start_date(self):
+    def test_teacher_cannot_override_calculated_operation_period(self):
         self.client.force_login(self.teacher)
         response = self.client.post(reverse('attendance_folder_create'), {
-            'name': '잘못된 기간',
+            'academic_year': '2027',
+            'name': '2027학년도 출결신고서',
             'operation_start_date': '2026-12-31',
             'operation_end_date': '2026-03-01',
             'target_students': [str(self.student.id)],
         })
-        self.assertContains(response, '운영 종료일은 시작일보다 빠를 수 없습니다.')
-        self.assertFalse(AttendanceReportFolder.objects.exists())
+        folder = AttendanceReportFolder.objects.get()
+        self.assertRedirects(response, reverse('attendance_folder_detail', args=[folder.id]))
+        self.assertEqual(folder.operation_start_date, date(2027, 3, 1))
+        self.assertEqual(folder.operation_end_date, date(2028, 2, 29))
+
+    def test_duplicate_academic_year_guides_teacher_to_existing_folder(self):
+        folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher, academic_year=2026, name='기존 폴더',
+            operation_start_date=date(2026, 3, 1), operation_end_date=date(2027, 2, 28),
+        )
+        folder.target_students.add(self.student)
+        self.client.force_login(self.teacher)
+        create_url = reverse('attendance_folder_create')
+        self.assertContains(self.client.get(create_url), reverse('attendance_folder_update', args=[folder.id]))
+        response = self.client.post(create_url, {
+            'academic_year': '2026', 'name': '중복 폴더',
+            'target_students': [str(self.student.id)],
+        })
+        self.assertContains(response, '해당 학년도의 출결신고서 폴더가 이미 있습니다.')
+        self.assertContains(response, reverse('attendance_folder_update', args=[folder.id]))
+        self.assertEqual(AttendanceReportFolder.objects.count(), 1)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                AttendanceReportFolder.objects.create(teacher=self.teacher, academic_year=2026)
+
+    def test_legacy_folder_with_matching_period_is_shown_without_backfill(self):
+        folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher, name='기존 출결 폴더',
+            operation_start_date=date(2026, 10, 27), operation_end_date=date(2026, 11, 28),
+        )
+        folder.target_students.add(self.student)
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse('attendance_folder_create'), {
+            'academic_year': '2026', 'name': '새 폴더',
+            'target_students': [str(self.student.id)],
+        })
+        self.assertContains(response, reverse('attendance_folder_update', args=[folder.id]))
+        self.assertEqual(AttendanceReportFolder.objects.count(), 1)
+        folder.refresh_from_db()
+        self.assertIsNone(folder.academic_year)
+        self.assertEqual(folder.operation_start_date, date(2026, 10, 27))
+
+    def test_target_student_update_preserves_existing_report(self):
+        folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher, name='기존 폴더', academic_year=2026,
+            operation_start_date=date(2026, 3, 1), operation_end_date=date(2027, 2, 28),
+        )
+        folder.target_students.add(self.student)
+        report = AttendanceReport.objects.create(
+            folder=folder, student=self.student,
+            attendance_type=AttendanceReport.AttendanceType.SICK_ABSENCE,
+            start_date=date(2026, 10, 20), end_date=date(2026, 10, 20),
+            reason='치료', written_date=date(2026, 10, 20),
+            student_signature=self.student.name, submitted_at=timezone.now(),
+        )
+        transfer = Student.objects.create(
+            teacher=self.teacher, school=self.school, grade=2, class_no=3,
+            number=8, name='전학생', email='transfer@example.com',
+        )
+        self.client.force_login(self.teacher)
+        self.client.post(reverse('attendance_folder_update', args=[folder.id]), {
+            'name': folder.name, 'academic_year': '2027',
+            'target_students_present': '1',
+            'target_students': [str(self.student.id), str(transfer.id)],
+        })
+        folder.refresh_from_db()
+        self.assertEqual(folder.academic_year, 2026)
+        self.assertEqual(folder.operation_end_date, date(2027, 2, 28))
+        self.assertEqual(set(folder.target_students.values_list('id', flat=True)), {self.student.id, transfer.id})
+        self.assertTrue(AttendanceReport.objects.filter(id=report.id, folder=folder).exists())
+
+    def test_academic_year_end_is_inclusive_and_new_submission_expires_next_day(self):
+        folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher, academic_year=2027,
+            operation_start_date=date(2027, 3, 1), operation_end_date=date(2028, 2, 29),
+        )
+        folder.target_students.add(self.student)
+        with patch('activities.views.attendance_views.timezone.localdate', return_value=date(2027, 2, 28)):
+            self.assertEqual(folder.operation_status, '예정')
+            self.assertFalse(folder.is_within_operation_period)
+        with patch('activities.views.attendance_views.timezone.localdate', return_value=date(2027, 3, 1)):
+            self.assertEqual(folder.operation_status, '운영 중')
+            self.assertTrue(folder.is_within_operation_period)
+        with patch('activities.views.attendance_views.timezone.localdate', return_value=date(2028, 2, 29)):
+            self.assertTrue(folder.is_within_operation_period)
+        with patch('activities.views.attendance_views.timezone.localdate', return_value=date(2028, 3, 1)):
+            self.assertFalse(folder.is_within_operation_period)
+            self.assertEqual(folder.operation_status, '만료')
+            self.client.force_login(self.student_user)
+            url = reverse('student_attendance_report', args=[folder.id]) + '?new=1'
+            self.assertRedirects(self.client.get(url), reverse('dashboard'))
+            self.client.post(url, {
+                'attendance_category': 'SICK', 'attendance_kind': 'ABSENCE',
+                'start_date': '2028-02-29', 'end_date': '2028-02-29',
+                'reason': '치료', 'written_date': '2028-02-29',
+                'student_signature_data': self.signature_data,
+            })
+            self.assertFalse(AttendanceReport.objects.filter(folder=folder).exists())
+
+    def test_other_teacher_cannot_update_folder_or_view_its_management_page(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher, academic_year=2026)
+        other = CustomUser.objects.create_user(
+            username='other-attendance-teacher@example.com',
+            email='other-attendance-teacher@example.com', password='test-password',
+            name='다른 교사', role=CustomUser.Role.TEACHER,
+            school=self.school, subject=self.subject, is_approved=True,
+        )
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(reverse('attendance_folder_update', args=[folder.id])).status_code, 404)
+        self.assertEqual(self.client.get(reverse('attendance_folder_detail', args=[folder.id])).status_code, 404)
+        self.assertNotContains(self.client.get(reverse('attendance_folder_list')), folder.display_name)
 
     def test_student_submits_absence_report_and_can_print(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
@@ -455,6 +577,7 @@ class AttendanceReportFlowTests(TestCase):
         response = self.client.get(reverse('dashboard'))
 
         self.assertNotContains(response, '운영 전 폴더')
+        self.assertNotContains(response, reverse('student_attendance_list'))
         report_response = self.client.get(reverse('student_attendance_report', args=[folder.id]))
         self.assertRedirects(report_response, reverse('dashboard'))
 
@@ -500,6 +623,7 @@ class AttendanceReportFlowTests(TestCase):
         response = self.client.get(reverse('student_attendance_list'))
 
         self.assertContains(response, '내 출결 신고서')
+        self.assertContains(response, 'class="attendance-hero"')
         self.assertNotContains(response, '작성한 신고서와 새로 작성할 수 있는 출결 신고 폴더를 확인하세요.')
         self.assertContains(response, '새로운 출결 신고서 작성')
         self.assertContains(response, 'data-bs-target="#newReportFolderModal"')

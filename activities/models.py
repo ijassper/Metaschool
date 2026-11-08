@@ -764,6 +764,9 @@ class CourseNotebook(models.Model):
 class AttendanceReportFolder(models.Model):
     """교사가 대상 학생에게 배정하는 출결 신고서 보관함."""
 
+    academic_year = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name='학년도',
+    )
     name = models.CharField(
         max_length=100,
         blank=True,
@@ -798,6 +801,12 @@ class AttendanceReportFolder(models.Model):
 
     class Meta:
         ordering = ['-created_at', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['teacher', 'academic_year'],
+                name='unique_attendance_folder_teacher_year',
+            ),
+        ]
         indexes = [
             models.Index(fields=['teacher', 'is_active'], name='attendance_folder_teacher_idx'),
         ]
@@ -822,6 +831,19 @@ class AttendanceReportFolder(models.Model):
         if self.operation_end_date and today > self.operation_end_date:
             return False
         return self.is_active
+
+    @property
+    def operation_status(self):
+        today = timezone.localdate()
+        if not self.is_active:
+            return '운영 중지'
+        if self.operation_start_date and today < self.operation_start_date:
+            return '예정'
+        if self.operation_end_date and today > self.operation_end_date:
+            return '만료'
+        if not self.operation_start_date or not self.operation_end_date:
+            return '기간 미지정'
+        return '운영 중'
 
     @property
     def submitted_count(self):

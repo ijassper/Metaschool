@@ -2,8 +2,13 @@
 {% block content %}
 <style>
 .student-attendance{max-width:1080px;margin:0 auto;padding:24px}
-.student-attendance h2{margin:0;font-weight:900}
-.student-attendance .page-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:16px 0 22px}
+.student-attendance .attendance-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:15px 20px;border-radius:19px;background:linear-gradient(135deg,#8f4aad,#c45c98);color:#fff;box-shadow:0 9px 24px rgba(119,61,139,.15)}
+.student-attendance .attendance-hero h1{margin:2px 0 0;font-size:clamp(1.35rem,2vw,2rem);font-weight:850}
+.student-attendance .hero-back{display:inline-flex;align-items:center;min-height:42px;padding:7px 12px;border:1px solid rgba(255,255,255,.55);border-radius:10px;background:rgba(255,255,255,.16);color:#fff;text-decoration:none;font-weight:800}
+.student-attendance .hero-meta{margin-top:5px;font-size:.9rem;opacity:.85}
+.student-attendance .hero-count{flex:0 0 auto;min-width:104px;padding:9px 13px;border-radius:14px;background:rgba(255,255,255,.16);text-align:center}
+.student-attendance .hero-count strong{display:block;font-size:1.35rem}
+.student-attendance .page-head{display:flex;align-items:center;justify-content:flex-end;gap:16px;flex-wrap:wrap;margin:16px 0 22px}
 .student-attendance .action{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:999px;background:#9148aa;color:#fff;text-decoration:none;font-weight:800;border:0}
 .student-attendance .action:hover{background:#7b3895;color:#fff}
 .student-attendance .action.secondary{background:#f3eaf7;color:#713985}
@@ -24,12 +29,11 @@
 .student-attendance .folder-choice:first-child{border-top:0}
 .student-attendance .folder-choice span{display:block;color:#766d79;font-size:.9rem}
 .student-attendance .empty{padding:30px;text-align:center;color:#817687;background:#fff;border:1px solid #eadfed;border-radius:18px}
-@media(max-width:600px){.student-attendance{padding:18px 14px}.student-attendance .page-head{align-items:stretch}.student-attendance .page-head .action{justify-content:center}.student-attendance .report-card{flex-direction:column}.student-attendance .report-actions{min-width:0}.student-attendance .report-bottom{align-items:flex-start;flex-direction:column;gap:3px}.student-attendance .folder-choice{align-items:stretch;flex-direction:column}}
+@media(max-width:600px){.student-attendance{padding:18px 14px}.student-attendance .attendance-hero{padding:12px 14px}.student-attendance .hero-count{min-width:78px;padding:7px 9px}.student-attendance .page-head{align-items:stretch}.student-attendance .page-head .action{justify-content:center}.student-attendance .report-card{flex-direction:column}.student-attendance .report-actions{min-width:0}.student-attendance .report-bottom{align-items:flex-start;flex-direction:column;gap:3px}.student-attendance .folder-choice{align-items:stretch;flex-direction:column}}
 </style>
 <main class="student-attendance">
-  <a class="text-decoration-none fw-bold" href="{% url 'dashboard' %}#student-activities"><i class="bi bi-arrow-left me-1"></i>학생 대시보드</a>
+  <header class="attendance-hero"><div><a class="hero-back" href="{% url 'dashboard' %}#student-activities"><i class="bi bi-arrow-left me-1"></i>학생 대시보드</a><div class="hero-meta">출결 신고</div><h1>내 출결 신고서</h1></div><div class="hero-count"><strong>{{ submitted_count }}</strong><span>내 신고서</span></div></header>
   <div class="page-head">
-    <h2>내 출결 신고서</h2>
     {% if new_report_folders|length == 1 %}
       {% with folder=new_report_folders.0 %}<a class="action" href="{% url 'student_attendance_report' folder.id %}?new=1" title="{{ folder.display_name }}"><i class="bi bi-plus-lg"></i>새로운 출결 신고서 작성</a>{% endwith %}
     {% elif new_report_folders %}

@@ -11,6 +11,7 @@ from PIL import Image, UnidentifiedImageError
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -69,7 +70,27 @@ def attendance_folder_list(request):
         AttendanceReportFolder.objects.filter(teacher=request.user)
         .prefetch_related('target_students', 'reports')
     )
-    return render(request, 'activities/attendance_folder_list.html', {'folders': folders})
+    folders.sort(key=lambda item: (item.academic_year or 0, item.created_at), reverse=True)
+    today = timezone.localdate()
+    current_year = today.year if today.month >= 3 else today.year - 1
+    current_start, current_end = _academic_year_period(current_year)
+    current_folder = next((folder for folder in folders if folder.academic_year == current_year), None)
+    if not current_folder:
+        current_folder = next((
+            folder for folder in folders
+            if folder.academic_year is None
+            and folder.operation_start_date and folder.operation_end_date
+            and folder.operation_start_date <= current_end
+            and folder.operation_end_date >= current_start
+        ), None)
+    return render(request, 'activities/attendance_folder_list.html', {
+        'folders': folders,
+        'current_folder': current_folder,
+    })
+
+
+def _academic_year_period(year):
+    return date(year, 3, 1), date(year + 1, 2, calendar.monthrange(year + 1, 2)[1])
 
 
 @login_required
@@ -88,6 +109,39 @@ def attendance_folder_update(request, folder_id):
 
 
 def _attendance_folder_form(request, folder=None):
+    today = timezone.localdate()
+    current_academic_year = today.year if today.month >= 3 else today.year - 1
+    existing_by_year = {
+        item.academic_year: item
+        for item in AttendanceReportFolder.objects.filter(
+            teacher=request.user, academic_year__isnull=False,
+        ).only('id', 'academic_year')
+    }
+    legacy_folders = list(AttendanceReportFolder.objects.filter(
+        teacher=request.user, academic_year__isnull=True,
+    ).only('id', 'operation_start_date', 'operation_end_date'))
+    year_options = [
+        {'year': year, 'start': _academic_year_period(year)[0], 'end': _academic_year_period(year)[1]}
+        for year in range(current_academic_year + 1, 2019, -1)
+    ]
+    for option in year_options:
+        option['existing_folder'] = (
+            existing_by_year.get(option['year'])
+            or next((
+                item for item in legacy_folders
+                if item.operation_start_date and item.operation_end_date
+                and item.operation_start_date <= option['end']
+                and item.operation_end_date >= option['start']
+            ), None)
+        )
+    folder_by_selected_year = {option['year']: option['existing_folder'] for option in year_options}
+    valid_years = set(folder_by_selected_year)
+    selected_year = folder.academic_year if folder else current_academic_year
+    if request.method == 'POST' and not folder:
+        try:
+            selected_year = int(request.POST.get('academic_year', ''))
+        except (TypeError, ValueError):
+            selected_year = None
     existing_students = (
         {str(value) for value in folder.target_students.values_list('id', flat=True)}
         if folder else set()
@@ -103,56 +157,72 @@ def _attendance_folder_form(request, folder=None):
         selected_students = existing_students
     if request.method == 'POST':
         folder_name = request.POST.get('name', '').strip()
-        operation_start_date = request.POST.get('operation_start_date', '')
-        operation_end_date = request.POST.get('operation_end_date', '')
         target_ids = get_accessible_student_ids(request.user, selected_students)
         errors = []
         if not folder_name:
             errors.append('폴더명을 입력해 주세요.')
-        try:
-            parsed_start_date = date.fromisoformat(operation_start_date)
-        except ValueError:
-            parsed_start_date = None
-            errors.append('운영 시작일을 선택해 주세요.')
-        try:
-            parsed_end_date = date.fromisoformat(operation_end_date)
-        except ValueError:
-            parsed_end_date = None
-            errors.append('운영 종료일을 선택해 주세요.')
-        if parsed_start_date and parsed_end_date and parsed_end_date < parsed_start_date:
-            errors.append('운영 종료일은 시작일보다 빠를 수 없습니다.')
+        if not folder and selected_year not in valid_years:
+            errors.append('올바른 학년도를 선택해 주세요.')
+        duplicate_folder = folder_by_selected_year.get(selected_year) if not folder else None
+        if duplicate_folder:
+            errors.append(
+                '기존 학년도 미지정 폴더의 운영 기간이 겹칩니다. 기존 폴더를 확인해 주세요.'
+                if duplicate_folder.academic_year is None else
+                '해당 학년도의 출결신고서 폴더가 이미 있습니다. 대상 학생 변경 등은 기존 폴더에서 수정할 수 있습니다.'
+            )
         if not target_ids:
             errors.append('대상 학생을 한 명 이상 선택해 주세요.')
         if not errors:
             creating = folder is None
             folder = folder or AttendanceReportFolder(teacher=request.user)
             folder.name = folder_name
-            folder.operation_start_date = parsed_start_date
-            folder.operation_end_date = parsed_end_date
-            folder.save()
-            folder.target_students.set(target_ids)
-            messages.success(
-                request,
-                '출결신고서 폴더를 생성했습니다.' if creating else '출결신고서 폴더 설정을 수정했습니다.',
-            )
-            return redirect('attendance_folder_detail', folder_id=folder.id)
+            if creating:
+                folder.academic_year = selected_year
+                folder.operation_start_date, folder.operation_end_date = _academic_year_period(selected_year)
+            try:
+                with transaction.atomic():
+                    folder.save()
+                    folder.target_students.set(target_ids)
+            except IntegrityError:
+                duplicate_folder = AttendanceReportFolder.objects.filter(
+                    teacher=request.user, academic_year=selected_year,
+                ).first() if creating else None
+                if not duplicate_folder:
+                    raise
+                folder = None
+                next(option for option in year_options if option['year'] == selected_year)['existing_folder'] = duplicate_folder
+                errors.append('해당 학년도의 출결신고서 폴더가 이미 있습니다. 기존 폴더를 수정해 주세요.')
+            else:
+                messages.success(
+                    request,
+                    '출결신고서 폴더를 생성했습니다.' if creating else '출결신고서 폴더 설정을 수정했습니다.',
+                )
+                return redirect('attendance_folder_detail', folder_id=folder.id)
         for error in errors:
             messages.error(request, error)
+    else:
+        duplicate_folder = folder_by_selected_year.get(selected_year) if not folder else None
+
+    if folder:
+        displayed_start, displayed_end = folder.operation_start_date, folder.operation_end_date
+    elif selected_year in valid_years:
+        displayed_start, displayed_end = _academic_year_period(selected_year)
+    else:
+        displayed_start, displayed_end = None, None
 
     return render(request, 'activities/attendance_folder_form.html', {
         'folder': folder,
         'is_edit': folder is not None,
         'student_tree': get_student_tree(request.user),
         'selected_students': selected_students,
-        'folder_name': request.POST.get('name', folder.name if folder else ''),
-        'operation_start_date': request.POST.get(
-            'operation_start_date',
-            folder.operation_start_date.isoformat() if folder and folder.operation_start_date else '',
+        'academic_year': selected_year,
+        'year_options': year_options,
+        'duplicate_folder': duplicate_folder,
+        'folder_name': request.POST.get(
+            'name', folder.name if folder else f'{selected_year or current_academic_year}학년도 출결신고서',
         ),
-        'operation_end_date': request.POST.get(
-            'operation_end_date',
-            folder.operation_end_date.isoformat() if folder and folder.operation_end_date else '',
-        ),
+        'operation_start_date': displayed_start,
+        'operation_end_date': displayed_end,
     })
 
 

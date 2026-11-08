@@ -419,9 +419,18 @@ def dashboard(request):
             }
             for folder in student_attendance_folders:
                 folder.my_report = reports_by_folder.get(folder.id)
+            past_report_folder_ids = set(
+                AttendanceReport.objects.filter(
+                    student=student_profile, submitted_at__isnull=False,
+                ).values_list('folder_id', flat=True)
+            )
+            visible_attendance_ids = past_report_folder_ids | {
+                folder.id for folder in student_attendance_folders
+            }
             student_attendance_history = list(
-                AttendanceReportFolder.objects.filter(target_students=student_profile)
-                .order_by('-created_at').distinct()
+                AttendanceReportFolder.objects.filter(
+                    target_students=student_profile, id__in=visible_attendance_ids,
+                ).order_by('-created_at').distinct()
             )
             attendance_completed_count = sum(
                 1 for folder in student_attendance_folders
