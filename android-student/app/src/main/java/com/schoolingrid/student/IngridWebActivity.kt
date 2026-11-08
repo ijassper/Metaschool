@@ -56,6 +56,7 @@ class IngridWebActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var captureStatusText: TextView
+    private lateinit var nativeExamHeader: View
     private lateinit var appPageTitleText: TextView
     private lateinit var studentIdentityText: TextView
     private lateinit var dashboardSwipeRefresh: SwipeRefreshLayout
@@ -184,6 +185,7 @@ class IngridWebActivity : Activity() {
         webView = findViewById(R.id.ingridWebView)
         progressBar = findViewById(R.id.webProgress)
         captureStatusText = findViewById(R.id.captureStatusText)
+        nativeExamHeader = findViewById(R.id.nativeExamHeader)
         appPageTitleText = findViewById(R.id.appPageTitleText)
         studentIdentityText = findViewById(R.id.studentIdentityText)
         dashboardSwipeRefresh = findViewById(R.id.dashboardSwipeRefresh)
@@ -230,6 +232,7 @@ class IngridWebActivity : Activity() {
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                 updatePageOrientation(url)
+                nativeExamHeader.visibility = if (isExamPageUrl(url)) View.VISIBLE else View.GONE
                 if (!isExamPageUrl(url)) resetNativeExamHeader()
                 pageLoading = true
                 dashboardSwipeRefresh.isEnabled = isDashboardPage(url)
