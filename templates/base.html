@@ -80,10 +80,20 @@
         .brand-title {
             color: var(--ingrid-primary) !important;
             text-decoration: none !important;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             transition: opacity 0.3s ease, width 0.3s ease;
+        }
+
+        .brand-mark {
+            width: 27px;
+            height: 27px;
+            flex: none;
+            filter: drop-shadow(0 3px 4px rgba(142, 68, 173, 0.24));
         }
 
         .sidebar-toggle-btn {
@@ -468,7 +478,24 @@
             <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
             <nav id="sidebarMenu" class="sidebar shadow-sm">
                 <div class="brand-area">
-                    <a href="{% url 'dashboard' %}" class="brand-title">Ingrid</a>
+                    <a href="{% url 'dashboard' %}" class="brand-title">
+                        <span>Ingrid</span>
+                        <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true" focusable="false">
+                            <defs>
+                                <linearGradient id="brandDotsGradient" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0" stop-color="#D28ADD" />
+                                    <stop offset="1" stop-color="#9545AC" />
+                                </linearGradient>
+                            </defs>
+                            <g fill="url(#brandDotsGradient)">
+                                <circle cx="17" cy="2" r="2" /><circle cx="22" cy="2" r="2" />
+                                <circle cx="7" cy="7" r="2" /><circle cx="12" cy="7" r="2" /><circle cx="17" cy="7" r="2" /><circle cx="22" cy="7" r="2" />
+                                <circle cx="2" cy="12" r="2" /><circle cx="7" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="17" cy="12" r="2" /><circle cx="22" cy="12" r="2" />
+                                <circle cx="2" cy="17" r="2" /><circle cx="7" cy="17" r="2" /><circle cx="12" cy="17" r="2" /><circle cx="17" cy="17" r="2" />
+                                <circle cx="2" cy="22" r="2" /><circle cx="7" cy="22" r="2" />
+                            </g>
+                        </svg>
+                    </a>
                     <button type="button" id="sidebarToggleBtn" class="sidebar-toggle-btn" aria-label="메뉴 닫기" aria-expanded="true">
                         <i class="bi bi-layout-sidebar-inset"></i>
                     </button>
