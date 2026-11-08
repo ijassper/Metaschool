@@ -670,13 +670,13 @@
         {% if block.attendance_folders %}
           <div class="course-notebook-slot">
             {% for folder in block.attendance_folders %}
-              {% if forloop.first %}<a class="student-note-link" href="{% url 'student_attendance_list' %}" aria-label="출결 신고서 목록 보기">
+              {% if forloop.first %}<a class="student-note-link" href="{% url 'student_attendance_list' %}" aria-label="내 출결 신고서 보기">
                 <span class="student-note-top">
                   <span class="student-note-subject"><i class="bi bi-calendar2-check me-1"></i>출결 신고</span>
                   <span class="student-note-status has-pages">{{ block.attendance_folders|length }}개 폴더</span>
                 </span>
                 <span class="student-note-main attendance-note-main">
-                  <span class="student-note-copy"><strong class="student-note-title">출결 신고서 목록</strong><span class="student-note-description">작성한 신고서를 확인하고 새 신고서를 작성합니다.</span></span>
+                  <span class="student-note-copy"><strong class="student-note-title">내 출결 신고서</strong><span class="student-note-description">작성한 신고서를 확인하고 새 신고서를 작성합니다.</span></span>
                 </span>
                 <span class="student-note-meta">출결 신고 내역과 제출 상태</span>
                 <span class="student-note-bottom"><span class="student-note-stats"><span><i class="bi bi-file-earmark-text me-1"></i>전체 목록</span></span><span class="student-note-open">목록 보기 <i class="bi bi-chevron-right"></i></span></span>

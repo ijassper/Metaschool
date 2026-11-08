@@ -163,7 +163,7 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(print_response, '첨부 증빙서류')
         self.assertContains(print_response, '□ 진료확인서')
         self.assertContains(print_response, '□ 보건실확인증')
-        self.assertContains(print_response, reverse('student_attendance_report', args=[folder.id]) + '?edit=1')
+        self.assertContains(print_response, reverse('student_attendance_report', args=[folder.id]) + f'?report={report.id}&amp;edit=1')
         self.assertContains(self.client.get(reverse('student_attendance_report', args=[folder.id]) + '?edit=1'), '수정 제출')
         self.assertContains(self.client.get(reverse('dashboard')), reverse('student_attendance_list'))
         self.assertContains(self.client.get(reverse('student_attendance_list')), reverse('attendance_report_print', args=[report.id]))
@@ -436,7 +436,7 @@ class AttendanceReportFlowTests(TestCase):
         )
         folder.target_students.add(self.student)
         response = self.client.get(reverse('dashboard'))
-        self.assertContains(response, '출결 신고서 목록')
+        self.assertContains(response, '내 출결 신고서')
         self.assertContains(response, reverse('student_attendance_list'))
         self.assertContains(self.client.get(reverse('student_attendance_list')), '2026학년도 출결자료')
         self.assertContains(self.client.get(reverse('student_attendance_list')), reverse('student_attendance_report', args=[folder.id]))
@@ -477,6 +477,72 @@ class AttendanceReportFlowTests(TestCase):
         self.assertNotContains(page, reverse('student_attendance_report', args=[folder.id]) + '?edit=1')
         self.client.force_login(self.teacher)
         self.assertRedirects(self.client.get(reverse('student_attendance_list')), reverse('attendance_folder_list'))
+
+    def test_student_attendance_list_shows_report_summary_and_new_button(self):
+        submitted_folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher, name='2026학년도 출결자료',
+        )
+        new_folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher, name='추가 출결자료',
+        )
+        submitted_folder.target_students.add(self.student)
+        new_folder.target_students.add(self.student)
+        report = AttendanceReport.objects.create(
+            folder=submitted_folder, student=self.student,
+            attendance_type=AttendanceReport.AttendanceType.SICK_ABSENCE,
+            start_date=date(2026, 3, 2), end_date=date(2026, 3, 5),
+            reason='손목 부상으로 인한 염좌 치료', written_date=date(2026, 3, 7),
+            student_signature=self.student.name, submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.student_user)
+
+        response = self.client.get(reverse('student_attendance_list'))
+
+        self.assertContains(response, '내 출결 신고서')
+        self.assertNotContains(response, '작성한 신고서와 새로 작성할 수 있는 출결 신고 폴더를 확인하세요.')
+        self.assertContains(response, '새로운 출결 신고서 작성')
+        self.assertContains(response, reverse('student_attendance_report', args=[new_folder.id]))
+        self.assertContains(response, '2026-001')
+        self.assertContains(response, '질병결석')
+        self.assertContains(response, '2026.03.02. ~ 2026.03.05.')
+        self.assertContains(response, '손목 부상으로 인한 염좌 치료')
+        self.assertContains(response, reverse('attendance_report_print', args=[report.id]))
+
+    def test_student_can_submit_multiple_reports_in_one_folder_and_edit_one(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher, name='연간 출결자료')
+        folder.target_students.add(self.student)
+        base_url = reverse('student_attendance_report', args=[folder.id])
+        self.client.force_login(self.student_user)
+        payload = {
+            'attendance_category': 'SICK', 'attendance_kind': 'ABSENCE',
+            'start_date': '2026-10-20', 'end_date': '2026-10-20',
+            'reason': '첫 번째 치료', 'written_date': '2026-10-21',
+            'student_signature_data': self.signature_data,
+        }
+        self.assertEqual(self.client.post(base_url + '?new=1', payload).status_code, 302)
+        first_report = AttendanceReport.objects.get()
+        self.assertEqual(self.client.post(base_url + '?new=1', {
+            **payload, 'start_date': '2026-11-02', 'end_date': '2026-11-02',
+            'reason': '두 번째 치료',
+        }).status_code, 302)
+        self.assertEqual(AttendanceReport.objects.filter(folder=folder, student=self.student).count(), 2)
+        second_report = AttendanceReport.objects.exclude(id=first_report.id).get()
+        list_page = self.client.get(reverse('student_attendance_list'))
+        self.assertContains(list_page, '2026-001')
+        self.assertContains(list_page, '2026-002')
+        self.assertContains(list_page, '새로운 출결 신고서 작성')
+
+        edit_url = base_url + f'?report={first_report.id}&edit=1'
+        self.client.post(edit_url, {**payload, 'reason': '첫 번째 치료 수정'})
+        first_report.refresh_from_db()
+        self.assertEqual(first_report.reason, '첫 번째 치료 수정')
+        self.assertEqual(AttendanceReport.objects.filter(folder=folder, student=self.student).count(), 2)
+
+        self.client.force_login(self.teacher)
+        detail = self.client.get(reverse('attendance_folder_detail', args=[folder.id]) + '?view=list')
+        self.assertContains(detail, f'id="report-{first_report.id}"')
+        self.assertContains(detail, f'id="report-{second_report.id}"')
+        self.assertContains(detail, '제출 학생</span><strong>1명', html=False)
 
     def test_cancel_confirmation_reopens_report_after_operation_period(self):
         yesterday = timezone.localdate() - timedelta(days=1)

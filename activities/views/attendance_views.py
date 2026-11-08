@@ -164,7 +164,12 @@ def attendance_folder_detail(request, folder_id):
         id=folder_id,
         teacher=request.user,
     )
-    reports_by_student = {report.student_id: report for report in folder.reports.all()}
+    reports_by_student = {}
+    submitted_student_ids = set()
+    for report in folder.reports.all():
+        reports_by_student.setdefault(report.student_id, []).append(report)
+        if report.submitted_at:
+            submitted_student_ids.add(report.student_id)
     view_mode = 'list' if request.GET.get('view') == 'list' else 'calendar'
     search_query = request.GET.get('q', '').strip()
     start_filter = request.GET.get('start_date', '').strip()
@@ -187,22 +192,22 @@ def attendance_folder_detail(request, folder_id):
         students = students.filter(match)
     rows = []
     for student in students:
-        report = reports_by_student.get(student.id)
-        if start_date or end_date:
-            if not report or not report.submitted_at:
-                continue
-            report_end = report.end_date or report.start_date
-            if start_date and report_end < start_date or end_date and report.start_date > end_date:
-                continue
-        row = {'student': student, 'report': report}
-        if report and _guardian_link_is_active(report):
-            row['guardian_url'] = request.build_absolute_uri(
-                reverse('attendance_guardian_sign', args=[report.guardian_token])
-            )
-            qr = io.BytesIO()
-            qrcode.make(row['guardian_url']).save(qr, format='PNG')
-            row['guardian_qr'] = base64.b64encode(qr.getvalue()).decode('ascii')
-        rows.append(row)
+        for report in reports_by_student.get(student.id) or [None]:
+            if start_date or end_date:
+                if not report or not report.submitted_at:
+                    continue
+                report_end = report.end_date or report.start_date
+                if start_date and report_end < start_date or end_date and report.start_date > end_date:
+                    continue
+            row = {'student': student, 'report': report}
+            if report and _guardian_link_is_active(report):
+                row['guardian_url'] = request.build_absolute_uri(
+                    reverse('attendance_guardian_sign', args=[report.guardian_token])
+                )
+                qr = io.BytesIO()
+                qrcode.make(row['guardian_url']).save(qr, format='PNG')
+                row['guardian_qr'] = base64.b64encode(qr.getvalue()).decode('ascii')
+            rows.append(row)
     month_value = request.GET.get('month', '')
     try:
         month_date = date.fromisoformat(month_value + '-01')
@@ -259,7 +264,8 @@ def attendance_folder_detail(request, folder_id):
     return render(request, 'activities/attendance_folder_detail.html', {
         'folder': folder,
         'rows': rows,
-        'not_submitted_count': max(folder.target_students.count() - folder.submitted_count, 0),
+        'submitted_student_count': len(submitted_student_ids),
+        'not_submitted_count': max(folder.target_students.count() - len(submitted_student_ids), 0),
         'view_mode': view_mode,
         'search_query': search_query,
         'start_filter': start_filter,
@@ -375,16 +381,20 @@ def student_attendance_list(request):
         AttendanceReportFolder.objects.filter(target_students=student)
         .select_related('teacher').order_by('-created_at').distinct()
     )
-    reports = {
-        report.folder_id: report for report in AttendanceReport.objects.filter(
-            folder__in=folders, student=student,
-        )
-    }
-    for folder in folders:
-        folder.my_report = reports.get(folder.id)
+    student_reports = list(AttendanceReport.objects.filter(
+        folder__in=folders, student=student, submitted_at__isnull=False,
+    ).select_related('folder__teacher').order_by('created_at', 'id'))
+    sequence_by_year = {}
+    for report in student_reports:
+        year = report.start_date.year
+        sequence_by_year[year] = sequence_by_year.get(year, 0) + 1
+        report.display_number = f'{year}-{sequence_by_year[year]:03d}'
+    new_report_folders = [folder for folder in folders if folder.is_within_operation_period]
     return render(request, 'activities/student_attendance_list.html', {
         'folders': folders, 'student': student,
-        'submitted_count': sum(bool(folder.my_report and folder.my_report.submitted_at) for folder in folders),
+        'reports': list(reversed(student_reports)),
+        'submitted_count': len(student_reports),
+        'new_report_folders': new_report_folders,
     })
 
 
@@ -398,7 +408,13 @@ def student_attendance_report(request, folder_id):
         messages.error(request, '연결된 학생 정보를 찾을 수 없습니다.')
         return redirect('dashboard')
     folder = get_object_or_404(AttendanceReportFolder, id=folder_id, target_students=student)
-    report = AttendanceReport.objects.filter(folder=folder, student=student).first()
+    report_id = request.GET.get('report', '')
+    if report_id:
+        report = get_object_or_404(AttendanceReport, id=report_id, folder=folder, student=student)
+    elif request.GET.get('new') == '1':
+        report = None
+    else:
+        report = AttendanceReport.objects.filter(folder=folder, student=student).first()
     locked = bool(report and not report.can_edit)
     can_operate = folder.is_within_operation_period or bool(report and report.reopened_at and report.can_edit)
     if request.method == 'GET' and report and report.submitted_at and (

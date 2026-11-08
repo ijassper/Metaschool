@@ -59,8 +59,8 @@
 </head>
 <body>
  <div class="toolbar">
-  {% if is_student %}<a href="{% url 'student_attendance_list' %}">출결 신고서 목록</a>{% elif not is_popup %}<a href="{% url 'attendance_folder_detail' report.folder_id %}?view=list">제출 현황</a>{% endif %}
-  {% if can_student_edit %}<a class="edit-link" href="{% url 'student_attendance_report' report.folder_id %}?edit=1">신고서 수정</a>{% endif %}
+  {% if is_student %}<a href="{% url 'student_attendance_list' %}">내 출결 신고서</a>{% elif not is_popup %}<a href="{% url 'attendance_folder_detail' report.folder_id %}?view=list">제출 현황</a>{% endif %}
+  {% if can_student_edit %}<a class="edit-link" href="{% url 'student_attendance_report' report.folder_id %}?report={{ report.id }}&amp;edit=1">신고서 수정</a>{% endif %}
   <button type="button" onclick="window.print()">인쇄 / PDF 저장</button>
  </div>
  <div class="report-view-status">{% if report.confirmed_at %}교사 확정 완료{% elif report.guardian_signed_at %}보호자 서명 완료 · 교사 확정 대기{% elif report.guardian_token %}보호자 서명 대기{% else %}학생 제출 완료 · 교사 검토 대기{% endif %}</div>

@@ -1,6 +1,57 @@
 {% extends 'base.html' %}
 {% block content %}
-<style>.student-attendance{max-width:1080px;margin:0 auto;padding:24px}.student-attendance h2{margin:10px 0 3px;font-weight:900}.student-attendance .intro{color:#736978}.student-attendance .stats{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.student-attendance .stat{padding:11px 16px;border:1px solid #eadfed;border-radius:13px;background:#fff;font-weight:800}.student-attendance .stat strong{color:#823c9c}.student-attendance .folder{margin-bottom:12px;padding:18px;border:1px solid #eadfed;border-radius:18px;background:#fff;box-shadow:0 7px 20px rgba(73,45,82,.05)}.student-attendance .folder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.student-attendance .folder h3{margin:0;font-size:1.1rem;font-weight:900}.student-attendance .folder p{margin:6px 0;color:#766d79}.student-attendance .details{display:flex;gap:15px;flex-wrap:wrap;margin:10px 0}.student-attendance .action{display:inline-block;padding:8px 15px;border-radius:999px;background:#9148aa;color:#fff;text-decoration:none;font-weight:800}.student-attendance .action.secondary{background:#f3eaf7;color:#713985}.student-attendance .reason{white-space:pre-wrap;overflow-wrap:anywhere}.student-attendance .empty{padding:48px;text-align:center;color:#817687;background:#fff;border-radius:18px}</style>
-<main class="student-attendance"><a class="text-decoration-none fw-bold" href="{% url 'dashboard' %}#student-activities"><i class="bi bi-arrow-left me-1"></i>학생 대시보드</a><h2>출결 신고서 목록</h2><p class="intro">작성한 신고서와 새로 작성할 수 있는 출결 신고 폴더를 확인하세요.</p><div class="stats"><div class="stat">전체 <strong>{{ folders|length }}</strong>건</div><div class="stat">제출 <strong>{{ submitted_count }}</strong>건</div></div>
-{% for folder in folders %}<section class="folder"><div class="folder-head"><h3>{{ folder.display_name }}</h3>{% if folder.my_report and folder.my_report.confirmed_at %}<span class="badge text-bg-primary">확정</span>{% elif folder.my_report and folder.my_report.submitted_at %}<span class="badge text-bg-success">제출 완료</span>{% elif folder.is_within_operation_period %}<span class="badge text-bg-warning">작성 가능</span>{% else %}<span class="badge text-bg-secondary">운영 기간 종료</span>{% endif %}</div><p>{% if folder.operation_start_date and folder.operation_end_date %}운영 {{ folder.operation_start_date|date:'Y.m.d' }} ~ {{ folder.operation_end_date|date:'Y.m.d' }} · {% endif %}{{ folder.teacher.name }} 선생님</p>{% if folder.my_report and folder.my_report.submitted_at %}<div class="details"><span>제출 {{ folder.my_report.submitted_at|date:'Y.m.d H:i' }}</span><span>출결 {{ folder.my_report.get_attendance_type_display }}</span><span>기간 {{ folder.my_report.start_date|date:'Y.m.d' }}{% if folder.my_report.is_absence %} ~ {{ folder.my_report.end_date|date:'Y.m.d' }}{% endif %}</span></div><p class="reason">사유: {{ folder.my_report.reason }}</p><a class="action secondary" href="{% url 'attendance_report_print' folder.my_report.id %}">신고서 보기</a>{% if not folder.my_report.confirmed_at %}{% if folder.is_within_operation_period or folder.my_report.reopened_at %}<a class="action ms-1" href="{% url 'student_attendance_report' folder.id %}?edit=1">수정하기</a>{% endif %}{% endif %}{% elif folder.is_within_operation_period %}<a class="action" href="{% url 'student_attendance_report' folder.id %}">새 신고서 작성</a>{% endif %}</section>{% empty %}<div class="empty">아직 배정된 출결 신고서 폴더가 없습니다.</div>{% endfor %}</main>
+<style>
+.student-attendance{max-width:1080px;margin:0 auto;padding:24px}
+.student-attendance h2{margin:0;font-weight:900}
+.student-attendance .page-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:16px 0 22px}
+.student-attendance .action{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:999px;background:#9148aa;color:#fff;text-decoration:none;font-weight:800;border:0}
+.student-attendance .action:hover{background:#7b3895;color:#fff}
+.student-attendance .action.secondary{background:#f3eaf7;color:#713985}
+.student-attendance .action.secondary:hover{background:#e9d8ef}
+.student-attendance .action.disabled{background:#eee8f0;color:#857b89;cursor:not-allowed}
+.student-attendance .section-title{margin:26px 0 12px;font-size:1.15rem;font-weight:900}
+.student-attendance .report-card,.student-attendance .folder{margin-bottom:12px;padding:18px;border:1px solid #eadfed;border-radius:18px;background:#fff;box-shadow:0 7px 20px rgba(73,45,82,.05)}
+.student-attendance .report-top,.student-attendance .report-bottom,.student-attendance .folder-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.student-attendance .report-number{font-size:1.1rem;font-weight:900;color:#713985}
+.student-attendance .report-meta{display:flex;gap:8px 20px;flex-wrap:wrap;margin:12px 0;color:#55495b}
+.student-attendance .report-reason{margin:0 0 12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.student-attendance .report-bottom{color:#766d79}
+.student-attendance .report-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
+.student-attendance .folder h3{margin:0;font-size:1.05rem;font-weight:900}
+.student-attendance .folder p{margin:6px 0 12px;color:#766d79}
+.student-attendance .empty{padding:30px;text-align:center;color:#817687;background:#fff;border:1px solid #eadfed;border-radius:18px}
+@media(max-width:600px){.student-attendance{padding:18px 14px}.student-attendance .page-head{align-items:stretch}.student-attendance .page-head .action{justify-content:center}.student-attendance .report-bottom{align-items:flex-start;flex-direction:column;gap:3px}}
+</style>
+<main class="student-attendance">
+  <a class="text-decoration-none fw-bold" href="{% url 'dashboard' %}#student-activities"><i class="bi bi-arrow-left me-1"></i>학생 대시보드</a>
+  <div class="page-head">
+    <h2>내 출결 신고서</h2>
+    {% if new_report_folders|length == 1 %}
+      {% with folder=new_report_folders.0 %}<a class="action" href="{% url 'student_attendance_report' folder.id %}?new=1"><i class="bi bi-plus-lg"></i>새로운 출결 신고서 작성</a>{% endwith %}
+    {% elif new_report_folders %}
+      <a class="action" href="#new-reports"><i class="bi bi-plus-lg"></i>새로운 출결 신고서 작성</a>
+    {% else %}
+      <span class="action disabled" aria-disabled="true" title="현재 작성 가능한 출결 신고서 폴더가 없습니다."><i class="bi bi-plus-lg"></i>새로운 출결 신고서 작성</span>
+    {% endif %}
+  </div>
+  <h3 class="section-title">작성한 신고서</h3>
+  {% for report in reports %}
+      <article class="report-card" aria-label="{{ report.folder.display_name }}의 출결 신고서">
+        <div class="report-top"><strong class="report-number">{{ report.display_number }}</strong>{% if report.confirmed_at %}<span class="badge text-bg-primary">확정</span>{% else %}<span class="badge text-bg-success">제출 완료</span>{% endif %}</div>
+        <div class="report-meta"><span>출결 <strong>[{{ report.get_attendance_type_display }}]</strong></span><span>기간 <strong>{{ report.start_date|date:'Y.m.d.' }}{% if report.is_absence %} ~ {{ report.end_date|date:'Y.m.d.' }}{% else %} {{ report.get_start_period_display }} ~ {{ report.get_end_period_display }}{% endif %}</strong></span></div>
+        <p class="report-reason">사유 [{{ report.reason }}]</p>
+        <div class="report-bottom"><span>제출 {{ report.submitted_at|date:'Y.m.d.' }}</span><span>담당교사 {{ report.folder.teacher.name }} 선생님</span></div>
+        <div class="report-actions"><a class="action secondary" href="{% url 'attendance_report_print' report.id %}">신고서 보기</a>{% if not report.confirmed_at %}{% if report.folder.is_within_operation_period or report.reopened_at %}<a class="action" href="{% url 'student_attendance_report' report.folder_id %}?report={{ report.id }}&amp;edit=1">수정하기</a>{% endif %}{% endif %}</div>
+      </article>
+  {% endfor %}
+  {% if not submitted_count %}<div class="empty">작성한 출결 신고서가 없습니다.</div>{% endif %}
+  {% if new_report_folders %}
+    <section id="new-reports" aria-label="작성 가능한 신고서 폴더">
+      <h3 class="section-title">새로 작성할 신고서</h3>
+      {% for folder in new_report_folders %}
+        <div class="folder"><div class="folder-head"><h3>{{ folder.display_name }}</h3><span class="badge text-bg-warning">작성 가능</span></div><p>{% if folder.operation_start_date and folder.operation_end_date %}운영 {{ folder.operation_start_date|date:'Y.m.d' }} ~ {{ folder.operation_end_date|date:'Y.m.d' }} · {% endif %}{{ folder.teacher.name }} 선생님</p><a class="action" href="{% url 'student_attendance_report' folder.id %}?new=1">이 폴더에 신고서 작성</a></div>
+      {% endfor %}
+    </section>
+  {% endif %}
+</main>
 {% endblock %}

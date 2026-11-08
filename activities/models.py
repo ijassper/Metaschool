@@ -825,7 +825,7 @@ class AttendanceReportFolder(models.Model):
 
     @property
     def submitted_count(self):
-        return self.reports.filter(submitted_at__isnull=False).count()
+        return self.reports.filter(submitted_at__isnull=False).values('student_id').distinct().count()
 
 
 class AttendanceReport(models.Model):
@@ -907,12 +907,6 @@ class AttendanceReport(models.Model):
 
     class Meta:
         ordering = ['-submitted_at', '-updated_at']
-        constraints = [
-            models.UniqueConstraint(
-                fields=['folder', 'student'],
-                name='unique_attendance_report_per_student_folder',
-            ),
-        ]
         indexes = [
             models.Index(fields=['folder', 'submitted_at'], name='attendance_report_folder_idx'),
         ]
