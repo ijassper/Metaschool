@@ -1,9 +1,10 @@
 from types import SimpleNamespace
 from pathlib import Path
+from importlib import import_module
 import re
 import json
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, call, patch
 
 from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.template.loader import get_template
@@ -44,6 +45,55 @@ from .models import (
     Activity, Question, Answer, AnswerDraftRevision, AnswerSubmissionRevision,
     FeedbackResult, FeedbackSession,
 )
+
+
+class ActivityEmojiDatabaseMigrationTests(SimpleTestCase):
+    def test_converts_every_legacy_activity_table_to_utf8mb4(self):
+        migration = import_module(
+            'activities.migrations.0050_convert_legacy_activity_tables_to_utf8mb4'
+        )
+        cursor = MagicMock()
+        cursor.__enter__.return_value = cursor
+        cursor.fetchall.return_value = [
+            ('activities_answer',),
+            ('activities_question',),
+        ]
+        connection = MagicMock(vendor='mysql')
+        connection.cursor.return_value = cursor
+        connection.ops.quote_name.side_effect = lambda name: f'`{name}`'
+        schema_editor = MagicMock(connection=connection)
+
+        migration.convert_legacy_activity_tables_to_utf8mb4(None, schema_editor)
+
+        query, params = cursor.execute.call_args.args
+        self.assertIn("TABLE_TYPE = 'BASE TABLE'", query)
+        self.assertIn('LEFT(TABLE_NAME, 11) = %s', query)
+        self.assertEqual(params, ['activities_', 'utf8mb4%'])
+        self.assertEqual(
+            schema_editor.execute.call_args_list,
+            [
+                call(
+                    'ALTER TABLE `activities_answer` CONVERT TO CHARACTER SET '
+                    'utf8mb4 COLLATE utf8mb4_unicode_ci'
+                ),
+                call(
+                    'ALTER TABLE `activities_question` CONVERT TO CHARACTER SET '
+                    'utf8mb4 COLLATE utf8mb4_unicode_ci'
+                ),
+            ],
+        )
+
+    def test_non_mysql_database_is_unchanged(self):
+        migration = import_module(
+            'activities.migrations.0050_convert_legacy_activity_tables_to_utf8mb4'
+        )
+        connection = MagicMock(vendor='sqlite')
+        schema_editor = MagicMock(connection=connection)
+
+        migration.convert_legacy_activity_tables_to_utf8mb4(None, schema_editor)
+
+        connection.cursor.assert_not_called()
+        schema_editor.execute.assert_not_called()
 
 
 class ActivitySchedulingTests(SimpleTestCase):
