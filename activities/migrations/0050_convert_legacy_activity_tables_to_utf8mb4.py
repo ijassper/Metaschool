@@ -31,6 +31,8 @@ def convert_legacy_activity_tables_to_utf8mb4(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    # MySQL은 ALTER TABLE을 롤백할 수 없으므로 트랜잭션 밖에서 실행한다.
+    atomic = False
 
     dependencies = [
         ('activities', '0049_normalize_2026_attendance_folder'),

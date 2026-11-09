@@ -48,6 +48,12 @@ from .models import (
 
 
 class ActivityEmojiDatabaseMigrationTests(SimpleTestCase):
+    def test_mysql_schema_conversion_runs_outside_transaction(self):
+        migration = import_module(
+            'activities.migrations.0050_convert_legacy_activity_tables_to_utf8mb4'
+        )
+        self.assertFalse(migration.Migration.atomic)
+
     def test_converts_every_legacy_activity_table_to_utf8mb4(self):
         migration = import_module(
             'activities.migrations.0050_convert_legacy_activity_tables_to_utf8mb4'
