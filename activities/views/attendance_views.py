@@ -512,6 +512,106 @@ def student_attendance_list(request):
     })
 
 
+def _save_attendance_report(request, folder, student, report):
+    category = request.POST.get('attendance_category', '')
+    kind = request.POST.get('attendance_kind', '')
+    attendance_type = f'{category}_{kind}'
+    start_date = request.POST.get('start_date', '') if kind == 'ABSENCE' else request.POST.get('single_date', '')
+    end_date = request.POST.get('end_date', '')
+    start_period = request.POST.get('start_period', '')
+    end_period = request.POST.get('end_period', '')
+    reason = request.POST.get('reason', '').strip()
+    written_date = request.POST.get('written_date', '')
+    student_signature = student.name
+    student_signature_data = request.POST.get('student_signature_data', '').strip()
+    guardian_name = request.POST.get('guardian_name', '').strip()
+    guardian_signature_data = request.POST.get('guardian_signature_data', '').strip()
+    errors = []
+
+    valid_types = {value for value, _label in AttendanceReport.AttendanceType.choices}
+    valid_periods = {value for value, _label in AttendanceReport.Period.choices}
+    if category not in dict(ATTENDANCE_CATEGORIES) or kind not in dict(ATTENDANCE_KINDS) or attendance_type not in valid_types:
+        errors.append('출결 구분과 종류를 각각 선택해 주세요.')
+    try:
+        parsed_start_date = date.fromisoformat(start_date)
+    except ValueError:
+        parsed_start_date = None
+        errors.append('출결 날짜를 선택해 주세요.')
+    try:
+        parsed_written_date = date.fromisoformat(written_date)
+    except ValueError:
+        parsed_written_date = None
+        errors.append('작성 날짜를 선택해 주세요.')
+
+    parsed_end_date = None
+    if kind == 'ABSENCE':
+        try:
+            parsed_end_date = date.fromisoformat(end_date)
+        except ValueError:
+            errors.append('결석 종료일을 선택해 주세요.')
+        if parsed_start_date and parsed_end_date and parsed_end_date < parsed_start_date:
+            errors.append('결석 종료일은 시작일보다 빠를 수 없습니다.')
+        start_period = end_period = ''
+    else:
+        parsed_end_date = parsed_start_date
+        if start_period not in valid_periods or end_period not in valid_periods:
+            errors.append('시작 교시와 종료 교시를 선택해 주세요.')
+        elif _period_rank(end_period) < _period_rank(start_period):
+            errors.append('종료 교시는 시작 교시보다 빠를 수 없습니다.')
+
+    if not reason:
+        errors.append('출결 사유를 입력해 주세요.')
+    if len(reason) > 1000:
+        errors.append('출결 사유는 1000자 이내로 입력해 주세요.')
+    if not _valid_signature_data(student_signature_data):
+        errors.append('학생 서명을 손가락이나 펜으로 작성해 주세요.')
+    if len(guardian_name) > 100:
+        errors.append('보호자 성명은 100자 이내로 입력해 주세요.')
+    if guardian_signature_data and not _valid_signature_data(guardian_signature_data):
+        errors.append('보호자 서명 이미지를 확인해 주세요.')
+
+    if not errors:
+        report = report or AttendanceReport(folder=folder, student=student)
+        report.attendance_type = attendance_type
+        report.start_date = parsed_start_date
+        report.end_date = parsed_end_date
+        report.start_period = start_period
+        report.end_period = end_period
+        report.reason = reason
+        report.written_date = parsed_written_date
+        report.student_signature = student_signature
+        report.student_signature_data = student_signature_data
+        # Keep the guardian's drawn signature on the edit form; a newly issued QR is invalidated.
+        previous_guardian_name = report.guardian_signature
+        previous_guardian_data = report.guardian_signature_data
+        previous_guardian_signed_at = report.guardian_signed_at
+        report.guardian_signature = guardian_name
+        report.guardian_signature_data = guardian_signature_data
+        report.guardian_signed_at = (
+            previous_guardian_signed_at
+            if guardian_name == previous_guardian_name and guardian_signature_data == previous_guardian_data
+            else timezone.now() if guardian_name and guardian_signature_data else None
+        )
+        report.guardian_token = None
+        report.guardian_token_created_at = None
+        report.submitted_at = timezone.now()
+        with transaction.atomic():
+            if not report.report_number:
+                year = folder.academic_year or parsed_start_date.year
+                Student.objects.select_for_update().get(pk=student.pk)
+                sequence, _ = AttendanceReportSequence.objects.select_for_update().get_or_create(
+                    student=student, academic_year=year,
+                )
+                sequence.last_number += 1
+                sequence.save(update_fields=['last_number'])
+                report.report_number = (
+                    f'{year}-{student.grade}-{student.class_no:02d}-'
+                    f'{student.number:02d}-{sequence.last_number:02d}'
+                )
+            report.save()
+    return report, errors
+
+
 @login_required
 @require_http_methods(['GET', 'POST'])
 def student_attendance_report(request, folder_id):
@@ -544,100 +644,8 @@ def student_attendance_report(request, folder_id):
             messages.warning(request, '확정된 출결 신고서는 수정할 수 없습니다.')
             return redirect('attendance_report_print', report_id=report.id)
 
-        category = request.POST.get('attendance_category', '')
-        kind = request.POST.get('attendance_kind', '')
-        attendance_type = f'{category}_{kind}'
-        start_date = request.POST.get('start_date', '') if kind == 'ABSENCE' else request.POST.get('single_date', '')
-        end_date = request.POST.get('end_date', '')
-        start_period = request.POST.get('start_period', '')
-        end_period = request.POST.get('end_period', '')
-        reason = request.POST.get('reason', '').strip()
-        written_date = request.POST.get('written_date', '')
-        student_signature = student.name
-        student_signature_data = request.POST.get('student_signature_data', '').strip()
-        guardian_name = request.POST.get('guardian_name', '').strip()
-        guardian_signature_data = request.POST.get('guardian_signature_data', '').strip()
-        errors = []
-
-        valid_types = {value for value, _label in AttendanceReport.AttendanceType.choices}
-        valid_periods = {value for value, _label in AttendanceReport.Period.choices}
-        if category not in dict(ATTENDANCE_CATEGORIES) or kind not in dict(ATTENDANCE_KINDS) or attendance_type not in valid_types:
-            errors.append('출결 구분과 종류를 각각 선택해 주세요.')
-        try:
-            parsed_start_date = date.fromisoformat(start_date)
-        except ValueError:
-            parsed_start_date = None
-            errors.append('출결 날짜를 선택해 주세요.')
-        try:
-            parsed_written_date = date.fromisoformat(written_date)
-        except ValueError:
-            parsed_written_date = None
-            errors.append('작성 날짜를 선택해 주세요.')
-
-        parsed_end_date = None
-        if kind == 'ABSENCE':
-            try:
-                parsed_end_date = date.fromisoformat(end_date)
-            except ValueError:
-                errors.append('결석 종료일을 선택해 주세요.')
-            if parsed_start_date and parsed_end_date and parsed_end_date < parsed_start_date:
-                errors.append('결석 종료일은 시작일보다 빠를 수 없습니다.')
-            start_period = end_period = ''
-        else:
-            parsed_end_date = parsed_start_date
-            if start_period not in valid_periods or end_period not in valid_periods:
-                errors.append('시작 교시와 종료 교시를 선택해 주세요.')
-            elif _period_rank(end_period) < _period_rank(start_period):
-                errors.append('종료 교시는 시작 교시보다 빠를 수 없습니다.')
-
-        if not reason:
-            errors.append('출결 사유를 입력해 주세요.')
-        if not _valid_signature_data(student_signature_data):
-            errors.append('학생 서명을 손가락이나 펜으로 작성해 주세요.')
-        if len(guardian_name) > 100:
-            errors.append('보호자 성명은 100자 이내로 입력해 주세요.')
-        if guardian_signature_data and not _valid_signature_data(guardian_signature_data):
-            errors.append('보호자 서명 이미지를 확인해 주세요.')
-
+        report, errors = _save_attendance_report(request, folder, student, report)
         if not errors:
-            report = report or AttendanceReport(folder=folder, student=student)
-            report.attendance_type = attendance_type
-            report.start_date = parsed_start_date
-            report.end_date = parsed_end_date
-            report.start_period = start_period
-            report.end_period = end_period
-            report.reason = reason
-            report.written_date = parsed_written_date
-            report.student_signature = student_signature
-            report.student_signature_data = student_signature_data
-            # Keep the guardian's drawn signature on the edit form; a newly issued QR is invalidated.
-            previous_guardian_name = report.guardian_signature
-            previous_guardian_data = report.guardian_signature_data
-            previous_guardian_signed_at = report.guardian_signed_at
-            report.guardian_signature = guardian_name
-            report.guardian_signature_data = guardian_signature_data
-            report.guardian_signed_at = (
-                previous_guardian_signed_at
-                if guardian_name == previous_guardian_name and guardian_signature_data == previous_guardian_data
-                else timezone.now() if guardian_name and guardian_signature_data else None
-            )
-            report.guardian_token = None
-            report.guardian_token_created_at = None
-            report.submitted_at = timezone.now()
-            with transaction.atomic():
-                if not report.report_number:
-                    year = folder.academic_year or parsed_start_date.year
-                    Student.objects.select_for_update().get(pk=student.pk)
-                    sequence, _ = AttendanceReportSequence.objects.select_for_update().get_or_create(
-                        student=student, academic_year=year,
-                    )
-                    sequence.last_number += 1
-                    sequence.save(update_fields=['last_number'])
-                    report.report_number = (
-                        f'{year}-{student.grade}-{student.class_no:02d}-'
-                        f'{student.number:02d}-{sequence.last_number:02d}'
-                    )
-                report.save()
             messages.success(request, '출결 확인 신고서를 제출했습니다.')
             return redirect('attendance_report_print', report_id=report.id)
 
@@ -664,6 +672,49 @@ def student_attendance_report(request, folder_id):
         'selected_kind': form_values.get('attendance_kind', '') if form_values else report.attendance_kind if report else '',
         'period_choices': AttendanceReport.Period.choices,
         'guardian_signature_data_for_form': guardian_signature_data_for_form,
+        'today': timezone.localdate(),
+    })
+
+
+@login_required
+@teacher_required
+@require_http_methods(['GET', 'POST'])
+def attendance_report_teacher_create(request, folder_id):
+    folder = get_object_or_404(AttendanceReportFolder, id=folder_id, teacher=request.user)
+    if not folder.is_within_operation_period:
+        messages.warning(request, '현재 출결 신고서 운영 기간이 아닙니다.')
+        return redirect('attendance_folder_detail', folder_id=folder.id)
+    targets = list(folder.target_students.order_by('grade', 'class_no', 'number', 'name'))
+    accessible_ids = set(get_accessible_student_ids(request.user, [str(item.id) for item in targets]))
+    student_options = [item for item in targets if item.id in accessible_ids]
+    selected_id = request.POST.get('student_id', '') if request.method == 'POST' else request.GET.get('student', '')
+    student = next((item for item in student_options if str(item.id) == selected_id), None)
+    form_values = None
+    if request.method == 'POST':
+        if not student:
+            messages.error(request, '대상 학생을 선택해 주세요.')
+        else:
+            report, errors = _save_attendance_report(request, folder, student, None)
+            if not errors:
+                messages.success(request, '출결 확인 신고서를 작성했습니다.')
+                return redirect('attendance_report_print', report_id=report.id)
+            for error in errors:
+                messages.error(request, error)
+            form_values = request.POST
+    return render(request, 'activities/student_attendance_report.html', {
+        'folder': folder,
+        'student': student,
+        'student_options': student_options,
+        'teacher_create': True,
+        'report': None,
+        'locked': False,
+        'form_values': form_values,
+        'attendance_categories': ATTENDANCE_CATEGORIES,
+        'attendance_kinds': ATTENDANCE_KINDS,
+        'selected_category': form_values.get('attendance_category', '') if form_values else '',
+        'selected_kind': form_values.get('attendance_kind', '') if form_values else '',
+        'period_choices': AttendanceReport.Period.choices,
+        'guardian_signature_data_for_form': form_values.get('guardian_signature_data', '') if form_values else '',
         'today': timezone.localdate(),
     })
 

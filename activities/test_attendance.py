@@ -521,6 +521,54 @@ class AttendanceReportFlowTests(TestCase):
         self.assertEqual(february.context['end_filter'], '2027-02-28')
         self.assertEqual(february.context['stats_rows'][0]['counts'], [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
 
+    def test_teacher_creates_report_for_selected_target_with_student_signature(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher, name='출결 신고서')
+        folder.target_students.add(self.student)
+        outsider = Student.objects.create(
+            teacher=self.teacher, school=self.school, grade=2, class_no=3, number=8,
+            name='대상외학생', email='attendance-outsider@example.com',
+        )
+        url = reverse('attendance_report_teacher_create', args=[folder.id])
+        self.client.force_login(self.teacher)
+        self.assertContains(self.client.get(reverse('attendance_folder_detail', args=[folder.id])), '신고서 작성')
+        self.assertContains(self.client.get(url), '대상 학생')
+        self.assertNotContains(self.client.get(url), 'name="student_signature_data"')
+        selected = self.client.get(url + f'?student={self.student.id}')
+        self.assertContains(selected, 'name="student_signature_data"')
+        self.assertContains(selected, 'name="student_id"')
+        self.assertNotContains(selected, outsider.name)
+        payload = {
+            'student_id': str(self.student.id), 'attendance_category': 'SICK',
+            'attendance_kind': 'ABSENCE', 'start_date': '2026-11-03',
+            'end_date': '2026-11-03', 'reason': '병원 진료',
+            'written_date': '2026-11-03', 'student_signature_data': self.signature_data,
+        }
+        self.assertEqual(self.client.post(url, {**payload, 'student_id': str(outsider.id)}).status_code, 200)
+        self.assertFalse(AttendanceReport.objects.exists())
+        self.assertContains(self.client.post(url, {**payload, 'student_signature_data': ''}), '학생 서명')
+        self.assertFalse(AttendanceReport.objects.exists())
+        response = self.client.post(url, payload)
+        report = AttendanceReport.objects.get()
+        self.assertRedirects(response, reverse('attendance_report_print', args=[report.id]))
+        self.assertEqual(report.student, self.student)
+        self.assertEqual(report.report_number, '2026-2-03-07-01')
+        folder.operation_end_date = timezone.localdate() - timedelta(days=1)
+        folder.save(update_fields=['operation_end_date'])
+        self.assertRedirects(self.client.post(url, payload), reverse('attendance_folder_detail', args=[folder.id]))
+        self.assertEqual(AttendanceReport.objects.count(), 1)
+        self.client.force_login(self.student_user)
+        self.assertNotEqual(self.client.get(url).status_code, 200)
+
+    def test_student_report_drawer_has_sort_buttons_and_resizes_after_absence_column(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
+        folder.target_students.add(self.student)
+        self.client.force_login(self.teacher)
+        page = self.client.get(reverse('attendance_folder_detail', args=[folder.id]))
+        self.assertContains(page, 'data-report-sort="desc"')
+        self.assertContains(page, 'data-report-sort="asc"')
+        self.assertContains(page, '.status-table thead th:nth-child(6)')
+        self.assertContains(page, reverse('attendance_report_teacher_create', args=[folder.id]))
+
     def test_teacher_can_edit_pending_report_but_signed_report_is_locked(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
         folder.target_students.add(self.student)
