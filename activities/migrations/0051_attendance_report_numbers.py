@@ -26,7 +26,7 @@ def assign_existing_numbers(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('activities', '0049_normalize_2026_attendance_folder'),
+        ('activities', '0050_convert_legacy_activity_tables_to_utf8mb4'),
     ]
 
     operations = [

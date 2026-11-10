@@ -777,7 +777,7 @@ class AttendanceReportFlowTests(TestCase):
                 reason='치료', written_date=date(2026, 10, day),
                 student_signature=self.student.name, submitted_at=timezone.now(),
             )
-        migration = importlib.import_module('activities.migrations.0050_attendance_report_numbers')
+        migration = importlib.import_module('activities.migrations.0051_attendance_report_numbers')
         migration.assign_existing_numbers(apps, SimpleNamespace(connection=connection))
         self.assertEqual(
             list(AttendanceReport.objects.order_by('created_at', 'id').values_list('report_number', flat=True)),
