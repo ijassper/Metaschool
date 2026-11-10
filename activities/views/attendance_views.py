@@ -227,10 +227,27 @@ def attendance_folder_detail(request, folder_id):
         reports_by_student.setdefault(report.student_id, []).append(report)
         if report.submitted_at:
             submitted_student_ids.add(report.student_id)
-    view_mode = 'list' if request.GET.get('view') == 'list' else 'calendar'
+    view_mode = 'calendar' if request.GET.get('view') == 'calendar' else 'list'
     search_query = request.GET.get('q', '').strip()
     start_filter = request.GET.get('start_date', '').strip()
     end_filter = request.GET.get('end_date', '').strip()
+    today = timezone.localdate()
+    academic_year = folder.academic_year or (
+        folder.operation_start_date.year if folder.operation_start_date
+        else today.year if today.month >= 3 else today.year - 1
+    )
+    month_options = [
+        {'value': str(month), 'label': f'{month}월'}
+        for month in (*range(3, 13), 1, 2)
+    ]
+    query_month = request.GET.get('query_month', '').strip()
+    if query_month not in {option['value'] for option in month_options}:
+        query_month = ''
+    if query_month:
+        selected_month = int(query_month)
+        selected_year = academic_year + (selected_month < 3)
+        start_filter = date(selected_year, selected_month, 1).isoformat()
+        end_filter = date(selected_year, selected_month, calendar.monthrange(selected_year, selected_month)[1]).isoformat()
     try:
         start_date = date.fromisoformat(start_filter) if start_filter else None
     except ValueError:
@@ -248,7 +265,14 @@ def attendance_folder_detail(request, folder_id):
             match |= Q(number=int(token))
         students = students.filter(match)
     rows = []
+    stats_rows = []
+    attendance_types = [
+        'SICK_ABSENCE', 'SICK_TARDY', 'SICK_RESULT', 'SICK_LEAVE',
+        'RECOGNIZED_ABSENCE', 'RECOGNIZED_TARDY', 'RECOGNIZED_RESULT', 'RECOGNIZED_LEAVE',
+        'UNEXCUSED_ABSENCE', 'UNEXCUSED_TARDY', 'UNEXCUSED_RESULT', 'UNEXCUSED_LEAVE',
+    ]
     for student in students:
+        student_reports = []
         for report in reports_by_student.get(student.id) or [None]:
             if start_date or end_date:
                 if not report or not report.submitted_at:
@@ -257,19 +281,43 @@ def attendance_folder_detail(request, folder_id):
                 if start_date and report_end < start_date or end_date and report.start_date > end_date:
                     continue
             row = {'student': student, 'report': report}
-            if report and _guardian_link_is_active(report):
-                row['guardian_url'] = request.build_absolute_uri(
-                    reverse('attendance_guardian_sign', args=[report.guardian_token])
-                )
-                qr = io.BytesIO()
-                qrcode.make(row['guardian_url']).save(qr, format='PNG')
-                row['guardian_qr'] = base64.b64encode(qr.getvalue()).decode('ascii')
             rows.append(row)
+            if report and report.submitted_at:
+                student_reports.append(report)
+                if _guardian_link_is_active(report):
+                    report.guardian_url = request.build_absolute_uri(
+                        reverse('attendance_guardian_sign', args=[report.guardian_token])
+                    )
+                    qr = io.BytesIO()
+                    qrcode.make(report.guardian_url).save(qr, format='PNG')
+                    report.guardian_qr = base64.b64encode(qr.getvalue()).decode('ascii')
+        student_reports.sort(key=lambda item: (item.submitted_at, item.id), reverse=True)
+        counts = {attendance_type: 0 for attendance_type in attendance_types}
+        for report in student_reports:
+            if report.attendance_type in counts:
+                counts[report.attendance_type] += 1
+        stats_rows.append({
+            'student': student, 'reports': student_reports,
+            'total': len(student_reports), 'counts': list(counts.values()),
+        })
+    for student_id, student_reports in reports_by_student.items():
+        numbered = sorted(
+            (report for report in student_reports if report.submitted_at),
+            key=lambda item: (item.created_at, item.id),
+        )
+        for sequence, report in enumerate(numbered, 1):
+            report.display_number = report.report_number or (
+                f'{folder.academic_year or report.start_date.year}-{report.student.grade}-'
+                f'{report.student.class_no:02d}-{report.student.number:02d}-{sequence:02d}'
+            )
     month_value = request.GET.get('month', '')
-    try:
-        month_date = date.fromisoformat(month_value + '-01')
-    except ValueError:
-        month_date = timezone.localdate().replace(day=1)
+    if query_month:
+        month_date = date(academic_year + (int(query_month) < 3), int(query_month), 1)
+    else:
+        try:
+            month_date = date.fromisoformat(month_value + '-01')
+        except ValueError:
+            month_date = today.replace(day=1)
     month_start = month_date.replace(day=1)
     month_end = month_date.replace(day=calendar.monthrange(month_date.year, month_date.month)[1])
     calendar_weeks = []
@@ -313,14 +361,20 @@ def attendance_folder_detail(request, folder_id):
         })
     base_filters = {'q': search_query, 'start_date': start_filter, 'end_date': end_filter}
     base_filters = {key: value for key, value in base_filters.items() if value}
+    calendar_nav_filters = {'q': search_query} if query_month else base_filters
+    calendar_nav_filters = {key: value for key, value in calendar_nav_filters.items() if value}
     previous_month = month_start - timedelta(days=1)
     next_month = month_end + timedelta(days=1)
     calendar_base = reverse('attendance_folder_detail', args=[folder.id])
-    def calendar_url(target_month):
-        return calendar_base + '?' + urlencode({**base_filters, 'month': target_month.strftime('%Y-%m')})
+    def calendar_url(target_month, filters=None):
+        return calendar_base + '?' + urlencode({**(calendar_nav_filters if filters is None else filters), 'view': 'calendar', 'month': target_month.strftime('%Y-%m')})
     return render(request, 'activities/attendance_folder_detail.html', {
         'folder': folder,
         'rows': rows,
+        'stats_rows': stats_rows,
+        'month_options': month_options,
+        'query_month': query_month,
+        'selected_student_id': request.GET.get('student', ''),
         'submitted_student_count': len(submitted_student_ids),
         'not_submitted_count': max(folder.target_students.count() - len(submitted_student_ids), 0),
         'view_mode': view_mode,
@@ -332,8 +386,8 @@ def attendance_folder_detail(request, folder_id):
         'calendar_weeks': calendar_weeks,
         'previous_month_url': calendar_url(previous_month),
         'next_month_url': calendar_url(next_month),
-        'calendar_view_url': calendar_url(month_start),
-        'list_view_url': calendar_base + '?' + urlencode({**base_filters, 'view': 'list', 'month': month_start.strftime('%Y-%m')}),
+        'calendar_view_url': calendar_url(month_start, base_filters),
+        'list_view_url': calendar_base + '?' + urlencode({**base_filters, 'view': 'list', 'month': month_start.strftime('%Y-%m'), **({'query_month': query_month} if query_month else {})}),
     })
 
 
@@ -356,7 +410,7 @@ def _report_detail_url(report, request):
     params = {}
     if request.POST.get('view') == 'list':
         params['view'] = 'list'
-    for key in ('q', 'start_date', 'end_date', 'month'):
+    for key in ('q', 'start_date', 'end_date', 'month', 'query_month', 'student'):
         value = request.POST.get(key, '').strip()
         if value:
             params[key] = value
@@ -633,6 +687,100 @@ def student_attendance_report_delete(request, report_id):
         report.delete()
     messages.success(request, '출결 신고서를 삭제했습니다.')
     return redirect('student_attendance_list')
+
+
+@login_required
+@teacher_required
+@require_http_methods(['GET', 'POST'])
+def attendance_report_teacher_edit(request, report_id):
+    report = get_object_or_404(
+        AttendanceReport.objects.select_related('folder', 'student'),
+        id=report_id, folder__teacher=request.user, submitted_at__isnull=False,
+    )
+    source = request.POST if request.method == 'POST' else request.GET
+    return_filters = {
+        key: source.get(key, '').strip()
+        for key in ('q', 'start_date', 'end_date', 'query_month')
+        if source.get(key, '').strip()
+    }
+    return_url = reverse('attendance_folder_detail', args=[report.folder_id]) + '?' + urlencode({
+        'view': 'list', 'student': report.student_id, **return_filters,
+    }) + f'#report-{report.id}'
+    if report.confirmed_at or report.guardian_signed_at:
+        messages.warning(request, '보호자 서명 또는 담임교사 결재가 완료된 신고서는 수정할 수 없습니다.')
+        return redirect(return_url)
+    errors = []
+    if request.method == 'POST':
+        category = request.POST.get('attendance_category', '')
+        kind = request.POST.get('attendance_kind', '')
+        attendance_type = f'{category}_{kind}'
+        valid_types = {value for value, _ in AttendanceReport.AttendanceType.choices}
+        valid_periods = {value for value, _ in AttendanceReport.Period.choices}
+        if attendance_type not in valid_types or category not in dict(ATTENDANCE_CATEGORIES) or kind not in dict(ATTENDANCE_KINDS):
+            errors.append('출결 구분과 종류를 각각 선택해 주세요.')
+        date_value = request.POST.get('start_date' if kind == 'ABSENCE' else 'single_date', '')
+        try:
+            start_date = date.fromisoformat(date_value)
+        except ValueError:
+            start_date = None
+            errors.append('출결 날짜를 선택해 주세요.')
+        try:
+            written_date = date.fromisoformat(request.POST.get('written_date', ''))
+        except ValueError:
+            written_date = None
+            errors.append('작성 날짜를 선택해 주세요.')
+        if kind == 'ABSENCE':
+            try:
+                end_date = date.fromisoformat(request.POST.get('end_date', ''))
+            except ValueError:
+                end_date = None
+                errors.append('결석 종료일을 선택해 주세요.')
+            if start_date and end_date and end_date < start_date:
+                errors.append('결석 종료일은 시작일보다 빠를 수 없습니다.')
+            start_period = end_period = ''
+        else:
+            end_date = start_date
+            start_period = request.POST.get('start_period', '')
+            end_period = request.POST.get('end_period', '')
+            if start_period not in valid_periods or end_period not in valid_periods:
+                errors.append('시작 교시와 종료 교시를 선택해 주세요.')
+            elif _period_rank(end_period) < _period_rank(start_period):
+                errors.append('종료 교시는 시작 교시보다 빠를 수 없습니다.')
+        reason = request.POST.get('reason', '').strip()
+        if not reason:
+            errors.append('출결 사유를 입력해 주세요.')
+        if len(reason) > 1000:
+            errors.append('출결 사유는 1000자 이내로 입력해 주세요.')
+        if not errors:
+            report.attendance_type = attendance_type
+            report.start_date = start_date
+            report.end_date = end_date
+            report.start_period = start_period
+            report.end_period = end_period
+            report.reason = reason
+            report.written_date = written_date
+            report.guardian_token = None
+            report.guardian_token_created_at = None
+            report.save(update_fields=[
+                'attendance_type', 'start_date', 'end_date', 'start_period',
+                'end_period', 'reason', 'written_date', 'guardian_token',
+                'guardian_token_created_at', 'updated_at',
+            ])
+            messages.success(request, '출결 신고서를 수정했습니다.')
+            return redirect(return_url)
+    form_values = request.POST if request.method == 'POST' else None
+    return render(request, 'activities/attendance_report_teacher_edit.html', {
+        'report': report,
+        'return_url': return_url,
+        'return_filters': return_filters,
+        'errors': errors,
+        'form_values': form_values,
+        'attendance_categories': ATTENDANCE_CATEGORIES,
+        'attendance_kinds': ATTENDANCE_KINDS,
+        'period_choices': AttendanceReport.Period.choices,
+        'selected_category': form_values.get('attendance_category', '') if form_values else report.attendance_category,
+        'selected_kind': form_values.get('attendance_kind', '') if form_values else report.attendance_kind,
+    })
 
 
 @login_required

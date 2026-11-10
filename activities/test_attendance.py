@@ -445,7 +445,7 @@ class AttendanceReportFlowTests(TestCase):
         report.refresh_from_db()
         self.assertIsNotNone(report.confirmed_at)
 
-    def test_attendance_status_defaults_to_calendar_with_multiday_bar_and_filters(self):
+    def test_attendance_calendar_has_multiday_bar_and_filters(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
         folder.target_students.add(self.student)
         report = AttendanceReport.objects.create(
@@ -457,15 +457,15 @@ class AttendanceReportFlowTests(TestCase):
         )
         self.client.force_login(self.teacher)
         base = reverse('attendance_folder_detail', args=[folder.id])
-        calendar_page = self.client.get(base + '?month=2026-10')
+        calendar_page = self.client.get(base + '?view=calendar&month=2026-10')
         self.assertContains(calendar_page, '2026년 10월')
         self.assertContains(calendar_page, 'calendar-event sick')
         self.assertContains(calendar_page, 'grid-column:2/span 5')
         self.assertContains(calendar_page, reverse('attendance_report_print', args=[report.id]))
         self.assertContains(calendar_page, 'month=2026-09')
-        self.assertNotContains(self.client.get(base + '?month=2026-10&q=없는학생'), 'calendar-event sick')
-        self.assertNotContains(self.client.get(base + '?month=2026-10&start_date=2026-10-25'), 'calendar-event sick')
-        self.assertContains(self.client.get(base + '?month=2026-10&start_date=2026-10-24'), 'calendar-event sick')
+        self.assertNotContains(self.client.get(base + '?view=calendar&month=2026-10&q=없는학생'), 'calendar-event sick')
+        self.assertNotContains(self.client.get(base + '?view=calendar&month=2026-10&start_date=2026-10-25'), 'calendar-event sick')
+        self.assertContains(self.client.get(base + '?view=calendar&month=2026-10&start_date=2026-10-24'), 'calendar-event sick')
 
     def test_attendance_status_list_has_no_submission_date_and_keeps_actions_together(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
@@ -480,11 +480,87 @@ class AttendanceReportFlowTests(TestCase):
         page = self.client.get(reverse('attendance_folder_detail', args=[folder.id]) + '?view=list&q=김학생')
         self.assertContains(page, '<th>학년</th><th>반</th><th>번호</th><th>이름</th>', html=False)
         self.assertNotContains(page, '<th>제출일</th>')
-        self.assertContains(page, '신고서 보기')
+        self.assertContains(page, '학생별 출결 통계')
+        self.assertContains(page, '김학생 출결신고서 목록')
+        self.assertContains(page, '수정하기')
         self.assertContains(page, '완료확정')
         self.assertContains(page, 'name="view" value="list"')
         result = self.client.post(reverse('attendance_report_confirm', args=[report.id]), {'view': 'list'})
         self.assertRedirects(result, reverse('attendance_folder_detail', args=[folder.id]) + f'?view=list#report-{report.id}')
+
+    def test_attendance_statistics_group_reports_and_months_follow_academic_year(self):
+        folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher, academic_year=2026, name='2026학년도 출결자료',
+        )
+        folder.target_students.add(self.student)
+        for attendance_type, day in (
+            (AttendanceReport.AttendanceType.SICK_ABSENCE, date(2026, 3, 8)),
+            (AttendanceReport.AttendanceType.SICK_TARDY, date(2026, 3, 9)),
+            (AttendanceReport.AttendanceType.RECOGNIZED_LEAVE, date(2027, 2, 3)),
+        ):
+            AttendanceReport.objects.create(
+                folder=folder, student=self.student, attendance_type=attendance_type,
+                start_date=day, end_date=day, reason='조회 테스트', written_date=day,
+                student_signature=self.student.name, submitted_at=timezone.now(),
+            )
+        self.client.force_login(self.teacher)
+        base = reverse('attendance_folder_detail', args=[folder.id])
+        full = self.client.get(base)
+        self.assertContains(full, '전체보기')
+        self.assertContains(full, '조회 월')
+        self.assertContains(full, '조회 시작일')
+        self.assertContains(full, '조회 종료일')
+        self.assertEqual(full.context['stats_rows'][0]['total'], 3)
+        self.assertEqual(full.context['stats_rows'][0]['counts'], [1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
+        march = self.client.get(base + '?view=list&query_month=3')
+        self.assertEqual(march.context['start_filter'], '2026-03-01')
+        self.assertEqual(march.context['end_filter'], '2026-03-31')
+        self.assertEqual(march.context['stats_rows'][0]['total'], 2)
+        february = self.client.get(base + '?view=list&query_month=2')
+        self.assertEqual(february.context['start_filter'], '2027-02-01')
+        self.assertEqual(february.context['end_filter'], '2027-02-28')
+        self.assertEqual(february.context['stats_rows'][0]['counts'], [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
+
+    def test_teacher_can_edit_pending_report_but_signed_report_is_locked(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
+        folder.target_students.add(self.student)
+        report = AttendanceReport.objects.create(
+            folder=folder, student=self.student,
+            attendance_type=AttendanceReport.AttendanceType.SICK_ABSENCE,
+            start_date=date(2026, 10, 20), end_date=date(2026, 10, 20),
+            reason='기존 사유', written_date=date(2026, 10, 20),
+            student_signature=self.student.name, student_signature_data=self.signature_data,
+            submitted_at=timezone.now(), guardian_token='pending-teacher-edit',
+            guardian_token_created_at=timezone.now(),
+        )
+        url = reverse('attendance_report_teacher_edit', args=[report.id])
+        original_submitted_at = report.submitted_at
+        self.client.force_login(self.student_user)
+        self.assertNotEqual(self.client.get(url).status_code, 200)
+        self.client.force_login(self.teacher)
+        self.assertContains(self.client.get(url), '출결 신고서 수정')
+        response = self.client.post(url, {
+            'attendance_category': 'RECOGNIZED', 'attendance_kind': 'TARDY',
+            'single_date': '2026-11-03', 'start_period': '1', 'end_period': '2',
+            'reason': '대회 참가', 'written_date': '2026-11-03',
+        })
+        self.assertEqual(response.status_code, 302)
+        report.refresh_from_db()
+        self.assertEqual(report.attendance_type, AttendanceReport.AttendanceType.RECOGNIZED_TARDY)
+        self.assertEqual(report.reason, '대회 참가')
+        self.assertEqual(report.student_signature_data, self.signature_data)
+        self.assertEqual(report.submitted_at, original_submitted_at)
+        self.assertIsNone(report.guardian_token)
+        report.guardian_signed_at = timezone.now()
+        report.save(update_fields=['guardian_signed_at'])
+        self.assertRedirects(self.client.get(url), reverse('attendance_folder_detail', args=[folder.id]) + f'?view=list&student={self.student.id}#report-{report.id}')
+        self.client.post(url, {
+            'attendance_category': 'SICK', 'attendance_kind': 'ABSENCE',
+            'start_date': '2026-11-04', 'end_date': '2026-11-04',
+            'reason': '잠금 무시', 'written_date': '2026-11-04',
+        })
+        report.refresh_from_db()
+        self.assertEqual(report.reason, '대회 참가')
 
     def test_guardian_qr_signature_and_teacher_confirmation(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
@@ -513,8 +589,8 @@ class AttendanceReportFlowTests(TestCase):
         self.assertTrue(token)
         detail = self.client.get(reverse('attendance_folder_detail', args=[folder.id]) + '?view=list')
         self.assertContains(detail, reverse('attendance_guardian_sign', args=[token]))
-        self.assertContains(detail, 'data-bs-target="#reportPreviewModal"')
-        self.assertContains(detail, 'data-report-url="' + reverse('attendance_report_print', args=[report.id]) + '"')
+        self.assertContains(detail, 'data-bs-target="#studentReportsPanel"')
+        self.assertContains(detail, 'href="' + reverse('attendance_report_print', args=[report.id]) + '"')
         print_url = reverse('attendance_report_print', args=[report.id])
         self.assertContains(self.client.get(print_url), '제출 현황')
         self.assertNotContains(self.client.get(print_url + '?popup=1'), '제출 현황')
