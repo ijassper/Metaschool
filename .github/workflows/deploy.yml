@@ -19,4 +19,5 @@ jobs:
         port: 22
         script: |
           cd /web/metaschool
-          git pull
+          git pull --ff-only origin main
+          bash restart.sh
