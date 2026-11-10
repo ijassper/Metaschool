@@ -23,6 +23,7 @@ from .views.attendance_views import (
     attendance_folder_create, attendance_folder_detail, attendance_folder_list, attendance_folder_update,
     attendance_guardian_complete, attendance_guardian_sign, attendance_report_confirm, attendance_report_unconfirm,
     attendance_report_guardian_invite, attendance_report_print, student_attendance_list, student_attendance_report,
+    student_attendance_report_delete,
 )
 
 urlpatterns = [
@@ -32,6 +33,7 @@ urlpatterns = [
     path('attendance/<int:folder_id>/', attendance_folder_detail, name='attendance_folder_detail'),
     path('attendance/student/list/', student_attendance_list, name='student_attendance_list'),
     path('attendance/<int:folder_id>/student/', student_attendance_report, name='student_attendance_report'),
+    path('attendance/reports/<int:report_id>/delete/', student_attendance_report_delete, name='student_attendance_report_delete'),
     path('attendance/reports/<int:report_id>/print/', attendance_report_print, name='attendance_report_print'),
     path('attendance/reports/<int:report_id>/guardian-invite/', attendance_report_guardian_invite, name='attendance_report_guardian_invite'),
     path('attendance/reports/<int:report_id>/confirm/', attendance_report_confirm, name='attendance_report_confirm'),

@@ -20,7 +20,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from accounts.decorators import teacher_required
 from accounts.models import Student
-from ..models import AttendanceReport, AttendanceReportFolder
+from ..models import AttendanceReport, AttendanceReportFolder, AttendanceReportSequence
 from .main_views import get_accessible_student_ids, get_student_tree
 
 
@@ -443,9 +443,12 @@ def student_attendance_list(request):
     ).select_related('folder__teacher').order_by('created_at', 'id'))
     sequence_by_year = {}
     for report in student_reports:
-        year = report.start_date.year
+        year = report.folder.academic_year or report.start_date.year
         sequence_by_year[year] = sequence_by_year.get(year, 0) + 1
-        report.display_number = f'{year}-{sequence_by_year[year]:03d}'
+        report.display_number = report.report_number or (
+            f'{year}-{student.grade}-{student.class_no:02d}-'
+            f'{student.number:02d}-{sequence_by_year[year]:02d}'
+        )
     new_report_folders = [folder for folder in folders if folder.is_within_operation_period]
     return render(request, 'activities/student_attendance_list.html', {
         'folders': folders, 'student': student,
@@ -567,7 +570,20 @@ def student_attendance_report(request, folder_id):
             report.guardian_token = None
             report.guardian_token_created_at = None
             report.submitted_at = timezone.now()
-            report.save()
+            with transaction.atomic():
+                if not report.report_number:
+                    year = folder.academic_year or parsed_start_date.year
+                    Student.objects.select_for_update().get(pk=student.pk)
+                    sequence, _ = AttendanceReportSequence.objects.select_for_update().get_or_create(
+                        student=student, academic_year=year,
+                    )
+                    sequence.last_number += 1
+                    sequence.save(update_fields=['last_number'])
+                    report.report_number = (
+                        f'{year}-{student.grade}-{student.class_no:02d}-'
+                        f'{student.number:02d}-{sequence.last_number:02d}'
+                    )
+                report.save()
             messages.success(request, '출결 확인 신고서를 제출했습니다.')
             return redirect('attendance_report_print', report_id=report.id)
 
@@ -596,6 +612,27 @@ def student_attendance_report(request, folder_id):
         'guardian_signature_data_for_form': guardian_signature_data_for_form,
         'today': timezone.localdate(),
     })
+
+
+@login_required
+@require_POST
+def student_attendance_report_delete(request, report_id):
+    if request.user.role != 'STUDENT':
+        return redirect('attendance_folder_list')
+    student = _student_for_user(request.user)
+    if not student:
+        return redirect('dashboard')
+    with transaction.atomic():
+        report = get_object_or_404(
+            AttendanceReport.objects.select_for_update().select_related('folder'),
+            id=report_id, student=student, folder__target_students=student,
+        )
+        if report.confirmed_at or not (report.folder.is_within_operation_period or report.reopened_at):
+            messages.error(request, '확정되었거나 운영 기간이 지난 신고서는 삭제할 수 없습니다.')
+            return redirect('attendance_report_print', report_id=report.id)
+        report.delete()
+    messages.success(request, '출결 신고서를 삭제했습니다.')
+    return redirect('student_attendance_list')
 
 
 @login_required

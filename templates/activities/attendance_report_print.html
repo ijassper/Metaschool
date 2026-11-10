@@ -11,6 +11,7 @@
   .toolbar{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;max-width:170mm;margin:18px auto 12px}
   .toolbar a,.toolbar button{padding:8px 13px;border:1px solid #c8becd;border-radius:8px;background:#fff;color:#34273a;text-decoration:none;font-size:13px;font-weight:700;cursor:pointer}
   .toolbar .edit-link{border-color:#9148aa;background:#9148aa;color:#fff}
+  .toolbar .back-link{margin-right:auto}
   .report-view-status{max-width:170mm;margin:0 auto 12px;padding:8px 12px;border-radius:9px;background:#edf9f2;color:#257346;font-size:12px;font-weight:700}
   .sheet{width:170mm;min-height:257mm;margin:0 auto 20px;padding:8mm;border:1px solid #d8d2d9;background:#fff;box-shadow:0 8px 26px rgba(45,32,50,.1)}
   .document-head{display:grid;grid-template-columns:minmax(0,1fr) 57mm;border:1px solid #222;break-inside:avoid}
@@ -59,7 +60,7 @@
 </head>
 <body>
  <div class="toolbar">
-  {% if is_student %}<a href="{% url 'student_attendance_list' %}">내 출결 신고서</a>{% elif not is_popup %}<a href="{% url 'attendance_folder_detail' report.folder_id %}?view=list">제출 현황</a>{% endif %}
+  {% if is_student %}<a class="back-link" href="{% url 'student_attendance_list' %}">← 신고서 목록으로</a>{% elif not is_popup %}<a href="{% url 'attendance_folder_detail' report.folder_id %}?view=list">제출 현황</a>{% endif %}
   {% if can_student_edit %}<a class="edit-link" href="{% url 'student_attendance_report' report.folder_id %}?report={{ report.id }}&amp;edit=1">신고서 수정</a>{% endif %}
   <button type="button" onclick="window.print()">인쇄 / PDF 저장</button>
  </div>

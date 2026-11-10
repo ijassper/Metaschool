@@ -15,7 +15,10 @@
 .student-attendance .action.secondary:hover{background:#e9d8ef}
 .student-attendance .action.disabled{background:#eee8f0;color:#857b89;cursor:not-allowed}
 .student-attendance .section-title{margin:26px 0 12px;font-size:1.15rem;font-weight:900}
-.student-attendance .report-card{display:flex;justify-content:space-between;gap:18px;margin-bottom:12px;padding:18px;border:1px solid #eadfed;border-radius:18px;background:#fff;box-shadow:0 7px 20px rgba(73,45,82,.05)}
+.student-attendance .report-card{position:relative;display:flex;justify-content:space-between;gap:18px;margin-bottom:12px;padding:18px;border:1px solid #eadfed;border-radius:18px;background:#fff;box-shadow:0 7px 20px rgba(73,45,82,.05)}
+.student-attendance .report-card:hover{border-color:#be9bc9;box-shadow:0 9px 24px rgba(73,45,82,.1)}
+.student-attendance .report-card-link{position:absolute;inset:0;z-index:1;border-radius:inherit}
+.student-attendance .report-card-link:focus-visible{outline:3px solid #713985;outline-offset:2px}
 .student-attendance .report-main{min-width:0;flex:1}
 .student-attendance .report-bottom{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .student-attendance .report-number{font-size:1.1rem;font-weight:900;color:#713985}
@@ -25,6 +28,7 @@
 .student-attendance .report-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px;min-width:155px}
 .student-attendance .report-actions .badge{align-self:stretch;padding:9px 12px;font-size:.9rem}
 .student-attendance .report-actions .action{justify-content:center;text-align:center}
+.student-attendance .report-actions .action{position:relative;z-index:2}
 .student-attendance .folder-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-top:1px solid #eee8f0}
 .student-attendance .folder-choice:first-child{border-top:0}
 .student-attendance .folder-choice span{display:block;color:#766d79;font-size:.9rem}
@@ -32,7 +36,7 @@
 @media(max-width:600px){.student-attendance{padding:18px 14px}.student-attendance .attendance-hero{padding:12px 14px}.student-attendance .hero-count{min-width:78px;padding:7px 9px}.student-attendance .page-head{align-items:stretch}.student-attendance .page-head .action{justify-content:center}.student-attendance .report-card{flex-direction:column}.student-attendance .report-actions{min-width:0}.student-attendance .report-bottom{align-items:flex-start;flex-direction:column;gap:3px}.student-attendance .folder-choice{align-items:stretch;flex-direction:column}}
 </style>
 <main class="student-attendance">
-  <header class="attendance-hero"><div><a class="hero-back" href="{% url 'dashboard' %}#student-activities"><i class="bi bi-arrow-left me-1"></i>학생 대시보드</a><div class="hero-meta">출결 신고</div><h1>내 출결 신고서</h1></div><div class="hero-count"><strong>{{ submitted_count }}</strong><span>내 신고서</span></div></header>
+  <header class="attendance-hero"><div><a class="hero-back" href="{% url 'dashboard' %}#student-activities"><i class="bi bi-arrow-left me-1"></i>학생 대시보드</a><div class="hero-meta">출결 신고</div><h1>내 출결 신고서 목록</h1></div><div class="hero-count"><strong>{{ submitted_count }}</strong><span>내 신고서</span></div></header>
   <div class="page-head">
     {% if new_report_folders|length == 1 %}
       {% with folder=new_report_folders.0 %}<a class="action" href="{% url 'student_attendance_report' folder.id %}?new=1" title="{{ folder.display_name }}"><i class="bi bi-plus-lg"></i>새로운 출결 신고서 작성</a>{% endwith %}
@@ -45,6 +49,7 @@
   <h3 class="section-title">작성한 신고서</h3>
   {% for report in reports %}
       <article class="report-card" aria-label="{{ report.folder.display_name }}의 출결 신고서">
+        <a class="report-card-link" href="{% url 'attendance_report_print' report.id %}" aria-label="{{ report.display_number }} 신고서 보기"></a>
         <div class="report-main">
           <strong class="report-number">{{ report.display_number }}</strong>
           <div class="report-meta"><span>출결 <strong>[{{ report.get_attendance_type_display }}]</strong></span><span>기간 <strong>{{ report.start_date|date:'Y.m.d.' }}{% if report.is_absence %} ~ {{ report.end_date|date:'Y.m.d.' }}{% else %} {{ report.get_start_period_display }} ~ {{ report.get_end_period_display }}{% endif %}</strong></span></div>
@@ -53,7 +58,6 @@
         </div>
         <div class="report-actions">
           {% if report.confirmed_at %}<span class="badge text-bg-primary">담임교사 결재 완료</span>{% else %}<span class="badge text-bg-success">제출 완료</span>{% endif %}
-          <a class="action secondary" href="{% url 'attendance_report_print' report.id %}">신고서 보기</a>
           {% if not report.confirmed_at %}{% if report.folder.is_within_operation_period or report.reopened_at %}<a class="action" href="{% url 'student_attendance_report' report.folder_id %}?report={{ report.id }}&amp;edit=1">수정하기</a>{% endif %}{% endif %}
         </div>
       </article>

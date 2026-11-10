@@ -27,8 +27,9 @@
    <div class="privacy-table-wrap"><table class="privacy-table"><thead><tr><th>개인정보 처리목적</th><th>민감정보 항목</th><th>수집 근거</th></tr></thead><tbody><tr><td>결석 업무 처리</td><td>의사진단서 또는 의견서*</td><td>「초·중등교육법」 제25조, 동법 시행규칙 제21조 및 제25조, 「개인정보 보호법」 제23조 제1항 제2호</td></tr></tbody></table></div>
    <p class="privacy-footnote">* 의사 소견서, 진료 확인서 등으로 병명, 진료기간 등이 기록된 증빙서류</p>
   </section>
-  {% if not locked %}<div class="d-flex justify-content-end mt-4"><button class="btn btn-ingrid px-5 py-2 fw-bold rounded-pill">{% if report and report.submitted_at %}수정 제출{% else %}신고서 제출{% endif %}</button></div>{% endif %}
+  {% if not locked %}<div class="d-flex justify-content-end flex-wrap gap-2 mt-4">{% if report and report.submitted_at %}<button type="submit" form="deleteAttendanceReportForm" class="btn btn-outline-danger px-4 py-2 fw-bold rounded-pill">삭제</button>{% endif %}<button class="btn btn-ingrid px-5 py-2 fw-bold rounded-pill">{% if report and report.submitted_at %}수정 제출{% else %}신고서 제출{% endif %}</button></div>{% endif %}
  </form>
+ {% if report and report.submitted_at and not locked %}<form id="deleteAttendanceReportForm" method="post" action="{% url 'student_attendance_report_delete' report.id %}" onsubmit="return confirm('신고서를 삭제하면 작성 내용과 서명이 영구 삭제됩니다. 삭제하시겠습니까?');">{% csrf_token %}</form>{% endif %}
 </div></div>
 <script>
 (function(){const kind=document.getElementById('attendanceKind'),absence=document.getElementById('absenceDateFields'),period=document.getElementById('periodFields'),start=document.querySelector('[name="start_date"]'),end=document.querySelector('[name="end_date"]'),days=document.getElementById('absenceDays');function sync(){absence.hidden=kind.value!=='ABSENCE';period.hidden=kind.value==='ABSENCE';if(start.value&&end.value){const diff=Math.floor((new Date(end.value)-new Date(start.value))/86400000)+1;days.textContent=(diff>0?diff:'-')+'일간';}else days.textContent='-일간';}kind.addEventListener('change',sync);start.addEventListener('change',sync);end.addEventListener('change',sync);sync();})();

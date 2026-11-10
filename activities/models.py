@@ -893,6 +893,9 @@ class AttendanceReport(models.Model):
         related_name='attendance_reports',
         verbose_name='학생',
     )
+    report_number = models.CharField(
+        max_length=40, blank=True, default='', verbose_name='신고서 고유번호',
+    )
     attendance_type = models.CharField(
         max_length=20,
         choices=AttendanceType.choices,
@@ -959,6 +962,22 @@ class AttendanceReport(models.Model):
     @property
     def can_edit(self):
         return self.confirmed_at is None
+
+
+class AttendanceReportSequence(models.Model):
+    """삭제된 신고서의 번호를 다시 발급하지 않기 위한 학생별 학년도 순번."""
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    academic_year = models.PositiveSmallIntegerField()
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student', 'academic_year'],
+                name='unique_attendance_report_sequence',
+            ),
+        ]
 
 
 class CourseNotebookSection(models.Model):

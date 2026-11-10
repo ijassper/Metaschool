@@ -7,13 +7,14 @@ from unittest.mock import patch
 
 from PIL import Image
 
-from django.db import IntegrityError, transaction
+from django.apps import apps
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import CustomUser, School, Student, Subject
-from .models import AttendanceReport, AttendanceReportFolder
+from .models import AttendanceReport, AttendanceReportFolder, AttendanceReportSequence
 
 
 class AttendanceReportFlowTests(TestCase):
@@ -656,19 +657,21 @@ class AttendanceReportFlowTests(TestCase):
 
         response = self.client.get(reverse('student_attendance_list'))
 
-        self.assertContains(response, '내 출결 신고서')
+        self.assertContains(response, '<h1>내 출결 신고서 목록</h1>', html=False)
         self.assertContains(response, 'class="attendance-hero"')
         self.assertNotContains(response, '작성한 신고서와 새로 작성할 수 있는 출결 신고 폴더를 확인하세요.')
         self.assertContains(response, '새로운 출결 신고서 작성')
         self.assertContains(response, 'data-bs-target="#newReportFolderModal"')
         self.assertNotContains(response, '새로 작성할 신고서')
         self.assertContains(response, reverse('student_attendance_report', args=[new_folder.id]))
-        self.assertContains(response, '2026-001')
+        self.assertContains(response, '2026-2-03-07-01')
         self.assertContains(response, '질병결석')
         self.assertContains(response, '2026.03.02. ~ 2026.03.05.')
         self.assertContains(response, '손목 부상으로 인한 염좌 치료')
         self.assertContains(response, reverse('attendance_report_print', args=[report.id]))
-        self.assertRegex(response.content.decode(), r'담임교사 결재 완료</span>\s*<a class="action secondary"')
+        self.assertContains(response, 'class="report-card-link"')
+        self.assertNotContains(response, '>신고서 보기</a>')
+        self.assertNotContains(response, '>수정하기</a>')
 
     def test_student_can_submit_multiple_reports_in_one_folder_and_edit_one(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher, name='연간 출결자료')
@@ -690,14 +693,19 @@ class AttendanceReportFlowTests(TestCase):
         self.assertEqual(AttendanceReport.objects.filter(folder=folder, student=self.student).count(), 2)
         second_report = AttendanceReport.objects.exclude(id=first_report.id).get()
         list_page = self.client.get(reverse('student_attendance_list'))
-        self.assertContains(list_page, '2026-001')
-        self.assertContains(list_page, '2026-002')
+        self.assertContains(list_page, '2026-2-03-07-01')
+        self.assertContains(list_page, '2026-2-03-07-02')
+        self.assertContains(list_page, 'class="report-card-link"', count=2)
+        self.assertContains(list_page, '>수정하기</a>', count=2)
+        self.assertNotContains(list_page, '>신고서 보기</a>')
         self.assertContains(list_page, '새로운 출결 신고서 작성')
 
         edit_url = base_url + f'?report={first_report.id}&edit=1'
         self.client.post(edit_url, {**payload, 'reason': '첫 번째 치료 수정'})
         first_report.refresh_from_db()
         self.assertEqual(first_report.reason, '첫 번째 치료 수정')
+        self.assertEqual(first_report.report_number, '2026-2-03-07-01')
+        self.assertEqual(second_report.report_number, '2026-2-03-07-02')
         self.assertEqual(AttendanceReport.objects.filter(folder=folder, student=self.student).count(), 2)
 
         self.client.force_login(self.teacher)
@@ -705,6 +713,80 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(detail, f'id="report-{first_report.id}"')
         self.assertContains(detail, f'id="report-{second_report.id}"')
         self.assertContains(detail, '제출 학생</span><strong>1명', html=False)
+
+    def test_student_delete_keeps_report_numbers_and_uses_next_sequence(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher, name='연간 출결자료')
+        folder.target_students.add(self.student)
+        base_url = reverse('student_attendance_report', args=[folder.id])
+        self.client.force_login(self.student_user)
+        payload = {
+            'attendance_category': 'SICK', 'attendance_kind': 'ABSENCE',
+            'start_date': '2026-10-20', 'end_date': '2026-10-20',
+            'reason': '치료', 'written_date': '2026-10-21',
+            'student_signature_data': self.signature_data,
+        }
+        self.client.post(base_url + '?new=1', payload)
+        first = AttendanceReport.objects.get()
+        self.client.post(base_url + '?new=1', {**payload, 'reason': '두 번째 치료'})
+        second = AttendanceReport.objects.exclude(id=first.id).get()
+        delete_url = reverse('student_attendance_report_delete', args=[first.id])
+        self.assertContains(self.client.get(base_url + f'?report={first.id}&edit=1'), delete_url)
+        self.assertContains(self.client.get(reverse('attendance_report_print', args=[first.id])), '← 신고서 목록으로')
+        self.assertEqual(self.client.get(delete_url).status_code, 405)
+        self.assertRedirects(self.client.post(delete_url), reverse('student_attendance_list'))
+        self.assertFalse(AttendanceReport.objects.filter(id=first.id).exists())
+        self.client.post(base_url + '?new=1', {**payload, 'reason': '세 번째 치료'})
+        third = AttendanceReport.objects.exclude(id=second.id).get()
+        self.assertEqual(second.report_number, '2026-2-03-07-02')
+        self.assertEqual(third.report_number, '2026-2-03-07-03')
+
+    def test_student_cannot_delete_confirmed_or_expired_report(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher, name='연간 출결자료')
+        folder.target_students.add(self.student)
+        report = AttendanceReport.objects.create(
+            folder=folder, student=self.student,
+            attendance_type=AttendanceReport.AttendanceType.SICK_ABSENCE,
+            start_date=date(2026, 10, 20), end_date=date(2026, 10, 20),
+            reason='치료', written_date=date(2026, 10, 21),
+            student_signature=self.student.name, submitted_at=timezone.now(),
+            confirmed_at=timezone.now(),
+        )
+        self.client.force_login(self.student_user)
+        delete_url = reverse('student_attendance_report_delete', args=[report.id])
+        self.assertRedirects(self.client.post(delete_url), reverse('attendance_report_print', args=[report.id]))
+        self.assertTrue(AttendanceReport.objects.filter(id=report.id).exists())
+        report.confirmed_at = None
+        report.save(update_fields=['confirmed_at'])
+        folder.operation_end_date = timezone.localdate() - timedelta(days=1)
+        folder.save(update_fields=['operation_end_date'])
+        self.assertRedirects(self.client.post(delete_url), reverse('attendance_report_print', args=[report.id]))
+        self.assertTrue(AttendanceReport.objects.filter(id=report.id).exists())
+        self.client.force_login(self.teacher)
+        self.assertRedirects(self.client.post(delete_url), reverse('attendance_folder_list'))
+
+    def test_existing_reports_get_numbers_and_sequence_during_migration(self):
+        folder = AttendanceReportFolder.objects.create(
+            teacher=self.teacher, academic_year=2026, name='기존 출결자료',
+        )
+        folder.target_students.add(self.student)
+        for day in (20, 21):
+            AttendanceReport.objects.create(
+                folder=folder, student=self.student,
+                attendance_type=AttendanceReport.AttendanceType.SICK_ABSENCE,
+                start_date=date(2026, 10, day), end_date=date(2026, 10, day),
+                reason='치료', written_date=date(2026, 10, day),
+                student_signature=self.student.name, submitted_at=timezone.now(),
+            )
+        migration = importlib.import_module('activities.migrations.0050_attendance_report_numbers')
+        migration.assign_existing_numbers(apps, SimpleNamespace(connection=connection))
+        self.assertEqual(
+            list(AttendanceReport.objects.order_by('created_at', 'id').values_list('report_number', flat=True)),
+            ['2026-2-03-07-01', '2026-2-03-07-02'],
+        )
+        self.assertEqual(
+            AttendanceReportSequence.objects.get(student=self.student, academic_year=2026).last_number,
+            2,
+        )
 
     def test_cancel_confirmation_reopens_report_after_operation_period(self):
         yesterday = timezone.localdate() - timedelta(days=1)
