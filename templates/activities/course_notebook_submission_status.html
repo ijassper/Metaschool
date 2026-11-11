@@ -53,10 +53,13 @@
 .filter-panel .filter-grid{grid-template-columns:220px 170px minmax(160px,1fr) auto}.submission-top h2{overflow-wrap:anywhere}
 @media(max-width:1150px){.filter-panel .filter-grid,.filter-panel.date-mode .filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:620px){.filter-panel .filter-grid,.filter-panel.date-mode .filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .date-board-scroll{overflow-x:auto;padding:2px 2px 12px}
-.date-board{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:10px;align-items:start;min-width:1200px}
+.date-board{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));grid-auto-rows:1fr;gap:10px;align-items:stretch;min-width:1200px}
 .date-board .date-student{grid-column:span var(--student-columns);min-width:0;margin:0;padding:9px;border:1px solid #d9c8e0;border-radius:13px;background:#f1e8f4;box-shadow:0 3px 10px rgba(95,55,112,.1)}
 .date-board .date-student h3{display:block;min-height:2.7em;margin:0 0 8px;color:#302737;font-size:1.05rem;line-height:1.35;text-align:center;overflow-wrap:anywhere}
 .date-board .date-missing{display:block;margin:8px auto 4px;padding:6px 10px;width:max-content;max-width:100%;border-radius:9px;background:#fff;color:#7b6782;font-size:.92rem;font-weight:850;text-align:center}
+.date-board .date-student--missing{display:flex;flex-direction:column}
+.date-board .date-student--missing .date-page-grid{flex:1;place-items:center}
+.date-board .date-student--missing .date-missing{margin:0}
 .date-board .date-page-grid{grid-template-columns:repeat(var(--student-columns),minmax(0,1fr));gap:7px}
 .date-board .date-page{min-width:0;padding:5px;border-color:#dfd3e4;border-radius:9px;background:#fff}
 .date-board .date-page img{height:auto;aspect-ratio:3/4;object-fit:cover;border-radius:5px}
@@ -105,7 +108,7 @@
     {% if group.students %}
     <div class="date-board-scroll"><div class="date-board" aria-label="{{ group.date|date:'Y.m.d' }} 학생 노트 목록">
       {% for bundle in group.students %}
-      <section class="date-student" style="--student-columns:{{ bundle.column_span }}">
+      <section class="date-student{% if not bundle.pages %} date-student--missing{% endif %}" style="--student-columns:{{ bundle.column_span }}">
         <h3 title="{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }}">{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }}</h3>
         <div class="date-page-grid">
           {% if bundle.pages %}{% for page in bundle.pages %}
