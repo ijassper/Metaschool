@@ -626,8 +626,16 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context['date_groups']), 1)
         self.assertEqual([page.id for page in response.context['date_groups'][0]['pages']], [first.id])
+        self.assertEqual(response.context['date_student_count'], 2)
+        self.assertEqual(response.context['date_submitted_count'], 1)
+        self.assertEqual(response.context['date_missing_count'], 1)
+        self.assertEqual(
+            [bundle['student'].id for bundle in response.context['date_groups'][0]['students']],
+            [self.submitted_student.id, self.empty_student.id],
+        )
         self.assertContains(response, '김작성')
-        self.assertNotContains(response, '이미작성')
+        self.assertContains(response, '이미작성')
+        self.assertContains(response, '미제출')
 
         response = self.client.get(reverse('course_notebook_student_status', args=[
             self.notebook.id, self.submitted_student.id,
@@ -701,11 +709,13 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         markup = response.content.decode()
         self.assertLess(markup.index('class="filter-panel date-mode"'), markup.index('class="view-tabs"'))
         self.assertLess(markup.index('class="view-tabs"'), markup.index('id="noteDateFilter"'))
-        self.assertEqual(response.context['date_student_count'], 11)
+        self.assertEqual(response.context['date_student_count'], 12)
+        self.assertEqual(response.context['date_submitted_count'], 11)
+        self.assertEqual(response.context['date_missing_count'], 1)
         self.assertEqual(response.context['date_page_count'], 12)
         students = response.context['date_groups'][0]['students']
-        self.assertEqual(len(students), 11)
-        self.assertEqual([item['student'].number for item in students], list(range(1, 12)))
+        self.assertEqual(len(students), 12)
+        self.assertEqual([item['student'].number for item in students], [*range(1, 12), 2])
         self.assertEqual(students[0]['column_span'], 2)
         self.assertEqual(students[1]['column_span'], 1)
         self.assertEqual(
@@ -720,7 +730,7 @@ class CourseNotebookSubmissionStatusTests(TestCase):
 
         response = self.client.get(url, {'view': 'date', 'note_date': '2026-10-23', 'page': '2'})
         self.assertNotIn('date_page', response.context)
-        self.assertEqual(len(response.context['date_groups'][0]['students']), 11)
+        self.assertEqual(len(response.context['date_groups'][0]['students']), 12)
         self.assertContains(response, '김작성 학생 노트')
 
         response = self.client.get(url, {'view': 'date', 'note_date': '2026-10-22'})

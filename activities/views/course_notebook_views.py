@@ -403,8 +403,9 @@ def course_notebook_submission_status(request, notebook_id):
         if token.isdigit():
             token_filter |= Q(number=int(token))
         students = students.filter(token_filter)
-    student_list = list(students) if view_mode == 'student' else []
-    student_ids = [student.id for student in student_list] if view_mode == 'student' else list(students.values_list('id', flat=True))
+    filtered_students = list(students)
+    student_list = filtered_students if view_mode == 'student' else []
+    student_ids = [student.id for student in filtered_students]
     section_count_map = {}
     if view_mode == 'student':
         section_count_map = {
@@ -448,6 +449,7 @@ def course_notebook_submission_status(request, notebook_id):
     date_previous = None
     date_next = None
     date_student_count = 0
+    date_submitted_count = 0
     date_page_count = 0
     if view_mode == 'date':
         # Older pages can lack note_date; use their upload date only as a fallback.
@@ -466,12 +468,18 @@ def course_notebook_submission_status(request, notebook_id):
                        'student__name', 'student_id', 'created_at', 'id'))
             date_page_count = len(visible_pages)
             group = {'date': selected_date, 'pages': visible_pages, 'students': []}
+            pages_by_student = {}
             for page in visible_pages:
-                if not group['students'] or group['students'][-1]['student'].id != page.student_id:
-                    group['students'].append({'student': page.student, 'pages': [], 'column_span': 0})
-                group['students'][-1]['pages'].append(page)
-                group['students'][-1]['column_span'] = min(len(group['students'][-1]['pages']), 10)
+                pages_by_student.setdefault(page.student_id, []).append(page)
+            for student in filtered_students:
+                student_pages = pages_by_student.get(student.id, [])
+                group['students'].append({
+                    'student': student,
+                    'pages': student_pages,
+                    'column_span': max(1, min(len(student_pages), 10)),
+                })
             date_student_count = len(group['students'])
+            date_submitted_count = len(pages_by_student)
             date_groups.append(group)
             date_previous = _parse_notebook_date(
                 scoped_pages.filter(effective_note_date__lt=selected_date).aggregate(value=Max('effective_note_date'))['value']
@@ -497,6 +505,8 @@ def course_notebook_submission_status(request, notebook_id):
         'date_previous': date_previous,
         'date_next': date_next,
         'date_student_count': date_student_count,
+        'date_submitted_count': date_submitted_count,
+        'date_missing_count': date_student_count - date_submitted_count,
         'date_page_count': date_page_count,
         'date_query_prefix': '?' + urlencode(date_query_params),
         'student_view_url': '?' + urlencode([('view', 'student'), *view_query_params]),

@@ -55,7 +55,8 @@
 .date-board-scroll{overflow-x:auto;padding:2px 2px 12px}
 .date-board{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:10px;align-items:start;min-width:1200px}
 .date-board .date-student{grid-column:span var(--student-columns);min-width:0;margin:0;padding:9px;border:1px solid #d9c8e0;border-radius:13px;background:#f1e8f4;box-shadow:0 3px 10px rgba(95,55,112,.1)}
-.date-board .date-student h3{display:block;min-height:2.7em;margin:0 0 8px;color:#302737;font-size:.86rem;line-height:1.35;overflow-wrap:anywhere}
+.date-board .date-student h3{display:block;min-height:2.7em;margin:0 0 8px;color:#302737;font-size:1.05rem;line-height:1.35;text-align:center;overflow-wrap:anywhere}
+.date-board .date-missing{display:block;margin:8px auto 4px;padding:6px 10px;width:max-content;max-width:100%;border-radius:9px;background:#fff;color:#7b6782;font-size:.92rem;font-weight:850;text-align:center}
 .date-board .date-page-grid{grid-template-columns:repeat(var(--student-columns),minmax(0,1fr));gap:7px}
 .date-board .date-page{min-width:0;padding:5px;border-color:#dfd3e4;border-radius:9px;background:#fff}
 .date-board .date-page img{height:auto;aspect-ratio:3/4;object-fit:cover;border-radius:5px}
@@ -95,7 +96,7 @@
       {% if view_mode == 'date' %}<button class="btn-ocr-test" type="button" data-ocr-test data-url="{% url 'course_notebook_teacher_ocr_preview' notebook.id %}" data-note-date="{{ date_filter }}" data-csrf-token="{{ csrf_token }}" {% if not date_page_count %}disabled{% endif %}><i class="bi bi-fonts me-1"></i>텍스트 변환 테스트</button>{% endif %}
     </div>
     {% if view_mode == 'date' %}<div class="ocr-progress" data-ocr-progress role="status" aria-live="polite">첫 번째 학생의 노트만 변환합니다.</div>{% endif %}
-    <div class="filter-result">{% if view_mode == 'date' %}선택한 날짜의 학생 {{ date_student_count }}명 · 노트 {{ date_page_count }}장{% else %}조건에 맞는 학생 {{ student_rows|length }}명{% endif %}{% if selected_targets or filters.grade or filters.class_no or filters.q or date_filter %}<a class="filter-reset" href="?view={{ view_mode }}">필터 초기화</a>{% endif %}</div>
+    <div class="filter-result">{% if view_mode == 'date' %}대상 학생 {{ date_student_count }}명 · 제출 {{ date_submitted_count }}명 · 미제출 {{ date_missing_count }}명 · 노트 {{ date_page_count }}장{% else %}조건에 맞는 학생 {{ student_rows|length }}명{% endif %}{% if selected_targets or filters.grade or filters.class_no or filters.q or date_filter %}<a class="filter-reset" href="?view={{ view_mode }}">필터 초기화</a>{% endif %}</div>
   </form>
 
   {% if view_mode == 'date' %}
@@ -107,9 +108,9 @@
       <section class="date-student" style="--student-columns:{{ bundle.column_span }}">
         <h3 title="{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }}">{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }}</h3>
         <div class="date-page-grid">
-          {% for page in bundle.pages %}
+          {% if bundle.pages %}{% for page in bundle.pages %}
           <a class="date-page {% if page.ocr_provider == 'rapidocr-onnx' and page.ocr_raw_text %}has-ocr{% endif %}" data-date-page data-page-id="{{ page.id }}" data-student-id="{{ page.student_id }}" data-student-label="{{ bundle.student.grade }}학년 {{ bundle.student.class_no }}반 {{ bundle.student.number }}번 {{ bundle.student.name }}" data-section-title="{{ page.section.title|default:'미분류' }}" data-page-title="{{ page.memo|default:'제목 없는 노트' }}" data-upload-time="{{ page.created_at|date:'Y.m.d H:i' }}" href="{% url 'course_notebook_teacher_page' notebook.id page.student_id page.id %}?from=date&amp;note_date={{ group.date|date:'Y-m-d' }}"><img src="{% if page.processed_image %}{{ page.processed_image.url }}{% else %}{{ page.image.url }}{% endif %}" alt="{{ page.student.name }} 학생 노트" loading="lazy"><pre class="date-page-ocr">{% if page.ocr_provider == 'rapidocr-onnx' %}{{ page.ocr_raw_text }}{% endif %}</pre><strong>{{ forloop.counter }}장 · {{ page.memo|default:'제목 없는 노트' }}</strong><span>{{ page.section.title|default:'미분류' }}{% if page.note_date %} · 노트 날짜 {{ page.note_date|date:'m.d' }}{% endif %}</span><span class="date-upload-time">업로드 {{ page.created_at|date:'Y.m.d H:i' }}</span></a>
-          {% endfor %}
+          {% endfor %}{% else %}<span class="date-missing">미제출</span>{% endif %}
         </div>
       </section>
       {% endfor %}
@@ -162,7 +163,7 @@ document.querySelectorAll('.section-toggle').forEach(function(button){button.add
  if(!button)return;
  const status=document.querySelector('[data-ocr-progress]');
  button.addEventListener('click',async function(){
-  const firstStudent=document.querySelector('.date-board .date-student');
+  const firstStudent=Array.from(document.querySelectorAll('.date-board .date-student')).find(student=>student.querySelector('[data-date-page]'));
   const cards=firstStudent?Array.from(firstStudent.querySelectorAll('[data-date-page]')):[];
   if(!cards.length)return;
   button.disabled=true;
