@@ -853,9 +853,20 @@ def attendance_report_print(request, report_id):
         and report.can_edit
         and report.folder.target_students.filter(id=report.student_id).exists()
     )
+    can_teacher_edit = not is_student and not report.confirmed_at and not report.guardian_signed_at
+    edit_filters = {
+        key: request.GET.get(key, '').strip()
+        for key in ('q', 'start_date', 'end_date', 'query_month')
+        if request.GET.get(key, '').strip()
+    }
+    teacher_edit_url = reverse('attendance_report_teacher_edit', args=[report.id])
+    if edit_filters:
+        teacher_edit_url += '?' + urlencode(edit_filters)
     return render(request, 'activities/attendance_report_print.html', {
         'report': report,
         'is_student': is_student,
         'is_popup': request.GET.get('popup') == '1' and not is_student,
         'can_student_edit': can_student_edit,
+        'can_teacher_edit': can_teacher_edit,
+        'teacher_edit_url': teacher_edit_url,
     })

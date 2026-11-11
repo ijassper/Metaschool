@@ -409,6 +409,8 @@ class AttendanceReportFlowTests(TestCase):
         self.client.force_login(self.teacher)
         detail = self.client.get(reverse('attendance_folder_detail', args=[folder.id]) + '?view=list')
         self.assertContains(detail, '결제취소')
+        self.assertContains(detail, 'data-unconfirm-report')
+        self.assertNotContains(detail, "onclick=\"return confirm('확정을 취소하면 학생이 다시 수정할 수 있습니다. 확정을 취소하시겠습니까?');\"")
         self.assertNotContains(detail, '완료 · 확정')
         response = self.client.post(reverse('attendance_report_unconfirm', args=[report.id]))
         self.assertRedirects(response, reverse('attendance_folder_detail', args=[folder.id]) + f'#report-{report.id}')
@@ -482,7 +484,7 @@ class AttendanceReportFlowTests(TestCase):
         self.assertNotContains(page, '<th>제출일</th>')
         self.assertContains(page, '학생별 출결 통계')
         self.assertContains(page, '김학생 출결신고서 목록')
-        self.assertContains(page, '수정하기')
+        self.assertNotContains(page, '<th>수정하기</th>')
         self.assertContains(page, '결제완료')
         self.assertContains(page, 'id="attendanceConfirmDialog"')
         self.assertContains(page, '보호자 서명을 확인하고 확정하시겠습니까?')
@@ -593,6 +595,9 @@ class AttendanceReportFlowTests(TestCase):
         self.assertNotEqual(self.client.get(url).status_code, 200)
         self.client.force_login(self.teacher)
         self.assertContains(self.client.get(url), '출결 신고서 수정')
+        print_page = self.client.get(reverse('attendance_report_print', args=[report.id]) + '?popup=1')
+        self.assertContains(print_page, 'href="' + url + '" target="_top">수정하기</a>')
+        self.assertLess(print_page.content.decode().index('>수정하기</a>'), print_page.content.decode().index('>인쇄 / PDF 저장</button>'))
         response = self.client.post(url, {
             'attendance_category': 'RECOGNIZED', 'attendance_kind': 'TARDY',
             'single_date': '2026-11-03', 'start_period': '1', 'end_period': '2',
@@ -607,6 +612,7 @@ class AttendanceReportFlowTests(TestCase):
         self.assertIsNone(report.guardian_token)
         report.guardian_signed_at = timezone.now()
         report.save(update_fields=['guardian_signed_at'])
+        self.assertNotContains(self.client.get(reverse('attendance_report_print', args=[report.id]) + '?popup=1'), '>수정하기</a>')
         self.assertRedirects(self.client.get(url), reverse('attendance_folder_detail', args=[folder.id]) + f'?view=list&student={self.student.id}#report-{report.id}')
         self.client.post(url, {
             'attendance_category': 'SICK', 'attendance_kind': 'ABSENCE',
