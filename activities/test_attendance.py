@@ -486,6 +486,7 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(page, '김학생 출결신고서 목록')
         self.assertNotContains(page, '<th>수정하기</th>')
         self.assertContains(page, '결제완료')
+        self.assertContains(page, 'class="approval-cell"')
         self.assertContains(page, 'id="attendanceConfirmDialog"')
         self.assertContains(page, '보호자 서명을 확인하고 확정하시겠습니까?')
         self.assertContains(page, 'data-panel-report-url="' + reverse('attendance_report_print', args=[report.id]) + '"')
@@ -612,6 +613,18 @@ class AttendanceReportFlowTests(TestCase):
         self.assertIsNone(report.guardian_token)
         report.guardian_signed_at = timezone.now()
         report.save(update_fields=['guardian_signed_at'])
+        self.assertContains(self.client.get(reverse('attendance_report_print', args=[report.id]) + '?popup=1'), '>수정하기</a>')
+        self.assertContains(self.client.get(url), '출결 신고서 수정')
+        self.client.post(url, {
+            'attendance_category': 'SICK', 'attendance_kind': 'ABSENCE',
+            'start_date': '2026-11-04', 'end_date': '2026-11-04',
+            'reason': '보호자 서명 후 수정', 'written_date': '2026-11-04',
+        })
+        report.refresh_from_db()
+        self.assertEqual(report.reason, '보호자 서명 후 수정')
+        self.assertIsNotNone(report.guardian_signed_at)
+        report.confirmed_at = timezone.now()
+        report.save(update_fields=['confirmed_at'])
         self.assertNotContains(self.client.get(reverse('attendance_report_print', args=[report.id]) + '?popup=1'), '>수정하기</a>')
         self.assertRedirects(self.client.get(url), reverse('attendance_folder_detail', args=[folder.id]) + f'?view=list&student={self.student.id}#report-{report.id}')
         self.client.post(url, {
@@ -620,7 +633,7 @@ class AttendanceReportFlowTests(TestCase):
             'reason': '잠금 무시', 'written_date': '2026-11-04',
         })
         report.refresh_from_db()
-        self.assertEqual(report.reason, '대회 참가')
+        self.assertEqual(report.reason, '보호자 서명 후 수정')
 
     def test_guardian_qr_signature_and_teacher_confirmation(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)

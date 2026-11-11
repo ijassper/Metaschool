@@ -757,8 +757,8 @@ def attendance_report_teacher_edit(request, report_id):
     return_url = reverse('attendance_folder_detail', args=[report.folder_id]) + '?' + urlencode({
         'view': 'list', 'student': report.student_id, **return_filters,
     }) + f'#report-{report.id}'
-    if report.confirmed_at or report.guardian_signed_at:
-        messages.warning(request, '보호자 서명 또는 담임교사 결재가 완료된 신고서는 수정할 수 없습니다.')
+    if report.confirmed_at:
+        messages.warning(request, '담임교사 결재가 완료된 신고서는 수정할 수 없습니다.')
         return redirect(return_url)
     errors = []
     if request.method == 'POST':
@@ -853,7 +853,7 @@ def attendance_report_print(request, report_id):
         and report.can_edit
         and report.folder.target_students.filter(id=report.student_id).exists()
     )
-    can_teacher_edit = not is_student and not report.confirmed_at and not report.guardian_signed_at
+    can_teacher_edit = not is_student and not report.confirmed_at
     edit_filters = {
         key: request.GET.get(key, '').strip()
         for key in ('q', 'start_date', 'end_date', 'query_month')
