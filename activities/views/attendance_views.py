@@ -512,7 +512,7 @@ def student_attendance_list(request):
     })
 
 
-def _save_attendance_report(request, folder, student, report):
+def _save_attendance_report(request, folder, student, report, *, preserve_submitted_at=False):
     category = request.POST.get('attendance_category', '')
     kind = request.POST.get('attendance_kind', '')
     attendance_type = f'{category}_{kind}'
@@ -594,7 +594,8 @@ def _save_attendance_report(request, folder, student, report):
         )
         report.guardian_token = None
         report.guardian_token_created_at = None
-        report.submitted_at = timezone.now()
+        if not preserve_submitted_at or not report.submitted_at:
+            report.submitted_at = timezone.now()
         with transaction.atomic():
             if not report.report_number:
                 year = folder.academic_year or parsed_start_date.year
@@ -742,6 +743,27 @@ def student_attendance_report_delete(request, report_id):
 
 @login_required
 @teacher_required
+@require_POST
+def attendance_report_teacher_delete(request, report_id):
+    with transaction.atomic():
+        report = get_object_or_404(
+            AttendanceReport.objects.select_for_update().select_related('folder'),
+            id=report_id, folder__teacher=request.user, submitted_at__isnull=False,
+        )
+        return_url = reverse('attendance_folder_detail', args=[report.folder_id]) + '?' + urlencode({
+            'view': 'list', 'student': report.student_id,
+            **{key: request.POST.get(key, '').strip() for key in ('q', 'start_date', 'end_date', 'query_month') if request.POST.get(key, '').strip()},
+        })
+        if report.confirmed_at:
+            messages.error(request, '담임교사 결재가 완료된 신고서는 삭제할 수 없습니다.')
+            return redirect(return_url)
+        report.delete()
+    messages.success(request, '출결 신고서를 삭제했습니다.')
+    return redirect(return_url)
+
+
+@login_required
+@teacher_required
 @require_http_methods(['GET', 'POST'])
 def attendance_report_teacher_edit(request, report_id):
     report = get_object_or_404(
@@ -757,80 +779,46 @@ def attendance_report_teacher_edit(request, report_id):
     return_url = reverse('attendance_folder_detail', args=[report.folder_id]) + '?' + urlencode({
         'view': 'list', 'student': report.student_id, **return_filters,
     }) + f'#report-{report.id}'
+    is_popup = source.get('popup') == '1'
+    teacher_print_url = reverse('attendance_report_print', args=[report.id])
+    if is_popup or return_filters:
+        teacher_print_url += '?' + urlencode({'popup': '1', **return_filters} if is_popup else return_filters)
     if report.confirmed_at:
         messages.warning(request, '담임교사 결재가 완료된 신고서는 수정할 수 없습니다.')
         return redirect(return_url)
-    errors = []
+    form_values = None
     if request.method == 'POST':
-        category = request.POST.get('attendance_category', '')
-        kind = request.POST.get('attendance_kind', '')
-        attendance_type = f'{category}_{kind}'
-        valid_types = {value for value, _ in AttendanceReport.AttendanceType.choices}
-        valid_periods = {value for value, _ in AttendanceReport.Period.choices}
-        if attendance_type not in valid_types or category not in dict(ATTENDANCE_CATEGORIES) or kind not in dict(ATTENDANCE_KINDS):
-            errors.append('출결 구분과 종류를 각각 선택해 주세요.')
-        date_value = request.POST.get('start_date' if kind == 'ABSENCE' else 'single_date', '')
-        try:
-            start_date = date.fromisoformat(date_value)
-        except ValueError:
-            start_date = None
-            errors.append('출결 날짜를 선택해 주세요.')
-        try:
-            written_date = date.fromisoformat(request.POST.get('written_date', ''))
-        except ValueError:
-            written_date = None
-            errors.append('작성 날짜를 선택해 주세요.')
-        if kind == 'ABSENCE':
-            try:
-                end_date = date.fromisoformat(request.POST.get('end_date', ''))
-            except ValueError:
-                end_date = None
-                errors.append('결석 종료일을 선택해 주세요.')
-            if start_date and end_date and end_date < start_date:
-                errors.append('결석 종료일은 시작일보다 빠를 수 없습니다.')
-            start_period = end_period = ''
-        else:
-            end_date = start_date
-            start_period = request.POST.get('start_period', '')
-            end_period = request.POST.get('end_period', '')
-            if start_period not in valid_periods or end_period not in valid_periods:
-                errors.append('시작 교시와 종료 교시를 선택해 주세요.')
-            elif _period_rank(end_period) < _period_rank(start_period):
-                errors.append('종료 교시는 시작 교시보다 빠를 수 없습니다.')
-        reason = request.POST.get('reason', '').strip()
-        if not reason:
-            errors.append('출결 사유를 입력해 주세요.')
-        if len(reason) > 1000:
-            errors.append('출결 사유는 1000자 이내로 입력해 주세요.')
+        report, errors = _save_attendance_report(
+            request, report.folder, report.student, report, preserve_submitted_at=True,
+        )
         if not errors:
-            report.attendance_type = attendance_type
-            report.start_date = start_date
-            report.end_date = end_date
-            report.start_period = start_period
-            report.end_period = end_period
-            report.reason = reason
-            report.written_date = written_date
-            report.guardian_token = None
-            report.guardian_token_created_at = None
-            report.save(update_fields=[
-                'attendance_type', 'start_date', 'end_date', 'start_period',
-                'end_period', 'reason', 'written_date', 'guardian_token',
-                'guardian_token_created_at', 'updated_at',
-            ])
             messages.success(request, '출결 신고서를 수정했습니다.')
+            if is_popup:
+                print_url = reverse('attendance_report_print', args=[report.id])
+                return redirect(print_url + '?' + urlencode({'popup': '1', **return_filters}))
             return redirect(return_url)
-    form_values = request.POST if request.method == 'POST' else None
-    return render(request, 'activities/attendance_report_teacher_edit.html', {
+        for error in errors:
+            messages.error(request, error)
+        form_values = request.POST
+    return render(request, 'activities/student_attendance_report.html', {
+        'folder': report.folder,
+        'student': report.student,
         'report': report,
+        'locked': False,
+        'teacher_edit': True,
+        'teacher_embed': is_popup,
+        'layout_template': 'activities/attendance_embed_base.html' if is_popup else 'base.html',
         'return_url': return_url,
+        'teacher_print_url': teacher_print_url,
         'return_filters': return_filters,
-        'errors': errors,
         'form_values': form_values,
         'attendance_categories': ATTENDANCE_CATEGORIES,
         'attendance_kinds': ATTENDANCE_KINDS,
         'period_choices': AttendanceReport.Period.choices,
         'selected_category': form_values.get('attendance_category', '') if form_values else report.attendance_category,
         'selected_kind': form_values.get('attendance_kind', '') if form_values else report.attendance_kind,
+        'guardian_signature_data_for_form': form_values.get('guardian_signature_data', '') if form_values else report.guardian_signature_data,
+        'today': timezone.localdate(),
     })
 
 
@@ -860,12 +848,13 @@ def attendance_report_print(request, report_id):
         if request.GET.get(key, '').strip()
     }
     teacher_edit_url = reverse('attendance_report_teacher_edit', args=[report.id])
-    if edit_filters:
-        teacher_edit_url += '?' + urlencode(edit_filters)
+    is_popup = request.GET.get('popup') == '1' and not is_student
+    if edit_filters or is_popup:
+        teacher_edit_url += '?' + urlencode({'popup': '1', **edit_filters} if is_popup else edit_filters)
     return render(request, 'activities/attendance_report_print.html', {
         'report': report,
         'is_student': is_student,
-        'is_popup': request.GET.get('popup') == '1' and not is_student,
+        'is_popup': is_popup,
         'can_student_edit': can_student_edit,
         'can_teacher_edit': can_teacher_edit,
         'teacher_edit_url': teacher_edit_url,
