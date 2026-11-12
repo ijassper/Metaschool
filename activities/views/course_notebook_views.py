@@ -10,6 +10,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, F, Max, Min, Q
 from django.db.models.functions import Coalesce, TruncDate
@@ -297,9 +298,9 @@ def course_notebook_list(request):
 @teacher_required
 @require_http_methods(['GET'])
 def course_notebook_period_review(request):
-    """Review pages across the teacher's notebooks, grouped by student and notebook."""
+    """Review every target student's notebooks for a selected note-date range."""
     today = timezone.localdate()
-    start_value = request.GET.get('start_date', (today - timedelta(days=6)).isoformat()).strip()
+    start_value = request.GET.get('start_date', today.isoformat()).strip()
     end_value = request.GET.get('end_date', today.isoformat()).strip()
     start_date = _parse_notebook_date(start_value)
     end_date = _parse_notebook_date(end_value)
@@ -309,7 +310,8 @@ def course_notebook_period_review(request):
     elif start_date > end_date:
         date_error = '시작일은 종료일보다 늦을 수 없습니다.'
 
-    notebooks = list(CourseNotebook.objects.filter(teacher=request.user))
+    notebooks = sorted(CourseNotebook.objects.filter(teacher=request.user),
+                       key=lambda notebook: (notebook.subject, notebook.title, notebook.id))
     notebook_ids = {notebook.id for notebook in notebooks}
     notebook_value = request.GET.get('notebook', '').strip()
     selected_notebook_id = int(notebook_value) if notebook_value.isdigit() and int(notebook_value) in notebook_ids else None
@@ -323,44 +325,67 @@ def course_notebook_period_review(request):
         students = students.filter(grade=int(grade_value))
     if class_value.isdigit():
         students = students.filter(class_no=int(class_value))
+    if selected_notebook_id:
+        students = students.filter(course_notebooks__id=selected_notebook_id)
     for token in search_query.split():
         match = Q(name__icontains=token)
         if token.isdigit():
             match |= Q(number=int(token))
         students = students.filter(match)
 
+    student_page = Paginator(
+        students.order_by('grade', 'class_no', 'number', 'name', 'id'), 10,
+    ).get_page(request.GET.get('page'))
+    page_students = list(student_page.object_list)
+    student_ids = [student.id for student in page_students]
+    visible_notebooks = [notebook for notebook in notebooks
+                         if not selected_notebook_id or notebook.id == selected_notebook_id]
+    target_notebooks = {student_id: set() for student_id in student_ids}
+    if student_ids and visible_notebooks:
+        for notebook_id, student_id in CourseNotebook.objects.filter(
+            teacher=request.user,
+            id__in=[notebook.id for notebook in visible_notebooks],
+            target_students__id__in=student_ids,
+        ).values_list('id', 'target_students__id'):
+            target_notebooks[student_id].add(notebook_id)
+
     student_groups = []
     page_count = 0
     if not date_error:
-        pages = CourseNotebookPage.objects.filter(
-            notebook__teacher=request.user,
-            notebook__target_students__id=F('student_id'),
-            student_id__in=students.values('id'),
-        ).annotate(effective_note_date=Coalesce('note_date', TruncDate('created_at'))).filter(
-            effective_note_date__range=(start_date, end_date),
-        )
-        if selected_notebook_id:
-            pages = pages.filter(notebook_id=selected_notebook_id)
-        pages = pages.select_related('student', 'notebook', 'section').order_by(
-            'student__grade', 'student__class_no', 'student__number', 'student__name',
-            'student_id', 'notebook__subject', 'notebook__title', 'notebook_id',
-            'effective_note_date', 'created_at', 'id',
-        )
-        for page in pages:
-            if not student_groups or student_groups[-1]['student'].id != page.student_id:
-                student_groups.append({'student': page.student, 'notebooks': [], 'page_count': 0})
-            group = student_groups[-1]
-            if not group['notebooks'] or group['notebooks'][-1]['notebook'].id != page.notebook_id:
-                group['notebooks'].append({'notebook': page.notebook, 'pages': []})
-            group['notebooks'][-1]['pages'].append(page)
-            group['page_count'] += 1
-            page_count += 1
+        pages_by_student_notebook = {}
+        if student_ids:
+            pages = CourseNotebookPage.objects.filter(
+                notebook__teacher=request.user,
+                notebook__target_students__id=F('student_id'),
+                student_id__in=student_ids,
+                notebook_id__in=[notebook.id for notebook in visible_notebooks],
+            ).annotate(effective_note_date=Coalesce('note_date', TruncDate('created_at'))).filter(
+                effective_note_date__range=(start_date, end_date),
+            ).select_related('section').order_by(
+                'effective_note_date', 'created_at', 'id',
+            )
+            for page in pages:
+                pages_by_student_notebook.setdefault((page.student_id, page.notebook_id), []).append(page)
+                page_count += 1
+        for student in page_students:
+            items = [
+                {'notebook': notebook,
+                 'pages': pages_by_student_notebook.get((student.id, notebook.id), [])}
+                for notebook in visible_notebooks
+                if notebook.id in target_notebooks[student.id]
+            ]
+            student_groups.append({
+                'student': student, 'notebooks': items,
+                'page_count': sum(len(item['pages']) for item in items),
+            })
 
     review_params = [('start_date', start_value), ('end_date', end_value)]
     for key, value in (('notebook', selected_notebook_id), ('grade', grade_value),
                        ('class_no', class_value), ('q', search_query)):
         if value:
             review_params.append((key, value))
+    page_query_prefix = '?' + urlencode(review_params) + '&page='
+    current_review_params = [*review_params, ('page', student_page.number)]
     return render(request, 'activities/course_notebook_period_review.html', {
         'notebooks': notebooks,
         'selected_notebook_id': selected_notebook_id,
@@ -373,8 +398,10 @@ def course_notebook_period_review(request):
         'end_value': end_value,
         'date_error': date_error,
         'student_groups': student_groups,
+        'student_page': student_page,
+        'page_query_prefix': page_query_prefix,
         'page_count': page_count,
-        'period_detail_query': '?' + urlencode([('from', 'period'), *review_params]),
+        'period_detail_query': '?' + urlencode([('from', 'period'), *current_review_params]),
     })
 
 
@@ -739,7 +766,7 @@ def course_notebook_teacher_page(request, notebook_id, student_id, page_id):
     student_index = student_ids_with_pages.index(student.id)
     from_period = request.GET.get('from') == 'period'
     period_filters = [(key, request.GET[key]) for key in (
-        'start_date', 'end_date', 'notebook', 'grade', 'class_no', 'q',
+        'start_date', 'end_date', 'notebook', 'grade', 'class_no', 'q', 'page',
     ) if request.GET.get(key)]
     return render(request, 'activities/course_notebook_teacher_page.html', {
         'notebook': notebook, 'student': student, 'page': page,

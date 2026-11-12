@@ -849,6 +849,11 @@ class CourseNotebookPeriodReviewTests(TestCase):
         self.assertEqual(self.client.get(url, {
             'start_date': '2026-11-06', 'end_date': '2026-11-08',
         }).context['page_count'], 0)
+        empty_day = self.client.get(url, {
+            'start_date': '2026-11-06', 'end_date': '2026-11-08',
+        })
+        self.assertEqual(len(empty_day.context['student_groups']), 1)
+        self.assertContains(empty_day, '미제출', count=2)
         self.assertEqual(self.client.get(url, {
             'start_date': '2026-11-01', 'end_date': '2026-11-08',
             'notebook': str(self.notebooks[0].id),
@@ -857,8 +862,26 @@ class CourseNotebookPeriodReviewTests(TestCase):
         detail = self.client.get(reverse('course_notebook_teacher_page', args=[
             self.notebooks[0].id, self.student.id, page.id,
         ]), {'from': 'period', 'start_date': '2026-11-01', 'end_date': '2026-11-08'})
-        self.assertContains(detail, '기간별 열람으로')
+        self.assertContains(detail, '날짜별 열람으로')
         self.assertContains(detail, 'start_date=2026-11-01')
+
+    def test_default_is_today_and_pagination_counts_target_students(self):
+        for number in range(2, 13):
+            student = Student.objects.create(
+                teacher=self.teacher, grade=2, class_no=6, number=number,
+                name=f'학생{number}',
+            )
+            self.notebooks[0].target_students.add(student)
+        url = reverse('course_notebook_period_review')
+        first = self.client.get(url)
+        self.assertEqual(first.context['start_value'], timezone.localdate().isoformat())
+        self.assertEqual(first.context['end_value'], timezone.localdate().isoformat())
+        self.assertEqual(first.context['student_page'].paginator.count, 12)
+        self.assertEqual(len(first.context['student_groups']), 10)
+        self.assertContains(first, '미제출')
+        second = self.client.get(url, {'page': '2'})
+        self.assertEqual(len(second.context['student_groups']), 2)
+        self.assertEqual([group['student'].number for group in second.context['student_groups']], [11, 12])
 
     def test_invalid_period_shows_error_without_results(self):
         response = self.client.get(reverse('course_notebook_period_review'), {
