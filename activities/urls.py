@@ -11,7 +11,7 @@ from .views.export_views import *
 from .views.typing_views import *
 from .views.proctor_replay_views import proctor_replay, proctor_recording, proctor_download, proctor_delete_recording, proctor_save_review, proctor_review_csv
 from .views.course_notebook_views import (
-    course_notebook_create, course_notebook_delete, course_notebook_list, course_notebook_update, student_course_notebook,
+    course_notebook_create, course_notebook_delete, course_notebook_list, course_notebook_period_review, course_notebook_update, student_course_notebook,
     course_notebook_submission_status, course_notebook_teacher_ocr_preview, course_notebook_student_status,
     course_notebook_teacher_page, course_notebook_teacher_pdf, student_course_notebook_availability,
     student_course_notebook_page, student_course_notebook_page_edit, student_course_notebook_reorder, course_notebook_page_process,
@@ -45,6 +45,7 @@ urlpatterns = [
     path('attendance/guardian/complete/', attendance_guardian_complete, name='attendance_guardian_complete'),
     path('attendance/guardian/<str:token>/', attendance_guardian_sign, name='attendance_guardian_sign'),
     path('course-notebooks/', course_notebook_list, name='course_notebook_list'),
+    path('course-notebooks/period-review/', course_notebook_period_review, name='course_notebook_period_review'),
     path('course-notebooks/create/', course_notebook_create, name='course_notebook_create'),
     path('course-notebooks/<int:notebook_id>/edit/', course_notebook_update, name='course_notebook_update'),
     path('course-notebooks/<int:notebook_id>/delete/', course_notebook_delete, name='course_notebook_delete'),

@@ -805,6 +805,70 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         self.assertContains(response, '시의 표현과 감상')
 
 
+class CourseNotebookPeriodReviewTests(TestCase):
+    def setUp(self):
+        self.teacher = CustomUser.objects.create_user(
+            username='period-teacher@example.com', email='period-teacher@example.com',
+            password='test-password', name='기간 교사', role=CustomUser.Role.TEACHER,
+            is_approved=True,
+        )
+        self.other_teacher = CustomUser.objects.create_user(
+            username='period-other@example.com', email='period-other@example.com',
+            password='test-password', name='다른 교사', role=CustomUser.Role.TEACHER,
+            is_approved=True,
+        )
+        self.student = Student.objects.create(
+            teacher=self.teacher, grade=2, class_no=6, number=1, name='김학생',
+        )
+        self.notebooks = []
+        for title, subject, teacher in (
+            ('국어 필기노트', '국어', self.teacher),
+            ('과학 필기노트', '과학', self.teacher),
+            ('비공개 노트', '국어', self.other_teacher),
+        ):
+            notebook = CourseNotebook.objects.create(
+                teacher=teacher, title=title, subject=subject, academic_year=2026,
+                semester=CourseNotebook.Semester.YEAR, cover_color='PURPLE',
+            )
+            notebook.target_students.add(self.student)
+            self.notebooks.append(notebook)
+            CourseNotebookPage.objects.create(
+                notebook=notebook, student=self.student,
+                image=f'course_notebooks/{notebook.id}.jpg', note_date=date(2026, 11, 5),
+            )
+        self.client.force_login(self.teacher)
+
+    def test_period_groups_only_own_notebooks_and_filters_dates(self):
+        url = reverse('course_notebook_period_review')
+        response = self.client.get(url, {'start_date': '2026-11-01', 'end_date': '2026-11-08'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['page_count'], 2)
+        self.assertEqual(len(response.context['student_groups']), 1)
+        self.assertEqual(len(response.context['student_groups'][0]['notebooks']), 2)
+        self.assertNotContains(response, '비공개 노트')
+        self.assertEqual(self.client.get(url, {
+            'start_date': '2026-11-06', 'end_date': '2026-11-08',
+        }).context['page_count'], 0)
+        self.assertEqual(self.client.get(url, {
+            'start_date': '2026-11-01', 'end_date': '2026-11-08',
+            'notebook': str(self.notebooks[0].id),
+        }).context['page_count'], 1)
+        page = CourseNotebookPage.objects.get(notebook=self.notebooks[0])
+        detail = self.client.get(reverse('course_notebook_teacher_page', args=[
+            self.notebooks[0].id, self.student.id, page.id,
+        ]), {'from': 'period', 'start_date': '2026-11-01', 'end_date': '2026-11-08'})
+        self.assertContains(detail, '기간별 열람으로')
+        self.assertContains(detail, 'start_date=2026-11-01')
+
+    def test_invalid_period_shows_error_without_results(self):
+        response = self.client.get(reverse('course_notebook_period_review'), {
+            'start_date': '2026-11-08', 'end_date': '2026-11-01',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['page_count'], 0)
+        self.assertContains(response, '시작일은 종료일보다 늦을 수 없습니다.')
+
+
 class CourseNotebookStudentUploadTests(TestCase):
     def setUp(self):
         self.teacher = CustomUser.objects.create_user(
