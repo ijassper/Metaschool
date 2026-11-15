@@ -2,6 +2,7 @@ from django.template.loader import get_template
 from django.test import RequestFactory
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.urls import reverse
 from django.utils import timezone
 from types import SimpleNamespace
@@ -20,7 +21,7 @@ from .models import (
     CourseNotebookSection, CourseNotebookStickyNote,
 )
 from .views.course_notebook_views import _parse_notebook_date, parse_section_outline
-from .course_notebook_processing import correct_notebook_image
+from .course_notebook_processing import correct_notebook_image, ensure_archive_image
 from .views.main_views import get_form_config, get_menu_items
 
 
@@ -936,6 +937,77 @@ class CourseNotebookStudentUploadTests(TestCase):
             notebook=self.notebook, title='고조선', depth=0, position=0,
         )
         self.client.force_login(self.student_user)
+
+    def test_native_scan_shares_one_file_and_reprocessing_keeps_original(self):
+        image = Image.new('RGB', (80, 100), 'white')
+        buffer = io.BytesIO()
+        image.save(buffer, format='JPEG')
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
+            response = self.client.post(
+                reverse('student_course_notebook', args=[self.notebook.id]) + f'?section={self.section.id}',
+                {
+                    'image': SimpleUploadedFile('scan.jpg', buffer.getvalue(), content_type='image/jpeg'),
+                    'native_document_scan': '1',
+                },
+                HTTP_USER_AGENT='IngridStudentAndroid/1.0',
+            )
+            self.assertEqual(response.status_code, 302)
+            page = CourseNotebookPage.objects.get(student=self.student)
+            original_name = page.image.name
+            self.assertEqual(page.processed_image.name, original_name)
+            with patch('activities.course_notebook_processing.correct_notebook_image') as correct:
+                ensure_archive_image(page)
+                correct.assert_not_called()
+
+            page.processing_version = 1
+            page.save(update_fields=['processing_version'])
+            with patch('activities.course_notebook_processing.correct_notebook_image', return_value=b'new-archive'):
+                ensure_archive_image(page)
+            self.assertTrue(page.image.storage.exists(original_name))
+            self.assertNotEqual(page.processed_image.name, original_name)
+            self.assertTrue(page.processed_image.storage.exists(page.processed_image.name))
+
+    def test_identical_existing_archive_is_deduplicated_only_when_applied(self):
+        image = Image.new('RGB', (80, 100), 'white')
+        buffer = io.BytesIO()
+        image.save(buffer, format='JPEG')
+        data = buffer.getvalue()
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
+            page = CourseNotebookPage.objects.create(
+                notebook=self.notebook, student=self.student, section=self.section,
+                image=SimpleUploadedFile('original.jpg', data, content_type='image/jpeg'),
+                processed_image=SimpleUploadedFile('native.jpg', data, content_type='image/jpeg'),
+                processing_version=2,
+            )
+            old_archive_name = page.processed_image.name
+            call_command('deduplicate_course_notebook_scans', stdout=io.StringIO())
+            page.refresh_from_db()
+            self.assertEqual(page.processed_image.name, old_archive_name)
+            with self.captureOnCommitCallbacks(execute=True):
+                call_command('deduplicate_course_notebook_scans', '--apply', stdout=io.StringIO())
+            page.refresh_from_db()
+            self.assertEqual(page.processed_image.name, page.image.name)
+            self.assertTrue(page.image.storage.exists(page.image.name))
+            self.assertFalse(page.processed_image.storage.exists(old_archive_name))
+
+    def test_distinct_corrected_image_is_not_deduplicated(self):
+        original = io.BytesIO()
+        corrected = io.BytesIO()
+        Image.new('RGB', (80, 100), 'white').save(original, format='JPEG')
+        Image.new('RGB', (80, 100), 'yellow').save(corrected, format='JPEG')
+        with override_settings(STORAGES={'default': {'BACKEND': 'django.core.files.storage.InMemoryStorage'}}):
+            page = CourseNotebookPage.objects.create(
+                notebook=self.notebook, student=self.student, section=self.section,
+                image=SimpleUploadedFile('original.jpg', original.getvalue(), content_type='image/jpeg'),
+                processed_image=SimpleUploadedFile('corrected.jpg', corrected.getvalue(), content_type='image/jpeg'),
+                processing_version=2,
+            )
+            old_archive_name = page.processed_image.name
+            with self.captureOnCommitCallbacks(execute=True):
+                call_command('deduplicate_course_notebook_scans', '--apply', stdout=io.StringIO())
+            page.refresh_from_db()
+            self.assertEqual(page.processed_image.name, old_archive_name)
+            self.assertTrue(page.processed_image.storage.exists(old_archive_name))
 
     def test_upload_requires_section_when_notebook_has_sections(self):
         upload = SimpleUploadedFile('note.jpg', b'not-an-image', content_type='image/jpeg')

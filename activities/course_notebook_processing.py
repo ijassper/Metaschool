@@ -32,6 +32,14 @@ def _read_original(page):
         page.image.close()
 
 
+def _processed_is_original(page):
+    return (
+        page.processed_image
+        and page.image.storage is page.processed_image.storage
+        and page.processed_image.name == page.image.name
+    )
+
+
 def _order_quad(points):
     """OpenCV 문서 모서리를 좌상단부터 시계 방향으로 정렬한다."""
     import numpy as np
@@ -137,7 +145,7 @@ def ensure_archive_image(page):
     ):
         return page
     corrected = correct_notebook_image(original)
-    if page.processed_image:
+    if page.processed_image and not _processed_is_original(page):
         page.processed_image.delete(save=False)
     page.processed_image.save(
         f'notebook-page-{page.id}-a4-v{PROCESSING_VERSION}.jpg',
@@ -150,14 +158,17 @@ def ensure_archive_image(page):
 
 
 def accept_native_document_scan(page):
-    """ML Kit에서 보정한 JPEG를 추가 서버 필터 없이 아카이브 원본으로 채택한다."""
+    """ML Kit에서 보정한 JPEG를 원본과 아카이브에 공유해 중복 저장하지 않는다."""
     scanned = _read_original(page)
     source_hash = hashlib.sha256(scanned).hexdigest()
-    if page.processed_image:
+    if page.processed_image and not _processed_is_original(page):
         page.processed_image.delete(save=False)
-    page.processed_image.save(
-        f'notebook-page-{page.id}-native.jpg', ContentFile(scanned), save=False,
-    )
+    if page.image.storage is page.processed_image.storage:
+        page.processed_image = page.image.name
+    else:
+        page.processed_image.save(
+            f'notebook-page-{page.id}-native.jpg', ContentFile(scanned), save=False,
+        )
     page.source_hash = source_hash
     page.processing_version = PROCESSING_VERSION
     page.save(update_fields=['processed_image', 'source_hash', 'processing_version'])
