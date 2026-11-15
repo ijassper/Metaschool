@@ -28,7 +28,8 @@ from ..models import (
     CourseNotebookSection, CourseNotebookStickyNote,
 )
 from ..course_notebook_processing import (
-    accept_native_document_scan, ensure_archive_image, process_course_notebook_page,
+    _config_value, _google_vision_ocr, accept_native_document_scan,
+    ensure_archive_image, process_course_notebook_page,
 )
 from ..course_notebook_local_ocr import recognize_notebook_image
 from .main_views import get_accessible_student_ids, get_student_tree
@@ -691,6 +692,43 @@ def course_notebook_teacher_ocr_preview(request, notebook_id):
         'ocr_usage', 'ocr_status', 'ocr_error', 'ocr_processed_at',
     ])
     return JsonResponse({'text': page.ocr_raw_text, 'cached': False})
+
+
+@login_required
+@teacher_required
+@require_POST
+def course_notebook_teacher_google_ocr_preview(request, notebook_id):
+    """Compare one selected notebook page with Google Vision without changing its saved OCR."""
+    notebook = get_object_or_404(CourseNotebook, id=notebook_id, teacher=request.user)
+    selected_date = _parse_notebook_date(request.POST.get('note_date'))
+    page_id = request.POST.get('page_id', '')
+    if not selected_date or not page_id.isdigit():
+        return JsonResponse({'message': '노트 날짜와 페이지를 확인해 주세요.'}, status=400)
+    page = get_object_or_404(
+        CourseNotebookPage, id=int(page_id), notebook=notebook,
+        student__in=notebook.target_students.all(),
+    )
+    page_date = page.note_date or timezone.localtime(page.created_at).date()
+    if page_date != selected_date:
+        return JsonResponse({'message': '선택한 날짜의 노트가 아닙니다.'}, status=400)
+    if page.ocr_provider == 'google-vision' and page.ocr_raw_text:
+        return JsonResponse({'text': page.ocr_raw_text, 'cached': True, 'request_made': False})
+    api_key = _config_value('GOOGLE_VISION_API_KEY')
+    if not api_key:
+        return JsonResponse({'message': '시스템 설정 센터에 Google Vision API 키가 없습니다.'}, status=503)
+    try:
+        page = ensure_archive_image(page)
+        page.processed_image.open('rb')
+        try:
+            image_data = page.processed_image.read()
+        finally:
+            page.processed_image.close()
+        text, _, _ = _google_vision_ocr(image_data, api_key)
+        if not text:
+            raise RuntimeError('이 사진에서 인식된 글자가 없습니다.')
+    except Exception as exc:
+        return JsonResponse({'message': str(exc)[:500]}, status=422)
+    return JsonResponse({'text': text[:100_000], 'cached': False, 'request_made': True})
 
 
 @login_required
