@@ -553,6 +553,25 @@ class CourseNotebookSubmissionStatusTests(TestCase):
         self.client.force_login(self.other_teacher)
         self.assertEqual(self.client.post(url, {'page_id': page.id, 'note_date': '2026-11-04'}).status_code, 404)
 
+    @patch('activities.views.course_notebook_views._google_vision_ocr')
+    def test_google_ocr_preview_reuses_saved_result_without_request(self, vision):
+        page = CourseNotebookPage.objects.get(student=self.submitted_student)
+        page.note_date = date(2026, 11, 4)
+        page.ocr_provider = 'google-vision'
+        page.ocr_raw_text = '이미 저장된 Google 결과'
+        page.save(update_fields=['note_date', 'ocr_provider', 'ocr_raw_text'])
+        url = reverse('course_notebook_teacher_google_ocr_preview', args=[self.notebook.id])
+
+        response = self.client.post(url, {'page_id': page.id, 'note_date': '2026-11-04'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['text'], '이미 저장된 Google 결과')
+        self.assertFalse(response.json()['request_made'])
+        vision.assert_not_called()
+        self.assertEqual(self.client.post(url, {'page_id': page.id, 'note_date': '2026-11-03'}).status_code, 400)
+        self.client.force_login(self.other_teacher)
+        self.assertEqual(self.client.post(url, {'page_id': page.id, 'note_date': '2026-11-04'}).status_code, 404)
+
     def test_submission_status_selects_multiple_grade_class_pairs_in_both_views(self):
         third = Student.objects.create(
             teacher=self.teacher, grade=3, class_no=6, number=1, name='다른학년',

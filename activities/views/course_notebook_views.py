@@ -726,8 +726,10 @@ def course_notebook_teacher_google_ocr_preview(request, notebook_id):
         text, _, _ = _google_vision_ocr(image_data, api_key)
         if not text:
             raise RuntimeError('이 사진에서 인식된 글자가 없습니다.')
-    except Exception as exc:
-        return JsonResponse({'message': str(exc)[:500]}, status=422)
+    except Exception:
+        return JsonResponse({
+            'message': 'Google Vision 요청에 실패했습니다. API 키와 사용량을 확인해 주세요.'
+        }, status=422)
     return JsonResponse({'text': text[:100_000], 'cached': False, 'request_made': True})
 
 
