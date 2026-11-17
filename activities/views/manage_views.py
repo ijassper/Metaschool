@@ -669,7 +669,7 @@ def unified_delete(request, activity_id):
     query_string = urlencode(params, doseq=True)
     return redirect(f'/activities/list/?{query_string}')
 
-# 교사가 설정한 일시중지 상태는 응시 기간의 자동 제어와 독립적으로 유지합니다.
+# 교사의 수동 개방/마감은 응시 기간 자동 제어와 독립적으로 유지합니다.
 @require_POST
 @login_required
 @teacher_required
@@ -678,8 +678,19 @@ def toggle_activity_status(request, activity_id):
         activity = get_object_or_404(
             Activity.objects.select_for_update(), id=activity_id, teacher=request.user,
         )
-        activity.is_paused = not activity.is_paused
-        activity.save(update_fields=['is_paused'])
+        was_open = activity.is_attainable
+        if was_open:
+            activity.is_paused = True
+            activity.is_force_open = False
+        else:
+            activity.is_paused = False
+            now = timezone.now()
+            in_period = (
+                (not activity.start_time or activity.start_time <= now)
+                and (not activity.deadline or now <= activity.deadline)
+            )
+            activity.is_force_open = not in_period
+        activity.save(update_fields=['is_paused', 'is_force_open'])
         if activity.is_paused and activity.proctor_mode:
             paused_at = timezone.now()
             ProctorSession.objects.filter(activity=activity).exclude(
@@ -692,9 +703,11 @@ def toggle_activity_status(request, activity_id):
                 updated_at=paused_at,
             )
     status_msg = (
-        "교사가 응시를 일시중지했습니다. 학생의 입장·저장·제출이 차단됩니다."
+        "응시를 수동 마감했습니다. 학생의 입장·저장·제출이 차단됩니다."
         if activity.is_paused else
-        "교사 일시중지를 해제했습니다. 원래 응시 기간에만 응시할 수 있습니다."
+        "응시를 수동 개방했습니다. 다시 마감하려면 상태 버튼을 눌러 주세요."
+        if activity.is_force_open else
+        "응시를 재개했습니다. 원래 응시 기간에 따라 자동 마감됩니다."
     )
 
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
@@ -703,6 +716,7 @@ def toggle_activity_status(request, activity_id):
             'activity_id': activity.id,
             'is_active': activity.is_active,
             'is_paused': activity.is_paused,
+            'is_force_open': activity.is_force_open,
             'is_attainable': activity.is_attainable,
             'is_effectively_active': activity.is_effectively_active,
             'allow_edit_after_submission': activity.allow_edit_after_submission,

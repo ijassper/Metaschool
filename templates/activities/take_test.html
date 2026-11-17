@@ -1698,7 +1698,7 @@
     const parsedCharMaxLength = parseInt("{{ activity.max_length|default:99999 }}", 10);
     const charMinLength = Number.isFinite(parsedCharMinLength) ? parsedCharMinLength : 0;
     const charMaxLength = Number.isFinite(parsedCharMaxLength) ? parsedCharMaxLength : 99999;
-    const deadlineValue = "{{ activity.deadline|localtime|date:'c' }}";
+    const deadlineValue = {% if activity.is_force_open %}""{% else %}"{{ activity.deadline|localtime|date:'c' }}"{% endif %};
     const deadlineAt = deadlineValue ? new Date(deadlineValue) : null;
     let deadlineSecurityReleased = false;
     let answerId = "{{ answer_id }}"; 

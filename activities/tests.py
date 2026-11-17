@@ -157,8 +157,8 @@ class ActivitySchedulingTests(SimpleTestCase):
         source = get_template('activities/unified_list.html').template.source
         self.assertIn('activity_status_control.html', source)
         control = get_template('components/activity_status_control.html').template.source
-        self.assertIn('일시중지', control)
-        self.assertIn('재개', control)
+        self.assertIn('role="switch"', control)
+        self.assertIn('응시 수동 개방', control)
 
 
 class AndroidExamSecurityContractTests(SimpleTestCase):

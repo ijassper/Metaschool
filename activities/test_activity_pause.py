@@ -84,11 +84,31 @@ class ActivityTeacherPauseTests(TestCase):
         self.client.force_login(other_teacher)
         self.assertEqual(self.client.post(self.toggle_url).status_code, 404)
 
-    def test_resume_after_deadline_remains_closed(self):
+    def test_expired_activity_can_be_force_opened_and_closed_again(self):
         self.activity.deadline = timezone.now() - timedelta(minutes=1)
-        self.activity.is_paused = True
-        self.activity.save(update_fields=['deadline', 'is_paused'])
+        original_deadline = self.activity.deadline
+        self.activity.is_active = False
+        self.activity.save(update_fields=['deadline', 'is_active'])
         self.client.force_login(self.teacher)
         response = self.client.post(self.toggle_url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
-        self.assertEqual(response.json()['status_code'], 'CLOSED')
+        self.assertEqual(response.json()['status_code'], 'FORCE_OPEN')
+        self.assertTrue(response.json()['is_attainable'])
+        self.activity.refresh_from_db()
+        self.assertEqual(self.activity.deadline, original_deadline)
+        self.assertTrue(self.activity.is_force_open)
+        self.client.force_login(self.student_user)
+        self.assertEqual(self.client.get(reverse('take_test', args=[self.activity.id])).status_code, 200)
+        self.client.force_login(self.teacher)
+        response = self.client.post(self.toggle_url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         self.assertFalse(response.json()['is_attainable'])
+        self.assertTrue(response.json()['is_paused'])
+
+    def test_early_close_blocks_until_teacher_reopens(self):
+        self.client.force_login(self.teacher)
+        self.client.post(self.toggle_url)
+        self.activity.refresh_from_db()
+        self.assertFalse(self.activity.is_attainable)
+        self.client.post(self.toggle_url)
+        self.activity.refresh_from_db()
+        self.assertTrue(self.activity.is_attainable)
+        self.assertFalse(self.activity.is_force_open)

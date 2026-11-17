@@ -442,8 +442,8 @@ def ensure_exam_question(activity):
         activity=activity,
         defaults={
             'content': activity.question,
-            'conditions': activity.conditions,
-            'reference': activity.reference_material,
+            'conditions': activity.conditions or '',
+            'reference': activity.reference_material or '',
         }
     )
     return question

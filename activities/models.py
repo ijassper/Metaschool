@@ -156,6 +156,7 @@ class Activity(models.Model):
     target_students = models.ManyToManyField('accounts.Student', blank=True, related_name='activities', verbose_name="대상 학생")
     is_active = models.BooleanField(default=False, verbose_name="활성화 여부")
     is_paused = models.BooleanField(default=False, verbose_name="교사 일시중지 여부")
+    is_force_open = models.BooleanField(default=False, verbose_name="교사 수동 개방 여부")
 
     # --- [기타 중요 정보 (AI 분석용)] ---
     achievement_standard = models.TextField(blank=True, null=True, verbose_name="성취 기준")
@@ -221,12 +222,14 @@ class Activity(models.Model):
     def get_current_status(self, now=None):
         """현재 시각과 응시 기간을 기준으로 예약/진행/마감 상태를 반환합니다."""
         now = now or timezone.now()
+        if self.is_paused:
+            return 'PAUSED'
+        if self.is_force_open:
+            return 'FORCE_OPEN'
         if self.start_time and now < self.start_time:
             return 'SCHEDULED'
         if self.deadline and now > self.deadline:
             return 'CLOSED'
-        if self.is_paused:
-            return 'PAUSED'
         return 'ONGOING' if self.is_active else 'INACTIVE'
 
     @property
@@ -260,7 +263,11 @@ class Activity(models.Model):
 
     @property
     def is_attainable(self):
-        if not self.is_active or self.is_paused:
+        if self.is_paused:
+            return False
+        if self.is_force_open:
+            return True
+        if not self.is_active:
             return False
         if self.start_time and timezone.now() < self.start_time:
             return False
@@ -302,24 +309,28 @@ class Activity(models.Model):
 
     @property
     def status_text(self):
+        if self.is_paused:
+            return "수동 마감"
+        if self.is_force_open:
+            return "수동 개방 중"
         if self.start_time and timezone.now() < self.start_time:
             return "예약됨"
         if self.deadline and timezone.now() > self.deadline:
             return "마감됨"
-        if self.is_paused:
-            return "일시중지"
         if self.is_attainable:
             return "진행중"
         return "대기중"
 
     @property
     def status_code(self):
+        if self.is_paused:
+            return "PAUSED"
+        if self.is_force_open:
+            return "FORCE_OPEN"
         if self.start_time and timezone.now() < self.start_time:
             return "SCHEDULED"
         if self.deadline and timezone.now() > self.deadline:
             return "CLOSED"
-        if self.is_paused:
-            return "PAUSED"
         if self.is_attainable:
             return "ONGOING"
         return "READY"

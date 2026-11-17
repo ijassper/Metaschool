@@ -1,14 +1,11 @@
 <style>
     .activity-status-control { display: flex; flex-direction: column; align-items: center; gap: 5px; }
     .activity-status-label { font-size: 0.75rem; font-weight: 800; white-space: nowrap; }
-    .activity-paused-note { color: #9a3412; font-size: 0.66rem; font-weight: 700; }
-    .activity-pause-button {
-        border: 1px solid #d97706; border-radius: 999px; padding: 3px 10px;
-        background: #fffbeb; color: #92400e; font-size: 0.7rem; font-weight: 700;
-        cursor: pointer;
-    }
-    .activity-pause-button.is-paused { border-color: #087f5b; background: #ecfdf5; color: #065f46; }
-    .activity-pause-button:hover { filter: brightness(0.95); }
+    .activity-status-toggle { position: relative; width: 46px; height: 26px; border: 0; border-radius: 999px; padding: 0; cursor: pointer; }
+    .activity-status-toggle.is-on { background: #087f5b; }
+    .activity-status-toggle.is-off { background: #adb5bd; }
+    .activity-status-knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 1px 4px #5555; transition: transform .2s; }
+    .activity-status-toggle.is-on .activity-status-knob { transform: translateX(20px); }
 
     .activity-status-toast {
         position: fixed;
@@ -62,23 +59,14 @@
         };
 
         window.applyActivityStatus = function(button, data) {
-            button.classList.toggle('is-paused', data.is_paused);
-            button.textContent = data.is_paused ? '재개' : '일시중지';
-            button.setAttribute('aria-label', data.is_paused ? '교사 일시중지 해제' : '학생 응시 일시중지');
+            button.classList.toggle('is-on', data.is_attainable);
+            button.classList.toggle('is-off', !data.is_attainable);
+            button.setAttribute('aria-checked', data.is_attainable ? 'true' : 'false');
+            button.setAttribute('aria-label', data.is_attainable ? '응시 수동 마감' : '응시 수동 개방');
+            button.setAttribute('title', data.is_attainable ? '응시 마감' : '응시 개방');
             const control = button.closest('.activity-status-control');
             const label = control && control.querySelector('[data-activity-status-label]');
             if (label) label.textContent = data.status_text;
-            let note = control && control.querySelector('[data-activity-paused-note]');
-            if (data.is_paused && data.status_code !== 'PAUSED' && !note && control) {
-                note = document.createElement('span');
-                note.className = 'activity-paused-note';
-                note.dataset.activityPausedNote = '';
-                control.insertBefore(note, button);
-            }
-            if (note) {
-                note.textContent = '교사 일시중지';
-                note.hidden = !data.is_paused || data.status_code === 'PAUSED';
-            }
         };
 
         document.addEventListener('click', function(event) {
