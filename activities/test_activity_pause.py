@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import CustomUser, Student
-from .models import Activity, ProctorSession
+from .models import Activity, Answer, ProctorSession, ProctorSnapshot, Question
 from .views.exam_views import open_proctor_capture_session
 from .proctor_lifecycle import CAPTURE_LIMIT
 
@@ -156,3 +156,36 @@ class ActivityTeacherPauseTests(TestCase):
         session.refresh_from_db()
         self.assertEqual(session.status, ProctorSession.Status.ENDED)
         self.assertEqual(session.capture_token, '')
+
+    def test_monitor_feed_hides_last_image_after_submission(self):
+        snapshot = ProctorSnapshot.objects.create(
+            activity=self.activity, student=self.student, image='proctor_snapshots/test.jpg',
+        )
+        answer = Answer.objects.create(
+            student=self.student,
+            question=Question.objects.create(activity=self.activity, content='문항'),
+            submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.teacher)
+        row = self.client.get(reverse('proctor_feed', args=[self.activity.id])).json()['students'][0]
+        self.assertEqual(row['connection_state'], 'SUBMITTED')
+        self.assertIsNone(row['snapshot_id'])
+        self.assertIsNone(row['image_url'])
+        self.assertTrue(ProctorSnapshot.objects.filter(pk=snapshot.pk).exists())
+
+    def test_monitor_feed_hides_all_images_after_capture_stops_or_exam_closes(self):
+        ProctorSnapshot.objects.create(
+            activity=self.activity, student=self.student, image='proctor_snapshots/test.jpg',
+        )
+        self.client.force_login(self.teacher)
+        self.client.post(reverse('proctor_capture_toggle', args=[self.activity.id]))
+        feed = self.client.get(reverse('proctor_feed', args=[self.activity.id])).json()
+        self.assertFalse(feed['capture_enabled'])
+        self.assertTrue(feed['activity_open'])
+        self.assertIsNone(feed['students'][0]['snapshot_id'])
+
+        self.activity.deadline = timezone.now() - timedelta(seconds=1)
+        self.activity.save(update_fields=['deadline'])
+        feed = self.client.get(reverse('proctor_feed', args=[self.activity.id])).json()
+        self.assertFalse(feed['activity_open'])
+        self.assertIsNone(feed['students'][0]['image_url'])

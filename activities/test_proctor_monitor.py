@@ -65,6 +65,15 @@ class ProctorConnectionStateTests(SimpleTestCase):
             'LIVE',
         )
 
+    def test_submitted_answer_overrides_stale_recording_state(self):
+        self.assertEqual(
+            get_proctor_connection_state(
+                ProctorSession.Status.RECORDING,
+                self.now - timedelta(minutes=2), self.now, self.now - timedelta(minutes=1),
+            ),
+            'SUBMITTED',
+        )
+
     def test_student_without_snapshot_has_no_record(self):
         self.assertEqual(
             get_proctor_connection_state(ProctorSession.Status.RECORDING, None, self.now),
@@ -86,6 +95,8 @@ class ProctorConnectionStateTests(SimpleTestCase):
         self.assertIn('submission-state', source)
         self.assertIn("SUBMITTED: ['state-ended', '녹화 종료']", source)
         self.assertIn('proctor-history-label', source)
+        self.assertIn("image.removeAttribute('src')", source)
+        self.assertIn("empty.textContent = !data.activity_open ? '평가 종료'", source)
 
     def test_device_diagnostics_are_allowlisted_and_bounded(self):
         diagnostics = get_proctor_diagnostics({

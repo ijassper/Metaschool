@@ -47,7 +47,11 @@ def get_proctor_activity_for_user(user, activity_id):
 
 def get_proctor_connection_state(status, latest_snapshot_at, now=None, submitted_at=None):
     """Return a teacher-facing state based on explicit events and recent server receipts."""
-    if submitted_at and status in {None, ProctorSession.Status.ENDED}:
+    if submitted_at and (
+        status in {None, ProctorSession.Status.ENDED}
+        or not latest_snapshot_at
+        or latest_snapshot_at <= submitted_at
+    ):
         return 'SUBMITTED'
     explicit_states = {
         ProctorSession.Status.AWAY: 'AWAY',
@@ -218,6 +222,9 @@ def proctor_capture_toggle(request, activity_id):
 @require_GET
 def proctor_feed(request, activity_id):
     activity = get_proctor_activity_for_user(request.user, activity_id)
+    activity_open = activity.is_attainable
+    if not activity_open:
+        end_capture_sessions([activity], '평가 종료')
     end_expired_capture_sessions(activity)
     latest = ProctorSnapshot.objects.filter(
         activity=activity, student_id=OuterRef('pk')
@@ -245,42 +252,45 @@ def proctor_feed(request, activity_id):
     with proctor_storage_status() as storage:
         storage_status = storage
     now = timezone.now()
+    student_rows = []
+    for student in students:
+        connection_state = get_proctor_connection_state(
+            student.proctor_status, student.latest_snapshot_at, now, student.answer_submitted_at,
+        )
+        screen_visible = (
+            activity_open and activity.proctor_capture_enabled
+            and connection_state not in {'ENDED', 'SUBMITTED'}
+        )
+        student_rows.append({
+            'id': student.id,
+            'name': student.name,
+            'grade': student.grade,
+            'class_no': student.class_no,
+            'number': student.number,
+            'snapshot_id': student.latest_snapshot_id if screen_visible else None,
+            'captured_at': student.latest_snapshot_at.isoformat() if student.latest_snapshot_at else None,
+            'image_url': reverse('proctor_snapshot_image', args=[student.latest_snapshot_id]) if screen_visible and student.latest_snapshot_id else None,
+            'proctor_status': student.proctor_status,
+            'proctor_status_at': student.proctor_status_at.isoformat() if student.proctor_status_at else None,
+            'proctor_message': student.proctor_message or '',
+            'connection_state': connection_state,
+            'answer_submitted_at': student.answer_submitted_at.isoformat() if student.answer_submitted_at else None,
+            'security_status': student.proctor_security_status or ProctorSession.SecurityStatus.UNKNOWN,
+            'security_updated_at': student.proctor_security_updated_at.isoformat() if student.proctor_security_updated_at else None,
+            'diagnostics': {
+                'app_version': student.proctor_app_version or '',
+                'android_version': student.proctor_android_version or '',
+                'device_model': student.proctor_device_model or '',
+                'capture_scope': student.proctor_capture_scope or '',
+            },
+        })
     return JsonResponse({
         'status': 'success',
+        'activity_open': activity_open,
         'capture_enabled': activity.proctor_capture_enabled,
         'storage': storage_status,
         'server_time': now.isoformat(),
-        'students': [
-            {
-                'id': student.id,
-                'name': student.name,
-                'grade': student.grade,
-                'class_no': student.class_no,
-                'number': student.number,
-                'snapshot_id': student.latest_snapshot_id,
-                'captured_at': student.latest_snapshot_at.isoformat() if student.latest_snapshot_at else None,
-                'image_url': reverse('proctor_snapshot_image', args=[student.latest_snapshot_id]) if student.latest_snapshot_id else None,
-                'proctor_status': student.proctor_status,
-                'proctor_status_at': student.proctor_status_at.isoformat() if student.proctor_status_at else None,
-                'proctor_message': student.proctor_message or '',
-                'connection_state': get_proctor_connection_state(
-                    student.proctor_status,
-                    student.latest_snapshot_at,
-                    now,
-                    student.answer_submitted_at,
-                ),
-                'answer_submitted_at': student.answer_submitted_at.isoformat() if student.answer_submitted_at else None,
-                'security_status': student.proctor_security_status or ProctorSession.SecurityStatus.UNKNOWN,
-                'security_updated_at': student.proctor_security_updated_at.isoformat() if student.proctor_security_updated_at else None,
-                'diagnostics': {
-                    'app_version': student.proctor_app_version or '',
-                    'android_version': student.proctor_android_version or '',
-                    'device_model': student.proctor_device_model or '',
-                    'capture_scope': student.proctor_capture_scope or '',
-                },
-            }
-            for student in students
-        ],
+        'students': student_rows,
     })
 
 
