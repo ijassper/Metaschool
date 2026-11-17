@@ -112,6 +112,11 @@ class ReplayTests(SimpleTestCase):
         self.assertEqual(data['events'][0]['label'], '화면 고정 해제')
         self.assertEqual(data['events'][0]['severity'], 'danger')
 
+    def test_security_active_event_uses_screen_pinning_label(self):
+        self.assertEqual(views.REVIEW_EVENT_LABELS[ProctorEvent.EventType.SECURITY_ACTIVE][0], '앱 화면 고정됨')
+        source = get_template('activities/proctor_replay.html').template.source
+        self.assertIn('학생의 모든 행동이 정상이라는 판정은 아닙니다.', source)
+
     def test_teacher_can_save_daily_review_result(self):
         request = RequestFactory().post(
             '/',
@@ -168,6 +173,52 @@ class ReplayTests(SimpleTestCase):
         self.assertIn('created_at__gte', filters)
         self.assertIn('created_at__lt', filters)
 
+    def test_bulk_delete_limits_students_activity_and_date(self):
+        request = RequestFactory().post('/', {
+            'date': '2026-09-17', 'student_ids': ['7', '8'],
+        })
+        request.user = self.request.user
+        activity = SimpleNamespace(id=3)
+        frames = MagicMock()
+        with patch.object(views, 'get_object_or_404', return_value=activity) as lookup, \
+                patch.object(views.ProctorSnapshot.objects, 'filter', return_value=frames) as filter_frames, \
+                patch.object(views, 'delete_snapshot_files', return_value=5) as delete, \
+                patch.object(views.messages, 'success'):
+            response = views.proctor_bulk_delete_recordings(request, 3)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('date=2026-09-17', response.url)
+        self.assertEqual(lookup.call_args.kwargs['teacher'], request.user)
+        filters = filter_frames.call_args.kwargs
+        self.assertIs(filters['activity'], activity)
+        self.assertEqual(filters['student_id__in'], {7, 8})
+        self.assertIn('created_at__gte', filters)
+        self.assertIn('created_at__lt', filters)
+        delete.assert_called_once_with(frames)
+
+    def test_bulk_delete_rejects_missing_date_or_students(self):
+        for data in ({'student_ids': ['7']}, {'date': '2026-09-17'},
+                     {'date': '2026-09-17', 'student_ids': ['7', '7']},
+                     {'date': 'bad-date', 'student_ids': ['7']}):
+            request = RequestFactory().post('/', data)
+            request.user = self.request.user
+            with patch.object(views, 'get_object_or_404', return_value=SimpleNamespace(id=3)), \
+                    patch.object(views, 'delete_snapshot_files') as delete:
+                response = views.proctor_bulk_delete_recordings(request, 3)
+            self.assertEqual(response.status_code, 400)
+            delete.assert_not_called()
+
+    def test_bulk_delete_denies_non_owner(self):
+        request = RequestFactory().post('/', {
+            'date': '2026-09-17', 'student_ids': ['7'],
+        })
+        request.user = self.request.user
+        with patch.object(views, 'get_object_or_404', side_effect=Http404) as lookup, \
+                patch.object(views, 'delete_snapshot_files') as delete:
+            with self.assertRaises(Http404):
+                views.proctor_bulk_delete_recordings(request, 3)
+        self.assertEqual(lookup.call_args.kwargs['teacher'], request.user)
+        delete.assert_not_called()
+
     @override_settings(DEBUG=True)
     def test_cards_show_recorded_and_unrecorded_students(self):
         students = [SimpleNamespace(id=7, name='기록학생', grade=2, class_no=6, number=1,
@@ -184,6 +235,9 @@ class ReplayTests(SimpleTestCase):
         self.assertIn('id="replayModal"', html)
         self.assertIn('loading="lazy"', html)
         self.assertEqual(html.count('class="replay-card"'), 2)
+        self.assertIn('name="student_ids" value="7"', html)
+        self.assertNotIn('name="student_ids" value="8"', html)
+        self.assertIn('id="replayBulkDeleteForm"', html)
 
     def test_gallery_rejects_invalid_dates(self):
         self.request.GET = {'date': '2026-99-99'}

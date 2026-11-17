@@ -38,7 +38,7 @@ REVIEW_EVENT_LABELS = {
     ProctorEvent.EventType.APP_BACKGROUND: ('앱 이탈', 'danger'),
     ProctorEvent.EventType.APP_FOREGROUND: ('앱 복귀', 'success'),
     ProctorEvent.EventType.PINNING_RELEASED: ('화면 고정 해제', 'danger'),
-    ProctorEvent.EventType.SECURITY_ACTIVE: ('보안 정상', 'success'),
+    ProctorEvent.EventType.SECURITY_ACTIVE: ('앱 화면 고정됨', 'success'),
     ProctorEvent.EventType.CAPTURE_STOPPED: ('녹화 중단', 'danger'),
     ProctorEvent.EventType.ERROR: ('녹화 오류', 'danger'),
 }
@@ -95,6 +95,37 @@ def proctor_delete_recording(request, activity_id, student_id):
     if day:
         destination = f'{destination}?date={day}'
     return redirect(destination)
+
+
+@login_required
+@teacher_required
+@require_POST
+def proctor_bulk_delete_recordings(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
+    day = request.POST.get('date', '')
+    student_values = request.POST.getlist('student_ids')
+    try:
+        selected_date = parse_date(day)
+        if not selected_date:
+            raise ValueError('기록 날짜를 선택해 주세요.')
+        if not student_values or len(student_values) > 1000:
+            raise ValueError('삭제할 학생을 1명 이상 선택해 주세요.')
+        student_ids = {int(value) for value in student_values}
+        if len(student_ids) != len(student_values) or any(value <= 0 for value in student_ids):
+            raise ValueError('학생 선택 값이 올바르지 않습니다.')
+    except (TypeError, ValueError):
+        return JsonResponse({'message': '날짜 또는 학생 선택 값이 올바르지 않습니다.'}, status=400)
+
+    start, end = recording_day_bounds(selected_date)
+    frames = ProctorSnapshot.objects.filter(
+        activity=activity,
+        student_id__in=student_ids,
+        created_at__gte=start,
+        created_at__lt=end,
+    )
+    deleted = delete_snapshot_files(frames)
+    messages.success(request, f'선택한 학생 {len(student_ids)}명의 감독 화면 기록 {deleted}장을 삭제했습니다.')
+    return redirect(f"{reverse('proctor_replay', args=[activity.id])}?date={selected_date.isoformat()}")
 
 
 @login_required
