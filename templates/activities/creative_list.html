@@ -16,7 +16,7 @@
                     <th class="text-center">번호</th>
                     <th>활동명</th>
                     <th>주제</th>
-                    <th class="text-center">상태(On/Off)</th>
+                    <th class="text-center">응시 상태</th>
                     <th>생성일</th>
                     <th class="text-center">제출관리</th>
                     <th class="text-center">분석작업</th>
@@ -33,23 +33,9 @@
                         </a>
                     </td>
                     <td>{{ activity.title }}</td>
-                    <!-- 2. 상태 토글 버튼 (클릭하면 즉시 시작/마감) -->
+                    <!-- 일정 상태와 교사 일시중지를 분리합니다. -->
                     <td class="text-center">
-                        {% if activity.is_schedule_controlled %}<span class="activity-auto-control-badge">자동 제어 중</span>{% endif %}
-                        <!-- 클릭 시 views.py의 toggle_activity_status 함수 호출 -->
-                        <button type="button"
-                                class="activity-status-toggle {% if activity.is_active %}is-on{% else %}is-off{% endif %}"
-                                role="switch"
-                                aria-checked="{% if activity.is_active %}true{% else %}false{% endif %}"
-                                aria-label="{% if activity.is_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
-                                title="{% if activity.is_active %}On{% else %}Off{% endif %}"
-                                data-activity-status-toggle
-                                data-url="{% url 'toggle_activity_status' activity.id %}">
-                            <span class="activity-status-knob"></span>
-                        </button>
-                        {% if activity.status_code == 'CLOSED' %}
-                            <span class="activity-expired-badge badge rounded-pill bg-secondary-subtle text-secondary border ms-2">기한 만료</span>
-                        {% endif %}
+                        {% include 'components/activity_status_control.html' %}
                     </td>
                     <td>{{ activity.created_at|localtime|date:"Y-m-d" }}</td>
                     <!-- 3. 제출 현황(답안 보기) -->

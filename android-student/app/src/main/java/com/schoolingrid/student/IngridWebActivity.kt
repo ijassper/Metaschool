@@ -64,6 +64,7 @@ class IngridWebActivity : Activity() {
     private lateinit var studentIdentityText: TextView
     private lateinit var dashboardSwipeRefresh: SwipeRefreshLayout
     private var captureActive = false
+    private var screenLockedCaptureStopped = false
     private var awaitingCapturePermission = false
     private var kioskModeActive = false
     private var kioskExpected = false
@@ -158,6 +159,7 @@ class IngridWebActivity : Activity() {
             when (intent?.getStringExtra(ProctorCaptureService.EXTRA_CAPTURE_STATE)) {
                 ProctorCaptureService.CAPTURE_STATE_STARTED -> {
                     captureActive = true
+                    screenLockedCaptureStopped = false
                     showCaptureStatus(CaptureUiState.RECORDING)
                     notifyCaptureStateChanged(true, "")
                 }
@@ -173,13 +175,12 @@ class IngridWebActivity : Activity() {
                 ProctorCaptureService.CAPTURE_STATE_STOPPED -> {
                     captureActive = false
                     reportedBackground = false
+                    val stopMessage = intent.getStringExtra(ProctorCaptureService.EXTRA_CAPTURE_MESSAGE)
+                        ?: "화면 녹화가 중단되었습니다."
+                    screenLockedCaptureStopped = stopMessage.contains("화면 잠금")
                     leaveSecureMode()
                     showCaptureStatus(CaptureUiState.STOPPED)
-                    notifyCaptureStateChanged(
-                        false,
-                        intent.getStringExtra(ProctorCaptureService.EXTRA_CAPTURE_MESSAGE)
-                            ?: "화면 녹화가 중단되었습니다.",
-                    )
+                    notifyCaptureStateChanged(false, stopMessage)
                 }
             }
         }
@@ -341,6 +342,9 @@ class IngridWebActivity : Activity() {
             reportedBackground = false
             updateCaptureContext(false)
             ProctorEventReporter.send(eventUrl, eventCsrfToken, eventCookie, "APP_FOREGROUND")
+        }
+        if (screenLockedCaptureStopped && isExamPageUrl(webView.url.orEmpty())) {
+            notifyCaptureStateChanged(false, "화면 잠금으로 녹화를 일시중지했습니다. 다시 시작해 주세요.")
         }
     }
 
@@ -912,6 +916,7 @@ class IngridWebActivity : Activity() {
             })
         }
         captureActive = false
+        screenLockedCaptureStopped = false
         reportedBackground = false
         kioskExpected = false
         pinningLossReported = false

@@ -79,20 +79,9 @@
                                 {% endif %}
                             </td>
 
-                            <!-- 상태 토글 -->
+                            <!-- 일정 상태와 교사 일시중지를 분리합니다. -->
                             <td class="unified-list-status-cell">
-                                {% if act.is_schedule_controlled %}<span class="activity-auto-control-badge">자동 제어 중</span>{% endif %}
-                                <button type="button"
-                                        class="activity-status-toggle {% if act.is_active %}is-on{% else %}is-off{% endif %}"
-                                        role="switch"
-                                        aria-checked="{% if act.is_active %}true{% else %}false{% endif %}"
-                                        aria-label="{% if act.is_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
-                                        title="{% if act.is_active %}On{% else %}Off{% endif %}"
-                                        data-activity-status-toggle
-                                        data-url="{% url 'toggle_activity_status' act.id %}"
-                                        data-deadline-target="#activity-deadline-{{ act.id }}">
-                                    <span class="activity-status-knob"></span>
-                                </button>
+                                {% include 'components/activity_status_control.html' with activity=act %}
                             </td>
 
                             <!-- 응시 기간 -->
@@ -216,27 +205,7 @@
     .unified-list-status-cell {
         text-align: center;
     }
-    .unified-list-table .activity-status-toggle {
-        width: 46px;
-        height: 26px;
-        vertical-align: middle;
-        transform: scale(0.92);
-        transform-origin: center;
-    }
     .unified-list-status-cell { display:table-cell; }
-    .unified-list-status-cell .activity-auto-control-badge { margin:0 auto .3rem; }
-    .unified-list-table .activity-status-toggle:hover {
-        transform: translateY(-1px) scale(0.92);
-    }
-    .unified-list-table .activity-status-knob {
-        top: 3px;
-        left: 3px;
-        width: 18px;
-        height: 18px;
-    }
-    .unified-list-table .activity-status-toggle.is-on .activity-status-knob {
-        transform: translateX(20px);
-    }
     .deadline-cell {
         font-size: 0.95rem;
         line-height: 1.2;

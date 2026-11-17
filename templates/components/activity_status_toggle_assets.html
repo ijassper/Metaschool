@@ -1,63 +1,14 @@
 <style>
-    .activity-status-toggle {
-        position: relative;
-        width: 58px;
-        height: 32px;
-        border: 1px solid rgba(134, 142, 150, 0.18);
-        border-radius: 24px;
-        padding: 0;
+    .activity-status-control { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .activity-status-label { font-size: 0.75rem; font-weight: 800; white-space: nowrap; }
+    .activity-paused-note { color: #9a3412; font-size: 0.66rem; font-weight: 700; }
+    .activity-pause-button {
+        border: 1px solid #d97706; border-radius: 999px; padding: 3px 10px;
+        background: #fffbeb; color: #92400e; font-size: 0.7rem; font-weight: 700;
         cursor: pointer;
-        background: rgba(173, 181, 189, 0.55);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
     }
-
-    .activity-auto-control-badge {
-        display: block;
-        width: max-content;
-        margin: 0 auto 5px;
-        padding: 3px 7px;
-        border: 1px solid rgba(142, 68, 173, 0.18);
-        border-radius: 999px;
-        background: #f5eaf8;
-        color: #7d3c98;
-        font-size: 0.62rem;
-        font-weight: 800;
-        line-height: 1.2;
-        white-space: nowrap;
-    }
-
-    .activity-status-toggle:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-    }
-
-    .activity-status-toggle.is-on {
-        background: rgba(8, 127, 91, 0.9);
-        border-color: rgba(8, 127, 91, 0.2);
-    }
-
-    .activity-status-toggle.is-off {
-        background: rgba(173, 181, 189, 0.65);
-        border-color: rgba(108, 117, 125, 0.18);
-    }
-
-    .activity-status-knob {
-        position: absolute;
-        top: 4px;
-        left: 4px;
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.98);
-        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
-        transition: transform 0.2s ease;
-    }
-
-    .activity-status-toggle.is-on .activity-status-knob {
-        transform: translateX(26px);
-    }
+    .activity-pause-button.is-paused { border-color: #087f5b; background: #ecfdf5; color: #065f46; }
+    .activity-pause-button:hover { filter: brightness(0.95); }
 
     .activity-status-toast {
         position: fixed;
@@ -110,12 +61,24 @@
             }, 2800);
         };
 
-        window.applyActivityStatus = function(button, isOn) {
-            button.classList.toggle('is-on', isOn);
-            button.classList.toggle('is-off', !isOn);
-            button.setAttribute('aria-checked', isOn ? 'true' : 'false');
-            button.setAttribute('aria-label', isOn ? '활동 상태 끄기' : '활동 상태 켜기');
-            button.setAttribute('title', isOn ? 'On' : 'Off');
+        window.applyActivityStatus = function(button, data) {
+            button.classList.toggle('is-paused', data.is_paused);
+            button.textContent = data.is_paused ? '재개' : '일시중지';
+            button.setAttribute('aria-label', data.is_paused ? '교사 일시중지 해제' : '학생 응시 일시중지');
+            const control = button.closest('.activity-status-control');
+            const label = control && control.querySelector('[data-activity-status-label]');
+            if (label) label.textContent = data.status_text;
+            let note = control && control.querySelector('[data-activity-paused-note]');
+            if (data.is_paused && data.status_code !== 'PAUSED' && !note && control) {
+                note = document.createElement('span');
+                note.className = 'activity-paused-note';
+                note.dataset.activityPausedNote = '';
+                control.insertBefore(note, button);
+            }
+            if (note) {
+                note.textContent = '교사 일시중지';
+                note.hidden = !data.is_paused || data.status_code === 'PAUSED';
+            }
         };
 
         document.addEventListener('click', function(event) {
@@ -138,43 +101,8 @@
                     return response.json();
                 })
                 .then(function(data) {
-                    window.applyActivityStatus(button, data.is_active);
-
-                    if (button.dataset.deadlineTarget && data.deadline_display) {
-                        const deadlineTarget = document.querySelector(button.dataset.deadlineTarget);
-                        if (deadlineTarget) {
-                            if (deadlineTarget.classList.contains('deadline-display')) {
-                                const parts = data.deadline_display.split(' ');
-                                deadlineTarget.innerHTML = '';
-
-                                const startDisplay = deadlineTarget.dataset.startDisplay;
-                                if (startDisplay) {
-                                    const startLine = document.createElement('span');
-                                    startLine.className = 'deadline-date';
-                                    startLine.textContent = `${startDisplay} ~`;
-                                    deadlineTarget.appendChild(startLine);
-                                }
-
-                                const dateLine = document.createElement('span');
-                                dateLine.className = 'deadline-date';
-                                dateLine.textContent = parts[1] ? `${parts[0]} ${parts[1]}` : data.deadline_display;
-                                deadlineTarget.appendChild(dateLine);
-                            } else {
-                                deadlineTarget.textContent = data.deadline_display;
-                            }
-                        }
-                    }
-
-                    const row = button.closest('tr');
-                    const expiredBadge = row ? row.querySelector('.activity-expired-badge') : null;
-                    if (row && data.status_code !== 'CLOSED') {
-                        row.classList.remove('opacity-75');
-                    }
-                    if (expiredBadge && data.status_code !== 'CLOSED') {
-                        expiredBadge.remove();
-                    }
-
-                    window.showActivityStatusToast(data.deadline_extended ? '기한이 1개월 연장되었습니다.' : data.message);
+                    window.applyActivityStatus(button, data);
+                    window.showActivityStatusToast(data.message);
                 })
                 .catch(function(error) {
                     window.showActivityStatusToast(error.message || '상태 변경 중 오류가 발생했습니다.');

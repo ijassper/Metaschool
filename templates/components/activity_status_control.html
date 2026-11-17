@@ -1,0 +1,15 @@
+<div class="activity-status-control">
+    <span class="activity-status-label" data-activity-status-label>{{ activity.status_text }}</span>
+    {% if activity.is_paused and activity.status_code != 'PAUSED' %}
+        <span class="activity-paused-note" data-activity-paused-note>교사 일시중지</span>
+    {% endif %}
+    {% if activity.status_code != 'CLOSED' or activity.is_paused %}
+        <button type="button"
+                class="activity-pause-button {% if activity.is_paused %}is-paused{% endif %}"
+                data-activity-status-toggle
+                data-url="{% url 'toggle_activity_status' activity.id %}"
+                aria-label="{% if activity.is_paused %}교사 일시중지 해제{% else %}학생 응시 일시중지{% endif %}">
+            {% if activity.is_paused %}재개{% else %}일시중지{% endif %}
+        </button>
+    {% endif %}
+</div>

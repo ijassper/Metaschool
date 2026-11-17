@@ -1705,8 +1705,8 @@
     const csrfToken = '{{ csrf_token }}';
     const PROCTOR_MODE = {{ activity.proctor_mode|yesno:"true,false" }};
     const PROCTOR_CAPTURE_SCOPE = '{{ activity.proctor_capture_scope|default:"FULL_DISPLAY"|escapejs }}';
-    const PROCTOR_UPLOAD_URL = "{% url 'upload_proctor_snapshot' activity.id %}";
-    const PROCTOR_EVENT_URL = "{% url 'report_proctor_event' activity.id %}";
+    const PROCTOR_UPLOAD_URL = "{% url 'upload_proctor_snapshot' activity.id %}?capture_token={{ proctor_capture_token|urlencode }}";
+    const PROCTOR_EVENT_URL = "{% url 'report_proctor_event' activity.id %}?capture_token={{ proctor_capture_token|urlencode }}";
     const PROCTOR_INTERVAL_MS = 3000;
     const IS_INGRID_ANDROID_APP = Boolean(
         window.IngridAndroid && typeof window.IngridAndroid.requestScreenCapture === 'function'
@@ -2179,6 +2179,7 @@
     window.onIngridCaptureStateChanged = function (active, message) {
         if (!IS_INGRID_ANDROID_APP || !PROCTOR_MODE) return;
         if (active) setProctorStatus('화면 녹화중');
+        else if (message && message.includes('응시가 종료')) setProctorStatus('응시 종료 · 화면 저장 중단');
         else showProctorRestart(message || '화면 녹화가 중단되었습니다.');
     };
 
@@ -2311,6 +2312,16 @@
             if (response.status === 507) {
                 stopProctorCapture();
                 setProctorStatus('화면 저장 중단 · 답안 저장 가능', true);
+                return;
+            }
+            if (response.status === 410) {
+                stopProctorCapture();
+                setProctorStatus('응시 종료 · 화면 저장 중단', false);
+                return;
+            }
+            if (response.status === 409) {
+                stopProctorCapture();
+                showProctorRestart('화면 녹화가 중단되었습니다. 다시 시작해 주세요.');
                 return;
             }
             if (response.ok) setProctorStatus('감독 화면 공유 중 · 3초 간격');

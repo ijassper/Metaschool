@@ -6,6 +6,9 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.pm.ServiceInfo
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -55,12 +58,27 @@ class ProctorCaptureService : Service() {
     private var snapshotBuffer: EncryptedSnapshotBuffer? = null
     @Volatile private var bufferingSnapshots = false
     private var lastUploadStartedAt = 0L
+    private var stopMessage = "화면 녹화가 중단되었습니다. 다시 시작해 주세요."
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                stopMessage = "화면 잠금으로 녹화를 일시중지했습니다. 응시 중이라면 다시 시작해 주세요."
+                stopSelf()
+            }
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF), RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -280,6 +298,13 @@ class ProctorCaptureService : Service() {
                 continue
             }
             val status = uploadSnapshotWithRetry(jpeg, pending.capturedAt)
+            if (status == HTTP_SESSION_ENDED) {
+                snapshotBuffer?.clear()
+                synchronized(pendingSnapshotsLock) { pendingSnapshots.clear() }
+                stopMessage = "응시가 종료되어 화면 녹화를 중단했습니다."
+                stopSelf()
+                return
+            }
             if (status == HTTP_INSUFFICIENT_STORAGE) {
                 stopSelf()
                 return
@@ -511,8 +536,9 @@ class ProctorCaptureService : Service() {
         .build()
 
     override fun onDestroy() {
+        unregisterReceiver(screenOffReceiver)
         if (eventUrl.isNotBlank()) {
-            ProctorEventReporter.send(eventUrl, csrfToken, cookie, "CAPTURE_STOPPED")
+            ProctorEventReporter.send(eventUrl, csrfToken, cookie, "CAPTURE_STOPPED", stopMessage)
         }
         imageReader?.setOnImageAvailableListener(null, null)
         virtualDisplay?.release()
@@ -525,7 +551,7 @@ class ProctorCaptureService : Service() {
         imageReader = null
         mediaProjection = null
         captureThread = null
-        notifyCaptureState(CAPTURE_STATE_STOPPED, "화면 녹화가 중단되었습니다. 다시 시작해 주세요.")
+        notifyCaptureState(CAPTURE_STATE_STOPPED, stopMessage)
         super.onDestroy()
     }
 
@@ -578,6 +604,7 @@ class ProctorCaptureService : Service() {
         private const val JPEG_QUALITY = 55
         private const val MAX_SECURE_FRAME_BYTES = 480_000
         private const val HTTP_INSUFFICIENT_STORAGE = 507
+        private const val HTTP_SESSION_ENDED = 410
         private const val MAX_UPLOAD_ATTEMPTS = 3
         private const val MAX_PENDING_SNAPSHOTS = 20
         private const val QUEUE_RETRY_DELAY_MS = 5_000L

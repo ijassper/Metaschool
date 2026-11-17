@@ -46,7 +46,7 @@ def get_proctor_activity_for_user(user, activity_id):
 
 def get_proctor_connection_state(status, latest_snapshot_at, now=None, submitted_at=None):
     """Return a teacher-facing state based on explicit events and recent server receipts."""
-    if submitted_at:
+    if submitted_at and status in {None, ProctorSession.Status.ENDED}:
         return 'SUBMITTED'
     explicit_states = {
         ProctorSession.Status.AWAY: 'AWAY',
@@ -56,6 +56,8 @@ def get_proctor_connection_state(status, latest_snapshot_at, now=None, submitted
     }
     if status in explicit_states:
         return explicit_states[status]
+    if status == ProctorSession.Status.WAITING:
+        return 'WAITING'
     if not latest_snapshot_at:
         return 'NONE'
     age_seconds = max(0, ((now or timezone.now()) - latest_snapshot_at).total_seconds())

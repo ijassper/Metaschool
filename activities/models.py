@@ -155,6 +155,7 @@ class Activity(models.Model):
     # --- [6. 대상 및 상태] ---
     target_students = models.ManyToManyField('accounts.Student', blank=True, related_name='activities', verbose_name="대상 학생")
     is_active = models.BooleanField(default=False, verbose_name="활성화 여부")
+    is_paused = models.BooleanField(default=False, verbose_name="교사 일시중지 여부")
 
     # --- [기타 중요 정보 (AI 분석용)] ---
     achievement_standard = models.TextField(blank=True, null=True, verbose_name="성취 기준")
@@ -224,6 +225,8 @@ class Activity(models.Model):
             return 'SCHEDULED'
         if self.deadline and now > self.deadline:
             return 'CLOSED'
+        if self.is_paused:
+            return 'PAUSED'
         return 'ONGOING' if self.is_active else 'INACTIVE'
 
     @property
@@ -257,7 +260,7 @@ class Activity(models.Model):
 
     @property
     def is_attainable(self):
-        if not self.is_active:
+        if not self.is_active or self.is_paused:
             return False
         if self.start_time and timezone.now() < self.start_time:
             return False
@@ -303,6 +306,8 @@ class Activity(models.Model):
             return "예약됨"
         if self.deadline and timezone.now() > self.deadline:
             return "마감됨"
+        if self.is_paused:
+            return "일시중지"
         if self.is_attainable:
             return "진행중"
         return "대기중"
@@ -313,6 +318,8 @@ class Activity(models.Model):
             return "SCHEDULED"
         if self.deadline and timezone.now() > self.deadline:
             return "CLOSED"
+        if self.is_paused:
+            return "PAUSED"
         if self.is_attainable:
             return "ONGOING"
         return "READY"
@@ -622,6 +629,7 @@ class ProctorSession(models.Model):
     left_at = models.DateTimeField(null=True, blank=True)
     returned_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+    capture_token = models.CharField(max_length=32, blank=True)
     last_message = models.CharField(max_length=255, blank=True)
     app_version = models.CharField(max_length=32, blank=True, verbose_name='학생 앱 버전')
     android_version = models.CharField(max_length=32, blank=True, verbose_name='Android 버전')

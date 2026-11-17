@@ -1,6 +1,5 @@
 # 생성/수정/삭제/상태변경 (unified_create, delete 등)
 
-import calendar
 import json
 import logging
 from datetime import datetime, timedelta
@@ -11,12 +10,13 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.db import transaction
 
 # [핵심] 같은 폴더(views) 내의 main_views에서 공통 함수 가져오기
 from .main_views import get_accessible_student_ids, get_form_config, get_student_tree
 
 # [핵심] 상위 폴더(..)의 models.py에서 모델들 가져오기
-from ..models import Activity, Question, Answer, ActivityFile
+from ..models import Activity, Question, Answer, ActivityFile, ProctorSession
 
 # [중요] 교사 권한 데코레이터 가져오기 (accounts 앱에서)
 from accounts.decorators import teacher_required
@@ -669,47 +669,40 @@ def unified_delete(request, activity_id):
     query_string = urlencode(params, doseq=True)
     return redirect(f'/activities/list/?{query_string}')
 
-# 평가 상태 토글 (시작 <-> 마감)
+# 교사가 설정한 일시중지 상태는 응시 기간의 자동 제어와 독립적으로 유지합니다.
+@require_POST
 @login_required
 @teacher_required
 def toggle_activity_status(request, activity_id):
-    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user)
-
-    def add_one_month(dt):
-        year = dt.year + (1 if dt.month == 12 else 0)
-        month = 1 if dt.month == 12 else dt.month + 1
-        day = min(dt.day, calendar.monthrange(year, month)[1])
-        return dt.replace(year=year, month=month, day=day)
-
-    now = timezone.now()
-    old_deadline = activity.deadline
-    is_deadline_passed = bool(activity.deadline and now > activity.deadline)
-    deadline_extended = False
-
-    if activity.is_active:
-        activity.is_active = False
-        status_msg = "평가가 [마감]되었습니다."
-        update_fields = ['is_active']
-    else:
-        activity.is_active = True
-        activity.allow_edit_after_submission = True
-        if is_deadline_passed:
-            activity.deadline = add_one_month(now)
-            deadline_extended = True
-            sync_status_on_deadline_extension(activity, old_deadline, activity.deadline)
-            status_msg = "평가가 [시작]되었고 제출 기한이 1개월 연장되었습니다."
-            update_fields = ['is_active', 'allow_edit_after_submission', 'deadline']
-        else:
-            status_msg = "평가가 [시작]되었습니다."
-            update_fields = ['is_active', 'allow_edit_after_submission']
-
-    activity.save(update_fields=update_fields)
+    with transaction.atomic():
+        activity = get_object_or_404(
+            Activity.objects.select_for_update(), id=activity_id, teacher=request.user,
+        )
+        activity.is_paused = not activity.is_paused
+        activity.save(update_fields=['is_paused'])
+        if activity.is_paused and activity.proctor_mode:
+            paused_at = timezone.now()
+            ProctorSession.objects.filter(activity=activity).exclude(
+                status=ProctorSession.Status.ENDED,
+            ).update(
+                status=ProctorSession.Status.ENDED,
+                capture_token='',
+                ended_at=paused_at,
+                last_message='교사 일시중지',
+                updated_at=paused_at,
+            )
+    status_msg = (
+        "교사가 응시를 일시중지했습니다. 학생의 입장·저장·제출이 차단됩니다."
+        if activity.is_paused else
+        "교사 일시중지를 해제했습니다. 원래 응시 기간에만 응시할 수 있습니다."
+    )
 
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return JsonResponse({
             'status': 'success',
             'activity_id': activity.id,
             'is_active': activity.is_active,
+            'is_paused': activity.is_paused,
             'is_attainable': activity.is_attainable,
             'is_effectively_active': activity.is_effectively_active,
             'allow_edit_after_submission': activity.allow_edit_after_submission,
@@ -717,7 +710,6 @@ def toggle_activity_status(request, activity_id):
             'status_text': activity.status_text,
             'deadline': activity.deadline.isoformat() if activity.deadline else '',
             'deadline_display': timezone.localtime(activity.deadline).strftime('%Y-%m-%d %H:%M') if activity.deadline else '기한 없음',
-            'deadline_extended': deadline_extended,
             'message': status_msg,
         })
 

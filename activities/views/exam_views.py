@@ -1,5 +1,6 @@
 import json
 import hashlib
+import uuid
 from functools import wraps
 from urllib.parse import urlparse
 
@@ -259,23 +260,35 @@ def upload_proctor_snapshot(request, activity_id):
     if uploaded.size > 500 * 1024:
         return JsonResponse({'status': 'error', 'message': '화면 이미지가 너무 큽니다.'}, status=413)
 
-    latest = ProctorSnapshot.objects.filter(activity=activity, student=student).only('created_at').first()
-    if latest and (timezone.now() - latest.created_at).total_seconds() < 2:
-        return JsonResponse({'status': 'ignored', 'message': '전송 간격이 너무 짧습니다.'}, status=202)
-
     client_time = parse_datetime(request.POST.get('captured_at', ''))
     if client_time and timezone.is_naive(client_time):
         client_time = timezone.make_aware(client_time)
-    with proctor_storage_status(uploaded.size) as storage:
-        if not storage['allowed']:
-            return JsonResponse({'status': 'storage_paused', **storage}, status=507)
-        snapshot = ProctorSnapshot.objects.create(
-            activity=activity,
-            student=student,
-            image=uploaded,
-            client_captured_at=client_time,
-        )
-        session, _ = ProctorSession.objects.get_or_create(activity=activity, student=student)
+    with transaction.atomic():
+        session = ProctorSession.objects.select_for_update().filter(
+            activity=activity, student=student,
+        ).first()
+        if (
+            not session
+            or not session.capture_token
+            or request.GET.get('capture_token') != session.capture_token
+            or session.status == ProctorSession.Status.ENDED
+            or not activity.is_attainable
+        ):
+            return JsonResponse({'status': 'session_ended', 'message': '종료된 응시입니다.'}, status=410)
+        if session.status == ProctorSession.Status.DISCONNECTED:
+            return JsonResponse({'status': 'capture_paused', 'message': '녹화가 중단된 상태입니다.'}, status=409)
+        latest = ProctorSnapshot.objects.filter(activity=activity, student=student).only('created_at').first()
+        if latest and (timezone.now() - latest.created_at).total_seconds() < 2:
+            return JsonResponse({'status': 'ignored', 'message': '전송 간격이 너무 짧습니다.'}, status=202)
+        with proctor_storage_status(uploaded.size) as storage:
+            if not storage['allowed']:
+                return JsonResponse({'status': 'storage_paused', **storage}, status=507)
+            snapshot = ProctorSnapshot.objects.create(
+                activity=activity,
+                student=student,
+                image=uploaded,
+                client_captured_at=client_time,
+            )
         session.last_seen_at = timezone.now()
         if not session.started_at:
             session.started_at = session.last_seen_at
@@ -305,24 +318,26 @@ def finish_proctor_session_for_answer(answer, ended_at=None):
     if not activity.proctor_mode:
         return
     ended_at = ended_at or timezone.now()
-    session, _ = ProctorSession.objects.get_or_create(
-        activity=activity,
-        student=answer.student,
-    )
-    session.status = ProctorSession.Status.ENDED
-    session.ended_at = ended_at
-    session.last_seen_at = ended_at
-    session.last_message = ''
-    session.save(update_fields=[
-        'status', 'ended_at', 'last_seen_at', 'last_message', 'updated_at',
-    ])
-    if not session.events.filter(event_type=ProctorEvent.EventType.EXAM_ENDED).exists():
-        ProctorEvent.objects.create(
-            session=session,
-            event_type=ProctorEvent.EventType.EXAM_ENDED,
-            client_occurred_at=ended_at,
-            message='답안 제출 완료',
+    with transaction.atomic():
+        session, _ = ProctorSession.objects.select_for_update().get_or_create(
+            activity=activity,
+            student=answer.student,
         )
+        session.status = ProctorSession.Status.ENDED
+        session.capture_token = ''
+        session.ended_at = ended_at
+        session.last_seen_at = ended_at
+        session.last_message = ''
+        session.save(update_fields=[
+            'status', 'capture_token', 'ended_at', 'last_seen_at', 'last_message', 'updated_at',
+        ])
+        if not session.events.filter(event_type=ProctorEvent.EventType.EXAM_ENDED).exists():
+            ProctorEvent.objects.create(
+                session=session,
+                event_type=ProctorEvent.EventType.EXAM_ENDED,
+                client_occurred_at=ended_at,
+                message='답안 제출 완료',
+            )
 
 
 @login_required
@@ -371,6 +386,8 @@ def report_proctor_event(request, activity_id):
             activity=activity,
             student=student,
         )
+        if request.GET.get('capture_token') != session.capture_token or not session.capture_token:
+            return JsonResponse({'status': 'session_ended', 'message': '종료된 응시입니다.'}, status=410)
         if (
             session.status == ProctorSession.Status.ENDED
             and event_type in {
@@ -432,6 +449,22 @@ def ensure_exam_question(activity):
     return question
 
 
+def open_proctor_capture_session(activity, student):
+    """Issue a fresh server-side capture lease for this exam page visit."""
+    if not activity.proctor_mode:
+        return ''
+    with transaction.atomic():
+        session, _ = ProctorSession.objects.select_for_update().get_or_create(
+            activity=activity, student=student,
+        )
+        session.capture_token = uuid.uuid4().hex
+        session.status = ProctorSession.Status.WAITING
+        session.ended_at = None
+        session.last_seen_at = None
+        session.save(update_fields=['capture_token', 'status', 'ended_at', 'last_seen_at', 'updated_at'])
+        return session.capture_token
+
+
 def build_exam_context(request, activity, question, answer=None, exam_started=False, student=None):
     security_state = update_exam_security_session(request, activity)
     is_copy_locked = security_state['is_copy_protected']
@@ -450,6 +483,9 @@ def build_exam_context(request, activity, question, answer=None, exam_started=Fa
     return {
         'activity': activity,
         'proctor_retention_days': getattr(settings, 'PROCTOR_RETENTION_DAYS', 30),
+        'proctor_capture_token': open_proctor_capture_session(
+            activity, student or (answer.student if answer else None),
+        ),
         'question': question,
         'answer': answer,
         'student': student or (answer.student if answer else None),
@@ -587,41 +623,46 @@ def take_test(request, activity_id):
     answer = existing_answer
 
     if request.method == 'POST':
-        answer, _ = Answer.objects.get_or_create(student=student_info, question=question)
-        is_exit_submit = request.POST.get('is_exit') == 'true'
-        is_final_submit = request.POST.get('is_submit') == 'true' or is_exit_submit
-
-        if is_final_submit:
-            limit_error = character_limit_error(activity, submitted_answer_char_count(activity, request.POST))
-            if limit_error:
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({'status': 'error', 'message': limit_error}, status=400)
-                save_answer_content(answer, activity, request.POST)
-                messages.error(request, limit_error)
-                context = build_exam_context(
-                    request, activity, question, answer=answer, exam_started=True, student=student_info
+        with transaction.atomic():
+            is_exit_submit = request.POST.get('is_exit') == 'true'
+            is_final_submit = request.POST.get('is_submit') == 'true' or is_exit_submit
+            if is_final_submit and activity.proctor_mode:
+                ProctorSession.objects.select_for_update().get_or_create(
+                    activity=activity, student=student_info,
                 )
-                return render(request, 'activities/take_test.html', context, status=400)
+            answer, _ = Answer.objects.get_or_create(student=student_info, question=question)
 
-        save_answer_content(answer, activity, request.POST)
+            if is_final_submit:
+                limit_error = character_limit_error(activity, submitted_answer_char_count(activity, request.POST))
+                if limit_error:
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'error', 'message': limit_error}, status=400)
+                    save_answer_content(answer, activity, request.POST)
+                    messages.error(request, limit_error)
+                    context = build_exam_context(
+                        request, activity, question, answer=answer, exam_started=True, student=student_info
+                    )
+                    return render(request, 'activities/take_test.html', context, status=400)
 
-        if is_final_submit:
-            now = timezone.localtime(timezone.now())
-            answer.submitted_at = now
-            timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
-            if is_exit_submit:
-                append_activity_log(answer, 'EXIT', timestamp)
-            else:
-                append_activity_log(answer, 'SUBMIT', timestamp)
+            save_answer_content(answer, activity, request.POST)
 
-        answer.save()
+            if is_final_submit:
+                now = timezone.localtime(timezone.now())
+                answer.submitted_at = now
+                timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+                if is_exit_submit:
+                    append_activity_log(answer, 'EXIT', timestamp)
+                else:
+                    append_activity_log(answer, 'SUBMIT', timestamp)
 
-        if is_final_submit:
-            record_answer_submission(answer)
-            finish_proctor_session_for_answer(answer, answer.submitted_at)
-            messages.success(request, "답안이 제출되었습니다")
-            return redirect('dashboard')
-        return JsonResponse({'status': 'success', 'message': '임시 저장 완료'})
+            answer.save()
+
+            if is_final_submit:
+                record_answer_submission(answer)
+                finish_proctor_session_for_answer(answer, answer.submitted_at)
+                messages.success(request, "답안이 제출되었습니다")
+                return redirect('dashboard')
+            return JsonResponse({'status': 'success', 'message': '임시 저장 완료'})
 
     context = build_exam_context(
         request, activity, question, answer=answer, exam_started=False, student=student_info
@@ -998,22 +1039,28 @@ def log_activity(request):
             if log_type not in allowed_log_types:
                 return JsonResponse({'status': 'ignored'})
             
-            answer = Answer.objects.get(id=answer_id)
-            
-            # 기존 로그에 새로운 기록 추가 (줄바꿈 포함)
-            current_log = answer.activity_log if answer.activity_log else ""
-            now = timezone.localtime(timezone.now())
-            timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
-            
-            answer.activity_log = current_log
-            append_activity_log(answer, log_type, timestamp)
-            if log_type in ['OUT', 'EXIT', 'BACK_BUTTON'] and not answer.submitted_at:
-                answer.submitted_at = now
-                answer.save(update_fields=['activity_log', 'submitted_at'])
-                record_answer_submission(answer)
-                finish_proctor_session_for_answer(answer, now)
-            else:
-                answer.save(update_fields=['activity_log'])
+            with transaction.atomic():
+                answer = Answer.objects.select_related('question__activity').get(id=answer_id)
+                if log_type in ['OUT', 'EXIT', 'BACK_BUTTON'] and answer.question.activity.proctor_mode:
+                    ProctorSession.objects.select_for_update().get_or_create(
+                        activity=answer.question.activity, student=answer.student,
+                    )
+                answer = Answer.objects.select_for_update().get(id=answer_id)
+
+                # 기존 로그에 새로운 기록 추가 (줄바꿈 포함)
+                current_log = answer.activity_log if answer.activity_log else ""
+                now = timezone.localtime(timezone.now())
+                timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+
+                answer.activity_log = current_log
+                append_activity_log(answer, log_type, timestamp)
+                if log_type in ['OUT', 'EXIT', 'BACK_BUTTON'] and not answer.submitted_at:
+                    answer.submitted_at = now
+                    answer.save(update_fields=['activity_log', 'submitted_at'])
+                    record_answer_submission(answer)
+                    finish_proctor_session_for_answer(answer, now)
+                else:
+                    answer.save(update_fields=['activity_log'])
             
             return JsonResponse({'status': 'success'})
         except Exception as e:

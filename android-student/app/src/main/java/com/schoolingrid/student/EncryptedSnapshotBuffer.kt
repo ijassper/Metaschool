@@ -80,6 +80,11 @@ class EncryptedSnapshotBuffer(
         item.file.delete()
     }
 
+    @Synchronized
+    fun clear() {
+        snapshotFiles().forEach(File::delete)
+    }
+
     private fun snapshotFiles(): List<File> = sessionDirectory
         .listFiles { file -> file.isFile && file.name.endsWith(FILE_SUFFIX) }
         .orEmpty()

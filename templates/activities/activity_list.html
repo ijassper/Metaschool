@@ -52,29 +52,6 @@
         text-align: center;
     }
 
-    .activity-list-table .activity-status-toggle {
-        width: 46px;
-        height: 26px;
-        vertical-align: middle;
-        transform: scale(0.92);
-        transform-origin: center;
-    }
-
-    .activity-list-table .activity-status-toggle:hover {
-        transform: translateY(-1px) scale(0.92);
-    }
-
-    .activity-list-table .activity-status-knob {
-        top: 3px;
-        left: 3px;
-        width: 18px;
-        height: 18px;
-    }
-
-    .activity-list-table .activity-status-toggle.is-on .activity-status-knob {
-        transform: translateX(20px);
-    }
-
     .activity-expired-badge {
         display: block;
         width: fit-content;
@@ -161,22 +138,9 @@
                             </span>
                         </td>
 
-                        <!-- 2. 상태 토글 버튼 (클릭하면 즉시 시작/마감) -->
+                        <!-- 일정 상태와 교사 일시중지를 분리합니다. -->
                         <td class="activity-list-status-cell">
-                            {% if activity.is_schedule_controlled %}<span class="activity-auto-control-badge">자동 제어 중</span>{% endif %}
-                            <button type="button"
-                                    class="activity-status-toggle {% if activity.is_active %}is-on{% else %}is-off{% endif %}"
-                                    role="switch"
-                                    aria-checked="{% if activity.is_active %}true{% else %}false{% endif %}"
-                                    aria-label="{% if activity.is_active %}활동 상태 끄기{% else %}활동 상태 켜기{% endif %}"
-                                    title="{% if activity.is_active %}On{% else %}Off{% endif %}"
-                                    data-activity-status-toggle
-                                    data-url="{% url 'toggle_activity_status' activity.id %}">
-                                <span class="activity-status-knob"></span>
-                            </button>
-                            {% if activity.status_code == 'CLOSED' %}
-                                <span class="activity-expired-badge badge rounded-pill bg-secondary-subtle text-secondary border ms-2">기한 만료</span>
-                            {% endif %}
+                            {% include 'components/activity_status_control.html' %}
                         </td>
 
                         <td class="small text-muted">{{ activity.created_at|localtime|date:"Y-m-d" }}</td>

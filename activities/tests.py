@@ -118,6 +118,31 @@ class ActivitySchedulingTests(SimpleTestCase):
         self.assertTrue(activity.sync_schedule_state(now))
         self.assertTrue(activity.is_active)
 
+    def test_teacher_pause_survives_schedule_sync_and_blocks_entry(self):
+        now = timezone.now()
+        activity = Activity(
+            start_time=now - timedelta(minutes=1),
+            deadline=now + timedelta(minutes=1),
+            is_active=False,
+            is_paused=True,
+        )
+        activity.sync_schedule_state(now)
+        self.assertTrue(activity.is_active)
+        self.assertFalse(activity.is_attainable)
+        self.assertEqual(activity.get_current_status(now), 'PAUSED')
+        self.assertEqual(activity.status_code, 'PAUSED')
+
+    def test_resuming_does_not_override_expired_deadline(self):
+        now = timezone.now()
+        activity = Activity(
+            start_time=now - timedelta(hours=2),
+            deadline=now - timedelta(hours=1),
+            is_active=True,
+            is_paused=False,
+        )
+        self.assertFalse(activity.is_attainable)
+        self.assertEqual(activity.status_code, 'CLOSED')
+
     def test_schedule_form_has_optional_start_and_deadline_fields(self):
         source = get_template('activities/unified_form.html').template.source
         self.assertIn('name="start_time"', source)
@@ -128,9 +153,12 @@ class ActivitySchedulingTests(SimpleTestCase):
         self.assertIn('col-md-auto exam-period-field', source)
         self.assertNotIn('alert("제출 기한을 입력해주세요.")', source)
 
-    def test_activity_list_marks_automatic_control(self):
+    def test_activity_list_separates_schedule_status_from_teacher_pause(self):
         source = get_template('activities/unified_list.html').template.source
-        self.assertIn('자동 제어 중', source)
+        self.assertIn('activity_status_control.html', source)
+        control = get_template('components/activity_status_control.html').template.source
+        self.assertIn('일시중지', control)
+        self.assertIn('재개', control)
 
 
 class AndroidExamSecurityContractTests(SimpleTestCase):
