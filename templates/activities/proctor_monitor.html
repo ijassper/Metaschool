@@ -50,6 +50,9 @@
             <span id="summaryDelayed" class="summary-delayed">지연 0</span>
             <span id="summaryProblem" class="summary-problem">확인 필요 0</span>
         </div>
+        {% if is_activity_owner %}
+        <button id="captureToggle" type="button" class="btn btn-outline-danger rounded-pill text-nowrap" data-enabled="{{ activity.proctor_capture_enabled|yesno:'true,false' }}">{% if activity.proctor_capture_enabled %}감시 종료{% else %}감시 재시작{% endif %}</button>
+        {% endif %}
         <a href="{% url 'proctor_replay' activity.id %}" class="btn btn-outline-primary rounded-pill text-nowrap">기록 다시보기</a>
         {% if is_activity_owner %}<a href="{% url 'activity_result' activity.id %}" class="proctor-toolbar-back btn btn-outline-secondary rounded-pill px-3">제출현황으로</a>{% else %}<a href="{% url 'admin_system_settings' %}?tab=basic&amp;proctor_status=attention" class="proctor-toolbar-back btn btn-outline-secondary rounded-pill px-3">운영 현황으로</a>{% endif %}
     </div>
@@ -74,6 +77,8 @@
 <script>
 (() => {
     const feedUrl = "{% url 'proctor_feed' activity.id %}";
+    const toggleUrl = "{% url 'proctor_capture_toggle' activity.id %}";
+    const captureToggle = document.getElementById('captureToggle');
     const grid = document.getElementById('proctorGrid');
     const tiles = new Map();
     let polling = false;
@@ -132,6 +137,10 @@
     }
 
     function render(data) {
+        if (captureToggle) {
+            captureToggle.dataset.enabled = data.capture_enabled ? 'true' : 'false';
+            captureToggle.textContent = data.capture_enabled ? '감시 종료' : '감시 재시작';
+        }
         const warning = document.getElementById('storageWarning');
         const paused = data.storage && !data.storage.allowed;
         warning.classList.toggle('d-none', !paused);
@@ -212,6 +221,22 @@
         finally { polling = false; }
     }
     poll();
+    if (captureToggle) captureToggle.addEventListener('click', async () => {
+        const ending = captureToggle.dataset.enabled === 'true';
+        if (ending && !confirm('전체 학생의 화면 수신을 종료할까요? 평가 응시는 계속됩니다.')) return;
+        captureToggle.disabled = true;
+        try {
+            const response = await fetch(toggleUrl, {
+                method: 'POST',
+                headers: {'X-CSRFToken': '{{ csrf_token }}', 'X-Requested-With': 'XMLHttpRequest'},
+            });
+            if (!response.ok) throw new Error('감시 상태를 변경하지 못했습니다.');
+            const data = await response.json();
+            alert(data.message);
+            await poll();
+        } catch (error) { alert(error.message); }
+        finally { captureToggle.disabled = false; }
+    });
     setInterval(poll, 3000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 })();

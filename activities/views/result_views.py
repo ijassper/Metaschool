@@ -17,6 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 from accounts.decorators import teacher_required
 from accounts.models import Persona, Student
 from ..proctor_storage import proctor_storage_status
+from ..proctor_lifecycle import end_capture_sessions, end_expired_capture_sessions
 from ..models import (
     Activity, Answer, ActivityStudentScore, FeedbackResult, FeedbackSession,
     ProctorSession, ProctorSnapshot,
@@ -196,9 +197,28 @@ def proctor_monitor(request, activity_id):
 
 @login_required
 @teacher_required
+@require_POST
+def proctor_capture_toggle(request, activity_id):
+    activity = get_object_or_404(Activity, id=activity_id, teacher=request.user, proctor_mode=True)
+    with transaction.atomic():
+        activity.proctor_capture_enabled = not activity.proctor_capture_enabled
+        activity.save(update_fields=['proctor_capture_enabled'])
+        if not activity.proctor_capture_enabled:
+            end_capture_sessions([activity], '교사 감시 종료')
+    return JsonResponse({
+        'status': 'success',
+        'capture_enabled': activity.proctor_capture_enabled,
+        'message': '감시를 재시작했습니다. 학생은 응시 화면에 다시 입장해야 녹화가 시작됩니다.'
+        if activity.proctor_capture_enabled else '전체 학생 화면 수신을 종료했습니다. 평가 응시는 계속 가능합니다.',
+    })
+
+
+@login_required
+@teacher_required
 @require_GET
 def proctor_feed(request, activity_id):
     activity = get_proctor_activity_for_user(request.user, activity_id)
+    end_expired_capture_sessions(activity)
     latest = ProctorSnapshot.objects.filter(
         activity=activity, student_id=OuterRef('pk')
     ).order_by('-created_at', '-id')
@@ -227,6 +247,7 @@ def proctor_feed(request, activity_id):
     now = timezone.now()
     return JsonResponse({
         'status': 'success',
+        'capture_enabled': activity.proctor_capture_enabled,
         'storage': storage_status,
         'server_time': now.isoformat(),
         'students': [

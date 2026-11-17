@@ -8,6 +8,7 @@ from django.utils import timezone
 from accounts.models import CustomUser, Student
 from .models import Activity, ProctorSession
 from .views.exam_views import open_proctor_capture_session
+from .proctor_lifecycle import CAPTURE_LIMIT
 
 
 class ActivityTeacherPauseTests(TestCase):
@@ -112,3 +113,46 @@ class ActivityTeacherPauseTests(TestCase):
         self.activity.refresh_from_db()
         self.assertTrue(self.activity.is_attainable)
         self.assertFalse(self.activity.is_force_open)
+
+    def test_monitor_stop_does_not_close_exam_and_restart_allows_new_lease(self):
+        token = open_proctor_capture_session(self.activity, self.student)
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse('proctor_capture_toggle', args=[self.activity.id]))
+        self.assertFalse(response.json()['capture_enabled'])
+        self.activity.refresh_from_db()
+        self.assertTrue(self.activity.is_attainable)
+        self.assertEqual(ProctorSession.objects.get(activity=self.activity).capture_token, '')
+        self.client.force_login(self.student_user)
+        self.assertEqual(self.client.post(
+            reverse('upload_proctor_snapshot', args=[self.activity.id]) + f'?capture_token={token}',
+            {'snapshot': SimpleUploadedFile('screen.jpg', b'jpeg-data', content_type='image/jpeg')},
+        ).status_code, 410)
+        self.client.force_login(self.teacher)
+        response = self.client.post(reverse('proctor_capture_toggle', args=[self.activity.id]))
+        self.assertTrue(response.json()['capture_enabled'])
+        self.activity.refresh_from_db()
+        self.assertTrue(open_proctor_capture_session(self.activity, self.student))
+
+    def test_teacher_logout_ends_monitoring_without_closing_exam(self):
+        open_proctor_capture_session(self.activity, self.student)
+        self.client.force_login(self.teacher)
+        self.client.get(reverse('logout'))
+        self.activity.refresh_from_db()
+        self.assertFalse(self.activity.proctor_capture_enabled)
+        self.assertTrue(self.activity.is_attainable)
+        self.assertEqual(ProctorSession.objects.get(activity=self.activity).status, ProctorSession.Status.ENDED)
+
+    def test_capture_ends_50_minutes_after_student_started(self):
+        token = open_proctor_capture_session(self.activity, self.student)
+        session = ProctorSession.objects.get(activity=self.activity)
+        session.started_at = timezone.now() - CAPTURE_LIMIT - timedelta(seconds=1)
+        session.save(update_fields=['started_at'])
+        self.client.force_login(self.student_user)
+        response = self.client.post(
+            reverse('upload_proctor_snapshot', args=[self.activity.id]) + f'?capture_token={token}',
+            {'snapshot': SimpleUploadedFile('screen.jpg', b'jpeg-data', content_type='image/jpeg')},
+        )
+        self.assertEqual(response.status_code, 410)
+        session.refresh_from_db()
+        self.assertEqual(session.status, ProctorSession.Status.ENDED)
+        self.assertEqual(session.capture_token, '')

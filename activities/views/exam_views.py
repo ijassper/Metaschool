@@ -251,6 +251,10 @@ def upload_proctor_snapshot(request, activity_id):
         return JsonResponse({'status': 'error', 'message': '접근 권한이 없습니다.'}, status=403)
     if not activity.proctor_mode:
         return JsonResponse({'status': 'error', 'message': '감독 모드가 활성화되지 않았습니다.'}, status=400)
+    from ..proctor_lifecycle import end_expired_capture_sessions
+    end_expired_capture_sessions(activity)
+    if not activity.proctor_capture_enabled:
+        return JsonResponse({'status': 'session_ended', 'message': '감시가 종료되었습니다.'}, status=410)
 
     uploaded = request.FILES.get('snapshot')
     if not uploaded:
@@ -350,6 +354,10 @@ def report_proctor_event(request, activity_id):
         return JsonResponse({'status': 'error', 'message': '접근 권한이 없습니다.'}, status=403)
     if not activity.proctor_mode:
         return JsonResponse({'status': 'error', 'message': '감독 모드가 활성화되지 않았습니다.'}, status=400)
+    from ..proctor_lifecycle import end_expired_capture_sessions
+    end_expired_capture_sessions(activity)
+    if not activity.proctor_capture_enabled:
+        return JsonResponse({'status': 'session_ended', 'message': '감시가 종료되었습니다.'}, status=410)
 
     try:
         payload = json.loads(request.body or '{}')
@@ -451,12 +459,17 @@ def ensure_exam_question(activity):
 
 def open_proctor_capture_session(activity, student):
     """Issue a fresh server-side capture lease for this exam page visit."""
-    if not activity.proctor_mode:
+    if not activity.proctor_mode or not activity.proctor_capture_enabled:
         return ''
+    from ..proctor_lifecycle import end_expired_capture_sessions, CAPTURE_LIMIT
+    end_expired_capture_sessions(activity)
     with transaction.atomic():
         session, _ = ProctorSession.objects.select_for_update().get_or_create(
             activity=activity, student=student,
         )
+        now = timezone.now()
+        if session.started_at and now - session.started_at >= CAPTURE_LIMIT:
+            return ''
         session.capture_token = uuid.uuid4().hex
         session.status = ProctorSession.Status.WAITING
         session.ended_at = None

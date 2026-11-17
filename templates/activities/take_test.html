@@ -1704,6 +1704,7 @@
     let answerId = "{{ answer_id }}"; 
     const csrfToken = '{{ csrf_token }}';
     const PROCTOR_MODE = {{ activity.proctor_mode|yesno:"true,false" }};
+    const PROCTOR_CAPTURE_ENABLED = {{ activity.proctor_capture_enabled|yesno:"true,false" }};
     const PROCTOR_CAPTURE_SCOPE = '{{ activity.proctor_capture_scope|default:"FULL_DISPLAY"|escapejs }}';
     const PROCTOR_UPLOAD_URL = "{% url 'upload_proctor_snapshot' activity.id %}?capture_token={{ proctor_capture_token|urlencode }}";
     const PROCTOR_EVENT_URL = "{% url 'report_proctor_event' activity.id %}?capture_token={{ proctor_capture_token|urlencode }}";
@@ -2334,7 +2335,7 @@
     }
 
     function startProctorCapture() {
-        if (!PROCTOR_MODE || proctorTimer) return;
+        if (!PROCTOR_MODE || !PROCTOR_CAPTURE_ENABLED || proctorTimer) return;
         if (IS_INGRID_ANDROID_APP) {
             setProctorStatus('화면 녹화중');
             return;
@@ -2368,7 +2369,7 @@
                 return;
             }
         }
-        if (PROCTOR_MODE) {
+        if (PROCTOR_MODE && PROCTOR_CAPTURE_ENABLED) {
             try {
                 await acquireProctorScreen();
             } catch (error) {

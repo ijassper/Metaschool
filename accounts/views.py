@@ -295,6 +295,9 @@ def login_view(request):
 @login_required
 def logout_view(request):
     user = request.user
+    if user.role == 'TEACHER':
+        from activities.proctor_lifecycle import end_teacher_capture
+        end_teacher_capture(user)
     if user.is_student and user.current_session_key == request.session.session_key:
         user.current_session_key = None
         user.save(update_fields=['current_session_key'])

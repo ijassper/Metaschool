@@ -145,6 +145,7 @@ urlpatterns = [
     path('result/<int:activity_id>/', activity_result, name='activity_result'),
     path('result/<int:activity_id>/proctor/', proctor_monitor, name='proctor_monitor'),
     path('result/<int:activity_id>/proctor/feed/', proctor_feed, name='proctor_feed'),
+    path('result/<int:activity_id>/proctor/capture-toggle/', proctor_capture_toggle, name='proctor_capture_toggle'),
     path('result/proctor/snapshot/<int:snapshot_id>/', proctor_snapshot_image, name='proctor_snapshot_image'),
     path('answer/detail/<int:answer_id>/', answer_detail, name='answer_detail'),
     path('answer/<int:answer_id>/score/', update_answer_score, name='update_answer_score'),
