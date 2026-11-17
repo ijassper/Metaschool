@@ -6,6 +6,9 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.pm.ServiceInfo
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -56,12 +59,26 @@ class ProctorCaptureService : Service() {
     @Volatile private var bufferingSnapshots = false
     private var lastUploadStartedAt = 0L
     private var stopMessage = "화면 녹화가 중단되었습니다. 다시 시작해 주세요."
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                stopMessage = "화면 잠금으로 녹화를 일시중지했습니다. 응시 중이라면 다시 시작해 주세요."
+                stopSelf()
+            }
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF), RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -519,6 +536,7 @@ class ProctorCaptureService : Service() {
         .build()
 
     override fun onDestroy() {
+        unregisterReceiver(screenOffReceiver)
         if (eventUrl.isNotBlank()) {
             ProctorEventReporter.send(eventUrl, csrfToken, cookie, "CAPTURE_STOPPED", stopMessage)
         }
