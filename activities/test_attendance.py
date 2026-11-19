@@ -504,6 +504,11 @@ class AttendanceReportFlowTests(TestCase):
             teacher=self.teacher, academic_year=2026, name='2026학년도 출결자료',
         )
         folder.target_students.add(self.student)
+        empty_student = Student.objects.create(
+            teacher=self.teacher, school=self.school, grade=2, class_no=3, number=8,
+            name='미제출학생', email='empty-attendance@example.com',
+        )
+        folder.target_students.add(empty_student)
         for attendance_type, day in (
             (AttendanceReport.AttendanceType.SICK_ABSENCE, date(2026, 3, 8)),
             (AttendanceReport.AttendanceType.SICK_TARDY, date(2026, 3, 9)),
@@ -522,6 +527,8 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(full, '조회 시작일')
         self.assertContains(full, '조회 종료일')
         self.assertEqual(full.context['stats_rows'][0]['total'], 3)
+        self.assertEqual(full.context['stats_rows'][1]['total'], 0)
+        self.assertNotContains(full, '미제출학생 전체 출결신고서 0건 보기')
         self.assertEqual(full.context['stats_rows'][0]['counts'], [1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
         self.assertEqual(full.context['stats_rows'][0]['count_items'][0], {
             'type': 'SICK_ABSENCE', 'label': '질병결석', 'count': 1,
@@ -529,7 +536,8 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(full, 'data-report-filter="SICK_ABSENCE" data-report-label="질병결석"')
         self.assertContains(full, 'data-attendance-type="SICK_ABSENCE"')
         self.assertContains(full, '전체 출결신고서 3건 보기')
-        self.assertContains(full, '질병결과 0건 보기')
+        self.assertNotContains(full, '질병결과 0건 보기')
+        self.assertContains(full, '<span class="report-count-zero">0</span>', html=False)
         self.assertContains(full, '해당 출결 신고서가 없습니다.')
         selected = self.client.get(base + '?view=list&student=' + str(self.student.id) + '&report_type=SICK_ABSENCE')
         self.assertEqual(selected.context['selected_report_type'], 'SICK_ABSENCE')
@@ -761,6 +769,9 @@ class AttendanceReportFlowTests(TestCase):
         detail = self.client.get(reverse('attendance_folder_detail', args=[folder.id]) + '?view=list')
         self.assertContains(detail, '서명받기 링크')
         self.assertContains(detail, 'id="guardianLinkDialog"')
+        self.assertContains(detail, 'id="guardianSignPreview"')
+        self.assertContains(detail, 'data-complete-url="' + reverse('attendance_guardian_complete') + '"')
+        self.assertLess(detail.content.decode().index('id="guardianLinkCopy"'), detail.content.decode().index('id="guardianSignPreview"'))
         self.assertContains(detail, 'data-bs-target="#studentReportsPanel"')
         self.assertContains(detail, 'data-panel-report-url="' + reverse('attendance_report_print', args=[report.id]) + '"')
         print_url = reverse('attendance_report_print', args=[report.id])
