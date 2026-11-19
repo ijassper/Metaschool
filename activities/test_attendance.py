@@ -487,6 +487,8 @@ class AttendanceReportFlowTests(TestCase):
         self.assertNotContains(page, '<th>수정하기</th>')
         self.assertContains(page, '결제완료')
         self.assertContains(page, 'class="approval-cell"')
+        self.assertContains(page, '<th>제출일자</th><th>학생서명</th><th>보호자서명</th><th>담임교사 결재</th>', html=False)
+        self.assertContains(page, '보호자 서명 완료')
         self.assertContains(page, 'id="attendanceConfirmDialog"')
         self.assertContains(page, '보호자 서명을 확인하고 확정하시겠습니까?')
         self.assertContains(page, 'data-panel-report-url="' + reverse('attendance_report_print', args=[report.id]) + '"')
@@ -675,6 +677,31 @@ class AttendanceReportFlowTests(TestCase):
         self.assertRedirects(response, reverse('attendance_folder_detail', args=[folder.id]) + f'?view=list&student={self.student.id}')
         self.assertFalse(AttendanceReport.objects.filter(pk=report.pk).exists())
 
+    def test_guardian_link_modal_endpoint_reuses_active_link_and_rejects_signed_report(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
+        folder.target_students.add(self.student)
+        report = AttendanceReport.objects.create(
+            folder=folder, student=self.student,
+            attendance_type=AttendanceReport.AttendanceType.SICK_ABSENCE,
+            start_date=date(2026, 10, 20), end_date=date(2026, 10, 20),
+            reason='치료', written_date=date(2026, 10, 20),
+            student_signature=self.student.name, student_signature_data=self.signature_data,
+            submitted_at=timezone.now(),
+        )
+        url = reverse('attendance_report_guardian_invite', args=[report.id])
+        self.client.force_login(self.student_user)
+        self.assertNotEqual(self.client.post(url, HTTP_ACCEPT='application/json').status_code, 200)
+        self.client.force_login(self.teacher)
+        first = self.client.post(url, HTTP_ACCEPT='application/json')
+        self.assertEqual(first.status_code, 200)
+        report.refresh_from_db()
+        self.assertEqual(first.json()['url'], 'http://testserver' + reverse('attendance_guardian_sign', args=[report.guardian_token]))
+        second = self.client.post(url, HTTP_ACCEPT='application/json')
+        self.assertEqual(second.json()['url'], first.json()['url'])
+        report.guardian_signed_at = timezone.now()
+        report.save(update_fields=['guardian_signed_at'])
+        self.assertEqual(self.client.post(url, HTTP_ACCEPT='application/json').status_code, 409)
+
     def test_guardian_qr_signature_and_teacher_confirmation(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
         folder.target_students.add(self.student)
@@ -701,7 +728,8 @@ class AttendanceReportFlowTests(TestCase):
         token = report.guardian_token
         self.assertTrue(token)
         detail = self.client.get(reverse('attendance_folder_detail', args=[folder.id]) + '?view=list')
-        self.assertContains(detail, reverse('attendance_guardian_sign', args=[token]))
+        self.assertContains(detail, '서명받기 링크')
+        self.assertContains(detail, 'id="guardianLinkDialog"')
         self.assertContains(detail, 'data-bs-target="#studentReportsPanel"')
         self.assertContains(detail, 'data-panel-report-url="' + reverse('attendance_report_print', args=[report.id]) + '"')
         print_url = reverse('attendance_report_print', args=[report.id])

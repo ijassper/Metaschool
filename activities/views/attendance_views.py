@@ -6,13 +6,13 @@ import secrets
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
-import qrcode
 from PIL import Image, UnidentifiedImageError
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -284,13 +284,6 @@ def attendance_folder_detail(request, folder_id):
             rows.append(row)
             if report and report.submitted_at:
                 student_reports.append(report)
-                if _guardian_link_is_active(report):
-                    report.guardian_url = request.build_absolute_uri(
-                        reverse('attendance_guardian_sign', args=[report.guardian_token])
-                    )
-                    qr = io.BytesIO()
-                    qrcode.make(report.guardian_url).save(qr, format='PNG')
-                    report.guardian_qr = base64.b64encode(qr.getvalue()).decode('ascii')
         student_reports.sort(key=lambda item: (item.submitted_at, item.id), reverse=True)
         counts = {attendance_type: 0 for attendance_type in attendance_types}
         for report in student_reports:
@@ -396,13 +389,21 @@ def attendance_folder_detail(request, folder_id):
 @require_POST
 def attendance_report_guardian_invite(request, report_id):
     report = get_object_or_404(AttendanceReport, id=report_id, folder__teacher=request.user, submitted_at__isnull=False)
+    wants_json = request.headers.get('Accept') == 'application/json'
     if report.confirmed_at or report.guardian_signed_at:
+        if wants_json:
+            return JsonResponse({'error': '이미 보호자 서명 또는 교사 결재가 완료되었습니다.'}, status=409)
         messages.warning(request, '이미 보호자 서명 또는 교사 확정이 완료되었습니다.')
     else:
-        report.guardian_token = secrets.token_urlsafe(32)
-        report.guardian_token_created_at = timezone.now()
-        report.save(update_fields=['guardian_token', 'guardian_token_created_at'])
-        messages.success(request, '보호자 서명 QR을 만들었습니다. 내용을 확인한 뒤 보호자에게 전달해 주세요.')
+        if not _guardian_link_is_active(report):
+            report.guardian_token = secrets.token_urlsafe(32)
+            report.guardian_token_created_at = timezone.now()
+            report.save(update_fields=['guardian_token', 'guardian_token_created_at'])
+        if wants_json:
+            return JsonResponse({'url': request.build_absolute_uri(
+                reverse('attendance_guardian_sign', args=[report.guardian_token])
+            )})
+        messages.success(request, '보호자 서명 링크를 만들었습니다. 내용을 확인한 뒤 보호자에게 전달해 주세요.')
     return redirect(_report_detail_url(report, request))
 
 
