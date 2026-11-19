@@ -523,6 +523,16 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(full, '조회 종료일')
         self.assertEqual(full.context['stats_rows'][0]['total'], 3)
         self.assertEqual(full.context['stats_rows'][0]['counts'], [1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
+        self.assertEqual(full.context['stats_rows'][0]['count_items'][0], {
+            'type': 'SICK_ABSENCE', 'label': '질병결석', 'count': 1,
+        })
+        self.assertContains(full, 'data-report-filter="SICK_ABSENCE" data-report-label="질병결석"')
+        self.assertContains(full, 'data-attendance-type="SICK_ABSENCE"')
+        self.assertContains(full, '전체 출결신고서 3건 보기')
+        self.assertContains(full, '질병결과 0건 보기')
+        self.assertContains(full, '해당 출결 신고서가 없습니다.')
+        selected = self.client.get(base + '?view=list&student=' + str(self.student.id) + '&report_type=SICK_ABSENCE')
+        self.assertEqual(selected.context['selected_report_type'], 'SICK_ABSENCE')
         march = self.client.get(base + '?view=list&query_month=3')
         self.assertEqual(march.context['start_filter'], '2026-03-01')
         self.assertEqual(march.context['end_filter'], '2026-03-31')

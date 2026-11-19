@@ -271,6 +271,7 @@ def attendance_folder_detail(request, folder_id):
         'RECOGNIZED_ABSENCE', 'RECOGNIZED_TARDY', 'RECOGNIZED_RESULT', 'RECOGNIZED_LEAVE',
         'UNEXCUSED_ABSENCE', 'UNEXCUSED_TARDY', 'UNEXCUSED_RESULT', 'UNEXCUSED_LEAVE',
     ]
+    attendance_labels = dict(AttendanceReport.AttendanceType.choices)
     for student in students:
         student_reports = []
         for report in reports_by_student.get(student.id) or [None]:
@@ -292,6 +293,10 @@ def attendance_folder_detail(request, folder_id):
         stats_rows.append({
             'student': student, 'reports': student_reports,
             'total': len(student_reports), 'counts': list(counts.values()),
+            'count_items': [
+                {'type': attendance_type, 'label': attendance_labels[attendance_type], 'count': counts[attendance_type]}
+                for attendance_type in attendance_types
+            ],
         })
     for student_id, student_reports in reports_by_student.items():
         numbered = sorted(
@@ -365,6 +370,7 @@ def attendance_folder_detail(request, folder_id):
         'folder': folder,
         'rows': rows,
         'stats_rows': stats_rows,
+        'selected_report_type': request.GET.get('report_type', '') if request.GET.get('report_type', '') in attendance_types else '',
         'month_options': month_options,
         'query_month': query_month,
         'selected_student_id': request.GET.get('student', ''),
