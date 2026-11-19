@@ -430,6 +430,8 @@ def attendance_guardian_sign(request, token):
     report = AttendanceReport.objects.select_related('folder', 'student').filter(
         guardian_token=token, submitted_at__isnull=False,
     ).first()
+    if report and report.guardian_signed_at and report.confirmed_at:
+        return redirect('attendance_guardian_report', token=token)
     if not report or not _guardian_link_is_active(report):
         return render(request, 'activities/attendance_guardian_sign.html', {'expired': True}, status=410)
     if request.method == 'POST':
@@ -446,7 +448,7 @@ def attendance_guardian_sign(request, token):
                 guardian_token_created_at__gt=timezone.now() - GUARDIAN_LINK_LIFETIME,
             ).update(
                 guardian_signature=guardian_name, guardian_signature_data=signature_data,
-                guardian_signed_at=timezone.now(), guardian_token=None, guardian_token_created_at=None,
+                guardian_signed_at=timezone.now(),
             )
             if updated:
                 return redirect('attendance_guardian_complete')
@@ -457,6 +459,24 @@ def attendance_guardian_sign(request, token):
 @require_http_methods(['GET'])
 def attendance_guardian_complete(request):
     return render(request, 'activities/attendance_guardian_complete.html')
+
+
+@require_http_methods(['GET'])
+def attendance_guardian_report(request, token):
+    report = AttendanceReport.objects.select_related('folder__teacher', 'student__school').filter(
+        guardian_token=token, submitted_at__isnull=False,
+        guardian_signed_at__isnull=False, confirmed_at__isnull=False,
+    ).first()
+    if not report:
+        return render(request, 'activities/attendance_guardian_sign.html', {'expired': True}, status=410)
+    return render(request, 'activities/attendance_report_print.html', {
+        'report': report,
+        'is_guardian': True,
+        'is_student': False,
+        'is_popup': False,
+        'can_student_edit': False,
+        'can_teacher_edit': False,
+    })
 
 
 @login_required
@@ -588,7 +608,7 @@ def _save_attendance_report(request, folder, student, report, *, preserve_submit
         report.written_date = parsed_written_date
         report.student_signature = student_signature
         report.student_signature_data = student_signature_data
-        # Keep the guardian's drawn signature on the edit form; a newly issued QR is invalidated.
+        # Keep an unchanged signed link so the guardian can view the report after confirmation.
         previous_guardian_name = report.guardian_signature
         previous_guardian_data = report.guardian_signature_data
         previous_guardian_signed_at = report.guardian_signed_at
@@ -599,8 +619,9 @@ def _save_attendance_report(request, folder, student, report, *, preserve_submit
             if guardian_name == previous_guardian_name and guardian_signature_data == previous_guardian_data
             else timezone.now() if guardian_name and guardian_signature_data else None
         )
-        report.guardian_token = None
-        report.guardian_token_created_at = None
+        if not report.guardian_signed_at:
+            report.guardian_token = None
+            report.guardian_token_created_at = None
         if not preserve_submitted_at or not report.submitted_at:
             report.submitted_at = timezone.now()
         with transaction.atomic():
