@@ -773,9 +773,9 @@ def attendance_report_teacher_edit(request, report_id):
     )
     source = request.POST if request.method == 'POST' else request.GET
     return_filters = {
-        key: source.get(key, '').strip()
+        key: source.get(f'return_{key}' if request.method == 'POST' else key, '').strip()
         for key in ('q', 'start_date', 'end_date', 'query_month')
-        if source.get(key, '').strip()
+        if source.get(f'return_{key}' if request.method == 'POST' else key, '').strip()
     }
     return_url = reverse('attendance_folder_detail', args=[report.folder_id]) + '?' + urlencode({
         'view': 'list', 'student': report.student_id, **return_filters,
@@ -796,7 +796,7 @@ def attendance_report_teacher_edit(request, report_id):
             messages.success(request, '출결 신고서를 수정했습니다.')
             if is_popup:
                 print_url = reverse('attendance_report_print', args=[report.id])
-                return redirect(print_url + '?' + urlencode({'popup': '1', **return_filters}))
+                return redirect(print_url + '?' + urlencode({'popup': '1', 'updated': '1', **return_filters}))
             return redirect(return_url)
         for error in errors:
             messages.error(request, error)
@@ -856,6 +856,7 @@ def attendance_report_print(request, report_id):
         'report': report,
         'is_student': is_student,
         'is_popup': is_popup,
+        'teacher_report_updated': is_popup and request.GET.get('updated') == '1',
         'can_student_edit': can_student_edit,
         'can_teacher_edit': can_teacher_edit,
         'teacher_edit_url': teacher_edit_url,

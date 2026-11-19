@@ -408,7 +408,7 @@ class AttendanceReportFlowTests(TestCase):
 
         self.client.force_login(self.teacher)
         detail = self.client.get(reverse('attendance_folder_detail', args=[folder.id]) + '?view=list')
-        self.assertContains(detail, '결제취소')
+        self.assertContains(detail, '담임교사 결재취소')
         self.assertContains(detail, 'data-unconfirm-report')
         self.assertNotContains(detail, "onclick=\"return confirm('확정을 취소하면 학생이 다시 수정할 수 있습니다. 확정을 취소하시겠습니까?');\"")
         self.assertNotContains(detail, '완료 · 확정')
@@ -485,8 +485,8 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(page, '학생별 출결 통계')
         self.assertContains(page, '김학생 출결신고서 목록')
         self.assertNotContains(page, '<th>수정하기</th>')
-        self.assertContains(page, '결제완료')
-        self.assertContains(page, 'class="approval-cell"')
+        self.assertContains(page, '담임교사 결재')
+        self.assertNotContains(page, '결제대기')
         self.assertContains(page, '<th>제출일자</th><th>학생서명</th><th>보호자서명</th><th>담임교사 결재</th>', html=False)
         self.assertContains(page, '보호자 서명 완료')
         self.assertContains(page, 'id="attendanceConfirmDialog"')
@@ -613,7 +613,9 @@ class AttendanceReportFlowTests(TestCase):
             'reason': '대회 참가', 'written_date': '2026-11-03',
             'student_signature_data': self.signature_data, 'popup': '1',
         })
-        self.assertRedirects(response, reverse('attendance_report_print', args=[report.id]) + '?popup=1')
+        updated_url = reverse('attendance_report_print', args=[report.id]) + '?popup=1&updated=1'
+        self.assertRedirects(response, updated_url)
+        self.assertContains(self.client.get(updated_url), "type:'attendance-report-updated'")
         report.refresh_from_db()
         self.assertEqual(report.attendance_type, AttendanceReport.AttendanceType.RECOGNIZED_TARDY)
         self.assertEqual(report.reason, '대회 참가')
@@ -637,6 +639,25 @@ class AttendanceReportFlowTests(TestCase):
         self.assertEqual(report.reason, '보호자 서명 후 수정')
         self.assertIsNotNone(report.guardian_signed_at)
         self.assertEqual(report.guardian_signature_data, self.signature_data)
+        filtered_edit = self.client.get(url + '?popup=1&start_date=2026-10-01&end_date=2026-12-31')
+        self.assertContains(filtered_edit, 'name="return_start_date" value="2026-10-01"')
+        self.assertContains(filtered_edit, 'name="return_end_date" value="2026-12-31"')
+        cleared = self.client.post(url + '?popup=1', {
+            'attendance_category': 'SICK', 'attendance_kind': 'ABSENCE',
+            'start_date': '2026-11-04', 'end_date': '2026-11-04',
+            'reason': '보호자 서명 삭제', 'written_date': '2026-11-04',
+            'student_signature_data': self.signature_data,
+            'guardian_name': '김보호자', 'guardian_signature_data': '', 'popup': '1',
+            'return_start_date': '2026-10-01', 'return_end_date': '2026-12-31',
+        })
+        self.assertRedirects(cleared, updated_url + '&start_date=2026-10-01&end_date=2026-12-31')
+        report.refresh_from_db()
+        self.assertIsNone(report.guardian_signed_at)
+        self.assertEqual(report.guardian_signature_data, '')
+        detail = self.client.get(reverse('attendance_folder_detail', args=[folder.id]) + '?view=list&student=' + str(self.student.id))
+        self.assertContains(detail, '서명받기 링크')
+        self.assertNotContains(detail, '<span class="status signed">보호자 서명 완료</span>', html=False)
+        self.assertContains(detail, 'data-confirm-report disabled')
         report.confirmed_at = timezone.now()
         report.save(update_fields=['confirmed_at'])
         self.assertNotContains(self.client.get(reverse('attendance_report_print', args=[report.id]) + '?popup=1'), '>수정하기</a>')
@@ -648,7 +669,7 @@ class AttendanceReportFlowTests(TestCase):
             'student_signature_data': self.signature_data,
         })
         report.refresh_from_db()
-        self.assertEqual(report.reason, '보호자 서명 후 수정')
+        self.assertEqual(report.reason, '보호자 서명 삭제')
 
     def test_teacher_delete_requires_owner_and_unconfirmed_report(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)

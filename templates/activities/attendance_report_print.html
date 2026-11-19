@@ -107,5 +107,6 @@
    <div class="teacher-sign">담임: {{ report.folder.teacher.name }} (인)</div>
   </section>
  </main>
+{% if teacher_report_updated %}<script>window.parent.postMessage({type:'attendance-report-updated',studentId:{{ report.student_id }}},window.location.origin);</script>{% endif %}
 </body>
 </html>
