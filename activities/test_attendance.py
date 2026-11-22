@@ -838,7 +838,11 @@ class AttendanceReportFlowTests(TestCase):
         self.assertEqual(report.guardian_signature, '김보호자')
         self.assertIsNotNone(report.guardian_signed_at)
         self.assertEqual(report.guardian_token, token)
-        self.assertEqual(self.client.get(guardian_url).status_code, 410)
+        submitted_page = self.client.get(guardian_url)
+        self.assertContains(submitted_page, '학부모 서명이 제출되었습니다.')
+        self.assertContains(submitted_page, '담임교사 결재가 끝나면 이 링크로 출결신고서를 보실 수 있습니다.')
+        self.assertNotContains(submitted_page, '서명 링크가 만료되었습니다')
+        self.assertNotContains(submitted_page, 'guardian_name')
         self.assertEqual(self.client.get(reverse('attendance_guardian_report', args=[token])).status_code, 410)
 
         self.client.force_login(self.teacher)

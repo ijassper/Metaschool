@@ -432,6 +432,8 @@ def attendance_guardian_sign(request, token):
     ).first()
     if report and report.guardian_signed_at and report.confirmed_at:
         return redirect('attendance_guardian_report', token=token)
+    if report and report.guardian_signed_at:
+        return render(request, 'activities/attendance_guardian_sign.html', {'signature_submitted': True})
     if not report or not _guardian_link_is_active(report):
         return render(request, 'activities/attendance_guardian_sign.html', {'expired': True}, status=410)
     if request.GET.get('preview') == '1':
