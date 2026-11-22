@@ -334,6 +334,11 @@ class AttendanceReportFlowTests(TestCase):
 
         self.assertContains(response, 'name="guardian_name"')
         self.assertContains(response, 'name="guardian_signature_data"')
+        self.assertContains(response, 'class="signature-columns mt-3"')
+        self.assertContains(response, 'grid-template-columns:repeat(2,minmax(0,1fr))')
+        self.assertContains(response, 'class="signature-column"', count=2)
+        signature_row = response.content.decode().split('class="signature-columns mt-3"', 1)[1].split('</div>\n   <p class="form-text', 1)[0]
+        self.assertLess(signature_row.index('name="student_signature_data"'), signature_row.index('name="guardian_signature_data"'))
         self.assertContains(response, '학부모 성명')
         self.assertContains(response, '학부모 서명')
         self.assertNotContains(response, 'name="guardian_name" required')
