@@ -996,6 +996,13 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
         self.assertIn('data-rewrite-panel', source)
         self.assertIn('submit_answer_rewrite', source)
 
+    def test_student_result_answer_cards_fill_available_width_and_text_is_larger(self):
+        source = get_template('activities/student_result_detail.html').template.source
+        self.assertIn('repeat(auto-fit, minmax(min(100%, 280px), 1fr))', source)
+        self.assertNotIn('repeat(3, minmax(0, 1fr))', source)
+        self.assertIn('font-size: calc(1rem + 2pt)', source)
+        self.assertIn('.result-head h1 { margin: 6px 0; font-size: 2rem;', source)
+
     def test_feedback_rewrite_assignment_defaults_to_disabled(self):
         feedback = FeedbackResult()
         self.assertFalse(feedback.is_rewrite_assigned)
