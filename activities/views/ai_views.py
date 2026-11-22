@@ -19,7 +19,10 @@ from ..attachment_context import (
     get_or_refresh_activity_context,
     record_openai_usage,
 )
-from ..models import AIUsageLog, Activity, Question, Answer, AnalysisResult, FeedbackSession
+from ..models import (
+    AIUsageLog, Activity, Question, Answer, AnalysisResult, FeedbackSession,
+    submission_snapshot_content,
+)
 from .main_views import get_accessible_students, get_student_tree
 
 FORCED_AI_ANALYSIS_MODEL = 'gpt-4o-mini'
@@ -1034,6 +1037,17 @@ def api_process_db_row(request):
                     'status': 'skipped', 
                     'message': '내용이 없는 답안은 분석하지 않습니다.'
                 })
+            if persist_feedback_session:
+                latest_revision = answer.latest_submission_revision()
+                if latest_revision:
+                    submitted_content = submission_snapshot_content(
+                        latest_revision.content_snapshot, activity
+                    )
+                    if submitted_content.strip() != answer_content.strip():
+                        return JsonResponse({
+                            'status': 'error',
+                            'message': '학생의 현재 임시 저장 답안과 최종 제출 답안이 다릅니다. 학생이 다시 제출한 뒤 피드백을 생성해주세요.',
+                        }, status=409)
 
             openai_api_key = ''
             context_was_summarized = False
@@ -1208,6 +1222,16 @@ def api_process_db_row(request):
                         }
                         with transaction.atomic():
                             locked_answer = Answer.objects.select_for_update().get(pk=answer.pk)
+                            locked_revision = locked_answer.latest_submission_revision()
+                            if locked_answer.display_content.strip() != answer_content.strip() or (
+                                locked_revision and submission_snapshot_content(
+                                    locked_revision.content_snapshot, activity
+                                ).strip() != answer_content.strip()
+                            ):
+                                return JsonResponse({
+                                    'status': 'error',
+                                    'message': '분석 중 학생 답안이 변경되었습니다. 최종 제출 내용을 확인한 뒤 다시 생성해주세요.',
+                                }, status=409)
                             next_version = (
                                 FeedbackSession.objects.filter(answer=locked_answer)
                                 .aggregate(max_version=Max('version'))['max_version'] or 0
@@ -1221,7 +1245,7 @@ def api_process_db_row(request):
                                 student=student,
                                 activity=activity,
                                 answer=locked_answer,
-                                answer_revision=locked_answer.submission_revisions.order_by('-version', '-id').first(),
+                                answer_revision=locked_revision,
                                 created_by=request.user,
                                 feedback_title=session_title,
                                 content=result_text,

@@ -1107,8 +1107,7 @@ def log_activity(request):
         try:
             data = json.loads(request.body)
             answer_id = data.get('answer_id')
-            action_type = data.get('type') # 'OUT'(이탈) 또는 'IN'(복귀)
-            log_type = data.get('type') # 'OUT'(?댄깉) ?먮뒗 'IN'(蹂듦?)
+            log_type = data.get('type')
             allowed_log_types = {
                 'OUT', 'EXIT', 'COPY', 'PASTE', 'CLIPBOARD', 'RIGHT_CLICK', 'BACK_BUTTON'
             }
@@ -1123,20 +1122,12 @@ def log_activity(request):
                     )
                 answer = Answer.objects.select_for_update().get(id=answer_id)
 
-                # 기존 로그에 새로운 기록 추가 (줄바꿈 포함)
-                current_log = answer.activity_log if answer.activity_log else ""
                 now = timezone.localtime(timezone.now())
                 timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
-
-                answer.activity_log = current_log
                 append_activity_log(answer, log_type, timestamp)
-                if log_type in ['OUT', 'EXIT', 'BACK_BUTTON'] and not answer.submitted_at:
-                    answer.submitted_at = now
-                    answer.save(update_fields=['activity_log', 'submitted_at'])
-                    record_answer_submission(answer)
-                    finish_proctor_session_for_answer(answer, now)
-                else:
-                    answer.save(update_fields=['activity_log'])
+                # 보안 이벤트는 제출 요청이 아닙니다. 실제 제출은 답안 본문을 받은
+                # take_test/submit_answer_rewrite 경로에서만 기록합니다.
+                answer.save(update_fields=['activity_log'])
             
             return JsonResponse({'status': 'success'})
         except Exception as e:

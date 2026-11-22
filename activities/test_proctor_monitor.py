@@ -217,13 +217,13 @@ class ProctorCaptureLeaseTests(TestCase):
     def test_exit_submission_also_revokes_capture(self):
         token = open_proctor_capture_session(self.activity, self.student)
         response = self.client.post(
-            reverse('log_activity'),
-            data=json.dumps({'answer_id': self.answer.id, 'type': 'EXIT'}),
-            content_type='application/json',
+            reverse('take_test', args=[self.activity.id]),
+            {'is_exit': 'true', 'ans_q1': '나가기 전 작성한 답안'},
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         self.answer.refresh_from_db()
         self.assertIsNotNone(self.answer.submitted_at)
+        self.assertEqual(self.answer.submission_revisions.get().content_snapshot['ans_q1'], '나가기 전 작성한 답안')
         self.assertEqual(self.upload(token).status_code, 410)
 
     def test_expired_activity_and_stale_event_cannot_continue_capture(self):

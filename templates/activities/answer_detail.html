@@ -103,8 +103,8 @@
                 </header>
 
                 <div class="answer-kanban">
-                    {% if entry.revision.content_snapshot.notebook_pages %}
-                        {% for page in entry.revision.content_snapshot.notebook_pages %}
+                    {% if entry.notebook_pages %}
+                        {% for page in entry.notebook_pages %}
                         <article class="answer-kanban-card answer-kanban-card-full accent-pink">
                             <header><span class="kanban-order">{{ forloop.counter|stringformat:"02d" }}</span><h4>{{ forloop.counter }}쪽</h4></header>
                             <div class="kanban-answer">{{ page }}</div>
@@ -143,10 +143,17 @@
                     {% else %}
                         <div class="answer-empty">
                             <i class="bi bi-file-earmark-x"></i>
-                            <p>작성된 답안이 없습니다.</p>
+                            <p>제출 시점에 저장된 답안이 없습니다.</p>
                         </div>
                     {% endif %}
                 </div>
+                {% if entry.unsubmitted_content %}
+                <div class="answer-unsubmitted-note">
+                    <strong>제출 이후 임시 저장된 내용</strong>
+                    <p>아래 내용은 최종 제출되지 않아 제출 답안과 구분해 표시합니다.</p>
+                    <div class="kanban-answer">{{ entry.unsubmitted_content }}</div>
+                </div>
+                {% endif %}
             </section>
 
             {% for feedback in entry.feedbacks %}
@@ -269,7 +276,7 @@
             <div class="followup-question-card">
                 <p>{{ answer.question.content|default:activity.question|default:"문항 정보가 없습니다." }}</p>
             </div>
-            <div class="followup-answer-card">{{ answer.display_content|default:"작성된 답안이 없습니다." }}</div>
+            <div class="followup-answer-card">{{ submitted_content|default:"제출 시점에 저장된 답안이 없습니다." }}</div>
         </section>
         <section class="followup-workbench-section followup-tool-pane">
             <div class="followup-section-heading">
@@ -898,6 +905,9 @@
 
     .answer-empty i { font-size:1.8rem; }
     .answer-empty p { margin:0.5rem 0 0; font-size:0.78rem; }
+    .answer-unsubmitted-note { margin-top:.85rem; border:1px solid #e8dbe9; border-radius:12px; background:#fcf8fd; }
+    .answer-unsubmitted-note strong { display:block; padding:.85rem .95rem 0; color:#7d3c98; font-size:.8rem; }
+    .answer-unsubmitted-note p { margin:.2rem .95rem 0; color:#796d7d; font-size:.72rem; }
 
     .teacher-note {
         padding: 0.9rem 1rem;
@@ -1392,10 +1402,14 @@
     .followup-draft-result h4 { margin:0 0 .7rem; color:#7d3c98; font-size:.86rem; font-weight:780; }
     .followup-draft-result textarea { width:100%; min-height:360px; padding:1rem; border:1px solid #eadfeb; border-radius:12px; background:#fff; color:#4e4651; font-size:.82rem; line-height:1.75; resize:vertical; outline:none; }
     .followup-draft-result textarea:focus { border-color:#a86fba; box-shadow:0 0 0 3px rgba(142,68,173,.08); }
-    .followup-design-footer { position:sticky; bottom:0; z-index:4; justify-content:space-between; gap:.75rem; background:rgba(255,255,255,.97); box-shadow:0 -8px 24px rgba(71,45,77,.06); backdrop-filter:blur(8px); }
+    .followup-design-footer { position:sticky; bottom:0; z-index:4; flex-direction:column; align-items:stretch; gap:.65rem; padding:.9rem 1.25rem; background:rgba(255,255,255,.97); box-shadow:0 -8px 24px rgba(71,45,77,.06); backdrop-filter:blur(8px); }
     .followup-footer-left,
-    .followup-footer-right { display:flex; align-items:center; gap:.55rem; }
-    .followup-footer-right { margin-left:auto; }
+    .followup-footer-right { display:flex; align-items:center; gap:.55rem; min-width:0; }
+    .followup-footer-left { flex-wrap:wrap; }
+    .followup-footer-right { flex-wrap:wrap; justify-content:flex-end; }
+    .followup-footer-right .source-create-button,
+    .followup-footer-right .rewrite-assignment-footer { flex:0 0 auto; white-space:nowrap; }
+    .followup-design-footer [hidden] { display:none!important; }
     .followup-save-button { background:linear-gradient(135deg,#269b68,#168454); }
     .followup-publish-button { background:linear-gradient(135deg,#ef6cad,#8e44ad); }
     .followup-design-error { margin-right:auto!important; color:#b4233c!important; }
@@ -1447,9 +1461,7 @@
         .source-layer-body,
         .source-layer-footer { padding-right:1rem; padding-left:1rem; }
         .feedback-session-toolbar { grid-template-columns:1fr; }
-        .followup-design-footer { align-items:center; flex-direction:row; }
-        .followup-footer-left { flex:0 0 auto; }
-        .followup-footer-right { flex:1 1 auto; justify-content:flex-end; }
+        .followup-design-footer { padding-right:1rem; padding-left:1rem; }
         .followup-footer-right .source-create-button { width:auto; }
         .followup-type-grid { grid-template-columns:1fr; }
         .followup-source-summary { align-items:flex-start; flex-direction:column; }

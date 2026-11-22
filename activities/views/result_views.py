@@ -20,7 +20,7 @@ from ..proctor_storage import proctor_storage_status
 from ..proctor_lifecycle import end_capture_sessions, end_expired_capture_sessions
 from ..models import (
     Activity, Answer, ActivityStudentScore, FeedbackResult, FeedbackSession,
-    ProctorSession, ProctorSnapshot,
+    ProctorSession, ProctorSnapshot, submission_snapshot_content,
 )
 from .main_views import get_accessible_students
 
@@ -348,19 +348,32 @@ def answer_detail(request, answer_id):
     )
     feedback_by_revision = {}
     latest_revision = answer_revisions[-1]
+    submitted_content = submission_snapshot_content(
+        latest_revision.content_snapshot, answer.question.activity
+    )
+    unsubmitted_content = (
+        answer.display_content
+        if latest_revision.id and not submitted_content and answer.display_content.strip()
+        else ''
+    )
     for feedback in feedback_logs:
         revision_id = feedback.answer_revision_id or latest_revision.id
         feedback_by_revision.setdefault(revision_id, []).append(feedback)
 
     answer_entries = []
     for revision_index, revision in enumerate(answer_revisions):
+        written_pages = [
+            page for page in (revision.content_snapshot.get('notebook_pages') or [])
+            if str(page or '').strip()
+        ]
         answer_entries.append({
             'target': f'answer-{revision.id or "legacy"}',
             'title': revision.display_title,
             'revision': revision,
+            'notebook_pages': written_pages,
             'feedbacks': feedback_by_revision.get(revision.id, []),
             'is_latest': revision_index == len(answer_revisions) - 1,
-            'feedbacks': feedback_by_revision.get(revision.id, []),
+            'unsubmitted_content': unsubmitted_content if revision_index == len(answer_revisions) - 1 else '',
         })
     ordered_answer_ids = list(
         Answer.objects.filter(
@@ -386,6 +399,7 @@ def answer_detail(request, answer_id):
         'activity': answer.question.activity,
         'feedback_logs': feedback_logs,
         'answer_entries': answer_entries,
+        'submitted_content': submitted_content,
         'feedback_sessions': feedback_sessions,
         'next_answer_id': next_answer_id,
         'quick_score': quick_score,
@@ -500,6 +514,15 @@ def save_feedback_result(request, answer_id):
         return JsonResponse({'status': 'error', 'message': '지원하지 않는 작업 유형입니다.'}, status=400)
     if not isinstance(persona_used, dict):
         persona_used = {'summary': str(persona_used)[:500]}
+    if not feedback_session_id:
+        latest_revision = answer.latest_submission_revision()
+        if latest_revision and submission_snapshot_content(
+            latest_revision.content_snapshot, answer.question.activity
+        ).strip() != answer.display_content.strip():
+            return JsonResponse({
+                'status': 'error',
+                'message': '학생의 현재 임시 저장 답안과 최종 제출 답안이 다릅니다. 학생이 다시 제출한 뒤 피드백을 저장해주세요.',
+            }, status=409)
 
     feedback_session = None
     if feedback_session_id:

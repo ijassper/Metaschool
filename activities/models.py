@@ -360,6 +360,31 @@ class Question(models.Model):
         return f"문항: {self.activity.title}"
 
 # 학생 답안
+def submission_snapshot_content(snapshot, activity):
+    """Render the answer captured at submission, independently of later drafts."""
+    snapshot = snapshot or {}
+    pages = snapshot.get('notebook_pages') or []
+    written_pages = [str(page).strip() for page in pages if str(page or '').strip()]
+    if written_pages:
+        return '\n\n'.join(written_pages)
+
+    answer_items = [
+        (activity.q1_title, snapshot.get('ans_q1')),
+        (activity.q2_title, snapshot.get('ans_q2')),
+        (activity.q3_title, snapshot.get('ans_q3')),
+    ]
+    written_items = [
+        ((title or '').strip(), (value or '').strip())
+        for title, value in answer_items if (value or '').strip()
+    ]
+    if len(written_items) == 1:
+        return written_items[0][1]
+    return '\n\n'.join(
+        f'[{title}]\n{value}' if title else value
+        for title, value in written_items
+    )
+
+
 class Answer(models.Model):
     class Score(models.IntegerChoices):
         ZERO = 0, "0점"
