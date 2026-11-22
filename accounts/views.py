@@ -30,7 +30,7 @@ import json
 from pathlib import Path
 import pandas as pd  # 엑셀 처리를 위해 필요
 from openpyxl import Workbook   # 엑셀 파일 생성 및 조작을 위해 필요
-from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm, CustomAuthenticationForm  # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼, 로그인 폼
+from .forms import CustomUserCreationForm, StudentForm, UserUpdateForm, CustomAuthenticationForm, LOGIN_TABS, expected_login_tab  # 회원가입 폼, 학생 등록 폼, 사용자 정보 수정 폼, 로그인 폼
 from .models import Student, CustomUser, School, Persona # 학교 모델 가져오기
 from .models import SystemConfig, PromptCategory, PromptLengthOption, PromptTemplate # AI 생성기 관련 모델 가져오기
 from .decorators import teacher_required    # 교사 전용 접근 제어 데코레이터
@@ -202,6 +202,14 @@ def login_view(request):
         remember_me = request.POST.get('remember_me')
         login_type = request.POST.get('login_type') # 'teacher' 또는 'student' 가져오기
 
+        # 화면 표시와 무관하게 서버에서 탭 값의 유효성을 확인한다.
+        if login_type not in LOGIN_TABS:
+            return render(request, 'registration/login.html', {
+                'error_message': '로그인 유형을 확인할 수 없습니다. 학생 또는 교사 탭을 선택한 뒤 다시 시도해 주세요.',
+                'error_code': 'INVALID_LOGIN_TYPE',
+                'login_type': 'student',
+            })
+
         # 2. 아이디가 DB에 존재하는지 먼저 확인
         user_exists = CustomUser.objects.filter(username=username).exists()
 
@@ -209,25 +217,28 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
-            # [성공 시 추가 검증] 선택한 탭(login_type)과 실제 계정 권한(user.role) 비교
-            
-            # (A) 학생 탭인데 교사/관리자 계정인 경우
-            if login_type == 'student' and user.role in ['TEACHER', 'LEADER']:
+            # 인증 성공 후에도 계정 역할과 선택한 탭이 일치해야만 세션을 만든다.
+            expected_tab = expected_login_tab(user)
+            if expected_tab == 'teacher' and login_type != expected_tab:
                 return render(request, 'registration/login.html', {
                     'error_message': "이 계정은 [선생님] 전용 계정입니다.<br>'교사' 탭을 선택 후 로그인해 주세요.",
                     'error_code': "ROLE_MISMATCH_TEACHER",
-                    'login_type': login_type    # 선택한 탭 정보도 함께 보내서 탭 유지
+                    'login_type': login_type,
                 })
-            
-            # (B) 교사 탭인데 학생 계정인 경우
-            elif login_type == 'teacher' and user.role == 'STUDENT':
+            if expected_tab == 'student' and login_type != expected_tab:
                 return render(request, 'registration/login.html', {
                     'error_message': "이 계정은 [학생] 전용 계정입니다.<br>'학생' 탭을 선택 후 로그인해 주세요.",
                     'error_code': "ROLE_MISMATCH_STUDENT",
-                    'login_type': login_type    # 선택한 탭 정보도 함께 보내서 탭 유지
+                    'login_type': login_type,
                 })
-            
-            # (C) 모든 검증 통과 시 로그인 처리
+            if expected_tab is None:
+                return render(request, 'registration/login.html', {
+                    'error_message': '계정 유형을 확인할 수 없습니다. 관리자에게 문의해 주세요.',
+                    'error_code': 'UNKNOWN_ACCOUNT_ROLE',
+                    'login_type': login_type,
+                })
+
+            # 모든 검증 통과 시 로그인 처리
             auth_login(request, user) # 실제 로그인 수행
             request.session.cycle_key()
             rotate_token(request)

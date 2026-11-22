@@ -2,6 +2,24 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm 
 from .models import CustomUser, Student, Subject
 
+
+LOGIN_TABS = ('student', 'teacher')
+TEACHER_LOGIN_ROLES = frozenset({
+    CustomUser.Role.GUEST,
+    CustomUser.Role.TEACHER,
+    CustomUser.Role.LEADER,
+    CustomUser.Role.ADMIN,
+})
+
+
+def expected_login_tab(user):
+    """Return the tab allowed for this account, or None for an unknown role."""
+    if user.role == CustomUser.Role.STUDENT:
+        return 'student'
+    if user.role in TEACHER_LOGIN_ROLES:
+        return 'teacher'
+    return None
+
 # 교사 회원가입 폼
 class CustomUserCreationForm(UserCreationForm):
     is_representative = forms.BooleanField(
@@ -78,33 +96,20 @@ class StudentForm(forms.ModelForm):
 
 # ★ 등급 체크 기능이 포함된 로그인 폼
 class CustomAuthenticationForm(AuthenticationForm):
-    # HTML에서 보낸 login_type('teacher' 또는 'student')을 받음
-    login_type = forms.CharField(required=False)
+    login_type = forms.ChoiceField(choices=tuple((tab, tab) for tab in LOGIN_TABS))
 
     def clean(self):
-        # 1. 아이디/비번 기본 검사 (장고가 해줌)
         cleaned_data = super().clean()
-        
-        # 2. 유저 객체 가져오기 (인증 성공 시)
         user = self.get_user()
-        
-        # 3. 탭 정보 가져오기
         login_type = cleaned_data.get('login_type')
-
-        input_type = self.data.get('login_type')
-        print(f"🔥 DEBUG: 선택된 탭 = {input_type}")
-        if user:
-            print(f"🔥 DEBUG: 로그인한 유저 등급 = {user.role}")
-
-        if user:
-            # [검사 1] 학생 탭인데 -> 학생이 아니면 에러
-            if login_type == 'student' and user.role != 'STUDENT':
-                raise forms.ValidationError("학생 전용 로그인입니다. 교사 탭을 이용해주세요.")
-            
-            # [검사 2] 교사 탭인데 -> 학생이면 에러
-            if login_type == 'teacher' and user.role == 'STUDENT':
-                raise forms.ValidationError("교사 전용 로그인입니다. 학생 탭을 이용해주세요.")
-                
+        if user and login_type:
+            expected_tab = expected_login_tab(user)
+            if expected_tab != login_type:
+                if expected_tab == 'teacher':
+                    raise forms.ValidationError('교사 계정입니다. 교사 탭을 이용해주세요.')
+                if expected_tab == 'student':
+                    raise forms.ValidationError('학생 계정입니다. 학생 탭을 이용해주세요.')
+                raise forms.ValidationError('계정 유형을 확인할 수 없습니다. 관리자에게 문의해주세요.')
         return cleaned_data
 
 # 기존 폼들 아래에 추가

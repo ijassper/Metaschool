@@ -9,11 +9,13 @@ from unittest.mock import patch
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpResponse
-from django.test import Client, RequestFactory, SimpleTestCase, override_settings
+from django.test import Client, RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.urls import resolve, reverse
 from django.template.loader import get_template
 
 from .middleware import AndroidStudentMinimumVersionMiddleware, StudentSessionValidationMiddleware
+from .forms import CustomAuthenticationForm, expected_login_tab
+from .models import CustomUser
 from .views import (
     _notify_admin_storage_risk,
     _should_trigger_proctor_cleanup,
@@ -26,6 +28,99 @@ from .views import (
     student_app_version,
     student_app_update_required,
 )
+
+
+class LoginTabRoleTests(TestCase):
+    def setUp(self):
+        self.password = 'login-test-password'
+        self.users = {}
+        for role in CustomUser.Role.values:
+            username = f'{role.lower()}@example.com'
+            self.users[role] = CustomUser.objects.create_user(
+                username=username,
+                email=username,
+                name=role,
+                role=role,
+                password=self.password,
+            )
+
+    def test_every_role_has_one_expected_tab(self):
+        for role, user in self.users.items():
+            with self.subTest(role=role):
+                self.assertEqual(
+                    expected_login_tab(user),
+                    'student' if role == CustomUser.Role.STUDENT else 'teacher',
+                )
+
+    def test_wrong_tab_never_creates_session_and_shows_guide(self):
+        for role, user in self.users.items():
+            with self.subTest(role=role):
+                client = Client()
+                wrong_tab = 'teacher' if role == CustomUser.Role.STUDENT else 'student'
+                response = client.post(reverse('login'), {
+                    'username': user.username,
+                    'password': self.password,
+                    'login_type': wrong_tab,
+                })
+                self.assertEqual(response.status_code, 200)
+                self.assertNotIn('_auth_user_id', client.session)
+                expected_code = (
+                    'ROLE_MISMATCH_STUDENT'
+                    if role == CustomUser.Role.STUDENT else 'ROLE_MISMATCH_TEACHER'
+                )
+                self.assertContains(response, expected_code)
+
+    def test_correct_tab_creates_session(self):
+        for role, user in self.users.items():
+            with self.subTest(role=role):
+                client = Client()
+                with patch('accounts.views._should_trigger_proctor_cleanup', return_value=False):
+                    response = client.post(reverse('login'), {
+                        'username': user.username,
+                        'password': self.password,
+                        'login_type': expected_login_tab(user),
+                    })
+                self.assertRedirects(response, reverse('dashboard'), fetch_redirect_response=False)
+                self.assertEqual(client.session.get('_auth_user_id'), str(user.pk))
+
+    def test_missing_or_invalid_tab_cannot_create_session(self):
+        user = self.users[CustomUser.Role.TEACHER]
+        for tab in (None, '', 'admin', 'STUDENT'):
+            with self.subTest(tab=tab):
+                client = Client()
+                payload = {'username': user.username, 'password': self.password}
+                if tab is not None:
+                    payload['login_type'] = tab
+                response = client.post(reverse('login'), payload)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'INVALID_LOGIN_TYPE')
+                self.assertNotIn('_auth_user_id', client.session)
+
+    def test_unrecognized_account_role_cannot_create_session(self):
+        user = self.users[CustomUser.Role.TEACHER]
+        user.role = 'UNKNOWN'
+        user.save(update_fields=['role'])
+        self.assertIsNone(expected_login_tab(user))
+
+        client = Client()
+        response = client.post(reverse('login'), {
+            'username': user.username,
+            'password': self.password,
+            'login_type': 'teacher',
+        })
+        self.assertContains(response, 'UNKNOWN_ACCOUNT_ROLE')
+        self.assertNotIn('_auth_user_id', client.session)
+
+    def test_form_and_view_share_the_same_role_policy(self):
+        for role, user in self.users.items():
+            with self.subTest(role=role):
+                wrong_tab = 'teacher' if role == CustomUser.Role.STUDENT else 'student'
+                form = CustomAuthenticationForm(data={
+                    'username': user.username,
+                    'password': self.password,
+                    'login_type': wrong_tab,
+                })
+                self.assertFalse(form.is_valid())
 
 
 class ProctorCleanupLoginTriggerTests(SimpleTestCase):
@@ -343,6 +438,17 @@ class CsrfAndSessionConsistencyTests(SimpleTestCase):
         self.assertIn("getIngridCookie('csrftoken')", template)
         self.assertIn("loginForm.addEventListener('submit'", template)
         self.assertIn("window.addEventListener('pageshow'", template)
+
+    def test_student_login_hides_teacher_signup_without_reserving_space(self):
+        template = (
+            Path(settings.BASE_DIR)
+            / 'templates'
+            / 'registration'
+            / 'login.html'
+        ).read_text(encoding='utf-8')
+        self.assertIn('#teacher-signup-area.layout-slot-hidden {\n        display: none;', template)
+        self.assertIn('class="login-actions"', template)
+        self.assertNotIn('min-height: 10.75rem', template)
 
     def test_referrer_policy_keeps_same_origin_login_referer(self):
         self.assertEqual(settings.SECURE_REFERRER_POLICY, 'same-origin')

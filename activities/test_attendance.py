@@ -480,6 +480,8 @@ class AttendanceReportFlowTests(TestCase):
         )
         self.client.force_login(self.teacher)
         page = self.client.get(reverse('attendance_folder_detail', args=[folder.id]) + '?view=list&q=김학생')
+        self.assertNotContains(page, '조건에 맞는 학생 1명')
+        self.assertContains(page, '필터 초기화')
         self.assertContains(page, '<th>학년</th><th>반</th><th>번호</th><th>이름</th>', html=False)
         self.assertNotContains(page, '<th>제출일</th>')
         self.assertContains(page, '학생별 출결 통계')
