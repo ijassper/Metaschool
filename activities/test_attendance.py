@@ -325,6 +325,21 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(self.client.get(reverse('dashboard')), reverse('student_attendance_list'))
         self.assertContains(self.client.get(reverse('student_attendance_list')), reverse('attendance_report_print', args=[report.id]))
 
+    def test_student_can_submit_without_handwritten_signature(self):
+        folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
+        folder.target_students.add(self.student)
+        self.client.force_login(self.student_user)
+        response = self.client.post(reverse('student_attendance_report', args=[folder.id]), {
+            'attendance_category': 'SICK', 'attendance_kind': 'ABSENCE',
+            'start_date': '2026-10-20', 'end_date': '2026-10-20',
+            'reason': '병원 진료', 'written_date': '2026-10-20',
+            'student_signature_data': '',
+        })
+        report = AttendanceReport.objects.get(folder=folder, student=self.student)
+        self.assertRedirects(response, reverse('attendance_report_print', args=[report.id]))
+        self.assertEqual(report.student_signature_data, '')
+        self.assertContains(self.client.get(reverse('attendance_report_print', args=[report.id])), '(인)')
+
     def test_student_form_has_optional_guardian_fields_and_native_notice_tables(self):
         folder = AttendanceReportFolder.objects.create(teacher=self.teacher)
         folder.target_students.add(self.student)
@@ -334,6 +349,11 @@ class AttendanceReportFlowTests(TestCase):
 
         self.assertContains(response, 'name="guardian_name"')
         self.assertContains(response, 'name="guardian_signature_data"')
+        self.assertContains(response, 'class="identity-fields"')
+        self.assertContains(response, 'grid-template-columns:repeat(3,minmax(0,1fr))')
+        identity_row = response.content.decode().split('class="identity-fields"', 1)[1].split('class="signature-columns mt-3"', 1)[0]
+        self.assertLess(identity_row.index('name="written_date"'), identity_row.index('학생 성명'))
+        self.assertLess(identity_row.index('학생 성명'), identity_row.index('name="guardian_name"'))
         self.assertContains(response, 'class="signature-columns mt-3"')
         self.assertContains(response, 'grid-template-columns:repeat(2,minmax(0,1fr))')
         self.assertContains(response, 'class="signature-column"', count=2)
@@ -341,6 +361,7 @@ class AttendanceReportFlowTests(TestCase):
         self.assertLess(signature_row.index('name="student_signature_data"'), signature_row.index('name="guardian_signature_data"'))
         self.assertContains(response, '학부모 성명')
         self.assertContains(response, '학부모 서명')
+        self.assertContains(response, '학생 서명 <span class="text-secondary fw-normal">(선택)</span>')
         self.assertNotContains(response, 'name="guardian_name" required')
         self.assertContains(response, 'name="reason" rows="3"')
         self.assertContains(response, '<table class="privacy-table">', count=2, html=False)
@@ -581,11 +602,12 @@ class AttendanceReportFlowTests(TestCase):
         }
         self.assertEqual(self.client.post(url, {**payload, 'student_id': str(outsider.id)}).status_code, 200)
         self.assertFalse(AttendanceReport.objects.exists())
-        self.assertContains(self.client.post(url, {**payload, 'student_signature_data': ''}), '학생 서명')
+        self.assertContains(self.client.post(url, {**payload, 'student_signature_data': 'invalid'}), '학생 서명 이미지를 확인해 주세요.')
         self.assertFalse(AttendanceReport.objects.exists())
-        response = self.client.post(url, payload)
+        response = self.client.post(url, {**payload, 'student_signature_data': ''})
         report = AttendanceReport.objects.get()
         self.assertRedirects(response, reverse('attendance_report_print', args=[report.id]))
+        self.assertEqual(report.student_signature_data, '')
         self.assertEqual(report.student, self.student)
         self.assertEqual(report.report_number, '2026-2-03-07-01')
         folder.operation_end_date = timezone.localdate() - timedelta(days=1)
@@ -780,7 +802,8 @@ class AttendanceReportFlowTests(TestCase):
         self.assertContains(detail, '서명받기 링크')
         self.assertContains(detail, 'id="guardianLinkDialog"')
         self.assertContains(detail, 'id="guardianSignPreview"')
-        self.assertContains(detail, 'data-complete-url="' + reverse('attendance_guardian_complete') + '"')
+        self.assertContains(detail, "previewUrl.searchParams.set('preview','1')")
+        self.assertContains(detail, 'guardianValue.value=data.url')
         self.assertLess(detail.content.decode().index('id="guardianLinkCopy"'), detail.content.decode().index('id="guardianSignPreview"'))
         self.assertContains(detail, 'data-bs-target="#studentReportsPanel"')
         self.assertContains(detail, 'data-panel-report-url="' + reverse('attendance_report_print', args=[report.id]) + '"')
@@ -790,7 +813,23 @@ class AttendanceReportFlowTests(TestCase):
 
         self.client.logout()
         guardian_url = reverse('attendance_guardian_sign', args=[token])
-        self.assertContains(self.client.get(guardian_url), '공식 대회 참가')
+        preview_page = self.client.get(guardian_url + '?preview=1')
+        for label in ('학생', '출결', '기간', '사유'):
+            self.assertContains(preview_page, f'<strong>{label}</strong>')
+        self.assertContains(preview_page, '공식 대회 참가')
+        self.assertNotContains(preview_page, '학생 서명')
+        self.assertNotContains(preview_page, '보호자 성명')
+        self.assertNotContains(preview_page, '보호자 서명')
+        self.assertNotContains(preview_page, '서명 제출')
+        self.assertNotContains(preview_page, '<form')
+        self.assertEqual(self.client.post(guardian_url + '?preview=1', {
+            'guardian_name': '김보호자', 'guardian_signature_data': self.signature_data,
+        }).status_code, 405)
+        report.refresh_from_db()
+        self.assertIsNone(report.guardian_signed_at)
+        sign_page = self.client.get(guardian_url)
+        self.assertContains(sign_page, '공식 대회 참가')
+        self.assertContains(sign_page, '서명 제출')
         signed = self.client.post(guardian_url, {
             'guardian_name': '김보호자', 'guardian_signature_data': self.signature_data,
         })

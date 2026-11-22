@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -434,6 +434,12 @@ def attendance_guardian_sign(request, token):
         return redirect('attendance_guardian_report', token=token)
     if not report or not _guardian_link_is_active(report):
         return render(request, 'activities/attendance_guardian_sign.html', {'expired': True}, status=410)
+    if request.GET.get('preview') == '1':
+        if request.method != 'GET':
+            return HttpResponseNotAllowed(['GET'])
+        return render(request, 'activities/attendance_guardian_sign.html', {
+            'report': report, 'preview': True,
+        })
     if request.method == 'POST':
         guardian_name = request.POST.get('guardian_name', '').strip()
         signature_data = request.POST.get('guardian_signature_data', '').strip()
@@ -590,8 +596,8 @@ def _save_attendance_report(request, folder, student, report, *, preserve_submit
         errors.append('출결 사유를 입력해 주세요.')
     if len(reason) > 1000:
         errors.append('출결 사유는 1000자 이내로 입력해 주세요.')
-    if not _valid_signature_data(student_signature_data):
-        errors.append('학생 서명을 손가락이나 펜으로 작성해 주세요.')
+    if student_signature_data and not _valid_signature_data(student_signature_data):
+        errors.append('학생 서명 이미지를 확인해 주세요.')
     if len(guardian_name) > 100:
         errors.append('보호자 성명은 100자 이내로 입력해 주세요.')
     if guardian_signature_data and not _valid_signature_data(guardian_signature_data):
