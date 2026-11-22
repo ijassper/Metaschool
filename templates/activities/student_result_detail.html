@@ -42,18 +42,24 @@
   .followup-button:disabled { cursor: not-allowed; opacity: .45; }
   .rewrite-backdrop { position: fixed; inset: 0; z-index: 1090; background: rgba(36, 25, 42, .42); opacity: 0; pointer-events: none; transition: opacity .22s ease; }
   .rewrite-backdrop.is-open { opacity: 1; pointer-events: auto; }
-  .rewrite-panel { position: fixed; top: 0; right: 0; z-index: 1100; width: min(1100px, 94vw); height: 100dvh; background: #fff; font-size: calc(1rem + 2pt); box-shadow: -18px 0 45px rgba(53, 31, 62, .2); transform: translateX(102%); transition: transform .25s ease; display: flex; flex-direction: column; }
+  .rewrite-panel { position: fixed; top: 0; right: 0; z-index: 1100; width: 100vw; height: 100dvh; background: #fff; font-size: calc(1rem + 2pt); box-shadow: -18px 0 45px rgba(53, 31, 62, .2); transform: translateX(102%); transition: transform .25s ease; display: flex; flex-direction: column; }
   .rewrite-panel.is-open { transform: translateX(0); }
   .rewrite-panel-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 24px; border-bottom: 1px solid #eadfed; }
   .rewrite-panel-head h2 { margin: 0; font-size: calc(1.25rem + 2pt); font-weight: 900; }
   .rewrite-close { width: 38px; height: 38px; border: 0; border-radius: 50%; background: #f4eef6; cursor: pointer; font-size: calc(1.25rem + 2pt); }
-  .rewrite-columns { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+  .rewrite-columns { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); }
   .rewrite-column { min-width: 0; overflow-y: auto; padding: 24px; }
   .rewrite-column:first-child { background: #fbf8fc; border-right: 1px solid #eadfed; }
   .rewrite-column-title { margin: 0 0 16px; font-size: calc(1.05rem + 2pt); font-weight: 900; color: #633174; }
+  .rewrite-source { margin-bottom: 28px; }
+  .rewrite-source-card { padding: 18px; border: 1px solid #eadfed; border-radius: 15px; background: #fff; }
+  .rewrite-source-answer { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+  .rewrite-source-item + .rewrite-source-item { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eadfed; }
+  .rewrite-source-item strong { display: block; margin-bottom: 8px; color: #633174; }
   .rewrite-field { margin-bottom: 16px; }
   .rewrite-field label { display: block; margin-bottom: 7px; font-weight: 800; }
-  .rewrite-field textarea { width: 100%; min-height: 170px; resize: vertical; box-sizing: border-box; padding: 14px; border: 1px solid #d8cddd; border-radius: 13px; font: inherit; line-height: 1.7; }
+  .rewrite-field textarea { width: 100%; min-height: clamp(420px, 65vh, 900px); resize: vertical; box-sizing: border-box; padding: 14px; border: 1px solid #d8cddd; border-radius: 13px; font: inherit; line-height: 1.7; }
+  .rewrite-save-status { display: block; margin-top: 4px; color: #6f6577; }
   .rewrite-submit-row { position: sticky; bottom: -24px; margin: 8px -24px -24px; padding: 16px 24px; border-top: 1px solid #eadfed; background: #fff; text-align: right; }
   .rewrite-submit { border: 0; border-radius: 999px; padding: 12px 22px; color: #fff; background: #8e44ad; font-size: inherit; font-weight: 900; cursor: pointer; }
   .rewrite-message { min-height: 22px; margin: 10px 0 0; color: #d33b58; font-size: calc(.88rem + 2pt); }
@@ -64,6 +70,7 @@
     .rewrite-columns { grid-template-columns: 1fr; overflow-y: auto; }
     .rewrite-column { overflow: visible; }
     .rewrite-column:first-child { border-right: 0; border-bottom: 1px solid #eadfed; }
+    .rewrite-field textarea { min-height: 50vh; }
   }
 </style>
 
@@ -139,11 +146,26 @@
 <div class="rewrite-backdrop" data-rewrite-backdrop></div>
 <aside class="rewrite-panel" data-rewrite-panel aria-hidden="true" aria-labelledby="rewritePanelTitle">
   <header class="rewrite-panel-head">
-    <div><h2 id="rewritePanelTitle">고쳐쓰기</h2><small>피드백을 확인하면서 답안을 수정한 뒤 제출하세요.</small></div>
+    <div><h2 id="rewritePanelTitle">고쳐쓰기</h2><small>기존 답안과 피드백을 참고해 새 답안을 작성하세요.</small><small class="rewrite-save-status" data-rewrite-save-status role="status">작성 내용은 자동으로 임시저장됩니다.</small></div>
     <button class="rewrite-close" type="button" data-close-rewrite aria-label="닫기">&times;</button>
   </header>
   <div class="rewrite-columns">
     <section class="rewrite-column">
+      <div class="rewrite-source">
+        <h3 class="rewrite-column-title">학생 답안</h3>
+        <div class="rewrite-source-card">
+          {% if activity.is_notebook %}
+            {% for page in rewrite_snapshot.notebook_pages %}
+              <div class="rewrite-source-item"><strong>{{ forloop.counter }}쪽</strong><p class="rewrite-source-answer">{{ page|default:"작성된 내용이 없습니다." }}</p></div>
+            {% endfor %}
+          {% else %}
+            {% if rewrite_snapshot.ans_q1 %}<div class="rewrite-source-item"><strong>{{ activity.q1_title }}</strong><p class="rewrite-source-answer">{{ rewrite_snapshot.ans_q1 }}</p></div>{% endif %}
+            {% if rewrite_snapshot.ans_q2 %}<div class="rewrite-source-item"><strong>{{ activity.q2_title }}</strong><p class="rewrite-source-answer">{{ rewrite_snapshot.ans_q2 }}</p></div>{% endif %}
+            {% if rewrite_snapshot.ans_q3 %}<div class="rewrite-source-item"><strong>{{ activity.q3_title }}</strong><p class="rewrite-source-answer">{{ rewrite_snapshot.ans_q3 }}</p></div>{% endif %}
+            {% if not rewrite_snapshot.ans_q1 and not rewrite_snapshot.ans_q2 and not rewrite_snapshot.ans_q3 %}<p class="rewrite-source-answer">{{ answer.display_content|default:"작성된 내용이 없습니다." }}</p>{% endif %}
+          {% endif %}
+        </div>
+      </div>
       <h3 class="rewrite-column-title">선생님의 피드백</h3>
       {% for feedback in latest_feedback_results %}
         <article class="feedback-card">
@@ -155,17 +177,17 @@
     </section>
     <section class="rewrite-column">
       <h3 class="rewrite-column-title">답안 고쳐쓰기</h3>
-      <form method="post" action="{% url 'submit_answer_rewrite' activity.id %}" data-rewrite-form>
+      <form method="post" action="{% url 'submit_answer_rewrite' activity.id %}" data-draft-url="{% url 'save_answer_rewrite_draft' activity.id %}" data-rewrite-form>
         {% csrf_token %}
         {% if activity.is_notebook %}
           <input type="hidden" name="notebook_pages" data-rewrite-notebook-pages>
-          {% for page in rewrite_snapshot.notebook_pages %}
+          {% for page in rewrite_notebook_pages %}
             <div class="rewrite-field"><label>{{ forloop.counter }}쪽</label><textarea class="rewrite-notebook-page">{{ page }}</textarea></div>
           {% endfor %}
         {% else %}
-          <div class="rewrite-field"><label>{{ activity.q1_title|default:"문항 1" }}</label><textarea name="ans_q1">{{ rewrite_snapshot.ans_q1 }}</textarea></div>
-          {% if activity.q2_title %}<div class="rewrite-field"><label>{{ activity.q2_title }}</label><textarea name="ans_q2">{{ rewrite_snapshot.ans_q2 }}</textarea></div>{% endif %}
-          {% if activity.q3_title %}<div class="rewrite-field"><label>{{ activity.q3_title }}</label><textarea name="ans_q3">{{ rewrite_snapshot.ans_q3 }}</textarea></div>{% endif %}
+          <div class="rewrite-field"><label>{{ activity.q1_title|default:"문항 1" }}</label><textarea name="ans_q1">{{ rewrite_draft_snapshot.ans_q1 }}</textarea></div>
+          {% if activity.q2_title %}<div class="rewrite-field"><label>{{ activity.q2_title }}</label><textarea name="ans_q2">{{ rewrite_draft_snapshot.ans_q2 }}</textarea></div>{% endif %}
+          {% if activity.q3_title %}<div class="rewrite-field"><label>{{ activity.q3_title }}</label><textarea name="ans_q3">{{ rewrite_draft_snapshot.ans_q3 }}</textarea></div>{% endif %}
         {% endif %}
         <p class="rewrite-message" data-rewrite-message role="alert"></p>
         <div class="rewrite-submit-row"><button class="rewrite-submit" type="submit">고쳐쓰기 제출</button></div>
@@ -180,6 +202,58 @@
   const openButton = document.querySelector('[data-open-rewrite]');
   const form = document.querySelector('[data-rewrite-form]');
   if (!panel || !backdrop || !openButton || !form) return;
+  const closeButton = panel.querySelector('[data-close-rewrite]');
+  const saveStatus = panel.querySelector('[data-rewrite-save-status]');
+  const message = form.querySelector('[data-rewrite-message]');
+  let editVersion = 0;
+  let savedVersion = 0;
+  let saveTimer;
+  let saveChain = Promise.resolve();
+  let submitting = false;
+  let closing = false;
+  const formData = () => {
+    const notebookInput = form.querySelector('[data-rewrite-notebook-pages]');
+    if (notebookInput) notebookInput.value = JSON.stringify(
+      [...form.querySelectorAll('.rewrite-notebook-page')].map((field) => field.value)
+    );
+    return new FormData(form);
+  };
+  const saveDraft = () => {
+    const version = editVersion;
+    if (version <= savedVersion) return saveChain;
+    const body = formData();
+    saveChain = saveChain.catch(() => {}).then(async () => {
+      if (version <= savedVersion) return;
+      saveStatus.textContent = '임시저장 중…';
+      const response = await fetch(form.dataset.draftUrl, {
+        method: 'POST', body, headers: {'X-Requested-With': 'XMLHttpRequest'}
+      });
+      const payload = await response.json();
+      if (!response.ok || payload.status !== 'success') {
+        throw new Error(payload.message || '임시저장에 실패했습니다. 다시 시도해 주세요.');
+      }
+      savedVersion = version;
+      saveStatus.textContent = '임시저장 완료';
+    });
+    return saveChain;
+  };
+  const closePanel = async () => {
+    if (submitting || closing) return;
+    closing = true;
+    clearTimeout(saveTimer);
+    closeButton.disabled = true;
+    try {
+      do { await saveDraft(); } while (editVersion > savedVersion);
+      message.textContent = '';
+      setOpen(false);
+    } catch (error) {
+      message.textContent = error.message;
+      saveStatus.textContent = '임시저장 실패 · 내용을 확인하고 다시 닫아 주세요.';
+    } finally {
+      closeButton.disabled = false;
+      closing = false;
+    }
+  };
   const setOpen = (open) => {
     panel.classList.toggle('is-open', open);
     backdrop.classList.toggle('is-open', open);
@@ -187,22 +261,32 @@
     document.body.style.overflow = open ? 'hidden' : '';
   };
   openButton.addEventListener('click', () => setOpen(true));
-  backdrop.addEventListener('click', () => setOpen(false));
-  document.querySelector('[data-close-rewrite]').addEventListener('click', () => setOpen(false));
-  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setOpen(false); });
+  backdrop.addEventListener('click', closePanel);
+  closeButton.addEventListener('click', closePanel);
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && panel.classList.contains('is-open')) closePanel(); });
+  form.addEventListener('input', (event) => {
+    if (!event.target.matches('textarea')) return;
+    editVersion += 1;
+    saveStatus.textContent = '저장할 내용이 있습니다.';
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      if (!submitting) saveDraft().catch((error) => {
+        saveStatus.textContent = error.message;
+      });
+    }, 1500);
+  });
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (submitting || closing) return;
     const submit = form.querySelector('[type="submit"]');
-    const message = form.querySelector('[data-rewrite-message]');
-    const notebookInput = form.querySelector('[data-rewrite-notebook-pages]');
-    if (notebookInput) notebookInput.value = JSON.stringify(
-      [...form.querySelectorAll('.rewrite-notebook-page')].map((field) => field.value)
-    );
+    submitting = true;
+    clearTimeout(saveTimer);
     submit.disabled = true;
     message.textContent = '';
     try {
+      await saveChain.catch(() => {});
       const response = await fetch(form.action, {
-        method: 'POST', body: new FormData(form), headers: {'X-Requested-With': 'XMLHttpRequest'}
+        method: 'POST', body: formData(), headers: {'X-Requested-With': 'XMLHttpRequest'}
       });
       const payload = await response.json();
       if (!response.ok || payload.status !== 'success') throw new Error(payload.message || '고쳐쓰기를 제출하지 못했습니다.');
@@ -210,7 +294,16 @@
     } catch (error) {
       message.textContent = error.message;
       submit.disabled = false;
+      submitting = false;
+      if (editVersion > savedVersion) saveDraft().catch((saveError) => {
+        saveStatus.textContent = saveError.message;
+      });
     }
+  });
+  window.addEventListener('beforeunload', (event) => {
+    if (editVersion <= savedVersion || submitting) return;
+    event.preventDefault();
+    event.returnValue = '';
   });
 })();
 </script>

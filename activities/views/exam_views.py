@@ -20,7 +20,7 @@ from accounts.decorators import teacher_required
 from accounts.models import Student
 from ..proctor_storage import proctor_storage_status
 from ..models import (
-    Activity, Question, Answer, AnswerDraftRevision, AnswerSubmissionRevision,
+    Activity, Question, Answer, AnswerDraftRevision, AnswerSubmissionRevision, AnswerRewriteDraft,
     ActivityStudentScore, FeedbackResult, ProctorEvent, ProctorSession, ProctorSnapshot,
 )
 
@@ -702,6 +702,8 @@ def student_result_detail(request, activity_id):
     latest_feedback_results = []
     latest_revision = None
     rewrite_snapshot = {}
+    rewrite_draft_snapshot = {}
+    rewrite_notebook_pages = []
     notebook_pages = []
     if answer:
         latest_revision = answer.latest_submission_revision()
@@ -723,6 +725,12 @@ def student_result_detail(request, activity_id):
             dict(latest_revision.content_snapshot or {})
             if latest_revision else build_answer_snapshot(answer)
         )
+        if activity.is_notebook:
+            original_pages = normalize_notebook_pages(
+                rewrite_snapshot.get('notebook_pages'), rewrite_snapshot.get('ans_q1', '')
+            )
+            rewrite_snapshot['notebook_pages'] = original_pages
+            rewrite_notebook_pages = [''] * len(original_pages)
         unread_ids = [feedback.id for feedback in feedback_results if not feedback.is_read]
         if unread_ids:
             first_read_at = timezone.now()
@@ -746,6 +754,18 @@ def student_result_detail(request, activity_id):
         else (answer.score if answer and answer.score is not None else 0)
     )
 
+    can_start_rewrite = bool(
+        answer and any(feedback.is_rewrite_assigned for feedback in latest_feedback_results)
+    )
+    if can_start_rewrite:
+        draft = AnswerRewriteDraft.objects.filter(answer=answer, base_revision=latest_revision).first()
+        if draft:
+            rewrite_draft_snapshot = dict(draft.content_snapshot or {})
+            if activity.is_notebook:
+                rewrite_notebook_pages = normalize_notebook_pages(
+                    rewrite_draft_snapshot.get('notebook_pages'), ''
+                )
+
     return render(request, 'activities/student_result_detail.html', {
         'activity': activity,
         'question': question,
@@ -756,9 +776,9 @@ def student_result_detail(request, activity_id):
         'notebook_pages': notebook_pages,
         'latest_feedback_results': latest_feedback_results,
         'rewrite_snapshot': rewrite_snapshot,
-        'can_start_rewrite': bool(
-            answer and any(feedback.is_rewrite_assigned for feedback in latest_feedback_results)
-        ),
+        'rewrite_draft_snapshot': rewrite_draft_snapshot,
+        'rewrite_notebook_pages': rewrite_notebook_pages,
+        'can_start_rewrite': can_start_rewrite,
     })
 
 
@@ -796,6 +816,59 @@ def mark_activity_feedback_read(request, activity_id):
     return JsonResponse({'status': 'success', 'updated': updated})
 
 
+def rewrite_assignment_exists(answer, activity, student_info, latest_revision):
+    feedbacks = FeedbackResult.objects.filter(
+        answer=answer, activity=activity, student=student_info,
+        is_published=True, is_rewrite_assigned=True,
+    )
+    if latest_revision:
+        feedbacks = feedbacks.filter(answer_revision=latest_revision)
+    else:
+        feedbacks = feedbacks.filter(answer_revision__isnull=True)
+    return feedbacks.exists()
+
+
+@require_POST
+@login_required
+def save_answer_rewrite_draft(request, activity_id):
+    """고쳐쓰기 원본을 변경하지 않고 학생별 임시 글만 저장합니다."""
+    activity = get_object_or_404(Activity, id=activity_id)
+    student_info, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return JsonResponse({'status': 'error', 'message': '저장 권한이 없습니다.'}, status=403)
+
+    with transaction.atomic():
+        answer = (
+            Answer.objects.select_for_update()
+            .filter(student=student_info, question__activity=activity, submitted_at__isnull=False)
+            .first()
+        )
+        if not answer:
+            return JsonResponse({'status': 'error', 'message': '제출된 답안을 찾을 수 없습니다.'}, status=404)
+        latest_revision = answer.latest_submission_revision()
+        if not rewrite_assignment_exists(answer, activity, student_info, latest_revision):
+            return JsonResponse({'status': 'error', 'message': '고쳐쓰기 과제가 없습니다.'}, status=403)
+
+        if activity.is_notebook:
+            pages = normalize_notebook_pages(request.POST.get('notebook_pages'), '')
+            snapshot = {'notebook_pages': pages}
+        else:
+            snapshot = {
+                key: request.POST.get(key, '')
+                for key in ('ans_q1', 'ans_q2', 'ans_q3')
+            }
+            if any(len(value) > 100000 for value in snapshot.values()):
+                return JsonResponse(
+                    {'status': 'error', 'message': '임시저장 답안은 문항당 10만 자 이내로 작성해 주세요.'},
+                    status=400,
+                )
+        draft, _ = AnswerRewriteDraft.objects.update_or_create(
+            answer=answer,
+            defaults={'base_revision': latest_revision, 'content_snapshot': snapshot},
+        )
+    return JsonResponse({'status': 'success', 'saved_at': draft.updated_at.isoformat()})
+
+
 @require_POST
 @login_required
 def submit_answer_rewrite(request, activity_id):
@@ -815,18 +888,7 @@ def submit_answer_rewrite(request, activity_id):
             return JsonResponse({'status': 'error', 'message': '제출된 답안을 찾을 수 없습니다.'}, status=404)
 
         latest_revision = answer.latest_submission_revision()
-        published_feedbacks = FeedbackResult.objects.filter(
-            answer=answer,
-            activity=activity,
-            student=student_info,
-            is_published=True,
-            is_rewrite_assigned=True,
-        )
-        if latest_revision:
-            published_feedbacks = published_feedbacks.filter(answer_revision=latest_revision)
-        else:
-            published_feedbacks = published_feedbacks.filter(answer_revision__isnull=True)
-        if not published_feedbacks.exists():
+        if not rewrite_assignment_exists(answer, activity, student_info, latest_revision):
             return JsonResponse(
                 {'status': 'error', 'message': '교사가 최신 답안에 고쳐쓰기 과제를 배부하지 않았습니다.'},
                 status=403,
@@ -841,6 +903,7 @@ def submit_answer_rewrite(request, activity_id):
         append_activity_log(answer, 'REWRITE')
         answer.save()
         revision = record_answer_submission(answer)
+        AnswerRewriteDraft.objects.filter(answer=answer).delete()
 
     return JsonResponse({
         'status': 'success',

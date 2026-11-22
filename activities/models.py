@@ -550,6 +550,24 @@ class AnswerSubmissionRevision(models.Model):
         return f'{self.answer} · {self.display_title}'
 
 
+class AnswerRewriteDraft(models.Model):
+    """고쳐쓰기 제출 전 내용은 원본 답안과 분리해 보관합니다."""
+
+    answer = models.OneToOneField(
+        Answer, on_delete=models.CASCADE, related_name='rewrite_draft', verbose_name='원본 답안'
+    )
+    base_revision = models.ForeignKey(
+        AnswerSubmissionRevision, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='rewrite_drafts', verbose_name='고쳐쓰기 기준 제출본'
+    )
+    content_snapshot = models.JSONField(default=dict, verbose_name='고쳐쓰기 임시 내용')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='마지막 임시저장 시간')
+
+    class Meta:
+        verbose_name = '고쳐쓰기 임시저장'
+        verbose_name_plural = '고쳐쓰기 임시저장 목록'
+
+
 class ActivityStudentScore(models.Model):
     """답안 및 응시 상태와 독립적으로 보관하는 활동별 학생 점수입니다."""
 
