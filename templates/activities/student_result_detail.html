@@ -29,6 +29,14 @@
   .answer-content { padding: 16px; white-space: pre-wrap; line-height: 1.75; min-height: 120px; }
   .answer-edit-button { display:inline-flex; flex:0 0 auto; align-items:center; gap:6px; border:1px solid #c787d3; border-radius:999px; padding:8px 13px; background:#fff; color:#8e44ad; font-size:calc(.82rem + 2pt); font-weight:850; text-decoration:none; }
   .answer-edit-button:hover { background:#fcf3fe; color:#6f287f; }
+  .answer-edit-form textarea { width:100%; min-height:220px; box-sizing:border-box; resize:vertical; padding:16px; border:1px solid #c787d3; border-radius:12px; font:inherit; line-height:1.75; }
+  .answer-edit-field + .answer-edit-field { margin-top:16px; }
+  .answer-edit-field label { display:block; margin-bottom:7px; font-weight:850; }
+  .answer-edit-actions { display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:14px; }
+  .answer-edit-save, .answer-edit-cancel { border-radius:999px; padding:10px 17px; font:inherit; font-weight:850; cursor:pointer; }
+  .answer-edit-save { border:0; color:#fff; background:#8e44ad; }
+  .answer-edit-cancel { border:1px solid #cdbbd3; background:#fff; color:#6f6577; }
+  .answer-edit-message { min-height:20px; margin:10px 0 0; color:#d33b58; }
   .notebook-page { margin-bottom: 14px; padding: 20px; border: 1px solid #ddd2e3; border-radius: 12px; background: {{ activity.note_background_hex }}; white-space: pre-wrap; line-height: 1.8; }
   .score-feedback { display: grid; grid-template-columns: 150px 1fr; gap: 20px; align-items: start; }
   .score-box { text-align: center; border-radius: 18px; background: linear-gradient(145deg, #fff0f7, #f2e9ff); padding: 22px 12px; }
@@ -113,7 +121,8 @@
   {% for entry in answer_entries %}
   <div class="answer-history-panel" data-answer-panel="{{ entry.target }}"{% if not entry.is_latest %} hidden{% endif %}>
     <section class="result-section">
-      <div class="section-heading"><div class="section-heading-title"><span class="section-number">02</span><h2>{{ entry.title }} 학생 답안</h2></div>{% if entry.can_edit %}<a class="answer-edit-button" href="{% url 'take_test' activity.id %}"><i class="bi bi-pencil-square"></i> 수정</a>{% endif %}</div>
+      <div class="section-heading"><div class="section-heading-title"><span class="section-number">02</span><h2>{{ entry.title }} 학생 답안</h2></div>{% if entry.can_edit %}<button class="answer-edit-button" type="button" data-edit-answer="{{ entry.target }}"><i class="bi bi-pencil-square"></i> 수정</button>{% endif %}</div>
+      <div data-answer-display="{{ entry.target }}">
       {% if activity.is_notebook %}
         {% for page in entry.notebook_pages %}<div class="notebook-page"><strong>{{ forloop.counter }}쪽</strong><br><br>{{ page }}</div>{% endfor %}
       {% else %}
@@ -123,16 +132,24 @@
           {% if entry.snapshot.ans_q3 %}<article class="answer-card"><div class="answer-title">{{ activity.q3_title }}</div><div class="answer-content">{{ entry.snapshot.ans_q3 }}</div></article>{% endif %}
         </div>
       {% endif %}
+      </div>
+      {% if entry.can_edit %}
+      <form class="answer-edit-form" method="post" action="{% url 'update_submitted_answer' activity.id %}" data-answer-edit-form="{{ entry.target }}" hidden>{% csrf_token %}
+        {% if activity.is_notebook %}<input type="hidden" name="notebook_pages" data-edit-notebook-pages>{% for page in entry.notebook_pages %}<div class="answer-edit-field"><label>{{ forloop.counter }}쪽</label><textarea class="answer-edit-notebook-page">{{ page }}</textarea></div>{% endfor %}
+        {% else %}<div class="answer-edit-field"><label>{{ activity.q1_title|default:"문항 1" }}</label><textarea name="ans_q1">{{ entry.snapshot.ans_q1 }}</textarea></div>{% if activity.q2_title %}<div class="answer-edit-field"><label>{{ activity.q2_title }}</label><textarea name="ans_q2">{{ entry.snapshot.ans_q2 }}</textarea></div>{% endif %}{% if activity.q3_title %}<div class="answer-edit-field"><label>{{ activity.q3_title }}</label><textarea name="ans_q3">{{ entry.snapshot.ans_q3 }}</textarea></div>{% endif %}{% endif %}
+        <p class="answer-edit-message" data-answer-edit-message role="alert"></p><div class="answer-edit-actions"><button class="answer-edit-cancel" type="button" data-cancel-answer-edit>취소</button><button class="answer-edit-save" type="submit">수정 저장</button></div>
+      </form>
+      {% endif %}
     </section>
     <section class="result-section">
       <div class="section-heading"><span class="section-number">03</span><h2>{{ entry.title }} 점수와 선생님의 피드백</h2></div>
-      <div class="score-feedback"><div class="score-box"><strong>{{ score }}점</strong><span>5점 만점</span></div><div>
-        {% for feedback in entry.feedbacks %}<article class="feedback-card"><div class="feedback-card-head"><div><div class="feedback-type">{{ feedback.type_name }}</div><h3>{{ feedback.display_title }}</h3></div>{% if feedback.is_rewrite_assigned %}<span class="rewrite-assigned-badge">고쳐쓰기 과제</span>{% endif %}</div><div class="feedback-date">{{ feedback.created_at|localtime|date:"Y.m.d H:i" }}</div><div class="feedback-body">{{ feedback.feedback_content }}</div></article>{% empty %}<div class="empty-state">이 답안에 대한 선생님의 피드백이 아직 등록되지 않았습니다.</div>{% endfor %}
-      </div></div>
+      {% if entry.feedbacks %}<div class="score-feedback"><div class="score-box"><strong>{{ score }}점</strong><span>5점 만점</span></div><div>
+        {% for feedback in entry.feedbacks %}<article class="feedback-card"><div class="feedback-card-head"><div><div class="feedback-type">{{ feedback.type_name }}</div><h3>{{ feedback.display_title }}</h3></div>{% if feedback.is_rewrite_assigned %}<span class="rewrite-assigned-badge">고쳐쓰기 과제</span>{% endif %}</div><div class="feedback-date">{{ feedback.created_at|localtime|date:"Y.m.d H:i" }}</div><div class="feedback-body">{{ feedback.feedback_content }}</div></article>{% endfor %}
+      </div></div>{% else %}<div class="empty-state">이 답안에 대한 선생님의 피드백이 아직 등록되지 않았습니다.</div>{% endif %}
     </section>
     <div class="followup-bar"><div><h2>다음 활동을 시작해보세요.</h2><p>이 답안과 연결된 피드백을 기준으로 이어서 작성합니다.</p></div>
-      {% if entry.can_rewrite and not entry.rewrite_completed %}<button class="followup-button" type="button" data-open-rewrite="{{ entry.target }}">고쳐쓰기 <i class="bi bi-arrow-right"></i></button>
-      {% elif entry.rewrite_completed %}<button class="followup-button" type="button" disabled>고쳐쓰기 완료</button>
+      {% if entry.can_rewrite and not entry.rewrite_completed %}<button class="followup-button" type="button" data-open-rewrite="{{ entry.target }}">{{ entry.next_writing_label }} 시작 <i class="bi bi-arrow-right"></i></button>
+      {% elif entry.rewrite_completed %}<button class="followup-button" type="button" disabled>{{ entry.next_writing_label }} 완료</button>
       {% else %}<button class="followup-button" type="button" disabled>고쳐쓰기 대기 중</button>{% endif %}
     </div>
   </div>
@@ -164,6 +181,47 @@
     tabs.forEach((item) => item.classList.toggle('is-active', item === tab));
     panels.forEach((panel) => { panel.hidden = panel.dataset.answerPanel !== target; });
   }));
+  document.querySelectorAll('[data-answer-edit-form]').forEach((form) => {
+    const target = form.dataset.answerEditForm;
+    const openButton = document.querySelector(`[data-edit-answer="${target}"]`);
+    const display = document.querySelector(`[data-answer-display="${target}"]`);
+    const cancelButton = form.querySelector('[data-cancel-answer-edit]');
+    const message = form.querySelector('[data-answer-edit-message]');
+    if (!openButton || !display || !cancelButton) return;
+    const setEditing = (editing) => {
+      display.hidden = editing;
+      form.hidden = !editing;
+      openButton.hidden = editing;
+      if (editing) form.querySelector('textarea')?.focus();
+    };
+    openButton.addEventListener('click', () => setEditing(true));
+    cancelButton.addEventListener('click', () => {
+      form.reset();
+      message.textContent = '';
+      setEditing(false);
+    });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const submit = form.querySelector('[type="submit"]');
+      const notebookInput = form.querySelector('[data-edit-notebook-pages]');
+      if (notebookInput) notebookInput.value = JSON.stringify(
+        [...form.querySelectorAll('.answer-edit-notebook-page')].map((field) => field.value)
+      );
+      submit.disabled = true;
+      message.textContent = '';
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST', body: new FormData(form), headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const payload = await response.json();
+        if (!response.ok || payload.status !== 'success') throw new Error(payload.message || '답안을 수정하지 못했습니다.');
+        window.location.reload();
+      } catch (error) {
+        message.textContent = error.message;
+        submit.disabled = false;
+      }
+    });
+  });
   document.querySelectorAll('[data-rewrite-panel]').forEach((panel) => {
   const target = panel.dataset.rewritePanel;
   const backdrop = document.querySelector(`[data-rewrite-backdrop="${target}"]`);

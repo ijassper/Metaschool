@@ -125,5 +125,36 @@ class RewriteDraftTests(TestCase):
         self.assertContains(response, '고쳐쓰기1')
         self.assertContains(response, 'data-answer-tab="answer-')
         self.assertContains(response, '고쳐쓰기 과제')
-        self.assertContains(response, '고쳐쓰기 완료')
+        self.assertContains(response, '두 번째 글쓰기 완료')
         self.assertContains(response, 'bi-pencil-square')
+
+    def test_latest_answer_without_feedback_hides_previous_score_and_can_be_edited_inline(self):
+        AnswerSubmissionRevision.objects.create(
+            answer=self.answer, version=2, submitted_at=timezone.now(),
+            content_snapshot={'ans_q1': '두 번째 답안', 'ans_q2': '', 'ans_q3': '', 'notebook_pages': []},
+        )
+        self.answer.ans_q1 = '두 번째 답안'
+        self.answer.score = 3
+        self.answer.save(update_fields=['ans_q1', 'score'])
+        self.activity.is_active = True
+        self.activity.save(update_fields=['is_active'])
+
+        response = self.client.get(self.result_url)
+
+        self.assertContains(response, 'data-answer-edit-form')
+        self.assertContains(response, '두 번째 글쓰기 완료')
+        self.assertContains(response, 'empty-state')
+
+        response = self.client.post(
+            reverse('update_submitted_answer', args=[self.activity.id]),
+            {'ans_q1': '상세 페이지에서 수정한 두 번째 답안'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.answer.refresh_from_db()
+        self.assertEqual(self.answer.ans_q1, '상세 페이지에서 수정한 두 번째 답안')
+        self.assertEqual(self.answer.submission_revisions.count(), 2)
+        self.assertEqual(
+            self.answer.latest_submission_revision().content_snapshot['ans_q1'],
+            '상세 페이지에서 수정한 두 번째 답안',
+        )

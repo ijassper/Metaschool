@@ -101,6 +101,7 @@ urlpatterns = [
     path('pdf-viewer/', pdf_viewer, name='pdf_viewer'),
     path('take/<int:activity_id>/', take_test, name='take_test'),
     path('student/result/<int:activity_id>/', student_result_detail, name='student_result_detail'),
+    path('student/result/<int:activity_id>/edit/', update_submitted_answer, name='update_submitted_answer'),
     path('student/result/<int:activity_id>/rewrite/', submit_answer_rewrite, name='submit_answer_rewrite'),
     path('student/result/<int:activity_id>/rewrite/draft/', save_answer_rewrite_draft, name='save_answer_rewrite_draft'),
     path('student/result/<int:activity_id>/read/', mark_activity_feedback_read, name='mark_activity_feedback_read'),

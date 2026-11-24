@@ -47,6 +47,15 @@ MAX_DRAFT_REVISIONS = 10
 DRAFT_REVISION_MIN_INTERVAL_SECONDS = 60
 
 
+def writing_step_label(version):
+    """Return a student-facing writing sequence label for a submission version."""
+    ordinal_names = {
+        1: '첫 번째', 2: '두 번째', 3: '세 번째', 4: '네 번째', 5: '다섯 번째',
+        6: '여섯 번째', 7: '일곱 번째', 8: '여덟 번째', 9: '아홉 번째', 10: '열 번째',
+    }
+    return f"{ordinal_names.get(version, f'{version}번째')} 글쓰기"
+
+
 def normalize_notebook_pages(raw_pages, legacy_content=''):
     """Return a safe list of notebook page strings, preserving legacy notes."""
     if isinstance(raw_pages, str):
@@ -764,6 +773,7 @@ def student_result_detail(request, activity_id):
                 'can_rewrite': can_rewrite,
                 'rewrite_completed': can_rewrite and not is_latest,
                 'can_edit': is_latest and not latest_has_followup and activity.can_student_enter(answer),
+                'next_writing_label': writing_step_label(revision.version + 1),
                 'rewrite_draft_snapshot': rewrite_draft_snapshot,
                 'rewrite_notebook_pages': rewrite_notebook_pages,
             })
@@ -796,6 +806,49 @@ def student_result_detail(request, activity_id):
         'score': display_score,
         'feedback_results': feedback_results,
         'answer_entries': answer_entries,
+    })
+
+
+@require_POST
+@login_required
+def update_submitted_answer(request, activity_id):
+    """Allow a student to revise only the latest answer before feedback is assigned."""
+    activity = get_object_or_404(Activity, id=activity_id)
+    activity.sync_schedule_state(save=True)
+    student_info, error_response = get_student_for_activity(request, activity)
+    if error_response:
+        return JsonResponse({'status': 'error', 'message': '수정 권한이 없습니다.'}, status=403)
+    if not activity.is_attainable:
+        return JsonResponse({'status': 'error', 'message': '현재 답안을 수정할 수 없습니다.'}, status=403)
+
+    with transaction.atomic():
+        answer = (
+            Answer.objects.select_for_update()
+            .filter(student=student_info, question__activity=activity, submitted_at__isnull=False)
+            .first()
+        )
+        if not answer:
+            return JsonResponse({'status': 'error', 'message': '제출된 답안을 찾을 수 없습니다.'}, status=404)
+        if not activity.allow_edit_after_submission or answer.has_followup_on_latest_submission():
+            return JsonResponse(
+                {'status': 'error', 'message': '선생님 피드백 또는 추후활동이 등록된 답안은 수정할 수 없습니다.'},
+                status=403,
+            )
+
+        limit_error = character_limit_error(activity, submitted_answer_char_count(activity, request.POST))
+        if limit_error:
+            return JsonResponse({'status': 'error', 'message': limit_error}, status=400)
+
+        save_answer_content(answer, activity, request.POST)
+        answer.submitted_at = timezone.now()
+        append_activity_log(answer, 'RE_EDIT')
+        answer.save()
+        revision = record_answer_submission(answer)
+
+    return JsonResponse({
+        'status': 'success',
+        'message': '답안을 수정했습니다.',
+        'revision': {'id': revision.id, 'version': revision.version},
     })
 
 
