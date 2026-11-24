@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from accounts.models import Student
 from .models import (
-    Activity, Answer, AnswerRewriteDraft, AnswerSubmissionRevision,
+    Activity, ActivityStudentScore, Answer, AnswerRewriteDraft, AnswerSubmissionRevision,
     FeedbackResult, Question,
 )
 
@@ -157,4 +157,34 @@ class RewriteDraftTests(TestCase):
         self.assertEqual(
             self.answer.latest_submission_revision().content_snapshot['ans_q1'],
             '상세 페이지에서 수정한 두 번째 답안',
+        )
+
+    def test_quick_scores_are_isolated_by_submission_revision(self):
+        second_revision = AnswerSubmissionRevision.objects.create(
+            answer=self.answer, version=2, submitted_at=timezone.now(),
+            content_snapshot={'ans_q1': '두 번째 답안', 'ans_q2': '', 'ans_q3': '', 'notebook_pages': []},
+        )
+        self.client.force_login(self.teacher)
+        score_url = reverse('update_answer_score', args=[self.answer.id])
+
+        first_response = self.client.post(
+            score_url,
+            data='{"score": 2, "answer_revision_id": %s}' % self.revision.id,
+            content_type='application/json',
+        )
+        second_response = self.client.post(
+            score_url,
+            data='{"score": 5, "answer_revision_id": %s}' % second_revision.id,
+            content_type='application/json',
+        )
+
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(
+            ActivityStudentScore.objects.get(answer_revision=self.revision).score,
+            2,
+        )
+        self.assertEqual(
+            ActivityStudentScore.objects.get(answer_revision=second_revision).score,
+            5,
         )

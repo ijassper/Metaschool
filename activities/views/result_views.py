@@ -124,10 +124,11 @@ def activity_result(request, activity_id, template_name='activities/activity_res
     submission_list = []
     question = activity.questions.first()
     is_deadline_passed = bool(activity.deadline and timezone.now() > activity.deadline)
-    score_by_student = dict(
+    legacy_score_by_student = dict(
         ActivityStudentScore.objects.filter(
             activity=activity,
             student__in=target_students,
+            answer_revision__isnull=True,
         ).values_list('student_id', 'score')
     )
 
@@ -154,8 +155,15 @@ def activity_result(request, activity_id, template_name='activities/activity_res
             status = answer.participation_status(deadline_passed=is_deadline_passed)
             if answer.submitted_at:
                 submitted_at = answer.submitted_at
+            latest_revision = answer.latest_submission_revision()
+            version_score = (
+                ActivityStudentScore.objects.filter(answer_revision=latest_revision)
+                .values_list('score', flat=True)
+                .first()
+            ) if latest_revision else None
         else:
             status = "미응시"
+            version_score = None
         
         submission_list.append({
             'student': student,
@@ -166,7 +174,7 @@ def activity_result(request, activity_id, template_name='activities/activity_res
             'absence': absence,
             'activity_log': log_data,
             'content': content, # [핵심 추가] 리스트에 담아서 템플릿으로 전달
-            'score': score_by_student.get(
+            'score': version_score if version_score is not None else legacy_score_by_student.get(
                 student.id,
                 answer.score if answer and answer.score is not None else None,
             ),
@@ -360,6 +368,15 @@ def answer_detail(request, answer_id):
         revision_id = feedback.answer_revision_id or latest_revision.id
         feedback_by_revision.setdefault(revision_id, []).append(feedback)
 
+    score_by_revision = dict(
+        ActivityStudentScore.objects.filter(answer_revision__answer=answer)
+        .values_list('answer_revision_id', 'score')
+    )
+    legacy_score = ActivityStudentScore.objects.filter(
+        activity=answer.question.activity,
+        student=answer.student,
+        answer_revision__isnull=True,
+    ).values_list('score', flat=True).first()
     answer_entries = []
     for revision_index, revision in enumerate(answer_revisions):
         written_pages = [
@@ -373,6 +390,10 @@ def answer_detail(request, answer_id):
             'notebook_pages': written_pages,
             'feedbacks': feedback_by_revision.get(revision.id, []),
             'is_latest': revision_index == len(answer_revisions) - 1,
+            'quick_score': score_by_revision.get(
+                revision.id,
+                legacy_score if revision_index == len(answer_revisions) - 1 else None,
+            ),
             'unsubmitted_content': unsubmitted_content if revision_index == len(answer_revisions) - 1 else '',
         })
     ordered_answer_ids = list(
@@ -389,11 +410,6 @@ def answer_detail(request, answer_id):
         current_index = ordered_answer_ids.index(answer.id)
         if current_index + 1 < len(ordered_answer_ids):
             next_answer_id = ordered_answer_ids[current_index + 1]
-    stored_score = ActivityStudentScore.objects.filter(
-        activity=answer.question.activity,
-        student=answer.student,
-    ).values_list('score', flat=True).first()
-    quick_score = stored_score if stored_score is not None else answer.score
     return render(request, 'activities/answer_detail.html', {
         'answer': answer,
         'activity': answer.question.activity,
@@ -402,7 +418,6 @@ def answer_detail(request, answer_id):
         'submitted_content': submitted_content,
         'feedback_sessions': feedback_sessions,
         'next_answer_id': next_answer_id,
-        'quick_score': quick_score,
         'personas': Persona.objects.filter(
             Q(creator__isnull=True) | Q(creator=request.user)
         ).select_related('creator'),
@@ -427,14 +442,33 @@ def update_answer_score(request, answer_id):
             status=400,
         )
 
-    answer.score = score
-    answer.save(update_fields=['score'])
-    ActivityStudentScore.objects.update_or_create(
-        activity=answer.question.activity,
-        student=answer.student,
-        defaults={'score': score},
+    revision_id = payload.get('answer_revision_id')
+    revision = (
+        answer.submission_revisions.filter(id=revision_id).first()
+        if revision_id else answer.latest_submission_revision()
     )
-    return JsonResponse({'status': 'success', 'score': score, 'label': f'{score}점'})
+    if not revision:
+        return JsonResponse(
+            {'status': 'error', 'message': '점수를 저장할 제출 답안 버전을 찾을 수 없습니다.'},
+            status=404,
+        )
+
+    # Answer.score is retained only as a compatibility mirror for the latest version.
+    if revision.id == getattr(answer.latest_submission_revision(), 'id', None):
+        answer.score = score
+        answer.save(update_fields=['score'])
+    ActivityStudentScore.objects.update_or_create(
+        answer_revision=revision,
+        defaults={
+            'activity': answer.question.activity,
+            'student': answer.student,
+            'score': score,
+        },
+    )
+    return JsonResponse({
+        'status': 'success', 'score': score, 'label': f'{score}점',
+        'answer_revision_id': revision.id,
+    })
 
 
 @require_POST
@@ -462,15 +496,22 @@ def update_student_score(request, activity_id, student_id):
             status=400,
         )
 
-    score_record, created = ActivityStudentScore.objects.update_or_create(
-        activity=activity,
-        student=student,
-        defaults={'score': score},
-    )
-
-    # 이미 존재하는 답안에는 레거시 필드도 동기화하되 새 Answer는 만들지 않습니다.
+    # 제출본이 있으면 최신 제출 버전의 점수만 갱신합니다.
     answer = Answer.objects.filter(student=student, question__activity=activity).first()
-    if answer is not None and answer.score != score:
+    revision = answer.latest_submission_revision() if answer else None
+    if revision:
+        score_record, created = ActivityStudentScore.objects.update_or_create(
+            answer_revision=revision,
+            defaults={'activity': activity, 'student': student, 'score': score},
+        )
+    else:
+        score_record, created = ActivityStudentScore.objects.update_or_create(
+            activity=activity,
+            student=student,
+            answer_revision__isnull=True,
+            defaults={'score': score},
+        )
+    if answer is not None and revision and answer.score != score:
         answer.score = score
         answer.save(update_fields=['score'])
 

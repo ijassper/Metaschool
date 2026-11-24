@@ -594,7 +594,7 @@ class AnswerRewriteDraft(models.Model):
 
 
 class ActivityStudentScore(models.Model):
-    """답안 및 응시 상태와 독립적으로 보관하는 활동별 학생 점수입니다."""
+    """제출 답안 버전에 연결해 보관하는 퀵 점수입니다."""
 
     activity = models.ForeignKey(
         Activity,
@@ -608,6 +608,14 @@ class ActivityStudentScore(models.Model):
         related_name='activity_scores',
         verbose_name='학생',
     )
+    answer_revision = models.ForeignKey(
+        AnswerSubmissionRevision,
+        on_delete=models.CASCADE,
+        related_name='quick_scores',
+        null=True,
+        blank=True,
+        verbose_name='제출 답안 버전',
+    )
     score = models.PositiveSmallIntegerField(choices=Answer.Score.choices, verbose_name='점수')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성 일시')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='수정 일시')
@@ -617,8 +625,8 @@ class ActivityStudentScore(models.Model):
         verbose_name_plural = '활동별 학생 점수 목록'
         constraints = [
             models.UniqueConstraint(
-                fields=['activity', 'student'],
-                name='unique_activity_student_score',
+                fields=['answer_revision'],
+                name='unique_answer_revision_quick_score',
             )
         ]
         indexes = [

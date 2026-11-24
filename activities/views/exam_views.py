@@ -729,6 +729,15 @@ def student_result_detail(request, activity_id):
                 content_snapshot=build_answer_snapshot(answer),
                 submitted_at=answer.submitted_at,
             )]
+        score_by_revision = dict(
+            ActivityStudentScore.objects.filter(answer_revision__answer=answer)
+            .values_list('answer_revision_id', 'score')
+        )
+        legacy_score = ActivityStudentScore.objects.filter(
+            activity=activity,
+            student=student_info,
+            answer_revision__isnull=True,
+        ).values_list('score', flat=True).first()
         feedback_by_revision = {}
         latest_revision = answer_revisions[-1]
         for feedback in feedback_results:
@@ -774,6 +783,10 @@ def student_result_detail(request, activity_id):
                 'rewrite_completed': can_rewrite and not is_latest,
                 'can_edit': is_latest and not latest_has_followup and activity.can_student_enter(answer),
                 'next_writing_label': writing_step_label(revision.version + 1),
+                'score': score_by_revision.get(
+                    revision.id,
+                    legacy_score if is_latest else None,
+                ),
                 'rewrite_draft_snapshot': rewrite_draft_snapshot,
                 'rewrite_notebook_pages': rewrite_notebook_pages,
             })
@@ -788,22 +801,11 @@ def student_result_detail(request, activity_id):
                 if feedback.id in unread_ids:
                     feedback.is_read = True
                     feedback.read_at = first_read_at
-    stored_score = ActivityStudentScore.objects.filter(
-        activity=activity,
-        student=student_info,
-    ).values_list('score', flat=True).first()
-    display_score = (
-        stored_score
-        if stored_score is not None
-        else (answer.score if answer and answer.score is not None else 0)
-    )
-
     return render(request, 'activities/student_result_detail.html', {
         'activity': activity,
         'question': question,
         'answer': answer,
         'student': student_info,
-        'score': display_score,
         'feedback_results': feedback_results,
         'answer_entries': answer_entries,
     })

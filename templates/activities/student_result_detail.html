@@ -39,6 +39,7 @@
   .answer-edit-message { min-height:20px; margin:10px 0 0; color:#d33b58; }
   .notebook-page { margin-bottom: 14px; padding: 20px; border: 1px solid #ddd2e3; border-radius: 12px; background: {{ activity.note_background_hex }}; white-space: pre-wrap; line-height: 1.8; }
   .score-feedback { display: grid; grid-template-columns: 150px 1fr; gap: 20px; align-items: start; }
+  .score-feedback.no-score { grid-template-columns: 1fr; }
   .score-box { text-align: center; border-radius: 18px; background: linear-gradient(145deg, #fff0f7, #f2e9ff); padding: 22px 12px; }
   .score-box strong { display: block; color: #8e44ad; font-size: calc(2.2rem + 2pt); line-height: 1; }
   .score-box span { display: block; margin-top: 8px; color: #7b7281; font-weight: 700; }
@@ -143,7 +144,7 @@
     </section>
     <section class="result-section">
       <div class="section-heading"><span class="section-number">03</span><h2>{{ entry.title }} 점수와 선생님의 피드백</h2></div>
-      {% if entry.feedbacks %}<div class="score-feedback"><div class="score-box"><strong>{{ score }}점</strong><span>5점 만점</span></div><div>
+      {% if entry.feedbacks %}<div class="score-feedback{% if entry.score == None %} no-score{% endif %}">{% if entry.score != None %}<div class="score-box"><strong>{{ entry.score }}점</strong><span>5점 만점</span></div>{% endif %}<div>
         {% for feedback in entry.feedbacks %}<article class="feedback-card"><div class="feedback-card-head"><div><div class="feedback-type">{{ feedback.type_name }}</div><h3>{{ feedback.display_title }}</h3></div>{% if feedback.is_rewrite_assigned %}<span class="rewrite-assigned-badge">고쳐쓰기 과제</span>{% endif %}</div><div class="feedback-date">{{ feedback.created_at|localtime|date:"Y.m.d H:i" }}</div><div class="feedback-body">{{ feedback.feedback_content }}</div></article>{% endfor %}
       </div></div>{% else %}<div class="empty-state">이 답안에 대한 선생님의 피드백이 아직 등록되지 않았습니다.</div>{% endif %}
     </section>

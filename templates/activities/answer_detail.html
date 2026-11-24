@@ -213,34 +213,34 @@
             </section>
             {% endif %}
 
-            {% if entry.is_latest %}
             <section class="portfolio-action">
                 <div>
                     <span class="portfolio-action-icon"><i class="bi bi-stars"></i></span>
                     <div>
-                        <strong>이 답안을 다음 활동의 출발점으로 활용하세요.</strong>
-                        <p>원본 답안을 다시 검토한 뒤 후속 활동 생성 화면으로 이동합니다.</p>
+                        <strong>{{ entry.title }} 퀵 점수를 기록하세요.</strong>
+                        <p>각 제출 답안 버전에 별도로 저장되며, 다른 답안의 점수에는 영향을 주지 않습니다.</p>
                     </div>
                 </div>
                 <div class="portfolio-action-controls">
                     <div class="dropup quick-score-dropup">
-                        <button type="button" id="quickScoreButton" class="quick-score-button dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                            {% if quick_score != None %}퀵 점수 {{ quick_score }}점{% else %}퀵 점수 부여{% endif %}
+                        <button type="button" id="quickScoreButton-{{ entry.target }}" class="quick-score-button dropdown-toggle" data-quick-score-button data-score-url="{% url 'update_answer_score' answer.id %}" data-revision-id="{{ entry.revision.id }}" data-bs-toggle="dropdown" aria-expanded="false"{% if not entry.revision.id %} disabled{% endif %}>
+                            {% if entry.quick_score != None %}퀵 점수 {{ entry.quick_score }}점{% else %}퀵 점수 부여{% endif %}
                         </button>
-                        <ul class="dropdown-menu quick-score-menu" aria-labelledby="quickScoreButton">
+                        <ul class="dropdown-menu quick-score-menu" aria-labelledby="quickScoreButton-{{ entry.target }}">
                             {% for score_value in "543210" %}
-                            <li><button type="button" class="dropdown-item quick-score-option{% if quick_score|stringformat:'s' == score_value %} active{% endif %}" data-score="{{ score_value }}">{{ score_value }}점</button></li>
+                            <li><button type="button" class="dropdown-item quick-score-option{% if entry.quick_score|stringformat:'s' == score_value %} active{% endif %}" data-score="{{ score_value }}">{{ score_value }}점</button></li>
                             {% endfor %}
                         </ul>
                     </div>
-                    <span id="quickScoreStatus" class="visually-hidden" aria-live="polite"></span>
+                    <span class="visually-hidden" data-quick-score-status aria-live="polite"></span>
+                    {% if entry.is_latest %}
                     <button type="button" id="openAnswerSource" class="portfolio-action-button">
                         학생 답안으로 추후 활동 생성하기
                         <i class="bi bi-arrow-right"></i>
                     </button>
+                    {% endif %}
                 </div>
             </section>
-            {% endif %}
         </div>
         {% endfor %}
     </main>
@@ -1489,8 +1489,6 @@
         const sessionTitleLabel = document.getElementById('feedbackSessionTitleLabel');
         const sessionSelectLabel = document.getElementById('feedbackSessionSelectLabel');
         const newSessionOption = document.getElementById('newFeedbackSessionOption');
-        const quickScoreButton = document.getElementById('quickScoreButton');
-        const quickScoreStatus = document.getElementById('quickScoreStatus');
         const compositionLabel = document.getElementById('feedbackCompositionLabel');
         const styleLabel = document.getElementById('feedbackStyleLabel');
         const lengthLabel = document.getElementById('feedbackLengthLabel');
@@ -1533,25 +1531,31 @@
 
         document.querySelectorAll('.quick-score-option').forEach(function (option) {
             option.addEventListener('click', async function () {
+                const action = option.closest('.portfolio-action');
+                const quickScoreButton = action.querySelector('[data-quick-score-button]');
+                const quickScoreStatus = action.querySelector('[data-quick-score-status]');
                 const score = Number(option.dataset.score);
                 const previousLabel = quickScoreButton.textContent.trim();
                 quickScoreButton.classList.add('is-saving');
                 quickScoreButton.textContent = '저장 중…';
                 quickScoreStatus.textContent = '점수를 저장하고 있습니다.';
                 try {
-                    const response = await fetch('{% url "update_answer_score" answer.id %}', {
+                    const response = await fetch(quickScoreButton.dataset.scoreUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRFToken': '{{ csrf_token }}',
                             'X-Requested-With': 'XMLHttpRequest'
                         },
-                        body: JSON.stringify({score: score})
+                        body: JSON.stringify({
+                            score: score,
+                            answer_revision_id: Number(quickScoreButton.dataset.revisionId)
+                        })
                     });
                     const data = await response.json();
                     if (!response.ok || data.status !== 'success') throw new Error(data.message || '점수를 저장하지 못했습니다.');
                     quickScoreButton.textContent = `퀵 점수 ${data.score}점`;
-                    document.querySelectorAll('.quick-score-option').forEach(function (item) {
+                    action.querySelectorAll('.quick-score-option').forEach(function (item) {
                         item.classList.toggle('active', Number(item.dataset.score) === data.score);
                     });
                     quickScoreStatus.textContent = `${data.score}점으로 저장되었습니다.`;
