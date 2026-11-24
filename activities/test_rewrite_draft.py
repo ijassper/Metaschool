@@ -55,6 +55,8 @@ class RewriteDraftTests(TestCase):
         self.assertContains(response, '선생님 피드백')
         self.assertContains(response, '<textarea name="ans_q1"></textarea>', html=True)
         self.assertContains(response, 'data-rewrite-save-status')
+        self.assertContains(response, 'data-save-rewrite-draft')
+        self.assertContains(response, '>임시저장</button>')
 
     def test_draft_survives_reopen_without_changing_original_and_is_deleted_on_submit(self):
         response = self.client.post(self.draft_url, {'ans_q1': '새 고쳐쓰기 초안'})

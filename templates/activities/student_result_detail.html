@@ -68,7 +68,9 @@
   .rewrite-field label { display: block; margin-bottom: 7px; font-weight: 800; }
   .rewrite-field textarea { width: 100%; min-height: clamp(420px, 65vh, 900px); resize: vertical; box-sizing: border-box; padding: 14px; border: 1px solid #d8cddd; border-radius: 13px; font: inherit; line-height: 1.7; }
   .rewrite-save-status { display: block; margin-top: 4px; color: #6f6577; }
-  .rewrite-submit-row { position: sticky; bottom: -24px; margin: 8px -24px -24px; padding: 16px 24px; border-top: 1px solid #eadfed; background: #fff; text-align: right; }
+  .rewrite-submit-row { position: sticky; bottom: -24px; margin: 8px -24px -24px; padding: 16px 24px; border-top: 1px solid #eadfed; background: #fff; display:flex; justify-content:flex-end; gap:10px; }
+  .rewrite-draft-save { border:1px solid #b787c5; border-radius:999px; padding:12px 22px; background:#fff; color:#7d3992; font:inherit; font-weight:850; cursor:pointer; }
+  .rewrite-draft-save:hover { background:#fcf3fe; }
   .rewrite-submit { border: 0; border-radius: 999px; padding: 12px 22px; color: #fff; background: #8e44ad; font-size: inherit; font-weight: 900; cursor: pointer; }
   .rewrite-message { min-height: 22px; margin: 10px 0 0; color: #d33b58; font-size: calc(.88rem + 2pt); }
   @media (max-width: 800px) {
@@ -149,7 +151,7 @@
   <section class="rewrite-column"><h3 class="rewrite-column-title">답안 고쳐쓰기</h3><form method="post" action="{% url 'submit_answer_rewrite' activity.id %}" data-draft-url="{% url 'save_answer_rewrite_draft' activity.id %}" data-rewrite-form>{% csrf_token %}<input type="hidden" name="base_revision_id" value="{{ entry.revision.id }}">
     {% if activity.is_notebook %}<input type="hidden" name="notebook_pages" data-rewrite-notebook-pages>{% for page in entry.rewrite_notebook_pages %}<div class="rewrite-field"><label>{{ forloop.counter }}쪽</label><textarea class="rewrite-notebook-page">{{ page }}</textarea></div>{% endfor %}
     {% else %}<div class="rewrite-field"><label>{{ activity.q1_title|default:"문항 1" }}</label><textarea name="ans_q1">{{ entry.rewrite_draft_snapshot.ans_q1 }}</textarea></div>{% if activity.q2_title %}<div class="rewrite-field"><label>{{ activity.q2_title }}</label><textarea name="ans_q2">{{ entry.rewrite_draft_snapshot.ans_q2 }}</textarea></div>{% endif %}{% if activity.q3_title %}<div class="rewrite-field"><label>{{ activity.q3_title }}</label><textarea name="ans_q3">{{ entry.rewrite_draft_snapshot.ans_q3 }}</textarea></div>{% endif %}{% endif %}
-    <p class="rewrite-message" data-rewrite-message role="alert"></p><div class="rewrite-submit-row"><button class="rewrite-submit" type="submit">고쳐쓰기 제출</button></div>
+    <p class="rewrite-message" data-rewrite-message role="alert"></p><div class="rewrite-submit-row"><button class="rewrite-draft-save" type="button" data-save-rewrite-draft>임시저장</button><button class="rewrite-submit" type="submit">고쳐쓰기 제출</button></div>
   </form></section></div>
 </aside>
 {% endif %}{% endfor %}
@@ -169,6 +171,7 @@
   const form = panel.querySelector('[data-rewrite-form]');
   if (!backdrop || !openButton || !form) return;
   const closeButton = panel.querySelector('[data-close-rewrite]');
+  const manualSaveButton = form.querySelector('[data-save-rewrite-draft]');
   const saveStatus = panel.querySelector('[data-rewrite-save-status]');
   const message = form.querySelector('[data-rewrite-message]');
   let editVersion = 0;
@@ -240,6 +243,21 @@
         saveStatus.textContent = error.message;
       });
     }, 1500);
+  });
+  manualSaveButton.addEventListener('click', async () => {
+    if (submitting || closing) return;
+    clearTimeout(saveTimer);
+    manualSaveButton.disabled = true;
+    message.textContent = '';
+    try {
+      editVersion = Math.max(editVersion, savedVersion + 1);
+      await saveDraft();
+    } catch (error) {
+      message.textContent = error.message;
+      saveStatus.textContent = '임시저장 실패 · 다시 시도해 주세요.';
+    } finally {
+      manualSaveButton.disabled = false;
+    }
   });
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
