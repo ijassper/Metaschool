@@ -11,7 +11,8 @@
   .result-meta { color: #817989; font-size: calc(.92rem + 2pt); }
   .back-link { color: #6f6577; border: 1px solid #ded7e5; background: #fff; border-radius: 999px; padding: 9px 16px; text-decoration: none; white-space: nowrap; }
   .result-section { background: #fff; border: 1px solid #ece6f0; border-radius: 22px; padding: 25px; margin-bottom: 20px; box-shadow: 0 10px 28px rgba(72, 45, 83, .06); }
-  .section-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
+  .section-heading { display: flex; align-items: center; justify-content:space-between; gap: 11px; margin-bottom: 18px; }
+  .section-heading-title { display:flex; align-items:center; gap:11px; min-width:0; }
   .section-number { display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border-radius: 10px; background: linear-gradient(135deg, #ef75b6, #8e44ad); color: #fff; font-size: calc(.78rem + 2pt); font-weight: 900; }
   .section-heading h2 { margin: 0; font-size: calc(1.2rem + 2pt); font-weight: 900; }
   .prompt-block { padding: 18px; border-radius: 15px; background: #fbf7fc; white-space: pre-wrap; line-height: 1.75; }
@@ -26,6 +27,8 @@
   .answer-card { min-width: 0; border: 1px solid #e6dce9; border-radius: 16px; overflow: hidden; }
   .answer-title { padding: 12px 15px; background: #fbf7fc; font-weight: 800; }
   .answer-content { padding: 16px; white-space: pre-wrap; line-height: 1.75; min-height: 120px; }
+  .answer-edit-button { display:inline-flex; flex:0 0 auto; align-items:center; gap:6px; border:1px solid #c787d3; border-radius:999px; padding:8px 13px; background:#fff; color:#8e44ad; font-size:calc(.82rem + 2pt); font-weight:850; text-decoration:none; }
+  .answer-edit-button:hover { background:#fcf3fe; color:#6f287f; }
   .notebook-page { margin-bottom: 14px; padding: 20px; border: 1px solid #ddd2e3; border-radius: 12px; background: {{ activity.note_background_hex }}; white-space: pre-wrap; line-height: 1.8; }
   .score-feedback { display: grid; grid-template-columns: 150px 1fr; gap: 20px; align-items: start; }
   .score-box { text-align: center; border-radius: 18px; background: linear-gradient(145deg, #fff0f7, #f2e9ff); padding: 22px 12px; }
@@ -103,12 +106,12 @@
 
   {% if answer_entries %}
   <nav class="answer-index" aria-label="답안 버전">
-    {% for entry in answer_entries %}<button type="button" class="answer-index-tab{% if entry.is_latest %} is-active{% endif %}" data-answer-tab="{{ entry.target }}">{{ entry.revision.display_title }}</button>{% endfor %}
+    {% for entry in answer_entries %}<button type="button" class="answer-index-tab{% if entry.is_latest %} is-active{% endif %}" data-answer-tab="{{ entry.target }}">{{ entry.title }}</button>{% endfor %}
   </nav>
   {% for entry in answer_entries %}
   <div class="answer-history-panel" data-answer-panel="{{ entry.target }}"{% if not entry.is_latest %} hidden{% endif %}>
     <section class="result-section">
-      <div class="section-heading"><span class="section-number">02</span><h2>{{ entry.revision.display_title }} 학생 답안</h2></div>
+      <div class="section-heading"><div class="section-heading-title"><span class="section-number">02</span><h2>{{ entry.title }} 학생 답안</h2></div>{% if entry.can_edit %}<a class="answer-edit-button" href="{% url 'take_test' activity.id %}"><i class="bi bi-pencil-square"></i> 수정</a>{% endif %}</div>
       {% if activity.is_notebook %}
         {% for page in entry.notebook_pages %}<div class="notebook-page"><strong>{{ forloop.counter }}쪽</strong><br><br>{{ page }}</div>{% endfor %}
       {% else %}
@@ -120,14 +123,14 @@
       {% endif %}
     </section>
     <section class="result-section">
-      <div class="section-heading"><span class="section-number">03</span><h2>{{ entry.revision.display_title }} 점수와 선생님의 피드백</h2></div>
+      <div class="section-heading"><span class="section-number">03</span><h2>{{ entry.title }} 점수와 선생님의 피드백</h2></div>
       <div class="score-feedback"><div class="score-box"><strong>{{ score }}점</strong><span>5점 만점</span></div><div>
         {% for feedback in entry.feedbacks %}<article class="feedback-card"><div class="feedback-card-head"><div><div class="feedback-type">{{ feedback.type_name }}</div><h3>{{ feedback.display_title }}</h3></div>{% if feedback.is_rewrite_assigned %}<span class="rewrite-assigned-badge">고쳐쓰기 과제</span>{% endif %}</div><div class="feedback-date">{{ feedback.created_at|localtime|date:"Y.m.d H:i" }}</div><div class="feedback-body">{{ feedback.feedback_content }}</div></article>{% empty %}<div class="empty-state">이 답안에 대한 선생님의 피드백이 아직 등록되지 않았습니다.</div>{% endfor %}
       </div></div>
     </section>
     <div class="followup-bar"><div><h2>다음 활동을 시작해보세요.</h2><p>이 답안과 연결된 피드백을 기준으로 이어서 작성합니다.</p></div>
-      {% if entry.can_rewrite %}<button class="followup-button" type="button" data-open-rewrite="{{ entry.target }}">고쳐쓰기 <i class="bi bi-arrow-right"></i></button>
-      {% elif entry.can_edit %}<a class="followup-button" href="{% url 'take_test' activity.id %}"><i class="bi bi-pencil-square"></i> 수정</a>
+      {% if entry.can_rewrite and not entry.rewrite_completed %}<button class="followup-button" type="button" data-open-rewrite="{{ entry.target }}">고쳐쓰기 <i class="bi bi-arrow-right"></i></button>
+      {% elif entry.rewrite_completed %}<button class="followup-button" type="button" disabled>고쳐쓰기 완료</button>
       {% else %}<button class="followup-button" type="button" disabled>고쳐쓰기 대기 중</button>{% endif %}
     </div>
   </div>
@@ -138,7 +141,7 @@
 {% for entry in answer_entries %}{% if entry.can_rewrite %}
 <div class="rewrite-backdrop" data-rewrite-backdrop="{{ entry.target }}"></div>
 <aside class="rewrite-panel" data-rewrite-panel="{{ entry.target }}" aria-hidden="true">
-  <header class="rewrite-panel-head"><div><h2>{{ entry.revision.display_title }} 고쳐쓰기</h2><small>이 답안과 연결된 피드백을 참고해 새 답안으로 제출합니다.</small><small class="rewrite-save-status" data-rewrite-save-status role="status">작성 내용은 자동으로 임시저장됩니다.</small></div><button class="rewrite-close" type="button" data-close-rewrite aria-label="닫기">&times;</button></header>
+  <header class="rewrite-panel-head"><div><h2>{{ entry.title }} 고쳐쓰기</h2><small>이 답안과 연결된 피드백을 참고해 새 답안으로 제출합니다.</small><small class="rewrite-save-status" data-rewrite-save-status role="status">작성 내용은 자동으로 임시저장됩니다.</small></div><button class="rewrite-close" type="button" data-close-rewrite aria-label="닫기">&times;</button></header>
   <div class="rewrite-columns"><section class="rewrite-column"><div class="rewrite-source"><h3 class="rewrite-column-title">학생 답안</h3><div class="rewrite-source-card">
     {% if activity.is_notebook %}{% for page in entry.notebook_pages %}<div class="rewrite-source-item"><strong>{{ forloop.counter }}쪽</strong><p class="rewrite-source-answer">{{ page }}</p></div>{% endfor %}
     {% else %}{% if entry.snapshot.ans_q1 %}<div class="rewrite-source-item"><strong>{{ activity.q1_title }}</strong><p class="rewrite-source-answer">{{ entry.snapshot.ans_q1 }}</p></div>{% endif %}{% if entry.snapshot.ans_q2 %}<div class="rewrite-source-item"><strong>{{ activity.q2_title }}</strong><p class="rewrite-source-answer">{{ entry.snapshot.ans_q2 }}</p></div>{% endif %}{% if entry.snapshot.ans_q3 %}<div class="rewrite-source-item"><strong>{{ activity.q3_title }}</strong><p class="rewrite-source-answer">{{ entry.snapshot.ans_q3 }}</p></div>{% endif %}{% endif %}

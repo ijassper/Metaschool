@@ -119,7 +119,9 @@ class RewriteDraftTests(TestCase):
 
         response = self.client.get(self.result_url)
 
-        self.assertContains(response, '답안2')
+        self.assertContains(response, '최초 답안')
+        self.assertContains(response, '고쳐쓰기1')
         self.assertContains(response, 'data-answer-tab="answer-')
         self.assertContains(response, '고쳐쓰기 과제')
+        self.assertContains(response, '고쳐쓰기 완료')
         self.assertContains(response, 'bi-pencil-square')

@@ -749,14 +749,20 @@ def student_result_detail(request, activity_id):
                             rewrite_draft_snapshot.get('notebook_pages'), ''
                         )
             is_latest = revision_index == len(answer_revisions) - 1
+            display_title = (
+                '최초 답안' if revision.version == 1
+                else f'고쳐쓰기{revision.version - 1}'
+            )
             answer_entries.append({
                 'target': f'answer-{revision.id or "legacy"}',
                 'revision': revision,
+                'title': display_title,
                 'snapshot': snapshot,
                 'notebook_pages': notebook_pages,
                 'feedbacks': entry_feedbacks,
                 'is_latest': is_latest,
                 'can_rewrite': can_rewrite,
+                'rewrite_completed': can_rewrite and not is_latest,
                 'can_edit': is_latest and not latest_has_followup and activity.can_student_enter(answer),
                 'rewrite_draft_snapshot': rewrite_draft_snapshot,
                 'rewrite_notebook_pages': rewrite_notebook_pages,
