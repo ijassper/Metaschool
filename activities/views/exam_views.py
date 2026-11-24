@@ -2,6 +2,7 @@ import json
 import hashlib
 import uuid
 from functools import wraps
+from types import SimpleNamespace
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -81,7 +82,7 @@ def submission_revision_action(latest_snapshot, current_snapshot, has_followup):
     return 'CREATE' if has_followup else 'OVERWRITE'
 
 
-def record_answer_submission(answer):
+def record_answer_submission(answer, force_new_version=False):
     """추후활동이 연결된 답안만 동결하고, 그 다음 제출을 새 버전으로 만듭니다."""
     with transaction.atomic():
         locked_answer = Answer.objects.select_for_update().get(pk=answer.pk)
@@ -94,10 +95,12 @@ def record_answer_submission(answer):
                 or latest_revision.feedback_results.exists()
             )
         )
-        action = submission_revision_action(
-            latest_revision.content_snapshot if latest_revision else None,
-            snapshot,
-            has_followup,
+        action = (
+            'CREATE' if force_new_version else submission_revision_action(
+                latest_revision.content_snapshot if latest_revision else None,
+                snapshot,
+                has_followup,
+            )
         )
         if action == 'UNCHANGED':
             return latest_revision
@@ -699,14 +702,8 @@ def student_result_detail(request, activity_id):
     )
     question = activity.questions.first()
     feedback_results = []
-    latest_feedback_results = []
-    latest_revision = None
-    rewrite_snapshot = {}
-    rewrite_draft_snapshot = {}
-    rewrite_notebook_pages = []
-    notebook_pages = []
+    answer_entries = []
     if answer:
-        latest_revision = answer.latest_submission_revision()
         feedback_queryset = FeedbackResult.objects.filter(
                 answer=answer,
                 activity=activity,
@@ -714,23 +711,56 @@ def student_result_detail(request, activity_id):
                 is_published=True,
             ).order_by('-created_at', '-id')
         feedback_results = list(feedback_queryset)
-        latest_feedback_results = [
-            feedback for feedback in feedback_results
-            if (
-                (latest_revision and feedback.answer_revision_id == latest_revision.id)
-                or (not latest_revision and feedback.answer_revision_id is None)
-            )
-        ]
-        rewrite_snapshot = (
-            dict(latest_revision.content_snapshot or {})
-            if latest_revision else build_answer_snapshot(answer)
-        )
-        if activity.is_notebook:
-            original_pages = normalize_notebook_pages(
-                rewrite_snapshot.get('notebook_pages'), rewrite_snapshot.get('ans_q1', '')
-            )
-            rewrite_snapshot['notebook_pages'] = original_pages
-            rewrite_notebook_pages = [''] * len(original_pages)
+        answer_revisions = list(answer.submission_revisions.order_by('version', 'id'))
+        if not answer_revisions:
+            answer_revisions = [SimpleNamespace(
+                id=None,
+                version=1,
+                display_title='답안',
+                content_snapshot=build_answer_snapshot(answer),
+                submitted_at=answer.submitted_at,
+            )]
+        feedback_by_revision = {}
+        latest_revision = answer_revisions[-1]
+        for feedback in feedback_results:
+            revision_id = feedback.answer_revision_id or latest_revision.id
+            feedback_by_revision.setdefault(revision_id, []).append(feedback)
+        latest_has_followup = answer.has_followup_on_latest_submission()
+        for revision_index, revision in enumerate(answer_revisions):
+            snapshot = dict(revision.content_snapshot or {})
+            notebook_pages = []
+            if activity.is_notebook:
+                notebook_pages = normalize_notebook_pages(
+                    snapshot.get('notebook_pages'), snapshot.get('ans_q1', '')
+                )
+                snapshot['notebook_pages'] = notebook_pages
+            entry_feedbacks = feedback_by_revision.get(revision.id, [])
+            can_rewrite = any(item.is_rewrite_assigned for item in entry_feedbacks)
+            rewrite_draft_snapshot = {}
+            rewrite_notebook_pages = [''] * len(notebook_pages)
+            if can_rewrite and revision.id:
+                draft = AnswerRewriteDraft.objects.filter(
+                    answer=answer, base_revision=revision
+                ).first()
+                if draft:
+                    rewrite_draft_snapshot = dict(draft.content_snapshot or {})
+                    if activity.is_notebook:
+                        rewrite_notebook_pages = normalize_notebook_pages(
+                            rewrite_draft_snapshot.get('notebook_pages'), ''
+                        )
+            is_latest = revision_index == len(answer_revisions) - 1
+            answer_entries.append({
+                'target': f'answer-{revision.id or "legacy"}',
+                'revision': revision,
+                'snapshot': snapshot,
+                'notebook_pages': notebook_pages,
+                'feedbacks': entry_feedbacks,
+                'is_latest': is_latest,
+                'can_rewrite': can_rewrite,
+                'can_edit': is_latest and not latest_has_followup and activity.can_student_enter(answer),
+                'rewrite_draft_snapshot': rewrite_draft_snapshot,
+                'rewrite_notebook_pages': rewrite_notebook_pages,
+            })
         unread_ids = [feedback.id for feedback in feedback_results if not feedback.is_read]
         if unread_ids:
             first_read_at = timezone.now()
@@ -742,8 +772,6 @@ def student_result_detail(request, activity_id):
                 if feedback.id in unread_ids:
                     feedback.is_read = True
                     feedback.read_at = first_read_at
-        if activity.is_notebook:
-            notebook_pages = normalize_notebook_pages(answer.notebook_pages, answer.ans_q1)
     stored_score = ActivityStudentScore.objects.filter(
         activity=activity,
         student=student_info,
@@ -754,18 +782,6 @@ def student_result_detail(request, activity_id):
         else (answer.score if answer and answer.score is not None else 0)
     )
 
-    can_start_rewrite = bool(
-        answer and any(feedback.is_rewrite_assigned for feedback in latest_feedback_results)
-    )
-    if can_start_rewrite:
-        draft = AnswerRewriteDraft.objects.filter(answer=answer, base_revision=latest_revision).first()
-        if draft:
-            rewrite_draft_snapshot = dict(draft.content_snapshot or {})
-            if activity.is_notebook:
-                rewrite_notebook_pages = normalize_notebook_pages(
-                    rewrite_draft_snapshot.get('notebook_pages'), ''
-                )
-
     return render(request, 'activities/student_result_detail.html', {
         'activity': activity,
         'question': question,
@@ -773,12 +789,7 @@ def student_result_detail(request, activity_id):
         'student': student_info,
         'score': display_score,
         'feedback_results': feedback_results,
-        'notebook_pages': notebook_pages,
-        'latest_feedback_results': latest_feedback_results,
-        'rewrite_snapshot': rewrite_snapshot,
-        'rewrite_draft_snapshot': rewrite_draft_snapshot,
-        'rewrite_notebook_pages': rewrite_notebook_pages,
-        'can_start_rewrite': can_start_rewrite,
+        'answer_entries': answer_entries,
     })
 
 
@@ -845,8 +856,14 @@ def save_answer_rewrite_draft(request, activity_id):
         )
         if not answer:
             return JsonResponse({'status': 'error', 'message': '제출된 답안을 찾을 수 없습니다.'}, status=404)
-        latest_revision = answer.latest_submission_revision()
-        if not rewrite_assignment_exists(answer, activity, student_info, latest_revision):
+        base_revision_id = request.POST.get('base_revision_id', '')
+        base_revision = (
+            answer.submission_revisions.filter(id=base_revision_id).first()
+            if base_revision_id else answer.latest_submission_revision()
+        )
+        if not base_revision:
+            return JsonResponse({'status': 'error', 'message': '고쳐쓸 답안 버전을 찾을 수 없습니다.'}, status=404)
+        if not rewrite_assignment_exists(answer, activity, student_info, base_revision):
             return JsonResponse({'status': 'error', 'message': '고쳐쓰기 과제가 없습니다.'}, status=403)
 
         if activity.is_notebook:
@@ -864,7 +881,7 @@ def save_answer_rewrite_draft(request, activity_id):
                 )
         draft, _ = AnswerRewriteDraft.objects.update_or_create(
             answer=answer,
-            defaults={'base_revision': latest_revision, 'content_snapshot': snapshot},
+            defaults={'base_revision': base_revision, 'content_snapshot': snapshot},
         )
     return JsonResponse({'status': 'success', 'saved_at': draft.updated_at.isoformat()})
 
@@ -887,10 +904,16 @@ def submit_answer_rewrite(request, activity_id):
         if not answer:
             return JsonResponse({'status': 'error', 'message': '제출된 답안을 찾을 수 없습니다.'}, status=404)
 
-        latest_revision = answer.latest_submission_revision()
-        if not rewrite_assignment_exists(answer, activity, student_info, latest_revision):
+        base_revision_id = request.POST.get('base_revision_id', '')
+        base_revision = (
+            answer.submission_revisions.filter(id=base_revision_id).first()
+            if base_revision_id else answer.latest_submission_revision()
+        )
+        if not base_revision:
+            return JsonResponse({'status': 'error', 'message': '고쳐쓸 답안 버전을 찾을 수 없습니다.'}, status=404)
+        if not rewrite_assignment_exists(answer, activity, student_info, base_revision):
             return JsonResponse(
-                {'status': 'error', 'message': '교사가 최신 답안에 고쳐쓰기 과제를 배부하지 않았습니다.'},
+                {'status': 'error', 'message': '교사가 선택한 답안에 고쳐쓰기 과제를 배부하지 않았습니다.'},
                 status=403,
             )
 
@@ -902,8 +925,8 @@ def submit_answer_rewrite(request, activity_id):
         answer.submitted_at = timezone.now()
         append_activity_log(answer, 'REWRITE')
         answer.save()
-        revision = record_answer_submission(answer)
-        AnswerRewriteDraft.objects.filter(answer=answer).delete()
+        revision = record_answer_submission(answer, force_new_version=True)
+        AnswerRewriteDraft.objects.filter(answer=answer, base_revision=base_revision).delete()
 
     return JsonResponse({
         'status': 'success',

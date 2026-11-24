@@ -19,6 +19,10 @@
   .info-row:first-of-type { border-top: 0; }
   .info-label { color: #8e44ad; font-weight: 800; }
   .answer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; }
+  .answer-index { display:flex; gap:8px; margin:0 18px -1px; overflow-x:auto; }
+  .answer-index-tab { flex:0 0 auto; border:1px solid #e5d9e8; border-bottom:0; border-radius:14px 14px 0 0; padding:10px 18px; background:#f5eff7; color:#766a7a; cursor:pointer; font:inherit; font-size:calc(.82rem + 2pt); font-weight:850; }
+  .answer-index-tab.is-active { position:relative; z-index:1; background:#fff; color:#8e44ad; border-color:#d8bddf; }
+  .answer-history-panel[hidden] { display:none; }
   .answer-card { min-width: 0; border: 1px solid #e6dce9; border-radius: 16px; overflow: hidden; }
   .answer-title { padding: 12px 15px; background: #fbf7fc; font-weight: 800; }
   .answer-content { padding: 16px; white-space: pre-wrap; line-height: 1.75; min-height: 120px; }
@@ -39,6 +43,7 @@
   .followup-bar h2 { margin: 0 0 4px; font-size: calc(1.05rem + 2pt); font-weight: 900; }
   .followup-bar p { margin: 0; color: #817987; font-size: calc(.88rem + 2pt); }
   .followup-button { border: 0; cursor: pointer; padding: 11px 18px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, #ef6cad, #8e44ad); font-size: inherit; font-weight: 800; white-space: nowrap; }
+  a.followup-button { text-decoration:none; display:inline-flex; align-items:center; gap:7px; }
   .followup-button:disabled { cursor: not-allowed; opacity: .45; }
   .rewrite-backdrop { position: fixed; inset: 0; z-index: 1090; background: rgba(36, 25, 42, .42); opacity: 0; pointer-events: none; transition: opacity .22s ease; }
   .rewrite-backdrop.is-open { opacity: 1; pointer-events: auto; }
@@ -96,112 +101,70 @@
     <div class="info-row"><div class="info-label">작성 조건</div><div>{{ question.conditions|default:activity.conditions|default:"특별한 작성 조건 없음" }}</div></div>
   </section>
 
-  <section class="result-section">
-    <div class="section-heading"><span class="section-number">02</span><h2>학생 답안</h2></div>
-    {% if answer %}
+  {% if answer_entries %}
+  <nav class="answer-index" aria-label="답안 버전">
+    {% for entry in answer_entries %}<button type="button" class="answer-index-tab{% if entry.is_latest %} is-active{% endif %}" data-answer-tab="{{ entry.target }}">{{ entry.revision.display_title }}</button>{% endfor %}
+  </nav>
+  {% for entry in answer_entries %}
+  <div class="answer-history-panel" data-answer-panel="{{ entry.target }}"{% if not entry.is_latest %} hidden{% endif %}>
+    <section class="result-section">
+      <div class="section-heading"><span class="section-number">02</span><h2>{{ entry.revision.display_title }} 학생 답안</h2></div>
       {% if activity.is_notebook %}
-        {% for page in notebook_pages %}<div class="notebook-page"><strong>{{ forloop.counter }}쪽</strong><br><br>{{ page }}</div>{% endfor %}
+        {% for page in entry.notebook_pages %}<div class="notebook-page"><strong>{{ forloop.counter }}쪽</strong><br><br>{{ page }}</div>{% endfor %}
       {% else %}
         <div class="answer-grid">
-          {% if answer.ans_q1 %}<article class="answer-card"><div class="answer-title">{{ activity.q1_title }}</div><div class="answer-content">{{ answer.ans_q1 }}</div></article>{% endif %}
-          {% if answer.ans_q2 %}<article class="answer-card"><div class="answer-title">{{ activity.q2_title }}</div><div class="answer-content">{{ answer.ans_q2 }}</div></article>{% endif %}
-          {% if answer.ans_q3 %}<article class="answer-card"><div class="answer-title">{{ activity.q3_title }}</div><div class="answer-content">{{ answer.ans_q3 }}</div></article>{% endif %}
-          {% if not answer.ans_q1 and not answer.ans_q2 and not answer.ans_q3 %}<div class="answer-card"><div class="answer-content">{{ answer.display_content|default:"작성된 답안이 없습니다." }}</div></div>{% endif %}
+          {% if entry.snapshot.ans_q1 %}<article class="answer-card"><div class="answer-title">{{ activity.q1_title }}</div><div class="answer-content">{{ entry.snapshot.ans_q1 }}</div></article>{% endif %}
+          {% if entry.snapshot.ans_q2 %}<article class="answer-card"><div class="answer-title">{{ activity.q2_title }}</div><div class="answer-content">{{ entry.snapshot.ans_q2 }}</div></article>{% endif %}
+          {% if entry.snapshot.ans_q3 %}<article class="answer-card"><div class="answer-title">{{ activity.q3_title }}</div><div class="answer-content">{{ entry.snapshot.ans_q3 }}</div></article>{% endif %}
         </div>
       {% endif %}
-    {% else %}
-      <div class="empty-state">아직 작성된 답안이 없습니다.</div>
-    {% endif %}
-  </section>
-
-  <section class="result-section">
-    <div class="section-heading"><span class="section-number">03</span><h2>점수와 선생님의 피드백</h2></div>
-    <div class="score-feedback">
-      <div class="score-box"><strong>{{ score }}점</strong><span>5점 만점</span></div>
-      <div>
-        {% for feedback in feedback_results %}
-          <article class="feedback-card">
-            <div class="feedback-card-head"><div><div class="feedback-type">{{ feedback.type_name }}</div><h3>{{ feedback.display_title }}</h3></div>{% if feedback.is_rewrite_assigned %}<span class="rewrite-assigned-badge">고쳐쓰기 과제</span>{% endif %}</div>
-            <div class="feedback-date">{{ feedback.created_at|localtime|date:"Y.m.d H:i" }}</div>
-            <div class="feedback-body">{{ feedback.feedback_content }}</div>
-          </article>
-        {% empty %}
-          <div class="empty-state">선생님의 최종 피드백이 아직 등록되지 않았습니다.</div>
-        {% endfor %}
-      </div>
+    </section>
+    <section class="result-section">
+      <div class="section-heading"><span class="section-number">03</span><h2>{{ entry.revision.display_title }} 점수와 선생님의 피드백</h2></div>
+      <div class="score-feedback"><div class="score-box"><strong>{{ score }}점</strong><span>5점 만점</span></div><div>
+        {% for feedback in entry.feedbacks %}<article class="feedback-card"><div class="feedback-card-head"><div><div class="feedback-type">{{ feedback.type_name }}</div><h3>{{ feedback.display_title }}</h3></div>{% if feedback.is_rewrite_assigned %}<span class="rewrite-assigned-badge">고쳐쓰기 과제</span>{% endif %}</div><div class="feedback-date">{{ feedback.created_at|localtime|date:"Y.m.d H:i" }}</div><div class="feedback-body">{{ feedback.feedback_content }}</div></article>{% empty %}<div class="empty-state">이 답안에 대한 선생님의 피드백이 아직 등록되지 않았습니다.</div>{% endfor %}
+      </div></div>
+    </section>
+    <div class="followup-bar"><div><h2>다음 활동을 시작해보세요.</h2><p>이 답안과 연결된 피드백을 기준으로 이어서 작성합니다.</p></div>
+      {% if entry.can_rewrite %}<button class="followup-button" type="button" data-open-rewrite="{{ entry.target }}">고쳐쓰기 <i class="bi bi-arrow-right"></i></button>
+      {% elif entry.can_edit %}<a class="followup-button" href="{% url 'take_test' activity.id %}"><i class="bi bi-pencil-square"></i> 수정</a>
+      {% else %}<button class="followup-button" type="button" disabled>고쳐쓰기 대기 중</button>{% endif %}
     </div>
-  </section>
-
-  <div class="followup-bar">
-    <div><h2>다음 활동을 시작해보세요.</h2><p>선생님의 피드백을 참고해 답안을 발전시킬 수 있습니다.</p></div>
-    {% if can_start_rewrite %}
-      <button class="followup-button" type="button" data-open-rewrite>고쳐쓰기 <i class="bi bi-arrow-right"></i></button>
-    {% else %}
-      <button class="followup-button" type="button" disabled title="선생님이 고쳐쓰기 과제를 배부하면 시작할 수 있습니다.">고쳐쓰기 대기 중</button>
-    {% endif %}
   </div>
+  {% endfor %}
+  {% else %}<div class="empty-state">아직 작성된 답안이 없습니다.</div>{% endif %}
 </main>
 
-{% if can_start_rewrite %}
-<div class="rewrite-backdrop" data-rewrite-backdrop></div>
-<aside class="rewrite-panel" data-rewrite-panel aria-hidden="true" aria-labelledby="rewritePanelTitle">
-  <header class="rewrite-panel-head">
-    <div><h2 id="rewritePanelTitle">고쳐쓰기</h2><small>기존 답안과 피드백을 참고해 새 답안을 작성하세요.</small><small class="rewrite-save-status" data-rewrite-save-status role="status">작성 내용은 자동으로 임시저장됩니다.</small></div>
-    <button class="rewrite-close" type="button" data-close-rewrite aria-label="닫기">&times;</button>
-  </header>
-  <div class="rewrite-columns">
-    <section class="rewrite-column">
-      <div class="rewrite-source">
-        <h3 class="rewrite-column-title">학생 답안</h3>
-        <div class="rewrite-source-card">
-          {% if activity.is_notebook %}
-            {% for page in rewrite_snapshot.notebook_pages %}
-              <div class="rewrite-source-item"><strong>{{ forloop.counter }}쪽</strong><p class="rewrite-source-answer">{{ page|default:"작성된 내용이 없습니다." }}</p></div>
-            {% endfor %}
-          {% else %}
-            {% if rewrite_snapshot.ans_q1 %}<div class="rewrite-source-item"><strong>{{ activity.q1_title }}</strong><p class="rewrite-source-answer">{{ rewrite_snapshot.ans_q1 }}</p></div>{% endif %}
-            {% if rewrite_snapshot.ans_q2 %}<div class="rewrite-source-item"><strong>{{ activity.q2_title }}</strong><p class="rewrite-source-answer">{{ rewrite_snapshot.ans_q2 }}</p></div>{% endif %}
-            {% if rewrite_snapshot.ans_q3 %}<div class="rewrite-source-item"><strong>{{ activity.q3_title }}</strong><p class="rewrite-source-answer">{{ rewrite_snapshot.ans_q3 }}</p></div>{% endif %}
-            {% if not rewrite_snapshot.ans_q1 and not rewrite_snapshot.ans_q2 and not rewrite_snapshot.ans_q3 %}<p class="rewrite-source-answer">{{ answer.display_content|default:"작성된 내용이 없습니다." }}</p>{% endif %}
-          {% endif %}
-        </div>
-      </div>
-      <h3 class="rewrite-column-title">선생님의 피드백</h3>
-      {% for feedback in latest_feedback_results %}
-        <article class="feedback-card">
-          <div class="feedback-card-head"><div><div class="feedback-type">{{ feedback.type_name }}</div><h3>{{ feedback.display_title }}</h3></div>{% if feedback.is_rewrite_assigned %}<span class="rewrite-assigned-badge">고쳐쓰기 과제</span>{% endif %}</div>
-          <div class="feedback-date">{{ feedback.published_at|default:feedback.created_at|localtime|date:"Y.m.d H:i" }}</div>
-          <div class="feedback-body">{{ feedback.feedback_content }}</div>
-        </article>
-      {% endfor %}
-    </section>
-    <section class="rewrite-column">
-      <h3 class="rewrite-column-title">답안 고쳐쓰기</h3>
-      <form method="post" action="{% url 'submit_answer_rewrite' activity.id %}" data-draft-url="{% url 'save_answer_rewrite_draft' activity.id %}" data-rewrite-form>
-        {% csrf_token %}
-        {% if activity.is_notebook %}
-          <input type="hidden" name="notebook_pages" data-rewrite-notebook-pages>
-          {% for page in rewrite_notebook_pages %}
-            <div class="rewrite-field"><label>{{ forloop.counter }}쪽</label><textarea class="rewrite-notebook-page">{{ page }}</textarea></div>
-          {% endfor %}
-        {% else %}
-          <div class="rewrite-field"><label>{{ activity.q1_title|default:"문항 1" }}</label><textarea name="ans_q1">{{ rewrite_draft_snapshot.ans_q1 }}</textarea></div>
-          {% if activity.q2_title %}<div class="rewrite-field"><label>{{ activity.q2_title }}</label><textarea name="ans_q2">{{ rewrite_draft_snapshot.ans_q2 }}</textarea></div>{% endif %}
-          {% if activity.q3_title %}<div class="rewrite-field"><label>{{ activity.q3_title }}</label><textarea name="ans_q3">{{ rewrite_draft_snapshot.ans_q3 }}</textarea></div>{% endif %}
-        {% endif %}
-        <p class="rewrite-message" data-rewrite-message role="alert"></p>
-        <div class="rewrite-submit-row"><button class="rewrite-submit" type="submit">고쳐쓰기 제출</button></div>
-      </form>
-    </section>
-  </div>
+{% for entry in answer_entries %}{% if entry.can_rewrite %}
+<div class="rewrite-backdrop" data-rewrite-backdrop="{{ entry.target }}"></div>
+<aside class="rewrite-panel" data-rewrite-panel="{{ entry.target }}" aria-hidden="true">
+  <header class="rewrite-panel-head"><div><h2>{{ entry.revision.display_title }} 고쳐쓰기</h2><small>이 답안과 연결된 피드백을 참고해 새 답안으로 제출합니다.</small><small class="rewrite-save-status" data-rewrite-save-status role="status">작성 내용은 자동으로 임시저장됩니다.</small></div><button class="rewrite-close" type="button" data-close-rewrite aria-label="닫기">&times;</button></header>
+  <div class="rewrite-columns"><section class="rewrite-column"><div class="rewrite-source"><h3 class="rewrite-column-title">학생 답안</h3><div class="rewrite-source-card">
+    {% if activity.is_notebook %}{% for page in entry.notebook_pages %}<div class="rewrite-source-item"><strong>{{ forloop.counter }}쪽</strong><p class="rewrite-source-answer">{{ page }}</p></div>{% endfor %}
+    {% else %}{% if entry.snapshot.ans_q1 %}<div class="rewrite-source-item"><strong>{{ activity.q1_title }}</strong><p class="rewrite-source-answer">{{ entry.snapshot.ans_q1 }}</p></div>{% endif %}{% if entry.snapshot.ans_q2 %}<div class="rewrite-source-item"><strong>{{ activity.q2_title }}</strong><p class="rewrite-source-answer">{{ entry.snapshot.ans_q2 }}</p></div>{% endif %}{% if entry.snapshot.ans_q3 %}<div class="rewrite-source-item"><strong>{{ activity.q3_title }}</strong><p class="rewrite-source-answer">{{ entry.snapshot.ans_q3 }}</p></div>{% endif %}{% endif %}
+  </div></div><h3 class="rewrite-column-title">선생님의 피드백</h3>{% for feedback in entry.feedbacks %}<article class="feedback-card"><div class="feedback-card-head"><div><div class="feedback-type">{{ feedback.type_name }}</div><h3>{{ feedback.display_title }}</h3></div></div><div class="feedback-body">{{ feedback.feedback_content }}</div></article>{% endfor %}</section>
+  <section class="rewrite-column"><h3 class="rewrite-column-title">답안 고쳐쓰기</h3><form method="post" action="{% url 'submit_answer_rewrite' activity.id %}" data-draft-url="{% url 'save_answer_rewrite_draft' activity.id %}" data-rewrite-form>{% csrf_token %}<input type="hidden" name="base_revision_id" value="{{ entry.revision.id }}">
+    {% if activity.is_notebook %}<input type="hidden" name="notebook_pages" data-rewrite-notebook-pages>{% for page in entry.rewrite_notebook_pages %}<div class="rewrite-field"><label>{{ forloop.counter }}쪽</label><textarea class="rewrite-notebook-page">{{ page }}</textarea></div>{% endfor %}
+    {% else %}<div class="rewrite-field"><label>{{ activity.q1_title|default:"문항 1" }}</label><textarea name="ans_q1">{{ entry.rewrite_draft_snapshot.ans_q1 }}</textarea></div>{% if activity.q2_title %}<div class="rewrite-field"><label>{{ activity.q2_title }}</label><textarea name="ans_q2">{{ entry.rewrite_draft_snapshot.ans_q2 }}</textarea></div>{% endif %}{% if activity.q3_title %}<div class="rewrite-field"><label>{{ activity.q3_title }}</label><textarea name="ans_q3">{{ entry.rewrite_draft_snapshot.ans_q3 }}</textarea></div>{% endif %}{% endif %}
+    <p class="rewrite-message" data-rewrite-message role="alert"></p><div class="rewrite-submit-row"><button class="rewrite-submit" type="submit">고쳐쓰기 제출</button></div>
+  </form></section></div>
 </aside>
+{% endif %}{% endfor %}
 <script>
 (() => {
-  const panel = document.querySelector('[data-rewrite-panel]');
-  const backdrop = document.querySelector('[data-rewrite-backdrop]');
-  const openButton = document.querySelector('[data-open-rewrite]');
-  const form = document.querySelector('[data-rewrite-form]');
-  if (!panel || !backdrop || !openButton || !form) return;
+  const tabs = [...document.querySelectorAll('[data-answer-tab]')];
+  const panels = [...document.querySelectorAll('[data-answer-panel]')];
+  tabs.forEach((tab) => tab.addEventListener('click', () => {
+    const target = tab.dataset.answerTab;
+    tabs.forEach((item) => item.classList.toggle('is-active', item === tab));
+    panels.forEach((panel) => { panel.hidden = panel.dataset.answerPanel !== target; });
+  }));
+  document.querySelectorAll('[data-rewrite-panel]').forEach((panel) => {
+  const target = panel.dataset.rewritePanel;
+  const backdrop = document.querySelector(`[data-rewrite-backdrop="${target}"]`);
+  const openButton = document.querySelector(`[data-open-rewrite="${target}"]`);
+  const form = panel.querySelector('[data-rewrite-form]');
+  if (!backdrop || !openButton || !form) return;
   const closeButton = panel.querySelector('[data-close-rewrite]');
   const saveStatus = panel.querySelector('[data-rewrite-save-status]');
   const message = form.querySelector('[data-rewrite-message]');
@@ -305,7 +268,7 @@
     event.preventDefault();
     event.returnValue = '';
   });
+  });
 })();
 </script>
-{% endif %}
 {% endblock %}

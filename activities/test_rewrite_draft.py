@@ -86,3 +86,40 @@ class RewriteDraftTests(TestCase):
         response = self.client.post(self.draft_url, {'ans_q1': '남의 답안'})
         self.assertEqual(response.status_code, 403)
         self.assertFalse(AnswerRewriteDraft.objects.exists())
+
+    def test_rewrite_from_older_assigned_answer_keeps_newer_answer_version(self):
+        newer_revision = AnswerSubmissionRevision.objects.create(
+            answer=self.answer, version=2, submitted_at=timezone.now(),
+            content_snapshot={'ans_q1': '답안2 내용', 'ans_q2': '', 'ans_q3': '', 'notebook_pages': []},
+        )
+        self.answer.ans_q1 = '답안2 내용'
+        self.answer.save(update_fields=['ans_q1'])
+
+        response = self.client.post(
+            reverse('submit_answer_rewrite', args=[self.activity.id]),
+            {'base_revision_id': self.revision.id, 'ans_q1': '답안1 피드백을 반영한 새 글'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        revisions = list(self.answer.submission_revisions.order_by('version'))
+        self.assertEqual([revision.version for revision in revisions], [1, 2, 3])
+        self.assertEqual(revisions[1].id, newer_revision.id)
+        self.assertEqual(revisions[1].content_snapshot['ans_q1'], '답안2 내용')
+        self.assertEqual(revisions[2].content_snapshot['ans_q1'], '답안1 피드백을 반영한 새 글')
+
+    def test_portfolio_groups_feedback_and_actions_by_answer_version(self):
+        AnswerSubmissionRevision.objects.create(
+            answer=self.answer, version=2, submitted_at=timezone.now(),
+            content_snapshot={'ans_q1': '답안2 내용', 'ans_q2': '', 'ans_q3': '', 'notebook_pages': []},
+        )
+        self.answer.ans_q1 = '답안2 내용'
+        self.answer.save(update_fields=['ans_q1'])
+        self.activity.is_active = True
+        self.activity.save(update_fields=['is_active'])
+
+        response = self.client.get(self.result_url)
+
+        self.assertContains(response, '답안2')
+        self.assertContains(response, 'data-answer-tab="answer-')
+        self.assertContains(response, '고쳐쓰기 과제')
+        self.assertContains(response, 'bi-pencil-square')

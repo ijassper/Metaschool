@@ -989,7 +989,10 @@ class AnswerSubmissionPortfolioTests(SimpleTestCase):
 
     def test_student_result_exposes_rewrite_entry_point(self):
         source = get_template('activities/student_result_detail.html').template.source
-        self.assertIn('can_start_rewrite', source)
+        self.assertIn('answer_entries', source)
+        self.assertIn('data-answer-tab="{{ entry.target }}"', source)
+        self.assertIn('entry.can_rewrite', source)
+        self.assertIn('entry.can_edit', source)
         self.assertIn('다음 활동을 시작해보세요.', source)
         self.assertIn('고쳐쓰기 대기 중', source)
         self.assertIn('feedback.is_rewrite_assigned', source)
