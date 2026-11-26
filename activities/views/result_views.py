@@ -467,8 +467,11 @@ def answer_detail(request, answer_id):
         .values_list('id', flat=True)
     )
     next_answer_id = None
+    previous_answer_id = None
     if answer.id in ordered_answer_ids:
         current_index = ordered_answer_ids.index(answer.id)
+        if current_index > 0:
+            previous_answer_id = ordered_answer_ids[current_index - 1]
         if current_index + 1 < len(ordered_answer_ids):
             next_answer_id = ordered_answer_ids[current_index + 1]
     return render(request, 'activities/answer_detail.html', {
@@ -478,6 +481,7 @@ def answer_detail(request, answer_id):
         'answer_entries': answer_entries,
         'submitted_content': submitted_content,
         'feedback_sessions': feedback_sessions,
+        'previous_answer_id': previous_answer_id,
         'next_answer_id': next_answer_id,
         'personas': Persona.objects.filter(
             Q(creator__isnull=True) | Q(creator=request.user)

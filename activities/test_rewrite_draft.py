@@ -223,3 +223,26 @@ class RewriteDraftTests(TestCase):
         self.assertContains(response, 'data-print-portfolio')
         self.assertContains(response, 'data-print-single')
         self.assertContains(response, '전체 포트폴리오 인쇄')
+        self.assertNotContains(response, '<section class="portfolio-date-card"')
+
+    def test_teacher_portfolio_exposes_previous_and_next_students(self):
+        second_student = Student.objects.create(
+            email='second@example.com', grade=2, class_no=6, number=2, name='Second',
+        )
+        second_answer = Answer.objects.create(
+            student=second_student, question=self.answer.question,
+            ans_q1='두 번째 학생 답안', submitted_at=timezone.now(),
+        )
+        AnswerSubmissionRevision.objects.create(
+            answer=second_answer, version=1, submitted_at=second_answer.submitted_at,
+            content_snapshot={'ans_q1': '두 번째 학생 답안', 'ans_q2': '', 'ans_q3': '', 'notebook_pages': []},
+        )
+        self.client.force_login(self.teacher)
+
+        first_response = self.client.get(reverse('answer_detail', args=[self.answer.id]))
+        second_response = self.client.get(reverse('answer_detail', args=[second_answer.id]))
+
+        self.assertEqual(first_response.context['next_answer_id'], second_answer.id)
+        self.assertIsNone(first_response.context['previous_answer_id'])
+        self.assertEqual(second_response.context['previous_answer_id'], self.answer.id)
+        self.assertIsNone(second_response.context['next_answer_id'])

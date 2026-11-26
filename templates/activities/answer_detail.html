@@ -28,21 +28,20 @@
                             <strong>{{ activity.title }}</strong>
                         </nav>
                     </section>
-                    <section class="portfolio-date-card" aria-label="제출 일시">
-                        <span class="portfolio-header-card-label">제출 일시</span>
-                        <span class="portfolio-date-divider" aria-hidden="true"></span>
-                        <time datetime="{{ answer.submitted_at|date:'c' }}">
-                            {% if answer.submitted_at %}{{ answer.submitted_at|localtime|date:"Y.m.d H:i" }}{% else %}-{% endif %}
-                        </time>
-                    </section>
                 </div>
             </div>
         </div>
         <div class="portfolio-header-actions">
-            <button type="button" class="portfolio-print-button" data-print-portfolio><i class="bi bi-printer"></i> 전체 포트폴리오 인쇄</button>
             <a href="{% url 'activity_result' activity.id %}?show_all=1&amp;category={{ activity.category|urlencode }}&amp;sub={{ activity.sub_category|urlencode }}" class="portfolio-back">
                 <i class="bi bi-arrow-left"></i> 제출 현황으로
             </a>
+            {% if previous_answer_id %}
+            <a href="{% url 'answer_detail' previous_answer_id %}?category={{ activity.category|urlencode }}&amp;sub={{ activity.sub_category|urlencode }}" class="portfolio-back portfolio-previous">
+                <i class="bi bi-arrow-left"></i> 이전 학생으로
+            </a>
+            {% else %}
+            <span class="portfolio-back portfolio-previous is-disabled" aria-disabled="true"><i class="bi bi-check2"></i> 첫 학생</span>
+            {% endif %}
             {% if next_answer_id %}
             <a href="{% url 'answer_detail' next_answer_id %}?category={{ activity.category|urlencode }}&amp;sub={{ activity.sub_category|urlencode }}" class="portfolio-back portfolio-next">
                 다음 학생으로 <i class="bi bi-arrow-right"></i>
@@ -62,6 +61,7 @@
                 <span>{{ forloop.counter|stringformat:"02d" }}</span><span class="portfolio-index-label">{{ entry.title }}</span>
             </button>
             {% endfor %}
+            <button type="button" class="portfolio-index-print" data-print-portfolio><i class="bi bi-printer"></i> 전체 포트폴리오 인쇄</button>
         </nav>
 
         {% for entry in answer_entries %}
@@ -95,9 +95,9 @@
                 <header class="section-header">
                     <div>
                         <span class="section-number">02</span>
-                        <div>
+                        <div class="answer-heading-line">
                             <h3>{{ entry.title }}</h3>
-                            <p>{% if entry.revision.submitted_at %}{{ entry.revision.submitted_at|localtime|date:"Y.m.d H:i" }} 제출{% else %}제출 일시 없음{% endif %}</p>
+                            <time class="answer-submitted-time" datetime="{{ entry.revision.submitted_at|date:'c' }}">{% if entry.revision.submitted_at %}{{ entry.revision.submitted_at|localtime|date:"Y.m.d H:i" }} 제출{% else %}제출 일시 없음{% endif %}</time>
                         </div>
                     </div>
                     <div class="section-print-actions">{% if entry.is_latest %}<span class="answer-count-chip">최신 답안</span>{% endif %}<button type="button" class="section-print-button" data-print-single><i class="bi bi-printer"></i> 답안 인쇄</button></div>
@@ -650,6 +650,7 @@
         top: 0;
         left: 18px;
         z-index: 1;
+        width: calc(100% - 36px);
         max-width: calc(100% - 36px);
         display: flex;
         overflow-x: auto;
@@ -692,6 +693,9 @@
         background: #fff;
         color: var(--ingrid-primary);
     }
+
+    .portfolio-index-print { position:sticky; right:0; flex:0 0 auto; height:38px; display:inline-flex; align-items:center; justify-content:center; gap:.4rem; margin:2px 0 0 auto; padding:0 .95rem; border:0; border-radius:999px; background:linear-gradient(135deg,#ef6cad,#8e44ad); color:#fff; font-size:10pt; font-weight:800; box-shadow:0 6px 16px rgba(142,68,173,.2); cursor:pointer; z-index:2; }
+    .portfolio-index-print:hover { filter:brightness(.97); }
 
     .portfolio-sheet {
         overflow: hidden;
@@ -787,6 +791,9 @@
         color: #a198a7;
         font-size: 0.68rem;
     }
+
+    .answer-heading-line { display:flex; align-items:baseline; gap:.75rem !important; flex-wrap:wrap; }
+    .answer-submitted-time { color:#817987; font-size:10pt; font-weight:400; white-space:nowrap; }
 
     .question-card {
         overflow: hidden;
@@ -1426,6 +1433,48 @@
     .followup-spinner { width:15px; height:15px; display:inline-block; margin-right:.35rem; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:followup-spin .75s linear infinite; vertical-align:-3px; }
     @keyframes followup-spin { to { transform:rotate(360deg); } }
     body.answer-source-open { overflow:hidden; }
+
+    /* 교사 포트폴리오 본문은 12pt, 보조 정보와 조작 요소는 최소 10pt로 통일합니다. */
+    .student-portfolio { font-size:12pt; }
+    .student-portfolio .question-card-content,
+    .student-portfolio .kanban-answer,
+    .student-portfolio .feedback-history-content,
+    .student-portfolio .feedback-history-editor textarea,
+    .student-portfolio .teacher-note { font-size:12pt; }
+    .student-portfolio .section-header h3,
+    .student-portfolio .answer-kanban-card h4 { font-size:12pt; }
+    .student-portfolio .portfolio-student-meta,
+    .student-portfolio .portfolio-path,
+    .student-portfolio .portfolio-back,
+    .student-portfolio .portfolio-index-tab,
+    .student-portfolio .portfolio-index-tab span,
+    .student-portfolio .portfolio-index-print,
+    .student-portfolio .section-number,
+    .student-portfolio .section-header p,
+    .student-portfolio .question-card-label,
+    .student-portfolio .question-condition,
+    .student-portfolio .kanban-order,
+    .student-portfolio .answer-kanban-card header,
+    .student-portfolio .answer-count-chip,
+    .student-portfolio .answer-empty p,
+    .student-portfolio .answer-unsubmitted-note strong,
+    .student-portfolio .answer-unsubmitted-note p,
+    .student-portfolio .section-print-button,
+    .student-portfolio .feedback-history-actions,
+    .student-portfolio .feedback-history-edit-button,
+    .student-portfolio .feedback-history-publish-button,
+    .student-portfolio .feedback-published-badge,
+    .student-portfolio .feedback-read-badge,
+    .student-portfolio .feedback-history-edit-cancel,
+    .student-portfolio .feedback-history-edit-save,
+    .student-portfolio .feedback-history-edit-status,
+    .student-portfolio .feedback-published-time,
+    .student-portfolio .portfolio-action,
+    .student-portfolio .portfolio-action h2,
+    .student-portfolio .portfolio-action p,
+    .student-portfolio .portfolio-action-button,
+    .student-portfolio .quick-score-button,
+    .student-portfolio .quick-score-option { font-size:10pt; }
 
     @media (max-width: 991.98px) {
         .portfolio-header {
