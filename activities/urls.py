@@ -152,6 +152,7 @@ urlpatterns = [
     path('result/<int:activity_id>/proctor/capture-toggle/', proctor_capture_toggle, name='proctor_capture_toggle'),
     path('result/proctor/snapshot/<int:snapshot_id>/', proctor_snapshot_image, name='proctor_snapshot_image'),
     path('answer/detail/<int:answer_id>/', answer_detail, name='answer_detail'),
+    path('answer/<int:answer_id>/print-data/', answer_print_data, name='answer_print_data'),
     path('answer/<int:answer_id>/score/', update_answer_score, name='update_answer_score'),
     path(
         'result/<int:activity_id>/student/<int:student_id>/score/',

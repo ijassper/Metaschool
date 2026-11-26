@@ -315,6 +315,59 @@ def proctor_snapshot_image(request, snapshot_id):
     response['X-Content-Type-Options'] = 'nosniff'
     return response
 
+
+@require_GET
+@login_required
+@teacher_required
+def answer_print_data(request, answer_id):
+    """Return every submitted answer version for the teacher-side print preview."""
+    answer = get_object_or_404(
+        Answer.objects.select_related(
+            'student', 'student__school', 'question', 'question__activity'
+        ),
+        id=answer_id,
+        question__activity__teacher=request.user,
+    )
+    activity = answer.question.activity
+    revisions = list(answer.submission_revisions.order_by('version', 'id'))
+    if revisions:
+        versions = [
+            {
+                'id': revision.id,
+                'version': revision.version,
+                'title': f'답안{revision.version}',
+                'submitted_at': timezone.localtime(revision.submitted_at).strftime('%Y-%m-%d %H:%M'),
+                'content': submission_snapshot_content(revision.content_snapshot or {}, activity),
+            }
+            for revision in revisions
+        ]
+    else:
+        versions = [{
+            'id': None,
+            'version': 1,
+            'title': '답안1',
+            'submitted_at': (
+                timezone.localtime(answer.submitted_at).strftime('%Y-%m-%d %H:%M')
+                if answer.submitted_at else '-'
+            ),
+            'content': answer.display_content,
+        }]
+
+    student = answer.student
+    return JsonResponse({
+        'status': 'success',
+        'answer_id': answer.id,
+        'school_name': student.school.name if student.school else '',
+        'student': {
+            'name': student.name,
+            'grade': student.grade,
+            'class_no': student.class_no,
+            'number': student.number,
+        },
+        'question_content': answer.question.content or activity.question or '',
+        'versions': versions,
+    })
+
 # [2] 답안 상세 페이지
 @login_required
 @teacher_required

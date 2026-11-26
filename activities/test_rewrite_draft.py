@@ -188,3 +188,19 @@ class RewriteDraftTests(TestCase):
             ActivityStudentScore.objects.get(answer_revision=second_revision).score,
             5,
         )
+
+    def test_teacher_print_data_returns_all_answer_versions_in_order(self):
+        second_revision = AnswerSubmissionRevision.objects.create(
+            answer=self.answer, version=2, submitted_at=timezone.now(),
+            content_snapshot={'ans_q1': '두 번째 답안', 'ans_q2': '', 'ans_q3': '', 'notebook_pages': []},
+        )
+        self.client.force_login(self.teacher)
+
+        response = self.client.get(reverse('answer_print_data', args=[self.answer.id]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual([item['id'] for item in payload['versions']], [self.revision.id, second_revision.id])
+        self.assertEqual([item['title'] for item in payload['versions']], ['답안1', '답안2'])
+        self.assertEqual(payload['versions'][0]['content'], '기존 제출 답안')
+        self.assertEqual(payload['versions'][1]['content'], '두 번째 답안')

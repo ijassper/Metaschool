@@ -196,7 +196,8 @@
                                     data-question-content="{{ activity.question|default:activity.questions.first.content|default:''|escape }}"
                                     data-answer-content="{{ item.content|default:''|escape }}"
                                     data-school-name="{{ item.student.school.name|default:''|escape }}"
-                                    onclick="openAnswerModal(this)">
+                                    data-history-url="{% url 'answer_print_data' item.answer_id %}"
+                                    onclick="openSubmissionHistoryModal(this)">
                                     저장<span class="answer-output-divider">|</span>출력
                                 </button>
                             {% else %}
@@ -517,6 +518,27 @@
         widows: 3;
     }
 
+    .answer-history-list { display:grid; gap:12px; }
+    .answer-history-heading { justify-content:space-between !important; }
+    .answer-history-print-all { border:0; border-radius:999px; padding:9px 15px; background:linear-gradient(135deg, #ef6cad, #8e44ad); color:#fff; font-weight:850; cursor:pointer; }
+    .answer-history-print-all:hover { filter:brightness(.97); }
+    .answer-history-item { overflow:hidden; border:1px solid #e4d8e8; border-radius:15px; background:#fff; }
+    .answer-history-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:15px 17px; border:0; background:#fbf7fc; color:#3f3443; text-align:left; cursor:pointer; }
+    .answer-history-toggle:hover, .answer-history-toggle:focus-visible { background:#f6ecf8; outline:none; }
+    .answer-history-toggle-main { display:flex; align-items:center; gap:10px; min-width:0; }
+    .answer-history-title { color:#7f3f92; font-weight:850; }
+    .answer-history-date { color:#817987; font-size:.82rem; }
+    .answer-history-chevron { color:#8e44ad; transition:transform .18s ease; }
+    .answer-history-toggle[aria-expanded="true"] .answer-history-chevron { transform:rotate(180deg); }
+    .answer-history-body { padding:16px 17px 18px; border-top:1px solid #eadfed; }
+    .answer-history-content { min-height:180px; padding:16px; border:1px solid #e4e0e6; border-radius:12px; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.75; }
+    .answer-history-actions { display:flex; justify-content:flex-end; margin-top:12px; }
+    .answer-history-print { border:1px solid #b970c7; border-radius:999px; padding:8px 14px; background:#fff; color:#7f3f92; font-weight:800; cursor:pointer; }
+    .answer-history-print:hover { background:#f7ebfa; }
+    .answer-history-loading, .answer-history-error { padding:28px; text-align:center; color:#817987; }
+    .answer-history-error { color:#c33e57; }
+    #answerViewModal .answer-view-body { max-height:calc(100vh - 210px); overflow-y:auto; }
+
     @media print {
         .answer-content-box {
             /* 2페이지에서도 본문 영역을 일정하게 채우는 박스 비율 유지 */
@@ -576,6 +598,8 @@
         font-size: 12pt;
         line-height: 1.6;
     }
+
+    #final-print-area .print-sheet + .print-sheet { break-before:page; page-break-before:always; }
 
     #final-print-area .print-title {
         margin: 0 0 10px;
@@ -726,27 +750,107 @@
         document.getElementById('filterForm').submit();
     }
 
-    // 2. 답안 확인 모달 열기
-    function openAnswerModal(buttonEl) {
+    // 2. 모든 제출 답안 버전을 접이식 목록으로 불러옵니다.
+    async function openSubmissionHistoryModal(buttonEl) {
         hideAnswerHoverPreview(true);
         const data = buttonEl.dataset;
         const name = data.studentName || '';
         const grade = data.grade || '';
         const classNo = data.classNo || '';
         const number = data.number || '';
-        const submittedAt = data.submitted || '';
-        const questionContent = data.questionContent || '';
-        const answerContent = data.answerContent || '';
         const schoolName = data.schoolName || '';
 
         openIngridModal({
-            title: '학생 답안지',
+            title: '학생 전체 글쓰기',
             schoolName: schoolName,
             studentInfo: `${grade}학년 ${classNo}반 ${number}번 ${name}`.trim(),
-            submittedAt: submittedAt,
-            questionContent: questionContent,
-            content: answerContent,
+            submittedAt: '불러오는 중…',
+            questionContent: data.questionContent || '',
+            content: '답안 이력을 불러오는 중입니다.',
             name, grade, classNo, number // PDF 저장용 원본 데이터 전달
+        });
+        const container = document.getElementById('modalAnswerContent');
+        container.innerHTML = '<div class="answer-history-loading">답안 이력을 불러오는 중입니다…</div>';
+        const contentLabel = document.getElementById('answerModalContentLabel');
+        contentLabel.textContent = '제출한 모든 글쓰기';
+        document.getElementById('answerModalTotalCount').hidden = true;
+        const pdfButton = document.getElementById('answerPdfBtn');
+        pdfButton.style.display = 'none';
+        const heading = contentLabel.closest('.answer-section-heading');
+        heading.classList.add('answer-history-heading');
+        heading.querySelector('[data-print-all-answers]')?.remove();
+        const printAllButton = document.createElement('button');
+        printAllButton.type = 'button';
+        printAllButton.className = 'answer-history-print-all';
+        printAllButton.dataset.printAllAnswers = '';
+        printAllButton.innerHTML = '<i class="bi bi-printer me-1"></i> 모든 글쓰기 인쇄';
+        printAllButton.addEventListener('click', () => saveAnswerModalAsPdf());
+        heading.append(printAllButton);
+
+        try {
+            const response = await fetch(data.historyUrl, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            });
+            const payload = await response.json();
+            if (!response.ok || payload.status !== 'success') {
+                throw new Error(payload.message || '답안 이력을 불러오지 못했습니다.');
+            }
+            window.currentAnswerModalData = {
+                name: payload.student.name,
+                grade: payload.student.grade,
+                classNo: payload.student.class_no,
+                number: payload.student.number,
+                schoolName: payload.school_name,
+                questionContent: payload.question_content,
+                submittedAt: payload.versions.length ? payload.versions[payload.versions.length - 1].submitted_at : '-',
+                versions: payload.versions
+            };
+            document.getElementById('modalSchoolName').textContent = payload.school_name || '학교 정보 없음';
+            document.getElementById('modalStudentInfo').textContent = `${payload.student.grade}학년 ${payload.student.class_no}반 ${payload.student.number}번 ${payload.student.name}`;
+            document.getElementById('modalSubmittedAt').textContent = `${payload.versions.length}회 제출`;
+            document.getElementById('modalQuestionContent').textContent = payload.question_content || '문항 정보가 없습니다.';
+            renderAnswerHistory(container, payload.versions);
+        } catch (error) {
+            container.innerHTML = `<div class="answer-history-error">${escapeHtml(error.message)}</div>`;
+            printAllButton.disabled = true;
+        }
+    }
+
+    function renderAnswerHistory(container, versions) {
+        container.replaceChildren();
+        container.classList.add('answer-history-list');
+        versions.forEach((version, index) => {
+            const item = document.createElement('section');
+            item.className = 'answer-history-item';
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'answer-history-toggle';
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.innerHTML = `<span class="answer-history-toggle-main"><span class="answer-history-title">${escapeHtml(version.title)}</span><span class="answer-history-date">${escapeHtml(version.submitted_at || '-')} 제출</span></span><i class="bi bi-chevron-down answer-history-chevron" aria-hidden="true"></i>`;
+            const body = document.createElement('div');
+            body.className = 'answer-history-body';
+            body.hidden = true;
+            const content = document.createElement('div');
+            content.className = 'answer-history-content';
+            content.textContent = version.content || '백지 제출';
+            const actions = document.createElement('div');
+            actions.className = 'answer-history-actions';
+            const printButton = document.createElement('button');
+            printButton.type = 'button';
+            printButton.className = 'answer-history-print';
+            printButton.innerHTML = '<i class="bi bi-printer me-1"></i> 이 글쓰기 인쇄';
+            printButton.addEventListener('click', () => saveAnswerModalAsPdf(index));
+            actions.append(printButton);
+            body.append(content, actions);
+            toggle.addEventListener('click', () => {
+                const willOpen = toggle.getAttribute('aria-expanded') !== 'true';
+                container.querySelectorAll('.answer-history-toggle').forEach((otherToggle) => otherToggle.setAttribute('aria-expanded', 'false'));
+                container.querySelectorAll('.answer-history-body').forEach((otherBody) => { otherBody.hidden = true; });
+                toggle.setAttribute('aria-expanded', String(willOpen));
+                body.hidden = !willOpen;
+            });
+            item.append(toggle, body);
+            container.append(item);
         });
     }
 
@@ -919,44 +1023,49 @@
             .replace(/'/g, '&#39;');
     }
 
-    function renderFinalPrintArea(data) {
+    function renderFinalPrintArea(data, versions) {
         const finalPrintArea = document.getElementById('final-print-area');
         if (!finalPrintArea) return;
 
-        finalPrintArea.innerHTML = `
+        finalPrintArea.innerHTML = versions.map((version) => `
             <div class="print-sheet">
-                <h2 class="print-title">학생 답안지</h2>
+                <h2 class="print-title">학생 답안지 · ${escapeHtml(version.title)}</h2>
                 <div class="print-meta">
                     <div>학교명: ${escapeHtml(data.schoolName || '학교 정보 없음')}</div>
                     <div>학생: ${escapeHtml(`${data.grade}학년 ${data.classNo}반 ${data.number}번 ${data.name}`.trim())}</div>
-                    <div>제출일시: ${escapeHtml(data.submittedAt || '-')}</div>
+                    <div>제출일시: ${escapeHtml(version.submitted_at || '-')}</div>
                 </div>
                 <section class="print-section">
                     <h3>평가 문항</h3>
                     <div class="print-question-box">${escapeHtml(data.questionContent || '문항 정보가 없습니다.')}</div>
                 </section>
                 <section class="print-section">
-                    <h3>작성한 답안</h3>
-                    <div class="print-answer-box">${escapeHtml(data.answerContent || '작성된 내용이 없습니다.')}</div>
+                    <h3>${escapeHtml(version.title)}</h3>
+                    <div class="print-answer-box">${escapeHtml(version.content || '백지 제출')}</div>
                 </section>
             </div>
-        `;
+        `).join('');
     }
 
-    function saveAnswerModalAsPdf() {
+    function saveAnswerModalAsPdf(versionIndex = null) {
         if (!window.currentAnswerModalData) return;
+
+        const allVersions = window.currentAnswerModalData.versions || [];
+        const versions = versionIndex === null ? allVersions : [allVersions[versionIndex]].filter(Boolean);
+        if (!versions.length) return;
 
         const grade = (window.currentAnswerModalData.grade || '').toString();
         const classNo = (window.currentAnswerModalData.classNo || '').toString().padStart(2, '0');
         const number = (window.currentAnswerModalData.number || '').toString().padStart(2, '0');
         const name = (window.currentAnswerModalData.name || '').toString().trim();
-        const submittedDate = ((window.currentAnswerModalData.submittedAt || '').toString().slice(0, 10)) || '';
+        const submittedDate = (((versions[versions.length - 1] || {}).submitted_at || '').toString().slice(0, 10)) || '';
         const formattedDate = submittedDate ? submittedDate.replace(/-/g, '') : '날짜없음';
         const safeName = name.replace(/[\\/:*?"<>|]/g, '');
-        const printTitle = `${grade}${classNo}${number}${safeName}_답안지_${formattedDate}`;
+        const versionLabel = versionIndex === null ? '전체글쓰기' : versions[0].title;
+        const printTitle = `${grade}${classNo}${number}${safeName}_${versionLabel}_${formattedDate}`;
         const originalTitle = document.title;
 
-        renderFinalPrintArea(window.currentAnswerModalData);
+        renderFinalPrintArea(window.currentAnswerModalData, versions);
 
         const restoreTitle = function () {
             document.title = originalTitle;
