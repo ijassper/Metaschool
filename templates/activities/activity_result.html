@@ -1195,12 +1195,12 @@
             .print-meta div + div { margin-top:3px; }
             .print-section { margin-bottom:14px; }
             .print-section h3 { margin:0 0 7px; font-size:12pt; }
-            .print-question-box, .print-answer-box { padding:14px; border:1px solid #777; white-space:pre-wrap; overflow-wrap:anywhere; }
+            .print-question-box, .print-answer-box { padding:14px; border:1px solid #777; white-space:pre-wrap; overflow-wrap:anywhere; box-decoration-break:clone; -webkit-box-decoration-break:clone; background-clip:padding-box; }
             .print-question-section { break-after:avoid; page-break-after:avoid; }
             .print-writing-section { margin-top:18px; break-inside:auto; page-break-inside:auto; }
             .print-writing-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; break-after:avoid; page-break-after:avoid; }
             .print-writing-heading span { color:#666; font-size:9pt; }
-            .print-answer-box { min-height:55mm; }
+            .print-answer-box { min-height:55mm; break-inside:auto; page-break-inside:auto; }
         </style></head><body>${buildAnswerPrintSheets(window.currentAnswerModalData, versions, versionIndex === null)}</body></html>`);
         printDocument.close();
         const runPrint = () => {
