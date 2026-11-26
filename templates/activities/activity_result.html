@@ -1132,25 +1132,29 @@
             .replace(/'/g, '&#39;');
     }
 
-    function buildAnswerPrintSheets(data, versions) {
-        return versions.map((version) => `
-            <div class="print-sheet">
-                <h2 class="print-title">학생 답안지 · ${escapeHtml(version.title)}</h2>
-                <div class="print-meta">
-                    <div>학교명: ${escapeHtml(data.schoolName || '학교 정보 없음')}</div>
-                    <div>학생: ${escapeHtml(`${data.grade}학년 ${data.classNo}반 ${data.number}번 ${data.name}`.trim())}</div>
-                    <div>제출일시: ${escapeHtml(version.submitted_at || '-')}</div>
-                </div>
-                <section class="print-section">
-                    <h3>평가 문항</h3>
-                    <div class="print-question-box">${escapeHtml(data.questionContent || '문항 정보가 없습니다.')}</div>
-                </section>
-                <section class="print-section">
-                    <h3>${escapeHtml(version.title)}</h3>
-                    <div class="print-answer-box">${escapeHtml(version.content || '백지 제출')}</div>
-                </section>
+    function buildAnswerPrintSheets(data, versions, printAll) {
+        const sharedHeader = `
+            <h2 class="print-title">학생 글쓰기 답안지</h2>
+            <div class="print-meta">
+                <div>학교명: ${escapeHtml(data.schoolName || '학교 정보 없음')}</div>
+                <div>학생: ${escapeHtml(`${data.grade}학년 ${data.classNo}반 ${data.number}번 ${data.name}`.trim())}</div>
+                <div>제출 횟수: ${versions.length}회</div>
             </div>
-        `).join('');
+            <section class="print-section print-question-section">
+                <h3>평가 문항</h3>
+                <div class="print-question-box">${escapeHtml(data.questionContent || '문항 정보가 없습니다.')}</div>
+            </section>`;
+        const writingBoxes = versions.map((version) => `
+            <section class="print-section print-writing-section">
+                <div class="print-writing-heading"><h3>${escapeHtml(version.title)}</h3><span>${escapeHtml(version.submitted_at || '-')} 제출</span></div>
+                <div class="print-answer-box">${escapeHtml(version.content || '백지 제출')}</div>
+            </section>`).join('');
+
+        if (printAll) {
+            return `<div class="print-sheet">${sharedHeader}${writingBoxes}</div>`;
+        }
+        const version = versions[0];
+        return `<div class="print-sheet">${sharedHeader.replace(`제출 횟수: ${versions.length}회`, `제출일시: ${escapeHtml(version.submitted_at || '-')}`)}${writingBoxes}</div>`;
     }
 
     function saveAnswerModalAsPdf(versionIndex = null) {
@@ -1186,15 +1190,18 @@
             * { box-sizing:border-box; }
             body { margin:0; color:#111; font-family:"Malgun Gothic","Noto Sans KR",sans-serif; font-size:11pt; line-height:1.65; }
             .print-sheet { width:100%; }
-            .print-sheet + .print-sheet { break-before:page; page-break-before:always; }
             .print-title { margin:0 0 12px; text-align:center; font-size:18pt; }
             .print-meta { margin-bottom:14px; padding:11px 13px; border:1px solid #777; background:#f8f8f8; }
             .print-meta div + div { margin-top:3px; }
             .print-section { margin-bottom:14px; }
             .print-section h3 { margin:0 0 7px; font-size:12pt; }
             .print-question-box, .print-answer-box { padding:14px; border:1px solid #777; white-space:pre-wrap; overflow-wrap:anywhere; }
-            .print-answer-box { min-height:120mm; }
-        </style></head><body>${buildAnswerPrintSheets(window.currentAnswerModalData, versions)}</body></html>`);
+            .print-question-section { break-after:avoid; page-break-after:avoid; }
+            .print-writing-section { margin-top:18px; break-inside:auto; page-break-inside:auto; }
+            .print-writing-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; break-after:avoid; page-break-after:avoid; }
+            .print-writing-heading span { color:#666; font-size:9pt; }
+            .print-answer-box { min-height:55mm; }
+        </style></head><body>${buildAnswerPrintSheets(window.currentAnswerModalData, versions, versionIndex === null)}</body></html>`);
         printDocument.close();
         const runPrint = () => {
             iframe.contentWindow.focus();
