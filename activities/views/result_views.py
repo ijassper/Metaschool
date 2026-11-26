@@ -34,6 +34,14 @@ def parse_quick_score(value):
     return score
 
 
+def writing_version_title(version):
+    labels = {
+        1: '첫번째', 2: '두번째', 3: '세번째', 4: '네번째', 5: '다섯번째',
+        6: '여섯번째', 7: '일곱번째', 8: '여덟번째', 9: '아홉번째', 10: '열번째',
+    }
+    return f"{labels.get(version, f'{version}번째')} 글쓰기"
+
+
 PROCTOR_LIVE_SECONDS = 10
 PROCTOR_DELAYED_SECONDS = 30
 
@@ -335,7 +343,7 @@ def answer_print_data(request, answer_id):
             {
                 'id': revision.id,
                 'version': revision.version,
-                'title': f'답안{revision.version}',
+                'title': writing_version_title(revision.version),
                 'submitted_at': timezone.localtime(revision.submitted_at).strftime('%Y-%m-%d %H:%M'),
                 'content': submission_snapshot_content(revision.content_snapshot or {}, activity),
             }
@@ -345,7 +353,7 @@ def answer_print_data(request, answer_id):
         versions = [{
             'id': None,
             'version': 1,
-            'title': '답안1',
+            'title': writing_version_title(1),
             'submitted_at': (
                 timezone.localtime(answer.submitted_at).strftime('%Y-%m-%d %H:%M')
                 if answer.submitted_at else '-'

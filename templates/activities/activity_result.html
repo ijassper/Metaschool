@@ -316,6 +316,32 @@
 <!-- 인쇄 전용 레이아웃 (평소 숨김) -->
 <div id="final-print-area" aria-hidden="true"></div>
 
+<!-- 학생 글쓰기 이력 슬라이드 패널 -->
+<aside id="answerHistoryDrawer" class="answer-history-drawer" aria-hidden="true" aria-labelledby="answerHistoryDrawerTitle">
+    <header class="answer-history-drawer-header">
+        <div class="answer-history-drawer-nav">
+            <button type="button" class="answer-history-student-nav" data-previous-student><i class="bi bi-arrow-left"></i> 이전학생</button>
+            <button type="button" class="answer-history-student-nav" data-next-student>다음학생 <i class="bi bi-arrow-right"></i></button>
+        </div>
+        <div class="answer-history-drawer-title-wrap">
+            <span class="answer-history-drawer-meta" data-drawer-student-meta></span>
+            <h2 id="answerHistoryDrawerTitle">학생 전체 글쓰기</h2>
+        </div>
+        <button type="button" class="answer-history-drawer-close" data-close-answer-drawer aria-label="슬라이드 패널 닫기"><i class="bi bi-x-lg"></i></button>
+    </header>
+    <div class="answer-history-drawer-toolbar">
+        <button type="button" class="answer-history-toggle-all" data-toggle-all-answers><i class="bi bi-arrows-collapse"></i> 모든 답안 접기</button>
+        <button type="button" class="answer-history-print-all" data-print-all-answers><i class="bi bi-printer"></i> 모든 글쓰기 인쇄</button>
+    </div>
+    <div class="answer-history-drawer-body">
+        <section class="answer-history-question">
+            <strong>평가 문항</strong>
+            <div data-drawer-question></div>
+        </section>
+        <div class="answer-history-list" data-drawer-answer-list></div>
+    </div>
+</aside>
+
 <style>
     .answer-output-divider { margin:0 .28rem; opacity:.72; }
     .answer-hover-preview {
@@ -518,10 +544,26 @@
         widows: 3;
     }
 
-    .answer-history-list { display:grid; gap:12px; }
-    .answer-history-heading { justify-content:space-between !important; }
+    .answer-history-drawer { position:fixed; top:0; right:0; bottom:0; left:var(--sidebar-expanded-width, 280px); z-index:1085; display:flex; flex-direction:column; background:#f8f6fb; box-shadow:-18px 0 45px rgba(53,31,62,.22); transform:translateX(103%); visibility:hidden; transition:transform .26s ease, visibility .26s; }
+    .answer-history-drawer.is-open { transform:translateX(0); visibility:visible; }
+    body.sidebar-collapsed .answer-history-drawer { left:0; }
+    .answer-history-drawer-header { flex:0 0 auto; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:18px; padding:18px 24px; border-bottom:1px solid #eadfed; background:#fff; }
+    .answer-history-drawer-nav { display:flex; align-items:center; gap:8px; }
+    .answer-history-student-nav { border:1px solid #d9c9de; border-radius:999px; padding:8px 13px; background:#fff; color:#6f5676; font-weight:800; cursor:pointer; }
+    .answer-history-student-nav:disabled { opacity:.38; cursor:not-allowed; }
+    .answer-history-drawer-title-wrap { text-align:center; min-width:0; }
+    .answer-history-drawer-title-wrap h2 { margin:2px 0 0; font-size:1.3rem; font-weight:900; }
+    .answer-history-drawer-meta { display:block; color:#817987; font-size:.8rem; }
+    .answer-history-drawer-close { justify-self:end; width:42px; height:42px; border:0; border-radius:50%; background:#f4eef6; color:#744181; cursor:pointer; }
+    .answer-history-drawer-toolbar { flex:0 0 auto; display:flex; justify-content:flex-end; gap:10px; padding:12px 24px; border-bottom:1px solid #eadfed; background:#fff; }
+    .answer-history-toggle-all { border:1px solid #cdbbd3; border-radius:999px; padding:9px 15px; background:#fff; color:#6f5676; font-weight:850; cursor:pointer; }
     .answer-history-print-all { border:0; border-radius:999px; padding:9px 15px; background:linear-gradient(135deg, #ef6cad, #8e44ad); color:#fff; font-weight:850; cursor:pointer; }
     .answer-history-print-all:hover { filter:brightness(.97); }
+    .answer-history-drawer-body { flex:1 1 auto; min-height:0; overflow-y:auto; padding:22px 28px 60px; }
+    .answer-history-question { margin:0 auto 16px; max-width:1200px; padding:17px 19px; border:1px solid #eadfed; border-radius:15px; background:#fff; }
+    .answer-history-question strong { display:block; margin-bottom:7px; color:#7f3f92; }
+    .answer-history-question div { white-space:pre-wrap; line-height:1.65; }
+    .answer-history-list { display:grid; gap:12px; max-width:1200px; margin:0 auto; }
     .answer-history-item { overflow:hidden; border:1px solid #e4d8e8; border-radius:15px; background:#fff; }
     .answer-history-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:15px 17px; border:0; background:#fbf7fc; color:#3f3443; text-align:left; cursor:pointer; }
     .answer-history-toggle:hover, .answer-history-toggle:focus-visible { background:#f6ecf8; outline:none; }
@@ -537,7 +579,12 @@
     .answer-history-print:hover { background:#f7ebfa; }
     .answer-history-loading, .answer-history-error { padding:28px; text-align:center; color:#817987; }
     .answer-history-error { color:#c33e57; }
-    #answerViewModal .answer-view-body { max-height:calc(100vh - 210px); overflow-y:auto; }
+    @media (max-width:991.98px) {
+        .answer-history-drawer { left:0; }
+        .answer-history-drawer-header { grid-template-columns:1fr auto; }
+        .answer-history-drawer-title-wrap { grid-row:2; grid-column:1 / -1; text-align:left; }
+        .answer-history-drawer-body { padding:16px 14px 40px; }
+    }
 
     @media print {
         .answer-content-box {
@@ -751,45 +798,29 @@
     }
 
     // 2. 모든 제출 답안 버전을 접이식 목록으로 불러옵니다.
+    let answerHistoryTrigger = null;
+    let answerHistoryRequest = null;
+
     async function openSubmissionHistoryModal(buttonEl) {
         hideAnswerHoverPreview(true);
-        const data = buttonEl.dataset;
-        const name = data.studentName || '';
-        const grade = data.grade || '';
-        const classNo = data.classNo || '';
-        const number = data.number || '';
-        const schoolName = data.schoolName || '';
-
-        openIngridModal({
-            title: '학생 전체 글쓰기',
-            schoolName: schoolName,
-            studentInfo: `${grade}학년 ${classNo}반 ${number}번 ${name}`.trim(),
-            submittedAt: '불러오는 중…',
-            questionContent: data.questionContent || '',
-            content: '답안 이력을 불러오는 중입니다.',
-            name, grade, classNo, number // PDF 저장용 원본 데이터 전달
-        });
-        const container = document.getElementById('modalAnswerContent');
+        answerHistoryTrigger = buttonEl;
+        const drawer = document.getElementById('answerHistoryDrawer');
+        const container = drawer.querySelector('[data-drawer-answer-list]');
         container.innerHTML = '<div class="answer-history-loading">답안 이력을 불러오는 중입니다…</div>';
-        const contentLabel = document.getElementById('answerModalContentLabel');
-        contentLabel.textContent = '제출한 모든 글쓰기';
-        document.getElementById('answerModalTotalCount').hidden = true;
-        const pdfButton = document.getElementById('answerPdfBtn');
-        pdfButton.style.display = 'none';
-        const heading = contentLabel.closest('.answer-section-heading');
-        heading.classList.add('answer-history-heading');
-        heading.querySelector('[data-print-all-answers]')?.remove();
-        const printAllButton = document.createElement('button');
-        printAllButton.type = 'button';
-        printAllButton.className = 'answer-history-print-all';
-        printAllButton.dataset.printAllAnswers = '';
-        printAllButton.innerHTML = '<i class="bi bi-printer me-1"></i> 모든 글쓰기 인쇄';
-        printAllButton.addEventListener('click', () => saveAnswerModalAsPdf());
-        heading.append(printAllButton);
+        drawer.querySelector('[data-drawer-student-meta]').textContent = `${buttonEl.dataset.grade || ''}학년 ${buttonEl.dataset.classNo || ''}반 ${buttonEl.dataset.number || ''}번 · ${buttonEl.dataset.studentName || ''}`;
+        drawer.querySelector('[data-drawer-question]').textContent = buttonEl.dataset.questionContent || '문항 정보가 없습니다.';
+        updateAnswerStudentNavigation();
+        drawer.classList.add('is-open');
+        drawer.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+
+        if (answerHistoryRequest) answerHistoryRequest.abort();
+        answerHistoryRequest = new AbortController();
 
         try {
-            const response = await fetch(data.historyUrl, {
-                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            const response = await fetch(buttonEl.dataset.historyUrl, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                signal: answerHistoryRequest.signal
             });
             const payload = await response.json();
             if (!response.ok || payload.status !== 'success') {
@@ -805,14 +836,12 @@
                 submittedAt: payload.versions.length ? payload.versions[payload.versions.length - 1].submitted_at : '-',
                 versions: payload.versions
             };
-            document.getElementById('modalSchoolName').textContent = payload.school_name || '학교 정보 없음';
-            document.getElementById('modalStudentInfo').textContent = `${payload.student.grade}학년 ${payload.student.class_no}반 ${payload.student.number}번 ${payload.student.name}`;
-            document.getElementById('modalSubmittedAt').textContent = `${payload.versions.length}회 제출`;
-            document.getElementById('modalQuestionContent').textContent = payload.question_content || '문항 정보가 없습니다.';
+            drawer.querySelector('[data-drawer-student-meta]').textContent = `${payload.school_name || '학교 정보 없음'} · ${payload.student.grade}학년 ${payload.student.class_no}반 ${payload.student.number}번 · ${payload.student.name} · ${payload.versions.length}회 제출`;
+            drawer.querySelector('[data-drawer-question]').textContent = payload.question_content || '문항 정보가 없습니다.';
             renderAnswerHistory(container, payload.versions);
         } catch (error) {
+            if (error.name === 'AbortError') return;
             container.innerHTML = `<div class="answer-history-error">${escapeHtml(error.message)}</div>`;
-            printAllButton.disabled = true;
         }
     }
 
@@ -825,11 +854,11 @@
             const toggle = document.createElement('button');
             toggle.type = 'button';
             toggle.className = 'answer-history-toggle';
-            toggle.setAttribute('aria-expanded', 'false');
+            toggle.setAttribute('aria-expanded', 'true');
             toggle.innerHTML = `<span class="answer-history-toggle-main"><span class="answer-history-title">${escapeHtml(version.title)}</span><span class="answer-history-date">${escapeHtml(version.submitted_at || '-')} 제출</span></span><i class="bi bi-chevron-down answer-history-chevron" aria-hidden="true"></i>`;
             const body = document.createElement('div');
             body.className = 'answer-history-body';
-            body.hidden = true;
+            body.hidden = false;
             const content = document.createElement('div');
             content.className = 'answer-history-content';
             content.textContent = version.content || '백지 제출';
@@ -844,14 +873,47 @@
             body.append(content, actions);
             toggle.addEventListener('click', () => {
                 const willOpen = toggle.getAttribute('aria-expanded') !== 'true';
-                container.querySelectorAll('.answer-history-toggle').forEach((otherToggle) => otherToggle.setAttribute('aria-expanded', 'false'));
-                container.querySelectorAll('.answer-history-body').forEach((otherBody) => { otherBody.hidden = true; });
                 toggle.setAttribute('aria-expanded', String(willOpen));
                 body.hidden = !willOpen;
+                updateToggleAllAnswerLabel();
             });
             item.append(toggle, body);
             container.append(item);
         });
+        updateToggleAllAnswerLabel();
+    }
+
+    function closeAnswerHistoryDrawer() {
+        const drawer = document.getElementById('answerHistoryDrawer');
+        drawer.classList.remove('is-open');
+        drawer.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        if (answerHistoryRequest) answerHistoryRequest.abort();
+    }
+
+    function answerStudentTriggers() {
+        return [...document.querySelectorAll('.answer-preview-trigger:not([disabled])')];
+    }
+
+    function adjacentAnswerTrigger(offset) {
+        const triggers = answerStudentTriggers();
+        const index = triggers.indexOf(answerHistoryTrigger);
+        return index >= 0 ? triggers[index + offset] || null : null;
+    }
+
+    function updateAnswerStudentNavigation() {
+        const drawer = document.getElementById('answerHistoryDrawer');
+        drawer.querySelector('[data-previous-student]').disabled = !adjacentAnswerTrigger(-1);
+        drawer.querySelector('[data-next-student]').disabled = !adjacentAnswerTrigger(1);
+    }
+
+    function updateToggleAllAnswerLabel() {
+        const drawer = document.getElementById('answerHistoryDrawer');
+        const toggles = [...drawer.querySelectorAll('.answer-history-toggle')];
+        const allOpen = toggles.length > 0 && toggles.every((toggle) => toggle.getAttribute('aria-expanded') === 'true');
+        const button = drawer.querySelector('[data-toggle-all-answers]');
+        button.innerHTML = allOpen ? '<i class="bi bi-arrows-collapse"></i> 모든 답안 접기' : '<i class="bi bi-arrows-expand"></i> 모든 답안 열기';
+        button.dataset.nextState = allOpen ? 'closed' : 'open';
     }
 
     let answerHoverPreview = null;
@@ -1010,7 +1072,21 @@
         }, true);
         window.addEventListener('resize', function() { hideAnswerHoverPreview(true); });
         document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') hideAnswerHoverPreview(true);
+            if (event.key === 'Escape') {
+                hideAnswerHoverPreview(true);
+                closeAnswerHistoryDrawer();
+            }
+        });
+        const drawer = document.getElementById('answerHistoryDrawer');
+        drawer.querySelector('[data-close-answer-drawer]').addEventListener('click', closeAnswerHistoryDrawer);
+        drawer.querySelector('[data-previous-student]').addEventListener('click', () => adjacentAnswerTrigger(-1)?.click());
+        drawer.querySelector('[data-next-student]').addEventListener('click', () => adjacentAnswerTrigger(1)?.click());
+        drawer.querySelector('[data-print-all-answers]').addEventListener('click', () => saveAnswerModalAsPdf());
+        drawer.querySelector('[data-toggle-all-answers]').addEventListener('click', function() {
+            const shouldOpen = this.dataset.nextState === 'open';
+            drawer.querySelectorAll('.answer-history-toggle').forEach((toggle) => toggle.setAttribute('aria-expanded', String(shouldOpen)));
+            drawer.querySelectorAll('.answer-history-body').forEach((body) => { body.hidden = !shouldOpen; });
+            updateToggleAllAnswerLabel();
         });
     });
 
@@ -1023,11 +1099,8 @@
             .replace(/'/g, '&#39;');
     }
 
-    function renderFinalPrintArea(data, versions) {
-        const finalPrintArea = document.getElementById('final-print-area');
-        if (!finalPrintArea) return;
-
-        finalPrintArea.innerHTML = versions.map((version) => `
+    function buildAnswerPrintSheets(data, versions) {
+        return versions.map((version) => `
             <div class="print-sheet">
                 <h2 class="print-title">학생 답안지 · ${escapeHtml(version.title)}</h2>
                 <div class="print-meta">
@@ -1063,20 +1136,39 @@
         const safeName = name.replace(/[\\/:*?"<>|]/g, '');
         const versionLabel = versionIndex === null ? '전체글쓰기' : versions[0].title;
         const printTitle = `${grade}${classNo}${number}${safeName}_${versionLabel}_${formattedDate}`;
-        const originalTitle = document.title;
-
-        renderFinalPrintArea(window.currentAnswerModalData, versions);
-
-        const restoreTitle = function () {
-            document.title = originalTitle;
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '1200px';
+        iframe.style.height = '800px';
+        iframe.style.left = '-10000px';
+        iframe.style.top = '0';
+        iframe.style.opacity = '0';
+        iframe.style.pointerEvents = 'none';
+        document.body.appendChild(iframe);
+        const printDocument = iframe.contentDocument || iframe.contentWindow.document;
+        printDocument.open();
+        printDocument.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(printTitle)}</title><style>
+            @page { size:A4; margin:12mm; }
+            * { box-sizing:border-box; }
+            body { margin:0; color:#111; font-family:"Malgun Gothic","Noto Sans KR",sans-serif; font-size:11pt; line-height:1.65; }
+            .print-sheet { width:100%; }
+            .print-sheet + .print-sheet { break-before:page; page-break-before:always; }
+            .print-title { margin:0 0 12px; text-align:center; font-size:18pt; }
+            .print-meta { margin-bottom:14px; padding:11px 13px; border:1px solid #777; background:#f8f8f8; }
+            .print-meta div + div { margin-top:3px; }
+            .print-section { margin-bottom:14px; }
+            .print-section h3 { margin:0 0 7px; font-size:12pt; }
+            .print-question-box, .print-answer-box { padding:14px; border:1px solid #777; white-space:pre-wrap; overflow-wrap:anywhere; }
+            .print-answer-box { min-height:120mm; }
+        </style></head><body>${buildAnswerPrintSheets(window.currentAnswerModalData, versions)}</body></html>`);
+        printDocument.close();
+        const runPrint = () => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            window.setTimeout(() => iframe.remove(), 1500);
         };
-
-        document.title = printTitle;
-        window.addEventListener('afterprint', restoreTitle, { once: true });
-        setTimeout(function () {
-            window.print();
-        }, 300);
-        setTimeout(restoreTitle, 1200);
+        window.setTimeout(runPrint, 250);
     }
 
     // 학년 체크박스 누르면 -> 해당 학년의 반 모두 선택/해제
@@ -1262,6 +1354,8 @@
     }
 </script>
 
-<!-- 답안 확인 공통 모달 포함 -->
+{% comment %}
+기존 답안 모달은 슬라이드 패널 UX 검증 기간 동안 비활성화합니다.
 {% include 'components/answer_view_modal.html' %}
+{% endcomment %}
 {% endblock %}

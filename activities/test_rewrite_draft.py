@@ -201,6 +201,9 @@ class RewriteDraftTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual([item['id'] for item in payload['versions']], [self.revision.id, second_revision.id])
-        self.assertEqual([item['title'] for item in payload['versions']], ['답안1', '답안2'])
+        self.assertEqual(
+            [item['title'] for item in payload['versions']],
+            ['첫번째 글쓰기', '두번째 글쓰기'],
+        )
         self.assertEqual(payload['versions'][0]['content'], '기존 제출 답안')
         self.assertEqual(payload['versions'][1]['content'], '두 번째 답안')
