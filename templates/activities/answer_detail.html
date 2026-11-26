@@ -39,6 +39,7 @@
             </div>
         </div>
         <div class="portfolio-header-actions">
+            <button type="button" class="portfolio-print-button" data-print-portfolio><i class="bi bi-printer"></i> 전체 포트폴리오 인쇄</button>
             <a href="{% url 'activity_result' activity.id %}?show_all=1&amp;category={{ activity.category|urlencode }}&amp;sub={{ activity.sub_category|urlencode }}" class="portfolio-back">
                 <i class="bi bi-arrow-left"></i> 제출 현황으로
             </a>
@@ -90,7 +91,7 @@
                 </article>
             </section>
 
-            <section{% if entry.is_latest %} id="answerKanban"{% endif %} class="portfolio-section">
+            <section{% if entry.is_latest %} id="answerKanban"{% endif %} class="portfolio-section" data-print-item data-print-kind="답안" data-print-title="{{ entry.title }}" data-print-time="{% if entry.revision.submitted_at %}{{ entry.revision.submitted_at|localtime|date:'Y.m.d H:i' }}{% endif %}" data-print-timestamp="{{ entry.revision.submitted_at|date:'c' }}">
                 <header class="section-header">
                     <div>
                         <span class="section-number">02</span>
@@ -99,7 +100,7 @@
                             <p>{% if entry.revision.submitted_at %}{{ entry.revision.submitted_at|localtime|date:"Y.m.d H:i" }} 제출{% else %}제출 일시 없음{% endif %}</p>
                         </div>
                     </div>
-                    {% if entry.is_latest %}<span class="answer-count-chip">최신 답안</span>{% endif %}
+                    <div class="section-print-actions">{% if entry.is_latest %}<span class="answer-count-chip">최신 답안</span>{% endif %}<button type="button" class="section-print-button" data-print-single><i class="bi bi-printer"></i> 답안 인쇄</button></div>
                 </header>
 
                 <div class="answer-kanban">
@@ -157,7 +158,7 @@
             </section>
 
             {% for feedback in entry.feedbacks %}
-            <section class="portfolio-section feedback-history-section">
+            <section class="portfolio-section feedback-history-section" data-print-item data-print-kind="피드백" data-print-title="{{ feedback.display_title }}" data-print-time="{{ feedback.created_at|localtime|date:'Y.m.d H:i' }}" data-print-timestamp="{{ feedback.created_at|date:'c' }}">
                 <header class="section-header">
                     <div>
                         <span class="section-number">{{ forloop.counter|add:2|stringformat:"02d" }}</span>
@@ -167,6 +168,7 @@
                         </div>
                     </div>
                     <div class="feedback-history-actions">
+                        <button type="button" class="section-print-button" data-print-single><i class="bi bi-printer"></i> 피드백 인쇄</button>
                         {% if feedback.is_editable %}
                         <button type="button" class="feedback-history-edit-button" data-edit-feedback="{{ feedback.id }}"><i class="bi bi-pencil-square"></i> 수정하기</button>
                         {% endif %}
@@ -629,6 +631,12 @@
     }
 
     .portfolio-header-actions { display:flex; align-items:center; gap:.45rem; flex:0 0 auto; }
+    .portfolio-print-button, .section-print-button { display:inline-flex; align-items:center; justify-content:center; gap:.38rem; border-radius:999px; font-weight:800; cursor:pointer; white-space:nowrap; }
+    .portfolio-print-button { min-height:36px; padding:0 .9rem; border:0; background:linear-gradient(135deg,#ef6cad,#8e44ad); color:#fff; font-size:.78rem; box-shadow:0 6px 16px rgba(142,68,173,.2); }
+    .portfolio-print-button:hover { filter:brightness(.97); transform:translateY(-1px); }
+    .section-print-actions { display:flex; align-items:center; justify-content:flex-end; gap:.45rem; flex-wrap:wrap; }
+    .section-print-button { min-height:32px; padding:.36rem .68rem; border:1px solid #cfaed8; background:#fff; color:#7d3c98; font-size:.7rem; }
+    .section-print-button:hover { border-color:#a86fba; background:#f8eef9; }
     .portfolio-back.is-disabled { opacity:.5; cursor:default; }
     .portfolio-back.is-disabled:hover { border-color:#e4dce7; background:#fff; color:#716978; }
 
@@ -2193,6 +2201,110 @@
                 if (designLayer.classList.contains('is-open')) closeDesignLayer();
                 else if (layer.classList.contains('is-open')) closeLayer();
             }
+        });
+    })();
+</script>
+<script>
+    (function () {
+        const printMeta = {
+            school: '{{ answer.student.school.name|default:"소속 학교 없음"|escapejs }}',
+            student: '{{ answer.student.grade }}학년 {{ answer.student.class_no }}반 {{ answer.student.number }}번 {{ answer.student.name|escapejs }}',
+            activity: '{{ activity.title|escapejs }}',
+            question: '{{ answer.question.content|default:"문항 정보가 없습니다."|escapejs }}'
+        };
+
+        function printEscape(value) {
+            return (value || '').toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function readPrintableItem(section) {
+            const kind = section.dataset.printKind || '';
+            let content = '';
+            if (kind === '답안') {
+                content = [...section.querySelectorAll('.answer-kanban-card')].map(function (card) {
+                    const heading = card.querySelector('h4')?.textContent.trim() || '';
+                    const answer = card.querySelector('.kanban-answer')?.textContent.trim() || '';
+                    return heading ? `${heading}\n${answer}` : answer;
+                }).filter(Boolean).join('\n\n');
+                if (!content) content = section.querySelector('.answer-empty')?.textContent.trim() || '백지 제출';
+            } else {
+                content = section.querySelector('.feedback-history-content')?.textContent.trim() || '내용이 없습니다.';
+            }
+            return {
+                kind: kind,
+                title: section.dataset.printTitle || kind,
+                time: section.dataset.printTime || '-',
+                timestamp: Date.parse(section.dataset.printTimestamp || '') || 0,
+                content: content
+            };
+        }
+
+        function portfolioPrintDocument(items, documentTitle) {
+            const itemHtml = items.map(function (item) {
+                const label = item.kind === '답안' ? item.title : `${item.title} 피드백`;
+                return `<article class="portfolio-print-item ${item.kind === '피드백' ? 'is-feedback' : 'is-answer'}">
+                    <header><span class="portfolio-print-kind">${printEscape(item.kind)}</span><h2>${printEscape(label)}</h2><time>${printEscape(item.time)}</time></header>
+                    <div class="portfolio-print-content">${printEscape(item.content)}</div>
+                </article>`;
+            }).join('');
+            const safeFilename = `${printMeta.student}_${documentTitle}`.replace(/[\\/:*?"<>|]/g, '');
+            const iframe = document.createElement('iframe');
+            iframe.setAttribute('aria-hidden', 'true');
+            iframe.style.position = 'absolute';
+            iframe.style.width = '1200px';
+            iframe.style.height = '800px';
+            iframe.style.left = '-10000px';
+            iframe.style.top = '0';
+            iframe.style.opacity = '0';
+            document.body.appendChild(iframe);
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${printEscape(safeFilename)}</title><style>
+                @page { size:A4; margin:12mm; }
+                * { box-sizing:border-box; }
+                body { margin:0; color:#171319; font-family:"Malgun Gothic","Noto Sans KR",sans-serif; font-size:10.5pt; line-height:1.65; }
+                .portfolio-print-title { margin:0 0 12px; text-align:center; font-size:18pt; }
+                .portfolio-print-meta { margin-bottom:14px; padding:12px 14px; border:1px solid #777; background:#f8f8f8; }
+                .portfolio-print-meta div + div { margin-top:3px; }
+                .portfolio-print-question { margin-bottom:18px; padding:13px 14px; border:1px solid #888; white-space:pre-wrap; }
+                .portfolio-print-question strong { display:block; margin-bottom:5px; }
+                .portfolio-print-item { margin-top:18px; break-inside:auto; page-break-inside:auto; }
+                .portfolio-print-item header { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:baseline; gap:8px; margin-bottom:6px; break-after:avoid; page-break-after:avoid; }
+                .portfolio-print-item h2 { margin:0; font-size:12pt; }
+                .portfolio-print-item time { color:#666; font-size:8.5pt; }
+                .portfolio-print-kind { padding:2px 7px; border:1px solid #777; border-radius:999px; font-size:8pt; font-weight:700; }
+                .portfolio-print-content { min-height:40mm; padding:14px; border:1px solid #777; white-space:pre-wrap; overflow-wrap:anywhere; }
+                .is-feedback .portfolio-print-content { background:#faf7fb; }
+            </style></head><body>
+                <h1 class="portfolio-print-title">${printEscape(documentTitle)}</h1>
+                <div class="portfolio-print-meta"><div>학교: ${printEscape(printMeta.school)}</div><div>학생: ${printEscape(printMeta.student)}</div><div>활동: ${printEscape(printMeta.activity)}</div></div>
+                <section class="portfolio-print-question"><strong>평가 문항</strong>${printEscape(printMeta.question)}</section>
+                ${itemHtml}
+            </body></html>`);
+            doc.close();
+            window.setTimeout(function () {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                window.setTimeout(() => iframe.remove(), 1500);
+            }, 250);
+        }
+
+        document.querySelector('[data-print-portfolio]')?.addEventListener('click', function () {
+            const items = [...document.querySelectorAll('[data-print-item]')]
+                .map(readPrintableItem)
+                .sort((a, b) => a.timestamp - b.timestamp);
+            portfolioPrintDocument(items, '전체 활동 포트폴리오');
+        });
+        document.querySelectorAll('[data-print-single]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const item = readPrintableItem(button.closest('[data-print-item]'));
+                portfolioPrintDocument([item], item.kind === '답안' ? item.title : `${item.title} 피드백`);
+            });
         });
     })();
 </script>

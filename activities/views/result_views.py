@@ -446,7 +446,7 @@ def answer_detail(request, answer_id):
         ]
         answer_entries.append({
             'target': f'answer-{revision.id or "legacy"}',
-            'title': revision.display_title,
+            'title': writing_version_title(revision.version),
             'revision': revision,
             'notebook_pages': written_pages,
             'feedbacks': feedback_by_revision.get(revision.id, []),

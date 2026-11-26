@@ -207,3 +207,19 @@ class RewriteDraftTests(TestCase):
         )
         self.assertEqual(payload['versions'][0]['content'], '기존 제출 답안')
         self.assertEqual(payload['versions'][1]['content'], '두 번째 답안')
+
+    def test_teacher_portfolio_uses_writing_titles_and_print_controls(self):
+        AnswerSubmissionRevision.objects.create(
+            answer=self.answer, version=2, submitted_at=timezone.now(),
+            content_snapshot={'ans_q1': '두 번째 답안', 'ans_q2': '', 'ans_q3': '', 'notebook_pages': []},
+        )
+        self.client.force_login(self.teacher)
+
+        response = self.client.get(reverse('answer_detail', args=[self.answer.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '첫번째 글쓰기')
+        self.assertContains(response, '두번째 글쓰기')
+        self.assertContains(response, 'data-print-portfolio')
+        self.assertContains(response, 'data-print-single')
+        self.assertContains(response, '전체 포트폴리오 인쇄')
