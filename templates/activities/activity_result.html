@@ -445,6 +445,13 @@
         font-size: .84rem;
         line-height: 1.65;
     }
+    .answer-hover-preview__versions { max-height:min(600px, calc(100vh - 210px)); overflow:auto; display:grid; gap:12px; }
+    .answer-hover-preview__version { overflow:hidden; border:1px solid #e0e3e7; border-radius:12px; background:#fff; }
+    .answer-hover-preview__version-head { display:flex; justify-content:space-between; gap:10px; padding:9px 12px; background:#f8f3fa; color:#7f3f92; font-size:.78rem; }
+    .answer-hover-preview__version-title { font-weight:850; }
+    .answer-hover-preview__version-date { color:#817987; }
+    .answer-hover-preview__version-content { padding:12px 13px; white-space:pre-wrap; overflow-wrap:anywhere; font-size:.84rem; line-height:1.65; }
+    .answer-hover-preview__loading { padding:28px 12px; text-align:center; color:#8c9298; }
     .answer-hover-preview__empty { color: #8c9298; font-style: italic; }
     @media (max-width: 767.98px), (hover: none) {
         .answer-hover-preview { display: none !important; }
@@ -920,6 +927,7 @@
     let answerHoverOpenTimer = null;
     let answerHoverCloseTimer = null;
     let answerHoverTrigger = null;
+    const answerHoverHistoryCache = new Map();
 
     function getAnswerHoverPreview() {
         if (answerHoverPreview) return answerHoverPreview;
@@ -941,10 +949,9 @@
         return Array.from((value || '').toString()).length;
     }
 
-    function renderAnswerHoverPreview(buttonEl) {
+    async function renderAnswerHoverPreview(buttonEl) {
         const preview = getAnswerHoverPreview();
         const data = buttonEl.dataset;
-        const answerContent = data.answerContent || '';
         const studentInfo = `${data.grade || ''}학년 ${data.classNo || ''}반 ${data.number || ''}번 ${data.studentName || ''}`.trim();
         preview.replaceChildren();
 
@@ -970,12 +977,7 @@
         answerHeading.className = 'answer-hover-preview__answer-heading';
         const answerSummary = document.createElement('span');
         answerSummary.className = 'answer-hover-preview__answer-summary';
-        const answerLabel = document.createElement('span');
-        answerLabel.textContent = '작성한 답안';
-        const count = document.createElement('span');
-        count.className = 'answer-hover-preview__count';
-        count.textContent = `${answerPreviewCharacterCount(answerContent)}자`;
-        answerSummary.append(answerLabel, count);
+        answerSummary.textContent = '제출한 모든 글쓰기';
         const openButton = document.createElement('button');
         openButton.type = 'button';
         openButton.className = 'answer-hover-preview__open';
@@ -989,16 +991,47 @@
         });
         answerHeading.append(answerSummary, openButton);
 
-        const content = document.createElement('div');
-        content.className = 'answer-hover-preview__content';
-        if (answerContent.trim()) {
-            content.textContent = answerContent;
-        } else {
-            content.classList.add('answer-hover-preview__empty');
-            content.textContent = '작성된 내용이 없습니다.';
-        }
-        body.append(meta, answerHeading, content);
+        const versions = document.createElement('div');
+        versions.className = 'answer-hover-preview__versions';
+        versions.innerHTML = '<div class="answer-hover-preview__loading">모든 답안을 불러오는 중입니다…</div>';
+        body.append(meta, answerHeading, versions);
         preview.append(header, body);
+
+        try {
+            let payload = answerHoverHistoryCache.get(data.historyUrl);
+            if (!payload) {
+                const response = await fetch(data.historyUrl, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+                payload = await response.json();
+                if (!response.ok || payload.status !== 'success') throw new Error(payload.message || '답안을 불러오지 못했습니다.');
+                answerHoverHistoryCache.set(data.historyUrl, payload);
+            }
+            if (answerHoverTrigger !== buttonEl) return;
+            submitted.textContent = `총 ${payload.versions.length}회 제출`;
+            versions.replaceChildren();
+            payload.versions.forEach((version) => {
+                const section = document.createElement('section');
+                section.className = 'answer-hover-preview__version';
+                const versionHead = document.createElement('header');
+                versionHead.className = 'answer-hover-preview__version-head';
+                const versionTitle = document.createElement('span');
+                versionTitle.className = 'answer-hover-preview__version-title';
+                versionTitle.textContent = version.title;
+                const versionDate = document.createElement('span');
+                versionDate.className = 'answer-hover-preview__version-date';
+                versionDate.textContent = version.submitted_at || '-';
+                const versionContent = document.createElement('div');
+                versionContent.className = 'answer-hover-preview__version-content';
+                versionContent.textContent = version.content || '백지 제출';
+                versionHead.append(versionTitle, versionDate);
+                section.append(versionHead, versionContent);
+                versions.append(section);
+            });
+            positionAnswerHoverPreview(buttonEl);
+        } catch (error) {
+            if (answerHoverTrigger !== buttonEl) return;
+            versions.innerHTML = `<div class="answer-history-error">${escapeHtml(error.message)}</div>`;
+            positionAnswerHoverPreview(buttonEl);
+        }
     }
 
     function positionAnswerHoverPreview(buttonEl) {
